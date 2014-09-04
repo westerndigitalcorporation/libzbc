@@ -1,0 +1,170 @@
+Copyright (C) 2009-2014, HGST, Inc.
+
+I. Introduction
+===============
+
+I.1. Overview
+-------------
+
+libzbc is a simple library providing functions for manipulating Zoned
+Block Command (ZBC) disks. It is implemented to be compliant with the
+current version of the ZBC standard draft defined by INCITS technical
+committee T10.  At the time of this writing, the current version of the
+standard draft is Rev 01a, released on 2014/05/15.
+
+In addition to supporting ZBC disks, libzbc also implements an emulation
+mode allowing emulating the behavior of a ZBC device using a regular
+file or a raw standard block device.
+
+Several example applications using libzbc are available under the tools
+directory.
+
+I.2. License
+------------
+
+With the exception of the linear key value store (lkvs) tool, libzbc
+and all example applications are distributed under the term of the of
+the GNU Lesser General Public License version 3, or any later version.
+
+The lkvs tool is distributed under the term of the of the GNU General
+Public License version 2, or any later version.
+
+libzbc and all its example applications are distributed "as is,"
+without technical support, and WITHOUT ANY WARRANTY, without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+You should have received a copy of the GNU Lesser General Public License
+along with libzbc.  If not, see <http://www.gnu.org/licenses/>.
+
+II. Compilation and installation
+================================
+
+II.1. Compilation
+-----------------
+
+To compile the library and all example applications, execute the
+following commands.
+
+> sh ./autogen.sh > ./configure > make
+
+II.2. Installation
+------------------
+
+To install the library and all example applications, as root, execute
+the following command.
+
+> make install
+
+The library files are installed in /usr/lib.  The library header files
+are installed in /usr/include/libzbc The executable files for the example
+applications are installed in /usr/bin.
+
+III. Library Functions
+======================
+
+libzbc exports the following functions.
++------------------------------+------------------------------------+
+| Function                     | Description                        |
++------------------------------+------------------------------------+
+| zbc_open                     | Open a ZBC device                  |
++------------------------------+------------------------------------+
+| zbc_close                    | Close a ZBC device                 |
++------------------------------+------------------------------------+
+| zbc_get_device_info          | Get sector and size information    |
++------------------------------+------------------------------------+
+| zbc_report_zones             | Get device zone information        |
++------------------------------+------------------------------------+
+| zbc_report_nr_zones          | Get the number of zones            |
++------------------------------+------------------------------------+
+| zbc_list_zones               | Get device zone information        |
++------------------------------+------------------------------------+
+| zbc_reset_write_pointer      | Reset a zone write pointer         |
++------------------------------+------------------------------------+
+| zbc_reset_all_write_pointers | Reset all zones write pointer      |
++------------------------------+------------------------------------+
+| zbc_pread                    | Read data from a zone              |
++------------------------------+------------------------------------+
+| zbc_pwrite                   | Write data to a zone               |
++------------------------------+------------------------------------+
+| zbc_set_log_level            | Set the library log level          |
++------------------------------+------------------------------------+
+| zbc_flush                    | Flush data to disk                 |
++------------------------------+------------------------------------+
+| zbc_inquiry                  | Get device information             |
++------------------------------+------------------------------------+
+| zbc_set_write_pointer        | Configure an emulated device zone  |
++------------------------------+------------------------------------+
+| zbc_set_zones                | Configure an emulated device       |
++------------------------------+------------------------------------+
+
+The last 2 functions zbc_set_write_pointer and zbc_set_zones are valid
+only for emulated devices using a regular file or a regular block device.
+
+More detailed information on these functions is available through the
+comments in the file include/libzbc/zbc.h
+
+III. Example Applications
+=========================
+
+Under the tools directory, several simple applications are available
+as examples.  These appliations are as follows.
+
+III.1. gzbc (tools/gui)
+-----------------------
+
+A simple graphical interface showing the zone configuration of a device.
+This application may not be able to handle devices with a large number
+of zones (> 100).
+
+III.2. zbc_inquiry (tools/inquiry/)
+-----------------------------------
+
+This application uses the function zbc_inquiry to gather a device
+information (model, capcity, sector size, etc). It is similar in spirit
+to the sg_inq application of the sg3utils project.
+
+III.3. zbc_report_zones (tools/report_zones/)
+---------------------------------------------
+
+This application illustrates the use of the zone reporting functions
+(zbc_report_zones, zbc_report_nr_zones, zbc_list_zones).  It obtains
+the zone information of a device and displays it in readable form on
+the standard output.
+
+III.4. zbc_reset_write_ptr (tools/reset_write_ptr/)
+---------------------------------------------------
+
+This application illustrates the use of the zbc_reset_write_pointer
+function allowing resetting the write pointer of a zone to the start
+LBA of the zone.
+
+III.5. zbc_read_zone (tools/read_zone/)
+---------------------------------------
+
+This application reads data from a zone, up to the zone write pointer
+location and either send the read data to the standard output or copy
+the data to a regular file. It implementation uses the function zbc_pread.
+
+III.6. zbc_write_zone (tools/write_zone/)
+-----------------------------------------
+
+This application illustrates the use of the zbc_pwrite function which
+write data to a zone at the zone write pointer location.
+
+III.7. zbc_set_zones (tools/set_zones/)
+---------------------------------------
+
+This application can be used to initialize the ZBC emulation mode for
+a regular file or a raw standard block device.
+
+III.8. zbc_set_write_ptr (tools/set_write_ptr/)
+-----------------------------------------------
+
+This application can be used to set the write pointer of a zone of an
+emulated ZBC device to any LBA value (within the range of the specified
+zone). It is intended for testing purposes only and is not valid for
+native ZBC devices.
+
+III.9. lkvs (tools/lkvs/)
+-------------------------
+
+

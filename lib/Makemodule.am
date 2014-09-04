@@ -1,0 +1,26 @@
+
+lib_LTLIBRARIES += libzbc.la
+LIBZBC_LTVERSION=0
+
+CFILES = \
+	lib/zbc.c \
+	lib/zbc_blkdev.c \
+	lib/zbc_dev.c \
+	lib/zbc_sg.c \
+	lib/zbc_scsi.c \
+	lib/zbc_ata.c \
+	lib/zbc_fake.c
+
+HFILES = \
+	lib/zbc.h \
+	lib/zbc_sg.h \
+	lib/zbc_scsi.h
+
+libzbc_la_DEPENDENCIES = exports
+libzbc_la_SOURCES = $(CFILES) $(HFILES)
+libzbc_la_CFLAGS = $(AM_CFLAGS)
+libzbc_la_LDFLAGS = \
+        -Wl,--version-script,$(top_srcdir)/exports \
+	        -version-info $(LIBZBC_LTVERSION)
+
+

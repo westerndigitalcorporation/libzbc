@@ -1,0 +1,3 @@
+bin_PROGRAMS += zbc_inquiry
+zbc_inquiry_SOURCES = tools/inquiry/zbc_inquiry.c
+zbc_inquiry_LDADD = $(libzbc_ldadd)

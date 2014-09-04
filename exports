@@ -1,0 +1,21 @@
+ZBC_0.1 {
+global:
+	zbc_open;
+	zbc_close;
+	zbc_get_device_info;
+	zbc_report_zones;
+	zbc_report_nr_zones;
+	zbc_list_zones;
+	zbc_reset_write_pointer;
+	zbc_reset_all_write_pointers;
+	zbc_pread;
+	zbc_pwrite;
+	zbc_set_log_level;
+	zbc_flush;
+
+	zbc_inquiry;
+	zbc_set_write_pointer;
+	zbc_set_zones;
+local:
+	*;
+};

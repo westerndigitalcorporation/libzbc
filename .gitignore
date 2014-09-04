@@ -1,0 +1,54 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+*.mod.c
+.*.o.cmd
+.*.ko.cmd
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+tools/inquiry/zbc_inquiry
+tools/report_zones/zbc_report_zones
+tools/reset_write_ptr/zbc_reset_write_ptr
+tools/write_zone/zbc_write_zone
+tools/read_zone/zbc_read_zone
+tools/set_zones/zbc_set_zones
+tools/set_write_ptr/zbc_set_write_ptr
+tools/gui/gzbc
+
+# Kernel compile files
+*.symvers
+modules.order
+.tmp_versions
+
+# Dependency files
+.depfile
+.depend
+
+# Windows-specific files
+Thumbs.db
+desktop.ini
+
+# Mac-specific things (thanks to Michael Aaron Safyan)
+.DS_Store
+
+# Editors temporary files
+*~
