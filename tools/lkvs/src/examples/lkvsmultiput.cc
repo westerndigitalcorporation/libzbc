@@ -18,7 +18,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#include "liblkvs.hpp"
+#include "lkvs.hpp"
 
 unsigned long long getTime(void);
 

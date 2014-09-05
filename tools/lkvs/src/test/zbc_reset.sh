@@ -13,5 +13,5 @@
 #
 #
 
-dd if=/dev/zero of=$LKVSDEVFILE count=1 bs=4096 oflag=sync
+dd if=/dev/zero of=$LKVSDEVFILE count=1 bs=4096 oflag=sync conv=notrunc
 zbc_set_zones $LKVSDEVFILE set_sz 2097152 2097152

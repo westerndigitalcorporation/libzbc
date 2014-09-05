@@ -32,8 +32,8 @@ extern "C" {
 	#include <sha256.h>
 }
 
-#include "liblkvs.hpp"
-#include "liblkvs.h"
+#include "lkvs.hpp"
+#include "lkvs.h"
 
 LkvsDev::LkvsDev()
 {

@@ -18,7 +18,7 @@
 #include <string.h>
 #include <malloc.h>
 
-#include "liblkvs.hpp"
+#include "lkvs.hpp"
 
 #define BUFSZ 1048576
 #define PUTS 1000 // Reset formats a 1GB zone

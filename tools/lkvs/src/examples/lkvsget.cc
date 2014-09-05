@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 
-#include "liblkvs.hpp"
+#include "lkvs.hpp"
 
 int main(int argc, char **argv)
 {
