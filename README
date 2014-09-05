@@ -27,7 +27,7 @@ and all example applications are distributed under the term of the of
 the GNU Lesser General Public License version 3, or any later version.
 
 The lkvs tool is distributed under the term of the of the GNU General
-Public License version 2, or any later version.
+Public License version 3, or any later version.
 
 libzbc and all its example applications are distributed "as is,"
 without technical support, and WITHOUT ANY WARRANTY, without even the
@@ -167,4 +167,62 @@ native ZBC devices.
 III.9. lkvs (tools/lkvs/)
 -------------------------
 
+### Purpose
 
+ZBC drives have three types of zones: conventional, sequential preferred,
+and sequential only. This project aims to create a key/value store on
+top of a drive that contains seqential only zones exclusively. I.e. all writes
+to the drive must be linear within the LBA space of one zone.
+
+This work is intended to be a demonstration of how to build systems software on
+top of a ZBC drive. This is not a full featured key/value store and we do not 
+intend it to be so. 
+
+The main limitations of the current design is that we require all 
+of the metadata for the KV store to fit into main memory and there is no garbage 
+collection built into LKVS. Therfor, updates to an existing key are not 
+supported. 
+
+If you want to build the python or java bindings please pass the option
+of --with-pybind or --with-javabind to the configure script, to build the 
+corresponding bindings. 
+
+### How To Run LKVS tests
+
+Must be done after make install of libzbc.
+
+```
+cd tools/lkvs
+sudo make check-local LKVSDEVFILE=/path/to/zbcdevice
+```
+Also make sure that src/test/zbc_reset.sh is executable.
+
+### How to Build Python or Java bindings
+
+```
+cd tools/lkvs
+make pybind
+make javabind
+```
+
+Cleaning the bindings
+
+```
+make pybind-clean
+make javabind-clean
+```
+
+### Using LKVS
+
+#### C++
+See src/examples
+
+#### Python 
+See src/pybind/example.py
+
+#### Java
+See src/javabind/Tester.java
+
+### LKVS Contact Information
+
+Contact: adam.manzanares@hgst.com

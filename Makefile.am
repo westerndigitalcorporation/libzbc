@@ -1,6 +1,6 @@
 
 ACLOCAL_AMFLAGS = -I m4
-
+SUBDIRS = . $(subdirs)
 EXTRA_DIST = \
 	docs \
 	kernel-patches \
@@ -31,3 +31,4 @@ include tools/set_write_ptr/Makemodule.am
 include tools/set_zones/Makemodule.am
 include tools/write_zone/Makemodule.am
 include tools/gui/Makemodule.am
+

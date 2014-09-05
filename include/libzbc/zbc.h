@@ -342,7 +342,7 @@ zbc_flush(struct zbc_device *dev);
 #define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
-static inline char *
+static inline const char *
 zbc_disk_type_str(int type)
 {
 
@@ -357,7 +357,7 @@ zbc_disk_type_str(int type)
 
 }
 
-static inline char *
+static inline const char *
 zbc_disk_model_str(int model)
 {
 
