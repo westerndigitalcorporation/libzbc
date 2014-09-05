@@ -1,15 +1,15 @@
 # Object files
 *.o
+*.lo
 *.ko
 *.obj
 *.elf
 *.mod.c
 .*.o.cmd
 .*.ko.cmd
-
-# Libraries
 *.lib
 *.a
+*.la
 
 # Shared objects (inc. Windows DLLs)
 *.dll
@@ -24,15 +24,14 @@
 *.i*86
 *.x86_64
 *.hex
-
-tools/inquiry/zbc_inquiry
-tools/report_zones/zbc_report_zones
-tools/reset_write_ptr/zbc_reset_write_ptr
-tools/write_zone/zbc_write_zone
-tools/read_zone/zbc_read_zone
-tools/set_zones/zbc_set_zones
-tools/set_write_ptr/zbc_set_write_ptr
-tools/gui/gzbc
+zbc_inquiry
+zbc_report_zones
+zbc_reset_write_ptr
+zbc_write_zone
+zbc_read_zone
+zbc_set_zones
+zbc_set_write_ptr
+gzbc
 
 # Kernel compile files
 *.symvers
@@ -52,3 +51,22 @@ desktop.ini
 
 # Editors temporary files
 *~
+
+# Autotools stuff
+m4/*.m4
+Makefile.in
+aclocal.m4
+autom4te.cache/
+build-aux/
+configure
+include/config.h.in
+Makefile
+config.log
+config.status
+include/config.h
+include/stamp-h1
+.deps
+libtool
+libzbc.pc
+.libs
+.dirstamp
