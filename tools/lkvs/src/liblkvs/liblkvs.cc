@@ -643,13 +643,13 @@ unsigned int LkvsDev::blockToZone(uint64_t blockNum)
 	unsigned int i;
 
 	if( blockNum >= zDevZones[lastReadZone].zbz_start &&
-		blockNum <= zDevZones[lastReadZone].zbz_start + 
+		blockNum < zDevZones[lastReadZone].zbz_start + 
 		            zDevZones[lastReadZone].zbz_length){
 		return lastReadZone;
 	}else{
 		for(i = 0; i < zDevNumZones; i++){
 			if( blockNum >= zDevZones[i].zbz_start &&
-			    blockNum <= zDevZones[i].zbz_start + 
+			    blockNum < zDevZones[i].zbz_start + 
 			    zDevZones[i].zbz_length){
 				
 					lastReadZone = i;
