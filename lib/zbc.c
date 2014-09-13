@@ -23,6 +23,14 @@
 #include <sys/stat.h>
 #include <linux/fs.h>
 
+static struct zbc_ops *zbc_ops[] = {
+	&zbc_ata_ops,
+	&zbc_scsi_ops,
+	&zbc_blk_ops,
+	&zbc_file_ops,
+	NULL
+};
+
 /***** Declaration of private funtions *****/
 
 static int
@@ -90,26 +98,17 @@ zbc_open(const char *filename,
          int flags,
          zbc_device_t **pdev)
 {
-    zbc_device_t *dev;
-    int ret;
+    int ret = -ENODEV, i;
 
-    /* Allocate device */
-    dev = zbc_dev_alloc(filename, (flags & (O_RDONLY | O_WRONLY | O_RDWR)));
-    if ( ! dev ) {
-        zbc_error("No memory\n");
-        return( -ENOMEM );
-    }
-
-    /* Open device (this also check the device) */
-    ret = zbc_dev_open(dev);
-    if ( ret != 0 ) {
-        zbc_dev_free(dev);
-    } else {
-        *pdev = dev;
+    for (i = 0; zbc_ops[i] != NULL; i++) {
+        ret = zbc_ops[i]->zbd_open(filename, flags, pdev);
+        if (!ret) {
+            (*pdev)->zbd_ops = zbc_ops[i];
+            return 0;
+        }
     }
 
     return( ret );
-
 }
 
 /**

@@ -15,10 +15,15 @@
 
 /***** Including files *****/
 
+#define _GNU_SOURCE     /* O_DIRECT */
+
 #include "zbc.h"
 #include "zbc_scsi.h"
 #include "zbc_sg.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -179,6 +184,67 @@ out:
     return( ret );
 
 }
+
+static int
+zbc_scsi_open(const char *filename, int flags, struct zbc_device **pdev)
+{
+    struct zbc_device *dev;
+    struct stat st;
+    int fd, ret;
+
+    flags |= O_DIRECT;
+
+    /* Open the device file */
+    fd = open(filename, flags);
+    if ( fd < 0 ) {
+        zbc_error("Open device file %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        return -errno;
+    }
+
+    /* Check device */
+    if ( fstat(fd, &st) != 0 ) {
+        zbc_error("Stat device %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        ret = -errno;
+        goto out;
+    }
+
+
+    /* Set device operation */
+    if ( !S_ISCHR(st.st_mode) ) {
+        ret = -ENXIO;
+        goto out;
+    }
+
+    dev = zbc_dev_alloc(filename, flags);
+    if (!dev) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    /* Assume SG node (this may be a SCSI or SATA device) */
+    dev->zbd_fd = fd;
+    dev->zbd_flags = flags;
+
+    ret = zbc_scsi_get_info(dev);
+    if (ret)
+        goto out_free_dev;
+
+    *pdev = dev;
+    return 0;
+
+out_free_dev:
+    zbc_dev_free(dev);
+out:
+    close(fd);
+    return ret;
+}
+
 
 /**
  * Read from a ZBC device
@@ -639,7 +705,7 @@ zbc_scsi_set_write_pointer(zbc_device_t *dev,
  */
 zbc_ops_t zbc_scsi_ops =
 {
-    .zbd_get_info     = zbc_scsi_get_info,
+    .zbd_open         = zbc_scsi_open,
     .zbd_pread        = zbc_scsi_pread,
     .zbd_pwrite       = zbc_scsi_pwrite,
     .zbd_flush        = zbc_scsi_flush,

@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,12 +51,15 @@ zbc_file_open_metadata(struct zbc_device *dev)
 
         dev->zbd_meta_fd = open(meta_path, O_RDWR);
         if (dev->zbd_meta_fd < 0) {
-                perror("open metadata");
                 /*
                  * Metadata didn't exist yet, we'll have to wait for a set_zones
                  * call.
                  */
-                return 0;
+		if (errno == ENOENT)
+	                return 0;
+                perror("open metadata");
+		error = -errno;
+		goto out_close;
         }
 
         if (fstat(dev->zbd_meta_fd, &st) < 0) {
@@ -64,7 +68,8 @@ zbc_file_open_metadata(struct zbc_device *dev)
                 goto out_close;
         }
 
-        dev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, dev->zbd_meta_fd, 0);
+        dev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
+				MAP_SHARED, dev->zbd_meta_fd, 0);
         if (dev->zbd_zones == MAP_FAILED) {
                 perror("mmap\n");
                 error = -ENOMEM;
@@ -83,54 +88,83 @@ out_close:
 
 /**
  * Default to regular sector size for emulation on top of a regular file.
- * Better use the file block size ?
  */
 #define ZBC_FILE_SECTOR_SIZE    512
 
 static int
-zbc_file_get_info(struct zbc_device *dev)
+zbc_file_get_info(struct zbc_device *dev, struct stat *st)
 {
-        struct stat st;
-        int ret = 0;
-
-        if (fstat(dev->zbd_fd, &st) < 0)
-                return -errno;
-
-        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-
-        if ( S_ISREG(st.st_mode) ) {
-
-                 /* Emulation on top of a regular file */
-                dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE; 
-                dev->zbd_info.zbd_logical_blocks = st.st_size / ZBC_FILE_SECTOR_SIZE;
-                dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
-                dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
-
-        } else if ( S_ISBLK(st.st_mode) ) {
-
-                /* Emulation on top of a raw block device */
-                ret = zbc_blkdev_get_info(dev);
-
-        } else {
-
-                ret = -ENXIO;
-
-        }
-
-        if ( ret == 0 ) {
-                /*
-                * XXX: We really want open/close methods for this, but for now
-                * this will do it as long as we don't mind the FD leakage.
-                */
-                if (dev->zbd_meta_fd < 0) {
-                        int error = zbc_file_open_metadata(dev);
-                        if (error)
-                                return error;
-                }
-        }
-
-        return ret;
+	dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE; 
+	dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FILE_SECTOR_SIZE;
+	dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
+	dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
+	return 0;
 }
+
+static int
+zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
+{
+	struct zbc_device *dev;
+	struct stat st;
+	int fd, ret;
+
+	fd = open(filename, flags);
+	if (fd < 0) {
+		zbc_error("Open device file %s failed %d (%s)\n",
+			filename,
+			errno,
+			strerror(errno));
+		return -errno;
+	}
+
+	if (fstat(fd, &st) < 0) {
+		zbc_error("Stat device %s failed %d (%s)\n",
+			filename,
+			errno,
+			strerror(errno));
+		ret = -errno;
+		goto out;
+	}
+
+
+	/* Set device operation */
+	if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	dev = zbc_dev_alloc(filename, flags);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	dev->zbd_fd = fd;
+	dev->zbd_flags = flags;
+
+	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	if (S_ISBLK(st.st_mode))
+		ret = zbc_blkdev_get_info(dev);
+	else
+		ret = zbc_file_get_info(dev, &st);
+
+	if (ret)
+		goto out_free_dev;
+
+	ret = zbc_file_open_metadata(dev);
+	if (ret)
+		goto out_free_dev;
+
+	*pdev = dev;
+	return 0;
+
+out_free_dev:
+	zbc_dev_free(dev);
+out:
+	close(fd);
+	return ret;
+}
+
 
 static bool
 want_zone(struct zbc_zone *zone, uint64_t start_lba,
@@ -471,7 +505,7 @@ zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
 }
 
 struct zbc_ops zbc_file_ops = {
-        .zbd_get_info                   = zbc_file_get_info,
+	.zbd_open			= zbc_file_open,
         .zbd_pread                      = zbc_file_pread,
         .zbd_pwrite                     = zbc_file_pwrite,
         .zbd_flush                      = zbc_file_flush,

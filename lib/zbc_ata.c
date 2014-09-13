@@ -18,6 +18,12 @@
 
 /***** Definition of private functions *****/
 
+static int
+zbc_ata_open(const char *filename, int flags, struct zbc_device **pdev)
+{
+    return -ENXIO;
+}
+
 /**
  * Get device zone information.
  */
@@ -79,15 +85,6 @@ zbc_ata_set_write_pointer(struct zbc_device *dev,
 
 }
 
-static int
-zbc_ata_get_info(zbc_device_t *dev)
-{
-
-    zbc_error("ZAC drives are not supported for now.\n");
-
-    return( -ENOSYS );
-}
-
 static int32_t
 zbc_ata_pread(zbc_device_t *dev,
                  zbc_zone_t *zone,
@@ -137,7 +134,7 @@ zbc_ata_flush(zbc_device_t *dev,
  */
 zbc_ops_t zbc_ata_ops =
 {
-    .zbd_get_info     = zbc_ata_get_info,
+    .zbd_open         = zbc_ata_open,
     .zbd_pread        = zbc_ata_pread,
     .zbd_pwrite       = zbc_ata_pwrite,
     .zbd_flush        = zbc_ata_flush,

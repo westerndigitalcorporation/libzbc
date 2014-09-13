@@ -14,6 +14,11 @@
 
 /***** Including files *****/
 
+#define _GNU_SOURCE     /* O_DIRECT */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -110,6 +115,80 @@ out:
 
 }
 
+static int
+zbc_blkdev_open(const char *filename, int flags, struct zbc_device **pdev)
+{
+    struct zbc_device *dev;
+    struct stat st;
+    uint8_t *buf = NULL;
+    int dev_type = -1;
+    int fd, ret;
+
+    flags |= O_DIRECT;
+
+    /* Open the device file */
+    fd = open(filename, flags);
+    if ( fd < 0 ) {
+        zbc_error("Open device file %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        return -errno;
+    }
+
+    /* Check device */
+    if ( fstat(fd, &st) != 0 ) {
+        zbc_error("Stat device %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        ret = -errno;
+        goto out;
+    }
+
+
+    /* Set device operation */
+    if ( !S_ISBLK(st.st_mode) ) {
+        ret = -ENXIO;
+        goto out;
+    }
+
+    dev = zbc_dev_alloc(filename, flags);
+    if (!dev) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    /* Assume SG node (this may be a SCSI or SATA device) */
+    dev->zbd_fd = fd;
+    dev->zbd_flags = flags;
+
+    ret = zbc_scsi_inquiry(dev, &buf, &dev_type);
+    if ( ret != 0 )
+         goto out_free_dev;
+
+    free(buf);
+            
+    if ( dev_type != ZBC_DEV_TYPE_HOST_MANAGED ) {
+        zbc_error("Device %s is not a supported device model\n",
+                  filename);
+        ret = -ENXIO;
+        goto out_free_dev;
+    }
+
+    ret = zbc_blkdev_get_info(dev);
+    if (ret)
+        goto out_free_dev;
+
+    *pdev = dev;
+    return 0;
+out_free_dev:
+    zbc_dev_free(dev);
+out:
+    close(fd);
+    return ret;
+}
+
 /**
  * Read from a ZBC device
  */
@@ -191,7 +270,7 @@ zbc_blkdev_flush(zbc_device_t *dev,
  */
 zbc_ops_t zbc_blk_ops =
 {
-    .zbd_get_info     = zbc_blkdev_get_info,
+    .zbd_open         = zbc_blkdev_open,
     .zbd_pread        = zbc_blkdev_pread,
     .zbd_pwrite       = zbc_blkdev_pwrite,
     .zbd_flush        = zbc_blkdev_flush,

@@ -47,11 +47,11 @@
  * Device operations.
  */
 typedef struct zbc_ops {
-
     /**
-     * Get a device information (capacity & sector sizes).
+     * Open device.
      */
-    int         (*zbd_get_info)(struct zbc_device *);
+    int         (*zbd_open)(const char *filename, int flags,
+                            struct zbc_device **pdev);
 
     /**
      * Read from a ZBC device
@@ -187,12 +187,6 @@ zbc_dev_alloc(const char *filename,
  */
 extern void
 zbc_dev_free(zbc_device_t *dev);
-
-/**
- * Open and check a device.
- */
-extern int
-zbc_dev_open(zbc_device_t *dev);
 
 /**
  * Close a device.
