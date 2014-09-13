@@ -26,7 +26,6 @@
 static struct zbc_ops *zbc_ops[] = {
 	&zbc_ata_ops,
 	&zbc_scsi_ops,
-	&zbc_blk_ops,
 	&zbc_file_ops,
 	NULL
 };

@@ -366,7 +366,7 @@ zbc_scsi_flush(zbc_device_t *dev,
 /**
  * Get device zone information.
  */
-int
+static int
 zbc_scsi_report_zones(zbc_device_t *dev,
                       uint64_t start_lba,
                       enum zbc_reporting_options ro,
@@ -540,7 +540,7 @@ out:
 /**
  * Reset zone(s) write pointer.
  */
-int
+static int
 zbc_scsi_reset_write_pointer(zbc_device_t *dev,
                              uint64_t start_lba)
 {
@@ -599,7 +599,7 @@ zbc_scsi_reset_write_pointer(zbc_device_t *dev,
 /**
  * Configure zones of a "emulated" ZBC device
  */
-int
+static int
 zbc_scsi_set_zones(zbc_device_t *dev,
                    uint64_t conv_sz,
                    uint64_t seq_sz)
@@ -650,7 +650,7 @@ zbc_scsi_set_zones(zbc_device_t *dev,
 /**
  * Change the value of a zone write pointer ("emulated" ZBC devices only).
  */
-int
+static int
 zbc_scsi_set_write_pointer(zbc_device_t *dev,
                            uint64_t start_lba,
                            uint64_t write_pointer)

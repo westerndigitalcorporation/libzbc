@@ -16,6 +16,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <linux/fs.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -99,6 +101,90 @@ zbc_file_get_info(struct zbc_device *dev, struct stat *st)
 	dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
 	dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
 	return 0;
+}
+
+/**
+ * Get a block device information (capacity & sector sizes).
+ */
+static int
+zbc_blkdev_get_info(zbc_device_t *dev)
+{
+    unsigned long long size64;
+    int size32;
+    int ret;
+
+    /* Get logical block size */
+    ret = ioctl(dev->zbd_fd, BLKSSZGET, &size32);
+    if ( ret != 0 ) {
+        ret = -errno;
+        zbc_error("%s: ioctl BLKSSZGET failed %d (%s)\n",
+                  dev->zbd_filename,
+                  errno,
+                  strerror(errno));
+        goto out;
+    }
+    
+    dev->zbd_info.zbd_logical_block_size = size32;
+    
+    /* Get physical block size */
+    ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
+    if ( ret != 0 ) {
+        ret = -errno;
+        zbc_error("%s: ioctl BLKPBSZGET failed %d (%s)\n",
+                  dev->zbd_filename,
+                  errno,
+                  strerror(errno));
+        goto out;
+    }
+    dev->zbd_info.zbd_physical_block_size = size32;
+    
+    /* Get capacity (B) */
+    ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
+    if ( ret != 0 ) {
+        ret = -errno;
+        zbc_error("%s: ioctl BLKGETSIZE64 failed %d (%s)\n",
+                  dev->zbd_filename,
+                  errno,
+                  strerror(errno));
+        goto out;
+    }
+    
+    /* Check */
+    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
+        zbc_error("%s: invalid logical sector size %d\n",
+                  dev->zbd_filename,
+                  size32);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
+    if ( ! dev->zbd_info.zbd_logical_blocks ) {
+        zbc_error("%s: invalid capacity (logical blocks)\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if ( dev->zbd_info.zbd_physical_block_size <= 0 ) {
+        zbc_error("%s: invalid physical sector size %d\n",
+                  dev->zbd_filename,
+                  size32);
+        ret = -EINVAL;
+        goto out;
+    }
+        
+    dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
+    if ( ! dev->zbd_info.zbd_physical_blocks ) {
+        zbc_error("%s: invalid capacity (physical blocks)\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+    }
+
+out:
+
+    return( ret );
+
 }
 
 static int

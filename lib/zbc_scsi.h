@@ -46,37 +46,4 @@ zbc_scsi_inquiry(zbc_device_t *dev,
                  uint8_t **pbuf,
                  int *dev_model);
 
-/**
- * Get device zone information.
- */
-extern int
-zbc_scsi_report_zones(zbc_device_t *dev,
-                      uint64_t start_lba,
-                      enum zbc_reporting_options ro,
-                      zbc_zone_t *zones,
-                      unsigned int *nr_zones);
-
-/**
- * Reset zone(s) write pointer.
- */
-extern int
-zbc_scsi_reset_write_pointer(zbc_device_t *dev,
-                             uint64_t start_lba);
-
-/**
- * Configure zones of a "emulated" ZBC device
- */
-extern int
-zbc_scsi_set_zones(zbc_device_t *dev,
-                   uint64_t conv_sz,
-                   uint64_t seq_sz);
-
-/**
- * Change the value of a zone write pointer ("emulated" ZBC devices only).
- */
-extern int
-zbc_scsi_set_write_pointer(zbc_device_t *dev,
-                           uint64_t start_lba,
-                           uint64_t write_pointer);
-
 #endif /* __LIBZBC_SCSI_H__ */

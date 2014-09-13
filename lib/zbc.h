@@ -161,11 +161,6 @@ typedef struct zbc_device {
 extern zbc_ops_t zbc_scsi_ops;
 
 /**
- * ZBC regular block device operations.
- */
-extern zbc_ops_t zbc_blk_ops;
-
-/**
  * ZAC SATA device operations (stub).
  */
 extern zbc_ops_t zbc_ata_ops;
@@ -193,11 +188,5 @@ zbc_dev_free(zbc_device_t *dev);
  */
 extern int
 zbc_dev_close(zbc_device_t *dev);
-
-/**
- * Get a block device information (capacity & sector sizes).
- */
-extern int
-zbc_blkdev_get_info(zbc_device_t *dev);
 
 #endif /* __LIBZBC_INTERNAL_H__ */

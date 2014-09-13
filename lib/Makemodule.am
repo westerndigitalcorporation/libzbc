@@ -4,7 +4,6 @@ LIBZBC_LTVERSION=0
 
 CFILES = \
 	lib/zbc.c \
-	lib/zbc_blkdev.c \
 	lib/zbc_dev.c \
 	lib/zbc_sg.c \
 	lib/zbc_scsi.c \
