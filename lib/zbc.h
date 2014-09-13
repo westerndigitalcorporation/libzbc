@@ -161,11 +161,6 @@ typedef struct zbc_device {
 extern zbc_ops_t zbc_scsi_ops;
 
 /**
- * ZAC SATA device operations (stub).
- */
-extern zbc_ops_t zbc_ata_ops;
-
-/**
  * ZBC emulation (file or block device).
  */
 extern struct zbc_ops zbc_file_ops;
