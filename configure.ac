@@ -24,7 +24,7 @@ AC_CONFIG_FILES([
 ])
 
 # Build lkvs 
-AC_CONFIG_SUBDIRS([tools/lkvs])
+#AC_CONFIG_SUBDIRS([tools/lkvs])
 
 AC_OUTPUT
 
