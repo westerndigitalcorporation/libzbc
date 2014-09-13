@@ -15,24 +15,38 @@
 
 /***** Including files *****/
 
-#define _GNU_SOURCE     /* O_DIRECT */
-
 #include "zbc.h"
-#include "zbc_scsi.h"
 #include "zbc_sg.h"
 
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include <scsi/scsi.h>
+#include <scsi/sg.h>
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+
+/***** Macro definitions *****/
+
+/**
+ * Number of bytes in a Zone Descriptor.
+ */
+#define ZBC_ZONE_DESCRIPTOR_LENGTH              64
+
+/**
+ * Number of bytes in the buffer before the first Zone Descriptor.
+ */
+#define ZBC_ZONE_DESCRIPTOR_OFFSET              64
 
 /***** Definition of private functions *****/
 
 /**
  * Get information (model, vendor, ...) from a SCSI device.
  */
-int
+static int
 zbc_scsi_inquiry(zbc_device_t *dev,
                  uint8_t **pbuf,
                  int *dev_type)

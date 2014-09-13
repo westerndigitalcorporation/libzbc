@@ -377,18 +377,6 @@ zbc_disk_model_str(int model)
 /***** Other functions: may go away in the future *****/
 
 /**
- * zbc_inquiry - Get information (model, vendor, ...) from a ZBC device
- * @dev:                (IN) ZBC device handle
- * @out_buf:            (OUT) The data obtained using the INQUIRY command
- *
- * This executes the INQUIRY command on the device and returns inquiry data at @out_buf.
- * @out_buf is allocated internally using malloc(3) and must be freed by the caller using free(3).
- */
-extern int
-zbc_inquiry(struct zbc_device *dev,
-            uint8_t **buf);
-
-/**
  * zbc_set_zones - Configure zones of a "hacked" ZBC device
  * @dev:                (IN) ZBC device handle of the device to configure
  * @conv_sz:            (IN) Size in physical sectors of the conventional zone (zone 0). This can be 0.

@@ -16,7 +16,6 @@
 /***** Including files *****/
 
 #include "zbc.h"
-#include "zbc_scsi.h" /* XXX: for zbc_scsi_inquiry */
 
 #include <string.h>
 #include <fcntl.h>
@@ -154,24 +153,6 @@ zbc_get_device_info(zbc_device_t *dev,
     }
 
     return( ret );
-
-}
-
-/**
- * zbc_inquiry - Get information (model, vendor, ...) from a ZBC device
- * @dev:                (IN) ZBC device handle
- * @out_buf:            (OUT) The data obtained using the INQUIRY command
- *
- * This executes the INQUIRY command on the device and returns inquiry data at @out_buf.
- * @out_buf is allocated internally using malloc(3) and must be freed by the caller using free(3).
- */
-int
-zbc_inquiry(zbc_device_t *dev,
-            uint8_t **pbuf)
-{
-
-    /* Query physical device information */
-    return( zbc_scsi_inquiry(dev, pbuf, NULL) );
 
 }
 

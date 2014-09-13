@@ -18,7 +18,6 @@
 
 #include "zbc.h"
 #include "zbc_sg.h"
-#include "zbc_scsi.h" /* XXX: for zbc_scsi_inquiry */
 
 #include <string.h>
 #include <fcntl.h>

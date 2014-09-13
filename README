@@ -89,8 +89,6 @@ libzbc exports the following functions.
 +------------------------------+------------------------------------+
 | zbc_flush                    | Flush data to disk                 |
 +------------------------------+------------------------------------+
-| zbc_inquiry                  | Get device information             |
-+------------------------------+------------------------------------+
 | zbc_set_write_pointer        | Configure an emulated device zone  |
 +------------------------------+------------------------------------+
 | zbc_set_zones                | Configure an emulated device       |
@@ -115,14 +113,7 @@ A simple graphical interface showing the zone configuration of a device.
 This application may not be able to handle devices with a large number
 of zones (> 100).
 
-III.2. zbc_inquiry (tools/inquiry/)
------------------------------------
-
-This application uses the function zbc_inquiry to gather a device
-information (model, capcity, sector size, etc). It is similar in spirit
-to the sg_inq application of the sg3utils project.
-
-III.3. zbc_report_zones (tools/report_zones/)
+III.2. zbc_report_zones (tools/report_zones/)
 ---------------------------------------------
 
 This application illustrates the use of the zone reporting functions
@@ -130,33 +121,33 @@ This application illustrates the use of the zone reporting functions
 the zone information of a device and displays it in readable form on
 the standard output.
 
-III.4. zbc_reset_write_ptr (tools/reset_write_ptr/)
+III.3. zbc_reset_write_ptr (tools/reset_write_ptr/)
 ---------------------------------------------------
 
 This application illustrates the use of the zbc_reset_write_pointer
 function allowing resetting the write pointer of a zone to the start
 LBA of the zone.
 
-III.5. zbc_read_zone (tools/read_zone/)
+III.4. zbc_read_zone (tools/read_zone/)
 ---------------------------------------
 
 This application reads data from a zone, up to the zone write pointer
 location and either send the read data to the standard output or copy
 the data to a regular file. It implementation uses the function zbc_pread.
 
-III.6. zbc_write_zone (tools/write_zone/)
+III.5. zbc_write_zone (tools/write_zone/)
 -----------------------------------------
 
 This application illustrates the use of the zbc_pwrite function which
 write data to a zone at the zone write pointer location.
 
-III.7. zbc_set_zones (tools/set_zones/)
+III.6. zbc_set_zones (tools/set_zones/)
 ---------------------------------------
 
 This application can be used to initialize the ZBC emulation mode for
 a regular file or a raw standard block device.
 
-III.8. zbc_set_write_ptr (tools/set_write_ptr/)
+III.7. zbc_set_write_ptr (tools/set_write_ptr/)
 -----------------------------------------------
 
 This application can be used to set the write pointer of a zone of an
@@ -164,7 +155,7 @@ emulated ZBC device to any LBA value (within the range of the specified
 zone). It is intended for testing purposes only and is not valid for
 native ZBC devices.
 
-III.9. lkvs (tools/lkvs/)
+III.8. lkvs (tools/lkvs/)
 -------------------------
 
 ### Purpose
