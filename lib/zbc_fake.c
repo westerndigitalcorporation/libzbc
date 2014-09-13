@@ -251,6 +251,24 @@ out:
 	return ret;
 }
 
+static int
+zbc_file_close(zbc_device_t *dev)
+{
+	int ret = 0;
+
+	if (dev->zbd_meta_fd != -1) {
+		if (close(dev->zbd_meta_fd) < 0)
+			ret = -errno;
+	}
+        if (close(dev->zbd_fd) < 0) {
+		if (!ret)
+			ret = -errno;
+	}
+
+	if (!ret)
+		zbc_dev_free(dev);
+	return ret;
+}
 
 static bool
 want_zone(struct zbc_zone *zone, uint64_t start_lba,
@@ -592,6 +610,7 @@ zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
 
 struct zbc_ops zbc_file_ops = {
 	.zbd_open			= zbc_file_open,
+	.zbd_close			= zbc_file_close,
         .zbd_pread                      = zbc_file_pread,
         .zbd_pwrite                     = zbc_file_pwrite,
         .zbd_flush                      = zbc_file_flush,

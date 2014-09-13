@@ -257,6 +257,14 @@ out:
     return ret;
 }
 
+static int
+zbc_scsi_close(zbc_device_t *dev)
+{
+    if (close(dev->zbd_fd))
+        return -errno;
+    zbc_dev_free(dev);
+    return 0;
+}
 
 /**
  * Read from a ZBC device
@@ -718,6 +726,7 @@ zbc_scsi_set_write_pointer(zbc_device_t *dev,
 zbc_ops_t zbc_scsi_ops =
 {
     .zbd_open         = zbc_scsi_open,
+    .zbd_close        = zbc_scsi_close,
     .zbd_pread        = zbc_scsi_pread,
     .zbd_pwrite       = zbc_scsi_pwrite,
     .zbd_flush        = zbc_scsi_flush,

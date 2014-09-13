@@ -54,6 +54,11 @@ typedef struct zbc_ops {
                             struct zbc_device **pdev);
 
     /**
+     * Close device.
+     */
+    int         (*zbd_close)(struct zbc_device *dev);
+
+    /**
      * Read from a ZBC device
      */
     int32_t     (*zbd_pread)(struct zbc_device *,
@@ -177,11 +182,5 @@ zbc_dev_alloc(const char *filename,
  */
 extern void
 zbc_dev_free(zbc_device_t *dev);
-
-/**
- * Close a device.
- */
-extern int
-zbc_dev_close(zbc_device_t *dev);
 
 #endif /* __LIBZBC_INTERNAL_H__ */

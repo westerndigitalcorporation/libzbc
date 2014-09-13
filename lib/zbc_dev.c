@@ -70,23 +70,3 @@ zbc_dev_free(zbc_device_t *dev)
     return;
 
 }
-
-/**
- * Close a ZBC file handle.
- */
-int
-zbc_dev_close(zbc_device_t *dev)
-{
-    int ret;
-
-    if ( dev->zbd_meta_fd != -1 )
-        close(dev->zbd_meta_fd);
-    if ( dev->zbd_fd >= 0 ) {
-        ret = close(dev->zbd_fd);
-    } else {
-        ret = 0;
-    }
-
-    return( ret );
-
-}

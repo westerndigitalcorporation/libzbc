@@ -118,17 +118,7 @@ zbc_open(const char *filename,
 int
 zbc_close(zbc_device_t *dev)
 {
-    int ret = -EFAULT;
-
-    if ( dev ) {
-        ret = zbc_dev_close(dev);
-        if ( ret == 0 ) {
-            zbc_dev_free(dev);
-        }
-    }
-
-    return( ret );
-
+    return dev->zbd_ops->zbd_close(dev);
 }
 
 /**
