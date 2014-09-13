@@ -192,8 +192,6 @@ zbc_scsi_open(const char *filename, int flags, struct zbc_device **pdev)
     struct stat st;
     int fd, ret;
 
-    flags |= O_DIRECT;
-
     /* Open the device file */
     fd = open(filename, flags);
     if ( fd < 0 ) {
