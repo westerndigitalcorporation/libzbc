@@ -22,6 +22,8 @@
 
 #include <libzbc/zbc.h>
 
+#include <zbc_private.h>
+
 /***** Private function *****/
 
 static int

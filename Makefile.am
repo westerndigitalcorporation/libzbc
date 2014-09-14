@@ -15,6 +15,7 @@ pkgconfdir = $(libdir)/pkgconfig
 
 pkgconf_DATA = libzbc.pc
 pkginclude_HEADERS =
+noinst_HEADERS =
 bin_PROGRAMS =
 lib_LTLIBRARIES =
 noinst_PROGRAMS =

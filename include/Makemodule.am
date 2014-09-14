@@ -2,3 +2,5 @@
 pkginclude_HEADERS += \
         include/libzbc/zbc.h
 
+noinst_HEADERS += \
+	include/zbc_private.h

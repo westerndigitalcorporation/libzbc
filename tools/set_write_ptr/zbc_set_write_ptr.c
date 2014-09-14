@@ -22,6 +22,8 @@
 
 #include <libzbc/zbc.h>
 
+#include <zbc_private.h>
+
 /***** Main *****/
 
 int main(int argc,
