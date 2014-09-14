@@ -130,11 +130,6 @@ typedef struct zbc_device {
     char                *zbd_filename;
 
     /**
-     * Open flags (access rights).
-     */
-    int                 zbd_flags;
-
-    /**
      * Device info.
      */
     zbc_device_info_t   zbd_info;
@@ -148,14 +143,6 @@ typedef struct zbc_device {
      * Device operations.
      */
     zbc_ops_t           *zbd_ops;
-
-    /**
-     * Cached zone information for emulation.
-     */
-    unsigned int        zbd_nr_zones;
-    struct zbc_zone     *zbd_zones;
-    int                 zbd_meta_fd;
-
 } zbc_device_t;
 
 /***** Internal device functions *****/
@@ -170,17 +157,7 @@ extern zbc_ops_t zbc_scsi_ops;
  */
 extern struct zbc_ops zbc_file_ops;
 
-/**
- * Allocate and initialize a device handle.
- */
-extern zbc_device_t *
-zbc_dev_alloc(const char *filename,
-              int flags);
-
-/**
- * Free a device handle.
- */
-extern void
-zbc_dev_free(zbc_device_t *dev);
+#define container_of(ptr, type, member) \
+    ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
 #endif /* __LIBZBC_INTERNAL_H__ */

@@ -233,25 +233,28 @@ zbc_scsi_open(const char *filename, int flags, struct zbc_device **pdev)
         goto out;
     }
 
-    dev = zbc_dev_alloc(filename, flags);
-    if (!dev) {
-        ret = -ENOMEM;
+    ret = -ENOMEM;
+    dev = calloc(1, sizeof(struct zbc_device));
+    if (!dev)
         goto out;
-    }
 
-    /* Assume SG node (this may be a SCSI or SATA device) */
+    dev->zbd_filename = strdup(filename);
+    if (!dev->zbd_filename)
+        goto out_free_dev;
+
     dev->zbd_fd = fd;
-    dev->zbd_flags = flags;
 
     ret = zbc_scsi_get_info(dev);
     if (ret)
-        goto out_free_dev;
+        goto out_free_filename;
 
     *pdev = dev;
     return 0;
 
+out_free_filename:
+    free(dev->zbd_filename);
 out_free_dev:
-    zbc_dev_free(dev);
+    free(dev);
 out:
     close(fd);
     return ret;
@@ -262,7 +265,8 @@ zbc_scsi_close(zbc_device_t *dev)
 {
     if (close(dev->zbd_fd))
         return -errno;
-    zbc_dev_free(dev);
+    free(dev->zbd_filename);
+    free(dev);
     return 0;
 }
 

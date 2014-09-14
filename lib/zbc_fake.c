@@ -26,33 +26,48 @@
 
 #include "zbc.h"
 
+struct zbc_file_device {
+	struct zbc_device dev;
+
+	unsigned int zbd_nr_zones;
+	struct zbc_zone *zbd_zones;
+	int zbd_meta_fd;
+
+};
+
+static inline struct zbc_file_device *to_file_dev(struct zbc_device *dev)
+{
+	return container_of(dev, struct zbc_file_device, dev);
+}
+
 static struct zbc_zone *
-zbf_file_find_zone(struct zbc_device *dev, uint64_t zone_start_lba)
+zbf_file_find_zone(struct zbc_file_device *fdev, uint64_t zone_start_lba)
 {
         int i;
 
-        for (i = 0; i < dev->zbd_nr_zones; i++)
-                if (dev->zbd_zones[i].zbz_start == zone_start_lba)
-                        return &dev->zbd_zones[i];
+        for (i = 0; i < fdev->zbd_nr_zones; i++)
+                if (fdev->zbd_zones[i].zbz_start == zone_start_lba)
+                        return &fdev->zbd_zones[i];
         return NULL;
 }
 
 static int
-zbc_file_open_metadata(struct zbc_device *dev)
+zbc_file_open_metadata(struct zbc_file_device *fdev)
 {
         char meta_path[512];
         struct stat st;
         int error;
         int i;
 
-        sprintf(meta_path, "/tmp/zbc-%s.meta", basename(dev->zbd_filename));
+        sprintf(meta_path, "/tmp/zbc-%s.meta",
+		basename(fdev->dev.zbd_filename));
 
         zbc_debug("Device %s: using meta file %s\n",
-                  dev->zbd_filename,
+                  fdev->dev.zbd_filename,
                   meta_path);
 
-        dev->zbd_meta_fd = open(meta_path, O_RDWR);
-        if (dev->zbd_meta_fd < 0) {
+        fdev->zbd_meta_fd = open(meta_path, O_RDWR);
+        if (fdev->zbd_meta_fd < 0) {
                 /*
                  * Metadata didn't exist yet, we'll have to wait for a set_zones
                  * call.
@@ -64,27 +79,27 @@ zbc_file_open_metadata(struct zbc_device *dev)
 		goto out_close;
         }
 
-        if (fstat(dev->zbd_meta_fd, &st) < 0) {
+        if (fstat(fdev->zbd_meta_fd, &st) < 0) {
                 perror("fstat");
                 error = -errno;
                 goto out_close;
         }
 
-        dev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, dev->zbd_meta_fd, 0);
-        if (dev->zbd_zones == MAP_FAILED) {
+        fdev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
+				MAP_SHARED, fdev->zbd_meta_fd, 0);
+        if (fdev->zbd_zones == MAP_FAILED) {
                 perror("mmap\n");
                 error = -ENOMEM;
                 goto out_close;
         }
 
-        for (i = 0; dev->zbd_zones[i].zbz_length != 0; i++)
+        for (i = 0; fdev->zbd_zones[i].zbz_length != 0; i++)
                 ;
 
-        dev->zbd_nr_zones = i;
+        fdev->zbd_nr_zones = i;
         return 0;
 out_close:
-        close(dev->zbd_meta_fd);
+        close(fdev->zbd_meta_fd);
         return error;
 }
 
@@ -190,7 +205,7 @@ out:
 static int
 zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
 {
-	struct zbc_device *dev;
+	struct zbc_file_device *fdev;
 	struct stat st;
 	int fd, ret;
 
@@ -214,38 +229,41 @@ zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
 
 
 	/* Set device operation */
-	if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
-		ret = -ENXIO;
+	ret = -ENXIO;
+	if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode))
 		goto out;
-	}
 
-	dev = zbc_dev_alloc(filename, flags);
-	if (!dev) {
-		ret = -ENOMEM;
+	ret = -ENOMEM;
+	fdev = calloc(1, sizeof(*fdev));
+	if (!fdev)
 		goto out;
-	}
 
-	dev->zbd_fd = fd;
-	dev->zbd_flags = flags;
+	fdev->dev.zbd_fd = fd;
+	fdev->zbd_meta_fd = -1;
+	fdev->dev.zbd_filename = strdup(filename);
+        if (!fdev->dev.zbd_filename)
+		goto out_free_dev;
 
-	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	fdev->dev.zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 	if (S_ISBLK(st.st_mode))
-		ret = zbc_blkdev_get_info(dev);
+		ret = zbc_blkdev_get_info(&fdev->dev);
 	else
-		ret = zbc_file_get_info(dev, &st);
+		ret = zbc_file_get_info(&fdev->dev, &st);
 
 	if (ret)
-		goto out_free_dev;
+		goto out_free_filename;
 
-	ret = zbc_file_open_metadata(dev);
+	ret = zbc_file_open_metadata(fdev);
 	if (ret)
-		goto out_free_dev;
+		goto out_free_filename;
 
-	*pdev = dev;
+	*pdev = &fdev->dev;
 	return 0;
 
+out_free_filename:
+	free(fdev->dev.zbd_filename);
 out_free_dev:
-	zbc_dev_free(dev);
+	free(fdev);
 out:
 	close(fd);
 	return ret;
@@ -254,10 +272,11 @@ out:
 static int
 zbc_file_close(zbc_device_t *dev)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
 	int ret = 0;
 
-	if (dev->zbd_meta_fd != -1) {
-		if (close(dev->zbd_meta_fd) < 0)
+	if (fdev->zbd_meta_fd != -1) {
+		if (close(fdev->zbd_meta_fd) < 0)
 			ret = -errno;
 	}
         if (close(dev->zbd_fd) < 0) {
@@ -265,8 +284,10 @@ zbc_file_close(zbc_device_t *dev)
 			ret = -errno;
 	}
 
-	if (!ret)
-		zbc_dev_free(dev);
+	if (!ret) {
+		free(dev->zbd_filename);
+		free(dev);
+	}
 	return ret;
 }
 
@@ -300,14 +321,14 @@ want_zone(struct zbc_zone *zone, uint64_t start_lba,
 }
 
 static int
-zbc_file_nr_zones(struct zbc_device *dev, uint64_t start_lba,
+zbc_file_nr_zones(struct zbc_file_device *fdev, uint64_t start_lba,
                   enum zbc_reporting_options options, unsigned int *nr_zones)
 {
         int in, out;
 
         out = 0;
-        for (in = 0; in < dev->zbd_nr_zones; in++) {
-                if (want_zone(&dev->zbd_zones[in], start_lba, options))
+        for (in = 0; in < fdev->zbd_nr_zones; in++) {
+                if (want_zone(&fdev->zbd_zones[in], start_lba, options))
                         out++;
         }
 
@@ -320,19 +341,20 @@ zbc_file_report_zones(struct zbc_device *dev, uint64_t start_lba,
                 enum zbc_reporting_options options, struct zbc_zone *zones,
                 unsigned int *nr_zones)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         unsigned int max_nr_zones = *nr_zones;
         int in, out;
 
-        if (!dev->zbd_zones)
+        if (!fdev->zbd_zones)
                 return -ENXIO;
 
         if (!zones)
-                return zbc_file_nr_zones(dev, start_lba, options, nr_zones);
+                return zbc_file_nr_zones(fdev, start_lba, options, nr_zones);
 
         out = 0;
-        for (in = 0; in < dev->zbd_nr_zones; in++) {
-                if (want_zone(&dev->zbd_zones[in], start_lba, options)) {
-                        memcpy(&zones[out], &dev->zbd_zones[in],
+        for (in = 0; in < fdev->zbd_nr_zones; in++) {
+                if (want_zone(&fdev->zbd_zones[in], start_lba, options)) {
+                        memcpy(&zones[out], &fdev->zbd_zones[in],
                                 sizeof(struct zbc_zone));
                         if (++out == max_nr_zones)
                                 break;
@@ -369,18 +391,19 @@ zbc_file_reset_one_write_pointer(struct zbc_zone *zone)
 static int
 zbc_file_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
-        if (!dev->zbd_zones)
+        if (!fdev->zbd_zones)
                 return -ENXIO;
 
         if (zone_start_lba == (uint64_t)-1) {
                 int i;
 
-                for (i = 0; i < dev->zbd_nr_zones; i++)
-                        zbc_file_reset_one_write_pointer(&dev->zbd_zones[i]);
+                for (i = 0; i < fdev->zbd_nr_zones; i++)
+                        zbc_file_reset_one_write_pointer(&fdev->zbd_zones[i]);
         } else {
-                zone = zbf_file_find_zone(dev, zone_start_lba);
+                zone = zbf_file_find_zone(fdev, zone_start_lba);
                 if (!zone)
                         return -EIO;
 
@@ -396,10 +419,11 @@ static int32_t
 zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                uint32_t lba_count, uint64_t start_lba)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         off_t offset;
         size_t count, ret;
 
-        if (!dev->zbd_zones)
+        if (!fdev->zbd_zones)
                 return -ENXIO;
 
         if (start_lba > zone->zbz_length)
@@ -430,14 +454,15 @@ static int32_t
 zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
                 uint32_t lba_count, uint64_t start_lba)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
         off_t offset;
         size_t count, ret;
 
-        if (!dev->zbd_zones)
+        if (!fdev->zbd_zones)
                 return -ENXIO;
 
-        zone = zbf_file_find_zone(dev, z->zbz_start);
+        zone = zbf_file_find_zone(fdev, z->zbz_start);
         if (!zone)
                 return -EIO;
 
@@ -489,6 +514,7 @@ static int
 zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                    uint64_t seq_zone_size)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         char meta_path[512];
         struct stat st;
         off_t len;
@@ -512,39 +538,40 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 return -EINVAL;
         }
 
-        dev->zbd_nr_zones =
+        fdev->zbd_nr_zones =
                 (device_size - conv_zone_size + seq_zone_size - 1) /
                  seq_zone_size;
         if (conv_zone_size)
-                dev->zbd_nr_zones++;
+                fdev->zbd_nr_zones++;
 
-        len = (off_t)dev->zbd_nr_zones * sizeof(struct zbc_zone);
+        len = (off_t)fdev->zbd_nr_zones * sizeof(struct zbc_zone);
 
-        if (dev->zbd_meta_fd < 0) {
-                sprintf(meta_path, "/tmp/zbc-%s.meta", basename(dev->zbd_filename));
-                dev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
-                if (dev->zbd_meta_fd < 0) {
+        if (fdev->zbd_meta_fd < 0) {
+                sprintf(meta_path, "/tmp/zbc-%s.meta",
+			basename(fdev->dev.zbd_filename));
+                fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
+                if (fdev->zbd_meta_fd < 0) {
                         perror("open");
                         return -errno;
                 }
         }
 
-        if (ftruncate(dev->zbd_meta_fd, len) < 0) {
+        if (ftruncate(fdev->zbd_meta_fd, len) < 0) {
                 perror("ftruncate");
                 error = -errno;
                 goto out_close;
         }
 
-        dev->zbd_zones = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        dev->zbd_meta_fd, 0);
-        if (dev->zbd_zones == MAP_FAILED) {
+        fdev->zbd_zones = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
+                        fdev->zbd_meta_fd, 0);
+        if (fdev->zbd_zones == MAP_FAILED) {
                 perror("mmap");
                 error = -ENOMEM;
                 goto out_close;
         }
 
         if (conv_zone_size) {
-                struct zbc_zone *zone = &dev->zbd_zones[z];
+                struct zbc_zone *zone = &fdev->zbd_zones[z];
 
                 zone->zbz_type = ZBC_ZT_CONVENTIONAL;
                 zone->zbz_condition = 0;
@@ -558,8 +585,8 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 z++;
         }
 
-        for (; z < dev->zbd_nr_zones; z++) {
-                struct zbc_zone *zone = &dev->zbd_zones[z];
+        for (; z < fdev->zbd_nr_zones; z++) {
+                struct zbc_zone *zone = &fdev->zbd_zones[z];
 
                 zone->zbz_type = ZBC_ZT_SEQUENTIAL_REQ;
                 zone->zbz_condition = ZBC_ZC_EMPTY;
@@ -581,7 +608,7 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
         return 0;
 
 out_close:
-        close(dev->zbd_meta_fd);
+        close(fdev->zbd_meta_fd);
         return error;
 }
 
@@ -589,12 +616,13 @@ static int
 zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
                            uint64_t write_pointer)
 {
+	struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
-        if (!dev->zbd_zones)
+        if (!fdev->zbd_zones)
                 return -ENXIO;
 
-        zone = zbf_file_find_zone(dev, start_lba);
+        zone = zbf_file_find_zone(fdev, start_lba);
         if (!zone)
                 return -EINVAL;
 
