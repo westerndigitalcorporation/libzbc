@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -34,13 +34,13 @@ dz_if_expose_cb(GtkWidget *widget,
 
 static void
 dz_if_delete_cb(GtkWidget *widget,
-                  GdkEventButton *event,
-                  gpointer user_data);
+                GdkEventButton *event,
+                gpointer user_data);
 
 static gboolean
 dz_if_exit_cb(GtkWidget *widget,
-                GdkEventButton *event,
-                gpointer user_data);
+              GdkEventButton *event,
+              gpointer user_data);
 
 static gboolean
 dz_if_timer_cb(gpointer user_data);
@@ -239,7 +239,7 @@ dz_if_create(void)
         gtk_widget_show(button);
         gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
         GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-        
+
         alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
         gtk_widget_show(alignment);
         gtk_container_add(GTK_CONTAINER(button), alignment);
@@ -247,7 +247,7 @@ dz_if_create(void)
         hbox = gtk_hbox_new(FALSE, 2);
         gtk_widget_show(hbox);
         gtk_container_add(GTK_CONTAINER(alignment), hbox);
-        
+
         image = gtk_image_new_from_stock("gtk-refresh", GTK_ICON_SIZE_BUTTON);
         gtk_widget_show(image);
         gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
@@ -255,7 +255,7 @@ dz_if_create(void)
         label = gtk_label_new_with_mnemonic("Refresh");
         gtk_widget_show(label);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-        
+
         g_signal_connect((gpointer) button, "button_press_event",
                          G_CALLBACK(dz_if_refresh_cb),
                          &dz);
@@ -300,7 +300,7 @@ dz_if_create(void)
     dz_if_refresh_zones();
 
     return( 0 );
-   
+
 }
 
 void
@@ -340,12 +340,13 @@ dz_if_destroy(void)
 
 /***** Definition of private functions *****/
 
-static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] = 
+static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] =
     {
         "Index",
         "Type",
         "Condition",
         "Reset",
+        "Non Seq",
         "Start LBA",
         "Length",
         "Write pointer LBA"
@@ -398,7 +399,7 @@ dz_if_refresh_zones_info(void)
                              (GtkAttachOptions) (GTK_FILL),
                              (GtkAttachOptions) 0,
                              0, 0);
-            
+
             /* Line fields */
             for(i = 0; i < DZ_ZONE_INFO_FIELD_NUM - 1; i++) {
                 entry = gtk_entry_new();
@@ -423,17 +424,20 @@ dz_if_refresh_zones_info(void)
         sprintf(str, "0x%01x", dz.zones[z].zbz_condition);
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[1]), str);
 
-        sprintf(str, "0x%01x", dz.zones[z].zbz_need_reset);
+        sprintf(str, "%d", dz.zones[z].zbz_need_reset);
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[2]), str);
 
-        sprintf(str, "%llu", zbc_zone_start_lba(&dz.zones[z]));
+        sprintf(str, "%d", dz.zones[z].zbz_non_seq);
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[3]), str);
 
-        sprintf(str, "%llu", zbc_zone_length(&dz.zones[z]));
+        sprintf(str, "%llu", zbc_zone_start_lba(&dz.zones[z]));
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[4]), str);
 
-        sprintf(str, "%llu", zbc_zone_wp_lba(&dz.zones[z]));
+        sprintf(str, "%llu", zbc_zone_length(&dz.zones[z]));
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[5]), str);
+
+        sprintf(str, "%llu", zbc_zone_wp_lba(&dz.zones[z]));
+        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[6]), str);
 
     }
 
@@ -513,7 +517,7 @@ dz_if_refresh_zone_state(dz_zone_t *z)
                                0, 0,
                                uw, h);
         }
-        
+
         /* Draw free (green) */
         if ( fw ) {
             gdk_draw_rectangle(z->da->window,
@@ -637,7 +641,7 @@ dz_if_create_zones(void)
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-    
+
     /* Zone state label */
     label = gtk_label_new( "<b>Zone state</b>");
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);

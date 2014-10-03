@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christoph Hellwig (hch@infradead.org)
  *          Christophe Louargant (christophe.louargant@hgst.com)
@@ -58,6 +58,7 @@ enum zbc_zone_type {
  * Zone condition.
  */
 enum zbc_zone_condition {
+    ZBC_ZC_NOT_WP               = 0x00,
     ZBC_ZC_EMPTY                = 0x01,
     ZBC_ZC_OPEN                 = 0x02,
     ZBC_ZC_RDONLY               = 0x0d,
@@ -66,7 +67,9 @@ enum zbc_zone_condition {
 };
 
 /**
- * Report zone reporting options.
+ * Report zone reporting options: filters zone information
+ * returned by the REPORT ZONES command based on the condition
+ * of zones.
  */
 enum zbc_reporting_options {
     ZBC_RO_ALL                  = 0x0,
@@ -76,6 +79,8 @@ enum zbc_reporting_options {
     ZBC_RO_RDONLY               = 0x4,
     ZBC_RO_OFFLINE              = 0x5,
     ZBC_RO_RESET                = 0x6,
+    ZBC_RO_NON_SEQ              = 0x7,
+    ZBC_RO_NOT_WP               = 0xf,
 };
 
 /***** Type definitions *****/
@@ -96,6 +101,7 @@ struct zbc_zone {
     uint64_t                    zbz_start;
     uint64_t                    zbz_write_pointer;
     bool                        zbz_need_reset;
+    bool                        zbz_non_seq;
 
     char                        __pad[16];
 
@@ -302,6 +308,8 @@ zbc_pwrite(struct zbc_device *dev,
  * and uses LBA addressing for the buffer length.  Instead of writing at
  * the current file offset it writes at the write pointer for the zone
  * identified by @zone, which is advanced by a successful write call.
+ * This function thus cannot be used for a conventional zone, which is not
+ * a write pointer zone.
  *
  * All errors returned by write(2) can be returned. On success, the number of
  * physical blocks written is returned.
@@ -325,7 +333,7 @@ extern int
 zbc_flush(struct zbc_device *dev);
 
 /**
- * Some handy macros.
+ * Some handy accessor macros.
  */
 #define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
 #define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
@@ -342,6 +350,9 @@ zbc_flush(struct zbc_device *dev);
 #define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
+/**
+ * Returns a disk type name.
+ */
 static inline const char *
 zbc_disk_type_str(int type)
 {
@@ -357,6 +368,9 @@ zbc_disk_type_str(int type)
 
 }
 
+/**
+ * Returns a disk model name.
+ */
 static inline const char *
 zbc_disk_model_str(int model)
 {

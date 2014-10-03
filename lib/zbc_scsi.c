@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -162,7 +162,7 @@ zbc_scsi_get_info(zbc_device_t *dev)
     cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
     zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
-    
+
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
@@ -180,7 +180,7 @@ zbc_scsi_get_info(zbc_device_t *dev)
         ret = -EINVAL;
         goto out;
     }
-        
+
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
         zbc_error("%s: invalid capacity (logical blocks)\n",
                   dev->zbd_filename);
@@ -379,7 +379,7 @@ zbc_scsi_flush(zbc_device_t *dev,
     if ( immediate ) {
         cmd.cdb[1] = 0x02;
     }
-    
+
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
@@ -512,7 +512,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
          * |=====+=======================================================================|
          * |  0  |             Reserved              |            Zone type              |
          * |-----+-----------------------------------------------------------------------|
-         * |  1  |          Zone condition           |           Reserved       |  Reset |
+         * |  1  |          Zone condition           |    Reserved     |non-seq |  Reset |
          * |-----+-----------------------------------------------------------------------|
          * |  2  |                                                                       |
          * |- - -+---                             Reserved                            ---|
@@ -544,6 +544,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             zones[i].zbz_start = zbc_sg_cmd_get_int64(&buf[16]);
             zones[i].zbz_write_pointer = zbc_sg_cmd_get_int64(&buf[24]);
             zones[i].zbz_need_reset = buf[1] & 0x01;
+            zones[i].zbz_non_seq = buf[1] & 0x02;
 
             buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
 

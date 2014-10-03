@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Author: Christoph Hellwig (hch@infradead.org)
  */
 
@@ -27,17 +27,17 @@
 #include "zbc.h"
 
 struct zbc_file_device {
-	struct zbc_device dev;
+        struct zbc_device dev;
 
-	unsigned int zbd_nr_zones;
-	struct zbc_zone *zbd_zones;
-	int zbd_meta_fd;
+        unsigned int zbd_nr_zones;
+        struct zbc_zone *zbd_zones;
+        int zbd_meta_fd;
 
 };
 
 static inline struct zbc_file_device *to_file_dev(struct zbc_device *dev)
 {
-	return container_of(dev, struct zbc_file_device, dev);
+        return container_of(dev, struct zbc_file_device, dev);
 }
 
 static struct zbc_zone *
@@ -60,7 +60,7 @@ zbc_file_open_metadata(struct zbc_file_device *fdev)
         int i;
 
         sprintf(meta_path, "/tmp/zbc-%s.meta",
-		basename(fdev->dev.zbd_filename));
+                basename(fdev->dev.zbd_filename));
 
         zbc_debug("Device %s: using meta file %s\n",
                   fdev->dev.zbd_filename,
@@ -72,11 +72,11 @@ zbc_file_open_metadata(struct zbc_file_device *fdev)
                  * Metadata didn't exist yet, we'll have to wait for a set_zones
                  * call.
                  */
-		if (errno == ENOENT)
-	                return 0;
+                if (errno == ENOENT)
+                        return 0;
                 perror("open metadata");
-		error = -errno;
-		goto out_close;
+                error = -errno;
+                goto out_close;
         }
 
         if (fstat(fdev->zbd_meta_fd, &st) < 0) {
@@ -86,7 +86,7 @@ zbc_file_open_metadata(struct zbc_file_device *fdev)
         }
 
         fdev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, fdev->zbd_meta_fd, 0);
+                                MAP_SHARED, fdev->zbd_meta_fd, 0);
         if (fdev->zbd_zones == MAP_FAILED) {
                 perror("mmap\n");
                 error = -ENOMEM;
@@ -111,11 +111,11 @@ out_close:
 static int
 zbc_file_get_info(struct zbc_device *dev, struct stat *st)
 {
-	dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE; 
-	dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FILE_SECTOR_SIZE;
-	dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
-	dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
-	return 0;
+        dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE;
+        dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FILE_SECTOR_SIZE;
+        dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
+        dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
+        return 0;
 }
 
 /**
@@ -138,9 +138,9 @@ zbc_blkdev_get_info(zbc_device_t *dev)
                   strerror(errno));
         goto out;
     }
-    
+
     dev->zbd_info.zbd_logical_block_size = size32;
-    
+
     /* Get physical block size */
     ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
     if ( ret != 0 ) {
@@ -152,7 +152,7 @@ zbc_blkdev_get_info(zbc_device_t *dev)
         goto out;
     }
     dev->zbd_info.zbd_physical_block_size = size32;
-    
+
     /* Get capacity (B) */
     ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
     if ( ret != 0 ) {
@@ -163,7 +163,7 @@ zbc_blkdev_get_info(zbc_device_t *dev)
                   strerror(errno));
         goto out;
     }
-    
+
     /* Check */
     if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
         zbc_error("%s: invalid logical sector size %d\n",
@@ -188,7 +188,7 @@ zbc_blkdev_get_info(zbc_device_t *dev)
         ret = -EINVAL;
         goto out;
     }
-        
+
     dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
     if ( ! dev->zbd_info.zbd_physical_blocks ) {
         zbc_error("%s: invalid capacity (physical blocks)\n",
@@ -205,90 +205,90 @@ out:
 static int
 zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
 {
-	struct zbc_file_device *fdev;
-	struct stat st;
-	int fd, ret;
+        struct zbc_file_device *fdev;
+        struct stat st;
+        int fd, ret;
 
-	fd = open(filename, flags);
-	if (fd < 0) {
-		zbc_error("Open device file %s failed %d (%s)\n",
-			filename,
-			errno,
-			strerror(errno));
-		return -errno;
-	}
+        fd = open(filename, flags);
+        if (fd < 0) {
+                zbc_error("Open device file %s failed %d (%s)\n",
+                        filename,
+                        errno,
+                        strerror(errno));
+                return -errno;
+        }
 
-	if (fstat(fd, &st) < 0) {
-		zbc_error("Stat device %s failed %d (%s)\n",
-			filename,
-			errno,
-			strerror(errno));
-		ret = -errno;
-		goto out;
-	}
+        if (fstat(fd, &st) < 0) {
+                zbc_error("Stat device %s failed %d (%s)\n",
+                        filename,
+                        errno,
+                        strerror(errno));
+                ret = -errno;
+                goto out;
+        }
 
 
-	/* Set device operation */
-	ret = -ENXIO;
-	if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode))
-		goto out;
+        /* Set device operation */
+        ret = -ENXIO;
+        if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode))
+                goto out;
 
-	ret = -ENOMEM;
-	fdev = calloc(1, sizeof(*fdev));
-	if (!fdev)
-		goto out;
+        ret = -ENOMEM;
+        fdev = calloc(1, sizeof(*fdev));
+        if (!fdev)
+                goto out;
 
-	fdev->dev.zbd_fd = fd;
-	fdev->zbd_meta_fd = -1;
-	fdev->dev.zbd_filename = strdup(filename);
+        fdev->dev.zbd_fd = fd;
+        fdev->zbd_meta_fd = -1;
+        fdev->dev.zbd_filename = strdup(filename);
         if (!fdev->dev.zbd_filename)
-		goto out_free_dev;
+                goto out_free_dev;
 
-	fdev->dev.zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-	if (S_ISBLK(st.st_mode))
-		ret = zbc_blkdev_get_info(&fdev->dev);
-	else
-		ret = zbc_file_get_info(&fdev->dev, &st);
+        fdev->dev.zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+        if (S_ISBLK(st.st_mode))
+                ret = zbc_blkdev_get_info(&fdev->dev);
+        else
+                ret = zbc_file_get_info(&fdev->dev, &st);
 
-	if (ret)
-		goto out_free_filename;
+        if (ret)
+                goto out_free_filename;
 
-	ret = zbc_file_open_metadata(fdev);
-	if (ret)
-		goto out_free_filename;
+        ret = zbc_file_open_metadata(fdev);
+        if (ret)
+                goto out_free_filename;
 
-	*pdev = &fdev->dev;
-	return 0;
+        *pdev = &fdev->dev;
+        return 0;
 
 out_free_filename:
-	free(fdev->dev.zbd_filename);
+        free(fdev->dev.zbd_filename);
 out_free_dev:
-	free(fdev);
+        free(fdev);
 out:
-	close(fd);
-	return ret;
+        close(fd);
+        return ret;
 }
 
 static int
 zbc_file_close(zbc_device_t *dev)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
-	int ret = 0;
+        struct zbc_file_device *fdev = to_file_dev(dev);
+        int ret = 0;
 
-	if (fdev->zbd_meta_fd != -1) {
-		if (close(fdev->zbd_meta_fd) < 0)
-			ret = -errno;
-	}
+        if (fdev->zbd_meta_fd != -1) {
+                if (close(fdev->zbd_meta_fd) < 0)
+                        ret = -errno;
+        }
         if (close(dev->zbd_fd) < 0) {
-		if (!ret)
-			ret = -errno;
-	}
+                if (!ret)
+                        ret = -errno;
+        }
 
-	if (!ret) {
-		free(dev->zbd_filename);
-		free(dev);
-	}
-	return ret;
+        if (!ret) {
+                free(dev->zbd_filename);
+                free(dev);
+        }
+        return ret;
 }
 
 static bool
@@ -315,6 +315,10 @@ want_zone(struct zbc_zone *zone, uint64_t start_lba,
                 return zone->zbz_condition == ZBC_ZC_OFFLINE;
         case ZBC_RO_RESET:
                 return zone->zbz_need_reset;
+        case ZBC_RO_NON_SEQ:
+                return zone->zbz_non_seq;
+        case ZBC_RO_NOT_WP:
+                return zone->zbz_condition == ZBC_ZC_NOT_WP;
         default:
                 return false;
         }
@@ -338,10 +342,10 @@ zbc_file_nr_zones(struct zbc_file_device *fdev, uint64_t start_lba,
 
 static int
 zbc_file_report_zones(struct zbc_device *dev, uint64_t start_lba,
-                enum zbc_reporting_options options, struct zbc_zone *zones,
-                unsigned int *nr_zones)
+                      enum zbc_reporting_options options, struct zbc_zone *zones,
+                      unsigned int *nr_zones)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         unsigned int max_nr_zones = *nr_zones;
         int in, out;
 
@@ -391,7 +395,7 @@ zbc_file_reset_one_write_pointer(struct zbc_zone *zone)
 static int
 zbc_file_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
         if (!fdev->zbd_zones)
@@ -414,12 +418,12 @@ zbc_file_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
 
         return 0;
 }
- 
+
 static int32_t
 zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                uint32_t lba_count, uint64_t start_lba)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         off_t offset;
         size_t count, ret;
 
@@ -430,14 +434,29 @@ zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                 return -EIO;
         start_lba += zone->zbz_start;
 
-        if (zone->zbz_write_pointer + lba_count >
-            zone->zbz_start + zone->zbz_length)
-                return -EIO;
-
+        /* Note: unrestricted read will be added to the standard */
+        /* and supported by a drive if the URSWRZ bit is set in  */
+        /* VPD page. So this test will need to change.           */
         if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
+                /* Cannot read unwritten data */
                 if (start_lba + lba_count > zone->zbz_write_pointer)
                         return -EIO;
+        } else {
+                /* Reads spanning other types of zones are OK. */
+                if (start_lba + lba_count > zone->zbz_start + zone->zbz_length) {
+                        uint64_t lba = zbc_zone_end_lba(zone) + 1;
+                        uint64_t count = start_lba + lba_count - lba;
+                        struct zbc_zone *next_zone = zone;
+                        while( count && (next_zone = zbf_file_find_zone(fdev, lba)) ) {
+                                if (next_zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
+                                        return -EIO;
+                                if ( count > next_zone->zbz_length )
+                                        count -= next_zone->zbz_length;
+                                lba += next_zone->zbz_length;
+                        }
+                }
         }
+
 
         /* XXX: check for overflows */
         count = lba_count * dev->zbd_info.zbd_logical_block_size;
@@ -454,7 +473,7 @@ static int32_t
 zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
                 uint32_t lba_count, uint64_t start_lba)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
         off_t offset;
         size_t count, ret;
@@ -471,16 +490,24 @@ zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         start_lba += zone->zbz_start;
 
         if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
+                /* Can only write at the write pointer */
                 if (start_lba != zone->zbz_write_pointer)
                         return -EIO;
         }
 
-        if (zone->zbz_write_pointer + lba_count >
-            zone->zbz_start + zone->zbz_length)
-                return -EIO;
+        /* Writes cannot span zones */
+        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
+                if (zone->zbz_write_pointer + lba_count >
+                    zone->zbz_start + zone->zbz_length)
+                        return -EIO;
+        } else {
+                if (start_lba + lba_count >
+                    zone->zbz_start + zone->zbz_length)
+                        return -EIO;
+        }
 
         /* XXX: check for overflows */
-        count = lba_count * dev->zbd_info.zbd_logical_block_size;
+        count = (size_t)lba_count * dev->zbd_info.zbd_logical_block_size;
         offset = start_lba * dev->zbd_info.zbd_logical_block_size;
 
         ret = pwrite(dev->zbd_fd, buf, count, offset);
@@ -489,17 +516,19 @@ zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
 
         ret /= dev->zbd_info.zbd_logical_block_size;
 
-        /*
-         * XXX: What protects us from a return value that's not LBA aligned?
-         * (Except for hoping the OS implementation isn't insane..)
-         */
-        zone->zbz_write_pointer += ret;
-        if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
-                zone->zbz_condition = ZBC_ZC_FULL;
-        else
-                zone->zbz_condition = ZBC_ZC_OPEN;
-
+        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
+                /*
+                * XXX: What protects us from a return value that's not LBA aligned?
+                * (Except for hoping the OS implementation isn't insane..)
+                */
+                zone->zbz_write_pointer += ret;
+                if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
+                        zone->zbz_condition = ZBC_ZC_FULL;
+                else
+                        zone->zbz_condition = ZBC_ZC_OPEN;
+        }
         memcpy(z, zone, sizeof(*z));
+
         return ret;
 }
 
@@ -514,7 +543,7 @@ static int
 zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                    uint64_t seq_zone_size)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         char meta_path[512];
         struct stat st;
         off_t len;
@@ -548,7 +577,7 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
 
         if (fdev->zbd_meta_fd < 0) {
                 sprintf(meta_path, "/tmp/zbc-%s.meta",
-			basename(fdev->dev.zbd_filename));
+                        basename(fdev->dev.zbd_filename));
                 fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
                 if (fdev->zbd_meta_fd < 0) {
                         perror("open");
@@ -574,11 +603,12 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 struct zbc_zone *zone = &fdev->zbd_zones[z];
 
                 zone->zbz_type = ZBC_ZT_CONVENTIONAL;
-                zone->zbz_condition = 0;
+                zone->zbz_condition = ZBC_ZC_NOT_WP;
                 zone->zbz_start = start;
                 zone->zbz_write_pointer = 0;
                 zone->zbz_length = conv_zone_size;
                 zone->zbz_need_reset = false;
+                zone->zbz_non_seq = false;
                 memset(&zone->__pad, 0, sizeof(zone->__pad));
 
                 start += conv_zone_size;
@@ -600,6 +630,7 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                         zone->zbz_length = device_size - zone->zbz_start;
 
                 zone->zbz_need_reset = false;
+                zone->zbz_non_seq = false;
                 memset(&zone->__pad, 0, sizeof(zone->__pad));
 
                 start += zone->zbz_length;
@@ -616,7 +647,7 @@ static int
 zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
                            uint64_t write_pointer)
 {
-	struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_file_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
         if (!fdev->zbd_zones)
@@ -626,19 +657,21 @@ zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
         if (!zone)
                 return -EINVAL;
 
-        /* XXX(hch): reject for conventional zones? */
+        /* Do nothing for conventional zones */
+        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
+                zone->zbz_write_pointer = write_pointer;
+                if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
+                        zone->zbz_condition = ZBC_ZC_FULL;
+                else
+                        zone->zbz_condition = ZBC_ZC_OPEN;
+        }
 
-        zone->zbz_write_pointer = write_pointer;
-        if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
-                zone->zbz_condition = ZBC_ZC_FULL;
-        else
-                zone->zbz_condition = ZBC_ZC_OPEN;
         return 0;
 }
 
 struct zbc_ops zbc_file_ops = {
-	.zbd_open			= zbc_file_open,
-	.zbd_close			= zbc_file_close,
+        .zbd_open                       = zbc_file_open,
+        .zbd_close                      = zbc_file_close,
         .zbd_pread                      = zbc_file_pread,
         .zbd_pwrite                     = zbc_file_pwrite,
         .zbd_flush                      = zbc_file_flush,
