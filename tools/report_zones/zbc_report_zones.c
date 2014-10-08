@@ -164,11 +164,12 @@ usage:
 
     if ( ! num ) {
         for(i = 0; i < nr_zones; i++) {
-            printf("Zone %05d: type 0x%x, cond 0x%x, flags 0x%02x, LBA %11llu, %11llu sectors, wp %11llu\n",
+            printf("Zone %05d: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
                    i,
                    zones[i].zbz_type,
                    zones[i].zbz_condition,
-                   zones[i].zbz_flags,
+                   zones[i].zbz_need_reset,
+                   zones[i].zbz_non_seq,
                    (unsigned long long) zones[i].zbz_start,
                    (unsigned long long) zones[i].zbz_length,
                    (unsigned long long) zones[i].zbz_write_pointer);

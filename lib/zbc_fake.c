@@ -314,9 +314,9 @@ want_zone(struct zbc_zone *zone, uint64_t start_lba,
         case ZBC_RO_OFFLINE:
                 return zone->zbz_condition == ZBC_ZC_OFFLINE;
         case ZBC_RO_RESET:
-                return zone->zbz_flags & ZBC_ZF_NEED_RESET;
+                return zbc_zone_need_reset(zone);
         case ZBC_RO_NON_SEQ:
-                return zone->zbz_flags & ZBC_ZF_NON_SEQ;
+                return zbc_zone_non_seq(zone);
         case ZBC_RO_NOT_WP:
                 return zone->zbz_condition == ZBC_ZC_NOT_WP;
         default:
@@ -607,7 +607,8 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 zone->zbz_start = start;
                 zone->zbz_write_pointer = 0;
                 zone->zbz_length = conv_zone_size;
-                zone->zbz_flags = 0;
+                zone->zbz_need_reset = false;
+                zone->zbz_non_seq = false;
                 memset(&zone->__pad, 0, sizeof(zone->__pad));
 
                 start += conv_zone_size;
@@ -628,7 +629,8 @@ zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 else
                         zone->zbz_length = device_size - zone->zbz_start;
 
-                zone->zbz_flags = 0;
+                zone->zbz_need_reset = false;
+                zone->zbz_non_seq = false;
 
                 memset(&zone->__pad, 0, sizeof(zone->__pad));
 

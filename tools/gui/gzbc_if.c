@@ -345,7 +345,8 @@ static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] =
         "Index",
         "Type",
         "Condition",
-        "Flags",
+        "Need Reset",
+        "Non Seq",
         "Start LBA",
         "Length",
         "Write pointer LBA"
@@ -423,8 +424,11 @@ dz_if_refresh_zones_info(void)
         sprintf(str, "0x%01x", dz.zones[z].zbz_condition);
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[1]), str);
 
-        sprintf(str, "0x%02x", dz.zones[z].zbz_flags);
+        sprintf(str, "%s", dz.zones[z].zbz_need_reset ? "true" : "false");
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[2]), str);
+
+        sprintf(str, "%s", dz.zones[z].zbz_non_seq? "true" : "false");
+        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[3]), str);
 
         sprintf(str, "%llu", zbc_zone_start_lba(&dz.zones[z]));
         gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[4]), str);

@@ -561,8 +561,8 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             zones[i].zbz_length = zbc_sg_cmd_get_int64(&buf[8]);
             zones[i].zbz_start = zbc_sg_cmd_get_int64(&buf[16]);
             zones[i].zbz_write_pointer = zbc_sg_cmd_get_int64(&buf[24]);
-            zones[i].zbz_flags = buf[1] & 0x01;
-            zones[i].zbz_flags |= buf[1] & 0x02;
+            zones[i].zbz_need_reset = (buf[1] & 0x01) ? true : false;;
+            zones[i].zbz_non_seq= (buf[1] & 0x02) ? true : false;
 
             buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
 

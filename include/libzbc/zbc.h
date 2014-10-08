@@ -67,12 +67,6 @@ enum zbc_zone_condition {
 };
 
 /**
- * Zone flags in zone information.
- */
-#define ZBC_ZF_NEED_RESET	0x01
-#define ZBC_ZF_NON_SEQ    	0x02
-
-/**
  * Report zone reporting options: filters zone information
  * returned by the REPORT ZONES command based on the condition
  * of zones.
@@ -97,7 +91,7 @@ enum zbc_reporting_options {
 struct zbc_device;
 
 /**
- * Zone descriptor (internal).
+ * Zone descriptor.
  */
 struct zbc_zone {
 
@@ -106,9 +100,10 @@ struct zbc_zone {
     uint64_t                    zbz_length;
     uint64_t                    zbz_start;
     uint64_t                    zbz_write_pointer;
-    uint32_t			zbz_flags;
+    bool			zbz_need_reset;
+    bool			zbz_non_seq;
 
-    char                        __pad[16];
+    char                        __pad[12];
 
 };
 typedef struct zbc_zone zbc_zone_t;
@@ -350,8 +345,8 @@ zbc_flush(struct zbc_device *dev);
 #define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
 #define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
 
-#define zbc_zone_need_reset(z)          ((z)->zbz_flags & ZBC_ZF_NEED_RESET))
-#define zbc_zone_non_seq(z)          	((z)->zbz_flags & ZBC_ZF_NON_SEQ))
+#define zbc_zone_need_reset(z)          ((z)->zbz_need_reset)
+#define zbc_zone_non_seq(z)          	((z)->zbz_non_seq)
 
 #define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
 #define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
