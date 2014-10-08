@@ -43,7 +43,7 @@ enum {
 /**
  * Number of fields in zone info list.
  */
-#define DZ_ZONE_INFO_FIELD_NUM  8
+#define DZ_ZONE_INFO_FIELD_NUM  7
 
 /***** Type definitions *****/
 

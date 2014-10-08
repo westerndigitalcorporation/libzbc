@@ -69,3 +69,17 @@ libtool
 libzbc.pc
 .libs
 .dirstamp
+
+tools/lkvs/config/
+tools/lkvs/gtest/m4/libtool.m4
+tools/lkvs/gtest/m4/ltoptions.m4
+tools/lkvs/gtest/m4/ltsugar.m4
+tools/lkvs/gtest/m4/ltversion.m4
+tools/lkvs/gtest/m4/lt~obsolete.m4
+tools/lkvs/gtest/scripts/gtest-config
+tools/lkvs/m4/libtool.m4
+tools/lkvs/m4/ltoptions.m4
+tools/lkvs/m4/ltsugar.m4
+tools/lkvs/m4/ltversion.m4
+tools/lkvs/m4/lt~obsolete.m4
+

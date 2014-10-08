@@ -200,7 +200,9 @@ out:
 }
 
 static int
-zbc_scsi_open(const char *filename, int flags, struct zbc_device **pdev)
+zbc_scsi_open(const char *filename,
+              int flags,
+              struct zbc_device **pdev)
 {
     struct zbc_device *dev;
     struct stat st;
@@ -226,48 +228,64 @@ zbc_scsi_open(const char *filename, int flags, struct zbc_device **pdev)
         goto out;
     }
 
-
-    /* Set device operation */
-    if ( !S_ISCHR(st.st_mode) ) {
+    if ( (! S_ISCHR(st.st_mode))
+         && (! S_ISBLK(st.st_mode)) ) {
         ret = -ENXIO;
         goto out;
     }
 
+    /* Set device decriptor */
     ret = -ENOMEM;
     dev = calloc(1, sizeof(struct zbc_device));
-    if (!dev)
+    if ( ! dev ) {
         goto out;
+    }
 
     dev->zbd_filename = strdup(filename);
-    if (!dev->zbd_filename)
+    if ( ! dev->zbd_filename ) {
         goto out_free_dev;
+    }
 
     dev->zbd_fd = fd;
 
     ret = zbc_scsi_get_info(dev);
-    if (ret)
+    if ( ret ) {
         goto out_free_filename;
+    }
 
     *pdev = dev;
+
     return 0;
 
 out_free_filename:
+
     free(dev->zbd_filename);
+
 out_free_dev:
+
     free(dev);
+
 out:
+
     close(fd);
+
     return ret;
+
 }
 
 static int
 zbc_scsi_close(zbc_device_t *dev)
 {
-    if (close(dev->zbd_fd))
+
+    if ( close(dev->zbd_fd) ) {
         return -errno;
+    }
+
     free(dev->zbd_filename);
     free(dev);
+
     return 0;
+
 }
 
 /**
@@ -543,8 +561,8 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             zones[i].zbz_length = zbc_sg_cmd_get_int64(&buf[8]);
             zones[i].zbz_start = zbc_sg_cmd_get_int64(&buf[16]);
             zones[i].zbz_write_pointer = zbc_sg_cmd_get_int64(&buf[24]);
-            zones[i].zbz_need_reset = buf[1] & 0x01;
-            zones[i].zbz_non_seq = buf[1] & 0x02;
+            zones[i].zbz_flags = buf[1] & 0x01;
+            zones[i].zbz_flags |= buf[1] & 0x02;
 
             buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
 

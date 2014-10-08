@@ -1,5 +1,5 @@
 
-AC_INIT([libzbc], [0.1], [damien.lemoal@hgst.com])
+AC_INIT([libzbc], [1.0.0], [damien.lemoal@hgst.com,adam.manzanares@hgst.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])

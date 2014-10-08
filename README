@@ -10,7 +10,7 @@ libzbc is a simple library providing functions for manipulating Zoned
 Block Command (ZBC) disks. It is implemented to be compliant with the
 current version of the ZBC standard draft defined by INCITS technical
 committee T10.  At the time of this writing, the current version of the
-standard draft is Rev 01a, released on 2014/05/15.
+standard draft is Rev 01b, released on 2014/09/09.
 
 In addition to supporting ZBC disks, libzbc also implements an emulation
 mode allowing emulating the behavior of a ZBC device using a regular
@@ -44,7 +44,9 @@ II.1. Compilation
 To compile the library and all example applications, execute the
 following commands.
 
-> sh ./autogen.sh > ./configure > make
+> sh ./autogen.sh
+> ./configure
+> make
 
 II.2. Installation
 ------------------
@@ -58,13 +60,17 @@ The library files are installed in /usr/lib.  The library header files
 are installed in /usr/include/libzbc The executable files for the example
 applications are installed in /usr/bin.
 
-III. Library Functions
-======================
+III. Usage
+==========
+
+III.1 Library Functions
+-----------------------
 
 libzbc exports the following functions.
+
 +------------------------------+------------------------------------+
 | Function                     | Description                        |
-+------------------------------+------------------------------------+
++==============================+====================================+
 | zbc_open                     | Open a ZBC device                  |
 +------------------------------+------------------------------------+
 | zbc_close                    | Close a ZBC device                 |
@@ -89,74 +95,95 @@ libzbc exports the following functions.
 +------------------------------+------------------------------------+
 | zbc_flush                    | Flush data to disk                 |
 +------------------------------+------------------------------------+
-| zbc_set_write_pointer        | Configure an emulated device zone  |
-+------------------------------+------------------------------------+
-| zbc_set_zones                | Configure an emulated device       |
-+------------------------------+------------------------------------+
-
-The last 2 functions zbc_set_write_pointer and zbc_set_zones are valid
-only for emulated devices using a regular file or a regular block device.
 
 More detailed information on these functions is available through the
 comments in the file include/libzbc/zbc.h
 
-III. Example Applications
-=========================
+The current implementation of these functions is NOT thread safe. In
+particular, iconcurrent write operations by multiple threads to the
+same zone may result in write errors without write ordering control
+by the application.
+
+III.2 Native Mode
+-----------------
+
+As of version 3.16.x, the standard Linux kernel does not support ZBC
+host-managed device type 14h. As a result, such device will not be
+avalaible as a regular block device (with a device file name /dev/sdx).
+However, ZBC host-managed disks will be accessible through the SG
+driver using the device SG node (/dev/sgx device file).
+
+Opening a native ZBC disk with libzbc thus needs to be done by
+specifying the device SG node. Further accesses (report zones,
+reset zone write pointer, etc) can then proceed using the device
+handle provided by the zbc_open function.
+
+III.2 Emulation Mode
+--------------------
+
+libzbc can emulate host-managed ZBC disks operation using a regular
+file or a raw standard block device (regular disk or loopback device).
+The use of the library in such case is identical to the native mode
+case, assuming that the emulated device is first configured by executing
+teh zbc_set_zones tool (see next section).
+
+IV. Example Applications
+========================
 
 Under the tools directory, several simple applications are available
 as examples.  These appliations are as follows.
 
-III.1. gzbc (tools/gui)
------------------------
+IV.1. gzbc (tools/gui)
+----------------------
 
 A simple graphical interface showing the zone configuration of a device.
 This application may not be able to handle devices with a large number
 of zones (> 100).
 
-III.2. zbc_report_zones (tools/report_zones/)
----------------------------------------------
+IV.2. zbc_report_zones (tools/report_zones/)
+--------------------------------------------
 
 This application illustrates the use of the zone reporting functions
 (zbc_report_zones, zbc_report_nr_zones, zbc_list_zones).  It obtains
 the zone information of a device and displays it in readable form on
 the standard output.
 
-III.3. zbc_reset_write_ptr (tools/reset_write_ptr/)
----------------------------------------------------
+IV.3. zbc_reset_write_ptr (tools/reset_write_ptr/)
+--------------------------------------------------
 
 This application illustrates the use of the zbc_reset_write_pointer
 function allowing resetting the write pointer of a zone to the start
 LBA of the zone.
 
-III.4. zbc_read_zone (tools/read_zone/)
----------------------------------------
+IV.4. zbc_read_zone (tools/read_zone/)
+--------------------------------------
 
 This application reads data from a zone, up to the zone write pointer
 location and either send the read data to the standard output or copy
 the data to a regular file. It implementation uses the function zbc_pread.
 
-III.5. zbc_write_zone (tools/write_zone/)
------------------------------------------
+IV.5. zbc_write_zone (tools/write_zone/)
+----------------------------------------
 
 This application illustrates the use of the zbc_pwrite function which
 write data to a zone at the zone write pointer location.
 
-III.6. zbc_set_zones (tools/set_zones/)
----------------------------------------
+IV.6. zbc_set_zones (tools/set_zones/)
+--------------------------------------
 
 This application can be used to initialize the ZBC emulation mode for
 a regular file or a raw standard block device.
 
-III.7. zbc_set_write_ptr (tools/set_write_ptr/)
------------------------------------------------
+IV.7. zbc_set_write_ptr (tools/set_write_ptr/)
+----------------------------------------------
 
 This application can be used to set the write pointer of a zone of an
 emulated ZBC device to any LBA value (within the range of the specified
 zone). It is intended for testing purposes only and is not valid for
 native ZBC devices.
 
-III.8. lkvs (tools/lkvs/)
--------------------------
+IV.8. lkvs (tools/lkvs/)
+------------------------
 
 ### Purpose
 
@@ -217,3 +244,4 @@ See src/javabind/Tester.java
 ### LKVS Contact Information
 
 Contact: adam.manzanares@hgst.com
+

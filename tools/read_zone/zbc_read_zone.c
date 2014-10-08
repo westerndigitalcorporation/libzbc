@@ -217,12 +217,12 @@ usage:
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
 
-    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, reset 0x%x, LBA %11llu, %11llu sectors, wp %11llu\n",
+    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, flags 0x%02x, LBA %11llu, %11llu sectors, wp %11llu\n",
            zidx,
            nr_zones,
            iozone->zbz_type,
            iozone->zbz_condition,
-           iozone->zbz_need_reset,
+           iozone->zbz_flags,
            zbc_zone_start_lba(iozone),
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));

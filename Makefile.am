@@ -2,8 +2,6 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = . $(subdirs)
 EXTRA_DIST = \
-	docs \
-	kernel-patches \
 	autogen.sh \
 	exports
 
@@ -17,7 +15,7 @@ pkgconf_DATA = libzbc.pc
 pkginclude_HEADERS =
 noinst_HEADERS =
 bin_PROGRAMS =
-lib_LTLIBRARIES =
+lib_LTLIBRARIES = 
 noinst_PROGRAMS =
 
 libzbc_ldadd = $(LDADD) libzbc.la
