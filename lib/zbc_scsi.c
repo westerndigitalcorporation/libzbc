@@ -18,16 +18,12 @@
 #include "zbc.h"
 #include "zbc_sg.h"
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <scsi/scsi.h>
-#include <scsi/sg.h>
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 /***** Macro definitions *****/
 
@@ -111,7 +107,7 @@ zbc_scsi_get_info(zbc_device_t *dev)
     int logical_per_physical;
     int dev_type = -1;
     uint8_t *buf = NULL;
-    int ret;
+    int is_ata, ret;
 
     /* INQUIRY device */
     ret = zbc_scsi_inquiry(dev, &buf, &dev_type);
@@ -121,34 +117,36 @@ zbc_scsi_get_info(zbc_device_t *dev)
     }
 
     /* SATA or SCSI ? */
-    if ( strncmp((char *) (buf + 8), "ATA", 3) == 0 ) {
-        free(buf);
-        zbc_error("ZAC SATA drives are not supported for now.\n");
-        return( -ENOSYS );
-    }
+    zbc_debug("INQUIRY model: %s\n", (char *) (buf + 8));
+    is_ata = (strncmp((char *) (buf + 8), "ATA", 3) == 0);
+    free(buf);
 
-    if ( buf ) {
-        free(buf);
+    if ( is_ata ) {
+	/* ZAC drives are supported in zbc_ata.c */
+        return( -ENXIO );
     }
 
     dev->zbd_info.zbd_type = ZBC_DT_SCSI;
 
     if ( dev_type == ZBC_DEV_TYPE_HOST_MANAGED ) {
 
-        /* Host-managed drive */
+        /* Host-managed device */
         dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 
     } else if ( dev_type == ZBC_DEV_TYPE_HOST_AWARE ) {
 
+        /* Host-aware device */
         zbc_error("Device %s is a host-aware device (not supported for now)\n",
                   dev->zbd_filename);
-        return( -ENOSYS );
+        return( -ENXIO );
 
     } else {
 
-        zbc_error("Device %s does not have a known device type\n",
+        /* Unknown device */
+        zbc_debug("Device %s does not have a known device type\n",
                   dev->zbd_filename);
         return( -ENXIO );
+
     }
 
     /* READ CAPACITY 16 */
@@ -349,7 +347,6 @@ zbc_scsi_pwrite(zbc_device_t *dev,
     }
 
     /* Fill command CDB */
-    cmd.io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
     cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
     cmd.cdb[1] = 0x10;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], (zone->zbz_start + lba_ofst));
@@ -368,7 +365,7 @@ zbc_scsi_pwrite(zbc_device_t *dev,
 }
 
 /**
- * Flush to a ZBC device cache.
+ * Flush a ZBC device cache.
  */
 static int
 zbc_scsi_flush(zbc_device_t *dev,
@@ -435,8 +432,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
         }
     }
 
-    /* Allocate and intialize reset write pointer command */
-    zbc_debug("Output buffer length is %zu B\n", out_bufsz);
+    /* Allocate and intialize report zones command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, out_bufsz);
     if ( ret != 0 ) {
         zbc_error("zbc_sg_cmd_init failed\n");
