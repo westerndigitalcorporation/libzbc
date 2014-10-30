@@ -33,9 +33,9 @@ int main(int argc,
     struct zbc_device *dev;
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
-    int num = 0;
     zbc_zone_t *zones = NULL;
-    unsigned int nr_zones;
+    unsigned int nr_zones, nz = 0;
+    int num = 0;
     char *path;
 
     /* Check command line */
@@ -45,6 +45,7 @@ usage:
                "Options:\n"
                "    -v         : Verbose mode\n"
                "    -n         : Get only the number of zones\n"
+               "    -nz <num>  : Get at most <num> zones\n"
                "    -lba <lba> : Specify zone start LBA (default is 0)\n"
                "    -ro <opt>  : Specify reporting option: \"all\", \"empty\",\n"
                "                 \"open\", \"rdonly\", \"full\", \"offline\",\n"
@@ -64,6 +65,18 @@ usage:
         } else if ( strcmp(argv[i], "-n") == 0 ) {
 
             num = 1;
+
+	} else if ( strcmp(argv[i], "-nz") == 0 ) {
+
+            if ( i >= (argc - 1) ) {
+                goto usage;
+            }
+            i++;
+
+            nz = strtol(argv[i], NULL, 10);
+	    if ( nz <= 0 ) {
+		goto usage;
+	    }
 
         } else if ( strcmp(argv[i], "-lba") == 0 ) {
 
@@ -148,32 +161,58 @@ usage:
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
 
-    /* Get zone list */
-    ret = zbc_list_zones(dev, lba, ro, &zones, &nr_zones);
+    /* Get the number of zones */
+    ret = zbc_report_nr_zones(dev, lba, ro, &nr_zones);
     if ( ret != 0 ) {
-        fprintf(stderr, "zbc_list_zones failed\n");
-        ret = 1;
-        goto out;
+	fprintf(stderr, "zbc_report_nr_zones failed\n");
+	ret = 1;
+	goto out;
     }
 
     /* Print zone info */
     printf("    %u zones from LBA %llu, reporting option 0x%02x\n",
-           nr_zones,
-           lba,
-           ro);
+	   nr_zones,
+	   lba,
+	   ro);
+    
+    if ( num ) {
+	goto out;
+    }
 
-    if ( ! num ) {
-        for(i = 0; i < nr_zones; i++) {
-            printf("Zone %05d: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
-                   i,
-                   zones[i].zbz_type,
-                   zones[i].zbz_condition,
-                   zones[i].zbz_need_reset,
-                   zones[i].zbz_non_seq,
-                   (unsigned long long) zones[i].zbz_start,
-                   (unsigned long long) zones[i].zbz_length,
-                   (unsigned long long) zones[i].zbz_write_pointer);
-        }
+    if ( ! nz ) {
+	nz = nr_zones;
+    } else if ( nz > nr_zones ) {
+	nz = nr_zones;
+    }
+
+    /* Allocate zone array */
+    zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nz);
+    if ( ! zones ) {
+	fprintf(stderr, "No memory\n");
+	ret = 1;
+	goto out;
+    }
+    memset(zones, 0, sizeof(zbc_zone_t) * nz);
+	
+    /* Get zone information */
+    ret = zbc_report_zones(dev, lba, ro, zones, &nz);
+    if ( ret != 0 ) {
+	fprintf(stderr, "zbc_list_zones failed\n");
+	ret = 1;
+	goto out;
+    }
+
+    printf("%u / %u zones:\n", nz, nr_zones);
+    for(i = 0; i < nz; i++) {
+	printf("Zone %05d: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
+	       i,
+	       zones[i].zbz_type,
+	       zones[i].zbz_condition,
+	       zones[i].zbz_need_reset,
+	       zones[i].zbz_non_seq,
+	       (unsigned long long) zones[i].zbz_start,
+	       (unsigned long long) zones[i].zbz_length,
+	       (unsigned long long) zones[i].zbz_write_pointer);
     }
 
 out:
