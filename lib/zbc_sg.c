@@ -36,79 +36,107 @@ static struct zbc_sg_cmd_s
     int                 cdb_opcode;
     int                 cdb_sa;
     size_t              cdb_length;
+    int			dir;
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
-    /* ZBC_INQUIRY */
+    /* ZBC_SG_INQUIRY */
     {
         "INQUIRY",
         ZBC_SG_INQUIRY_CDB_OPCODE,
         0,
         ZBC_SG_INQUIRY_CDB_LENGTH,
+	SG_DXFER_FROM_DEV
     },
 
-    /* ZBC_READ_CAPACITY */
+    /* ZBC_SG_READ_CAPACITY */
     {
         "READ CAPACITY 16",
         ZBC_SG_READ_CAPACITY_CDB_OPCODE,
         ZBC_SG_READ_CAPACITY_CDB_SA,
         ZBC_SG_READ_CAPACITY_CDB_LENGTH,
+	SG_DXFER_FROM_DEV
     },
 
-    /* ZBC_READ */
+    /* ZBC_SG_READ */
     {
         "READ 16",
         ZBC_SG_READ_CDB_OPCODE,
         0,
         ZBC_SG_READ_CDB_LENGTH,
+	SG_DXFER_FROM_DEV
     },
 
-    /* ZBC_WRITE */
+    /* ZBC_SG_WRITE */
     {
         "WRITE 16",
         ZBC_SG_WRITE_CDB_OPCODE,
         0,
         ZBC_SG_WRITE_CDB_LENGTH,
+	SG_DXFER_TO_DEV
     },
 
-    /* ZBC_SYNC_CACHE */
+    /* ZBC_SG_SYNC_CACHE */
     {
         "SYNCHRONIZE CACHE 16",
         ZBC_SG_SYNC_CACHE_CDB_OPCODE,
         0,
         ZBC_SG_SYNC_CACHE_CDB_LENGTH,
+	SG_DXFER_NONE
     },
 
-    /* ZBC_REPORT_ZONES */
+    /* ZBC_SG_REPORT_ZONES */
     {
         "REPORT ZONES",
         ZBC_SG_REPORT_ZONES_CDB_OPCODE,
         ZBC_SG_REPORT_ZONES_CDB_SA,
         ZBC_SG_REPORT_ZONES_CDB_LENGTH,
+	SG_DXFER_FROM_DEV
     },
 
-    /* ZBC_RESET_WRITE_POINTER */
+    /* ZBC_SG_RESET_WRITE_POINTER */
     {
         "RESET WRITE POINTER",
         ZBC_SG_RESET_WRITE_POINTER_CDB_OPCODE,
         ZBC_SG_RESET_WRITE_POINTER_CDB_SA,
         ZBC_SG_RESET_WRITE_POINTER_CDB_LENGTH,
+	SG_DXFER_NONE
     },
 
-    /* ZBC_SET_ZONES */
+    /* ZBC_SG_SET_ZONES */
     {
         "SET ZONES",
         ZBC_SG_SET_ZONES_CDB_OPCODE,
         ZBC_SG_SET_ZONES_CDB_SA,
         ZBC_SG_SET_ZONES_CDB_LENGTH,
+	SG_DXFER_NONE
     },
 
-    /* ZBC_SET_WRITE_POINTER */
+    /* ZBC_SG_SET_WRITE_POINTER */
     {
         "SET WRITE POINTER",
         ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE,
         ZBC_SG_SET_WRITE_POINTER_CDB_SA,
         ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH,
+	SG_DXFER_NONE
+    },
+
+    /* ZBC_SG_ATA12 */
+    {
+	"ATA 12",
+	ZBC_SG_ATA12_CDB_OPCODE,
+	0,
+        ZBC_SG_ATA12_CDB_LENGTH,
+	0
+    },
+
+    /* ZBC_SG_ATA16 */
+    {
+	"ATA 16",
+	ZBC_SG_ATA16_CDB_OPCODE,
+	0,
+        ZBC_SG_ATA16_CDB_LENGTH,
+	0
     }
 
 };
@@ -192,8 +220,7 @@ zbc_sg_cmd_init(zbc_sg_cmd_t *cmd,
     } else if ( out_bufsz ) {
 
         /* Allocate a buffer */
-        cmd->out_bufsz = out_bufsz;
-        ret = posix_memalign((void **) &cmd->out_buf, sysconf(_SC_PAGESIZE), cmd->out_bufsz);
+        ret = posix_memalign((void **) &cmd->out_buf, sysconf(_SC_PAGESIZE), out_bufsz);
         if ( ret != 0 ) {
             zbc_error("No memory for output buffer (%zu B)\n",
                       out_bufsz);
@@ -201,6 +228,7 @@ zbc_sg_cmd_init(zbc_sg_cmd_t *cmd,
             goto out;
         }
         memset(cmd->out_buf, 0, out_bufsz);
+        cmd->out_bufsz = out_bufsz;
         cmd->out_buf_needfree = 1;
 
     }
@@ -215,7 +243,7 @@ zbc_sg_cmd_init(zbc_sg_cmd_t *cmd,
     cmd->io_hdr.cmd_len         = cmd->cdb_sz;
     cmd->io_hdr.cmdp            = &cmd->cdb[0];
 
-    cmd->io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+    cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
     cmd->io_hdr.dxfer_len       = cmd->out_bufsz;
     cmd->io_hdr.dxferp          = cmd->out_buf;
 
@@ -292,22 +320,27 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
     }
 
     /* Check status */
-    if ( cmd->io_hdr.status != 0 ) {
+    if ( cmd->io_hdr.host_status
+	 || (cmd->io_hdr.driver_status && (cmd->io_hdr.driver_status != ZBC_SG_DRIVER_SENSE))
+	 || (cmd->io_hdr.status && (cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION)) ) {
 
         int sense_buff_idx = 0;
 
-        zbc_error("%s: Command %s failed with status = 0x%02x\n",
+        zbc_error("%s: Command %s failed with host status 0x%02x, driver status 0x%02x, status 0x%02x\n",
                   dev->zbd_filename,
                   zbc_sg_cmd_name(cmd),
-                  (int)cmd->io_hdr.status);
+                  (unsigned int)cmd->io_hdr.host_status,
+                  (unsigned int)cmd->io_hdr.driver_status,
+                  (unsigned int)cmd->io_hdr.status);
+
         zbc_error("Sense buffer:\n");
         while( sense_buff_idx < cmd->io_hdr.sb_len_wr ) {
             zbc_error("[%02u]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
                       sense_buff_idx,
-                      cmd->sense_buf[sense_buff_idx],
-                      cmd->sense_buf[sense_buff_idx + 1],
-                      cmd->sense_buf[sense_buff_idx + 2],
-                      cmd->sense_buf[sense_buff_idx + 3]);
+                      (unsigned int)cmd->sense_buf[sense_buff_idx],
+                      (unsigned int)cmd->sense_buf[sense_buff_idx + 1],
+                      (unsigned int)cmd->sense_buf[sense_buff_idx + 2],
+                      (unsigned int)cmd->sense_buf[sense_buff_idx + 3]);
             sense_buff_idx += 4;
         }
 
@@ -315,24 +348,18 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
         goto out;
 
-    }
+    } else if( (cmd->io_hdr.driver_status == ZBC_SG_DRIVER_SENSE)
+	       && ((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16)) ) {
+	
+	/* ATA command status */
+	if ( cmd->sense_buf[21] != 0x50 ) {
+	    zbc_error("%s: ATA command failed with status 0x%02x\n",
+		      dev->zbd_filename,
+                      (unsigned int)cmd->sense_buf[21]);
+	    ret = -EIO;
+	    goto out;
+	}
 
-    if ( cmd->io_hdr.host_status != 0 ) {
-        zbc_error("%s: Command %s failed with host adapter status status = 0x%04x\n",
-                  dev->zbd_filename,
-                  zbc_sg_cmd_name(cmd),
-                  (int)cmd->io_hdr.host_status);
-        ret = -EIO;
-        goto out;
-    }
-
-    if ( cmd->io_hdr.driver_status != 0 ) {
-        zbc_error("%s: Command %s failed with driver status status = 0x%04x\n",
-                  dev->zbd_filename,
-                  zbc_sg_cmd_name(cmd),
-                  (int)cmd->io_hdr.driver_status);
-        ret = -EIO;
-        goto out;
     }
 
     if ( cmd->io_hdr.resid ) {

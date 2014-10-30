@@ -39,6 +39,8 @@ enum {
     ZBC_SG_RESET_WRITE_POINTER,
     ZBC_SG_SET_ZONES,
     ZBC_SG_SET_WRITE_POINTER,
+    ZBC_SG_ATA12,
+    ZBC_SG_ATA16,
 
     ZBC_SG_CMD_NUM,
 
@@ -107,14 +109,32 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH     16
 
 /**
+ * ATA pass through 12.
+ */
+#define ZBC_SG_ATA12_CDB_OPCODE			0xA1
+#define ZBC_SG_ATA12_CDB_LENGTH			12
+
+/**
+ * ATA pass through 16.
+ */
+#define ZBC_SG_ATA16_CDB_OPCODE			0x85
+#define ZBC_SG_ATA16_CDB_LENGTH			16
+
+/**
  * Command sense buffer maximum length.
  */
-#define ZBC_SG_SENSE_MAX_LENGTH                 32
+#define ZBC_SG_SENSE_MAX_LENGTH                 64
 
 /**
  * Maximum command CDB length.
  */
 #define ZBC_SG_CDB_MAX_LENGTH                   16
+
+/**
+ * Status codes.
+ */
+#define ZBC_SG_CHECK_CONDITION      		0x02
+#define ZBC_SG_DRIVER_SENSE         		0x08
 
 /***** Type definitions *****/
 

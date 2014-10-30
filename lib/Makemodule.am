@@ -6,6 +6,7 @@ CFILES = \
 	lib/zbc.c \
 	lib/zbc_sg.c \
 	lib/zbc_scsi.c \
+	lib/zbc_ata.c \
 	lib/zbc_fake.c
 
 HFILES = \
