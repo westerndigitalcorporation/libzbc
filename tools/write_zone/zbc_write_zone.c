@@ -67,8 +67,9 @@ zbc_write_zone_sigcatcher(int sig)
 
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
     struct zbc_device_info info;
     struct zbc_device *dev = NULL;
@@ -78,7 +79,7 @@ int main(int argc,
     struct stat st;
     int zidx;
     int floop = 0, fd = -1, i, ret = 1;
-    size_t iosize, ios;
+    size_t iosize, ioalign, ios;
     void *iobuf = NULL;
     uint32_t lba_count;
     int ionum = 0;
@@ -87,6 +88,7 @@ int main(int argc,
     unsigned int nr_zones, iocount = 0;
     char *path, *file = NULL;
     long long lba_ofst = -1;
+    int flush = 0;
 
     /* Check command line */
     if ( argc < 4 ) {
@@ -96,6 +98,7 @@ usage:
                "  the zone is full or the number of I/O specified is executed\n"
                "Options:\n"
                "    -v         : Verbose mode\n"
+               "    -s         : (sync) Run zbc_flush after writing\n"
                "    -nio <num> : Limit the number of I/O executed to <num>\n"
                "    -f <file>  : Write the content of <file>\n"
                "    -loop      : If a file is specified, repeatedly write the\n"
@@ -111,6 +114,10 @@ usage:
         if ( strcmp(argv[i], "-v") == 0 ) {
 
             zbc_set_log_level("debug");
+
+	} else if ( strcmp(argv[i], "-s") == 0 ) {
+
+            flush = 1;
 
         } else if ( strcmp(argv[i], "-nio") == 0 ) {
 
@@ -147,7 +154,7 @@ usage:
 
             lba_ofst = atoll(argv[i]);
             if ( lba_ofst < 0 ) {
-                fprintf(stderr, "LBA offset has to be greater or equal to 0.\n");
+                fprintf(stderr, "Invalid negative LBA offset\n");
                 return( 1 );
             }
 
@@ -172,8 +179,24 @@ usage:
 
     /* Get parameters */
     path = argv[i];
+
     zidx = atoi(argv[i + 1]);
-    iosize = atoi(argv[i + 2]);
+    if ( zidx < 0 ) {
+	fprintf(stderr,
+                "Invalid zone number %s\n",
+		argv[i + 1]);
+        ret = 1;
+        goto out;
+    }
+
+    iosize = atol(argv[i + 2]);
+    if ( ! iosize ) {
+	fprintf(stderr,
+                "Invalid I/O size %s\n",
+		argv[i + 2]);
+        ret = 1;
+        goto out;
+    }
 
     /* Setup signal handler */
     signal(SIGQUIT, zbc_write_zone_sigcatcher);
@@ -231,17 +254,21 @@ usage:
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));
 
-    /* Get an I/O buffer */
-    if ( (! iosize)
-         || (iosize % info.zbd_physical_block_size) ) {
+    /* Check alignment and get an I/O buffer */
+    if ( zbc_zone_sequential_req(iozone) ) {
+	ioalign = info.zbd_physical_block_size;
+    } else {
+	ioalign = info.zbd_logical_block_size;
+    }
+    if ( iosize % ioalign ) {
         fprintf(stderr,
-                "Invalid I/O size %zu (must be aligned on %u)\n",
+                "Invalid I/O size %zu (must be aligned on %zu)\n",
                 iosize,
-                (unsigned int) info.zbd_physical_block_size);
+		ioalign);
         ret = 1;
         goto out;
     }
-    ret = posix_memalign((void **) &iobuf, info.zbd_physical_block_size, iosize);
+    ret = posix_memalign((void **) &iobuf, ioalign, iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
                 "No memory for I/O buffer (%zu B)\n",
@@ -314,12 +341,16 @@ usage:
 
     }
 
+    if ( zbc_zone_conventional(iozone) && (lba_ofst < 0) ) {
+	lba_ofst = 0;
+    }
+
     elapsed = zbc_write_zone_usec();
 
     while( (! zbc_write_zone_abort)
-           && (zbc_zone_wp_lba(iozone) < zbc_zone_end_lba(iozone)) ) {
+           && (zbc_zone_conventional(iozone) || (zbc_zone_wp_lba(iozone) < zbc_zone_end_lba(iozone))) ) {
 
-        lba_count = iosize / info.zbd_physical_block_size;
+        lba_count = iosize / info.zbd_logical_block_size;
 
         if ( file ) {
 
@@ -360,7 +391,7 @@ usage:
                 break;
             }
 
-            lba_count = ios / info.zbd_physical_block_size;
+            //lba_count = (ios + info.zbd_logical_block_size - 1) / info.zbd_logical_block_size;
 
         }
 
@@ -379,7 +410,10 @@ usage:
             break;
         }
 
-        bcount += lba_count * info.zbd_physical_block_size;
+        if ( lba_ofst >= 0 ) {
+	    lba_ofst += ret;
+	}
+        bcount += ret * info.zbd_logical_block_size;
         iocount++;
 
         if ( (ionum > 0) && (iocount >= ionum) ) {
@@ -396,7 +430,7 @@ usage:
                iocount,
                elapsed / 1000000,
                (elapsed % 1000000) / 1000);
-        printf("  IOPS %llu)\n",
+        printf("  IOPS %llu\n",
                iocount * 1000000 / elapsed);
         brate = bcount * 1000000 / elapsed;
         printf("  BW %llu.%03llu MB/s\n",
@@ -406,6 +440,18 @@ usage:
         printf("Wrote %llu B (%d I/Os)\n",
                bcount,
                iocount);
+    }
+
+    if ( flush ) {
+        printf("Flushing disk...\n");
+	ret = zbc_flush(dev);
+	if ( ret != 0 ) {
+	    fprintf(stderr, "zbc_flush failed %d (%s)\n",
+		    file,
+		    -ret,
+		    strerror(-ret));
+	    ret = 1;
+	}
     }
 
 out:
