@@ -18,8 +18,8 @@
 /**
  * zbc_set_zones - Configure zones of a "hacked" ZBC device
  * @dev:                (IN) ZBC device handle of the device to configure
- * @conv_sz:            (IN) Size in physical sectors of the conventional zone (zone 0). This can be 0.
- * @seq_sz:             (IN) Size in physical sectors of sequential write required zones. This cannot be 0.
+ * @conv_sz:            (IN) Size in logical sectors of the conventional zone (zone 0). This can be 0.
+ * @seq_sz:             (IN) Size in logical sectors of sequential write required zones. This cannot be 0.
  *
  * This executes the non-standard SET ZONES command to change the zone configuration of a ZBC drive.
  */

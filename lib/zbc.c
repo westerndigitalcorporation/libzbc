@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 
 static struct zbc_ops *zbc_ops[] = {
+	&zbc_ata_ops,
 	&zbc_scsi_ops,
 	&zbc_file_ops,
 	NULL
@@ -165,7 +166,7 @@ zbc_report_zones(struct zbc_device *dev,
                  struct zbc_zone *zones,
                  unsigned int *nr_zones)
 {
-    int ret = -EINVAL;
+    int ret = 0;
 
     if ( (! dev) || (! nr_zones) ) {
         return( -EFAULT );
@@ -306,16 +307,16 @@ zbc_reset_write_pointer(zbc_device_t *dev,
  * @dev:                (IN) ZBC device handle to read from
  * @zone:               (IN) The zone to read in
  * @buf:                (IN) Caller supplied buffer to read into
- * @lba_count:          (IN) Size in bytes of @buf
- * @lba_ofst:           (IN) Offset in nb of LBA where to start to read in @zone
+ * @lba_count:          (IN) Number of LBAs to read
+ * @lba_ofst:           (IN) LBA offset where to start reading in @zone
  *
  * This an the equivalent to pread(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length and I/O offset.
- * It attempts to read in the a number of bytes (@lba_count * physical_block_size)
+ * It attempts to read in the a number of bytes (@lba_count * logical_block_size)
  * in the zone (@zone) at the offset (@lba_ofst).
  *
  * All errors returned by pread(2) can be returned. On success, the number of
- * physical blocks read is returned.
+ * logical blocks read is returned.
  */
 int32_t
 zbc_pread(zbc_device_t *dev,
@@ -324,15 +325,23 @@ zbc_pread(zbc_device_t *dev,
           uint32_t lba_count,
           uint64_t lba_ofst)
 {
-    ssize_t ret;
+    ssize_t ret = -EFAULT;
 
-    ret = (dev->zbd_ops->zbd_pread)(dev, zone, buf, lba_count, lba_ofst);
-    if ( ret <= 0 ) {
-        zbc_error("Read %u blocks at block %llu failed %zd (%s)\n",
-                  lba_count,
-                  (unsigned long long) lba_ofst,
-                  -ret,
-                  strerror(-ret));
+    if ( dev && zone && buf ) {
+
+	if ( lba_count ) {
+	    ret = (dev->zbd_ops->zbd_pread)(dev, zone, buf, lba_count, lba_ofst);
+	    if ( ret <= 0 ) {
+		zbc_error("Read %u blocks at block %llu failed %zd (%s)\n",
+			  lba_count,
+			  (unsigned long long) lba_ofst,
+			  -ret,
+			  strerror(-ret));
+	    }
+	} else {
+	    ret = 0;
+	}
+
     }
 
     return( ret );
@@ -344,8 +353,8 @@ zbc_pread(zbc_device_t *dev,
  * @dev:                (IN) ZBC device handle to write to
  * @zone:               (IN) The zone to write to
  * @buf:                (IN) Caller supplied buffer to write from
- * @lba_count:          (IN) Size in bytes of @buf
- * @lba_ofst:                (IN) Offset in number of LBA where to write in the zone.
+ * @lba_count:          (IN) Number of LBAs to write
+ * @lba_ofst:           (IN) LBA Offset where to start writing in @zone
  *
  * This an the equivalent to pwrite(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length. It attempts to writes in the
@@ -353,7 +362,7 @@ zbc_pread(zbc_device_t *dev,
  * The write pointer is updated in case of a succesful call.
  *
  * All errors returned by write(2) can be returned. On success, the number of
- * physical blocks written is returned.
+ * logical blocks written is returned.
  */
 int32_t
 zbc_pwrite(zbc_device_t *dev,
@@ -362,15 +371,23 @@ zbc_pwrite(zbc_device_t *dev,
            uint32_t lba_count,
            uint64_t lba_ofst)
 {
-    ssize_t ret;
+    ssize_t ret = -EFAULT;
 
-    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
-    if ( ret <= 0 ) {
-        zbc_error("Write %u blocks at block %llu failed %zd (%s)\n",
-                  lba_count,
-                  (unsigned long long) lba_ofst,
-                  -ret,
-                  strerror(-ret));
+    if ( dev && zone && buf ) {
+
+	if ( lba_count ) {
+	    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
+	    if ( ret <= 0 ) {
+		zbc_error("Write %u blocks at block %llu failed %zd (%s)\n",
+			  lba_count,
+			  (unsigned long long) lba_ofst,
+			  -ret,
+			  strerror(-ret));
+	    }
+	} else {
+	    ret = 0;
+	}
+
     }
 
     return( ret );
@@ -394,8 +411,8 @@ zbc_flush(zbc_device_t *dev)
 /**
  * zbc_set_zones - Configure zones of a "hacked" ZBC device
  * @dev:                (IN) ZBC device handle of the device to configure
- * @conv_sz:            (IN) Size in physical sectors of the conventional zone (zone 0). This can be 0.
- * @seq_sz:             (IN) Size in physical sectors of sequential write required zones. This cannot be 0.
+ * @conv_sz:            (IN) Size in logical sectors of the conventional zone (zone 0). This can be 0.
+ * @seq_sz:             (IN) Size in logical sectors of sequential write required zones. This cannot be 0.
  *
  * This executes the non-standard SET ZONES command to change the zone configuration of a ZBC drive.
  */

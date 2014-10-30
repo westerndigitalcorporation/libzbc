@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <errno.h>
 
 /***** Macro definitions *****/
 
@@ -109,6 +110,28 @@ struct zbc_zone {
 typedef struct zbc_zone zbc_zone_t;
 
 /**
+ * Some handy accessor macros.
+ */
+#define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
+#define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
+#define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+#define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
+#define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
+#define zbc_zone_open(z)                ((z)->zbz_condition == ZBC_ZC_OPEN)
+#define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
+#define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
+#define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
+
+#define zbc_zone_need_reset(z)          ((z)->zbz_need_reset)
+#define zbc_zone_non_seq(z)          	((z)->zbz_non_seq)
+
+#define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
+#define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
+#define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
+#define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
+
+/**
  * Misc information about ZBC device.
  */
 struct zbc_device_info {
@@ -180,7 +203,8 @@ zbc_get_device_info(struct zbc_device *dev,
 /**
  * zbc_report_zones - Update a list of zone information
  * @dev:                (IN) ZBC device handle to report on
- * @start_lba:          (IN) Start LBA for the first zone to reported
+ * @start_lba:          (IN) Start LBA for the first zone to be reported.
+ *                           This parameter is ignored for ZAC devices.
  * @ro:                 (IN) Reporting options
  * @zones:              (IN) Pointer to array of zone information
  * @nr_zones:           (IN/OUT) Number of zones int the array @zones
@@ -259,13 +283,14 @@ zbc_reset_write_pointer(struct zbc_device *dev,
  * @dev:                (IN) ZBC device handle to read from
  * @zone:               (IN) The zone to read in
  * @buf:                (IN) Caller supplied buffer to read into
- * @lba_count:          (IN) Size in bytes of @buf
- * @lba_ofst:           (IN) Offset in nb of LBA where to start to read in @zone
+ * @lba_count:          (IN) Number of LBAs to read
+ * @lba_ofst:           (IN) LBA offset where to start reading in @zone
  *
  * This an the equivalent to pread(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length and I/O offset.
  *
- * All errors returned by pread(2) can be returned.
+ * All errors returned by pread(2) can be returned. On success, the number of
+ * logical blocks read is returned.
  */
 extern int32_t
 zbc_pread(struct zbc_device *dev,
@@ -279,8 +304,8 @@ zbc_pread(struct zbc_device *dev,
  * @dev:                (IN) ZBC device handle to write to
  * @zone:               (IN) The zone to write to
  * @buf:                (IN) Caller supplied buffer to write from
- * @lba_count:          (IN) Size in bytes of @buf
- * @lba_ofst:                (IN) Offset in number of LBA where to write in the zone.
+ * @lba_count:          (IN) Number of LBAs to write
+ * @lba_ofst:           (IN) LBA Offset where to start writing in @zone
  *
  * This an the equivalent to pwrite(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length. It attempts to writes in the
@@ -288,7 +313,7 @@ zbc_pread(struct zbc_device *dev,
  * The write pointer is updated in case of a succesful call.
  *
  * All errors returned by write(2) can be returned. On success, the number of
- * physical blocks written is returned.
+ * logical blocks written is returned.
  */
 extern int32_t
 zbc_pwrite(struct zbc_device *dev,
@@ -302,7 +327,7 @@ zbc_pwrite(struct zbc_device *dev,
  * @dev:                (IN) ZBC device handle to write to
  * @zone:               (IN) The zone to write to (at the zone write pointer LBA)
  * @buf:                (IN) Caller supplied buffer to write from
- * @lba_count:          (IN) Size in bytes of @buf
+ * @lba_count:          (IN) Number of LBAs to write
  *
  * This an the equivalent to write(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length.  Instead of writing at
@@ -312,7 +337,7 @@ zbc_pwrite(struct zbc_device *dev,
  * a write pointer zone.
  *
  * All errors returned by write(2) can be returned. On success, the number of
- * physical blocks written is returned.
+ * logical blocks written is returned.
  */
 static inline int32_t
 zbc_write(struct zbc_device *dev,
@@ -320,7 +345,13 @@ zbc_write(struct zbc_device *dev,
           const void *buf,
           uint32_t lba_count)
 {
+
+    if ( zbc_zone_conventional(zone) ) {
+	return( -EINVAL );
+    }
+
     return( zbc_pwrite(dev, zone, buf, lba_count, (zone->zbz_write_pointer - zone->zbz_start) ) );
+
 }
 
 /**
@@ -331,27 +362,6 @@ zbc_write(struct zbc_device *dev,
  */
 extern int
 zbc_flush(struct zbc_device *dev);
-
-/**
- * Some handy accessor macros.
- */
-#define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
-#define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
-#define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
-
-#define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
-#define zbc_zone_open(z)                ((z)->zbz_condition == ZBC_ZC_OPEN)
-#define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
-#define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
-#define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
-
-#define zbc_zone_need_reset(z)          ((z)->zbz_need_reset)
-#define zbc_zone_non_seq(z)          	((z)->zbz_non_seq)
-
-#define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
-#define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
-#define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
-#define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
 /**
  * Returns a disk type name.

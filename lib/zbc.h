@@ -29,12 +29,6 @@
 /***** Macro definitions *****/
 
 /**
- * Device interface.
- */
-#define ZBC_DEV_ZBC                             0x01
-#define ZBC_DEV_ZAC                             0x02
-
-/**
  * Device types.
  */
 #define ZBC_DEV_TYPE_STANDARD                   0x0
@@ -143,12 +137,18 @@ typedef struct zbc_device {
      * Device operations.
      */
     zbc_ops_t           *zbd_ops;
+
 } zbc_device_t;
 
 /***** Internal device functions *****/
 
 /**
- * ZBC SCSI device operations.
+ * ZAC (ATA) device operations.
+ */
+extern zbc_ops_t zbc_ata_ops;
+
+/**
+ * ZBC (SCSI) device operations.
  */
 extern zbc_ops_t zbc_scsi_ops;
 
