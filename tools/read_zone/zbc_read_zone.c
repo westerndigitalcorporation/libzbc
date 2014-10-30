@@ -86,7 +86,7 @@ int main(int argc,
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones, iocount = 0;
     char *path, *file = NULL;
-    long long lba_ofst = -1; //Offset in nb of lba from the starting lba of th zone to read
+    long long lba_ofst = -1;
     long long lba_max = 0;
 
     /* Check command line */
@@ -170,7 +170,22 @@ usage:
     /* Get parameters */
     path = argv[i];
     zidx = atoi(argv[i + 1]);
-    iosize = atoi(argv[i + 2]);
+    if ( zidx < 0 ) {
+	fprintf(stderr,
+                "Invalid zone number %s\n",
+		argv[i + 1]);
+        ret = 1;
+        goto out;
+    }
+
+    iosize = atol(argv[i + 2]);
+    if ( ! iosize ) {
+	fprintf(stderr,
+                "Invalid I/O size %s\n",
+		argv[i + 2]);
+        ret = 1;
+        goto out;
+    }
 
     /* Setup signal handler */
     signal(SIGQUIT, zbc_read_zone_sigcatcher);
@@ -228,17 +243,16 @@ usage:
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));
 
-    /* Get an I/O buffer */
-    if ( (! iosize)
-         || (iosize % info.zbd_physical_block_size) ) {
+    /* Check alignment and get an I/O buffer */
+    if ( iosize % info.zbd_logical_block_size ) {
         fprintf(stderr,
                 "Invalid I/O size %zu (must be aligned on %u)\n",
                 iosize,
-                (unsigned int) info.zbd_physical_block_size);
+                (unsigned int) info.zbd_logical_block_size);
         ret = 1;
         goto out;
     }
-    ret = posix_memalign((void **) &iobuf, info.zbd_physical_block_size, iosize);
+    ret = posix_memalign((void **) &iobuf, info.zbd_logical_block_size, iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
                 "No memory for I/O buffer (%zu B)\n",
@@ -297,7 +311,7 @@ usage:
          * Then there is no limitation on the lba unless a number of IO (option -nio)
          * was given as input. In that case lba_max = iozone + lba_ofst + ionum * io size.
          */
-        lba_max = info.zbd_physical_blocks;
+        lba_max = info.zbd_logical_blocks;
     } else {
         /* No lba offset given as input.
          * The limitation is given by the lba of the write pointer.
@@ -315,7 +329,7 @@ usage:
            && (lba < lba_max) ) {
 
         /* Read zone */
-        lba_count = iosize / info.zbd_physical_block_size;
+        lba_count = iosize / info.zbd_logical_block_size;
 
         if (  (lba + lba_count) >= lba_max ) {
             lba_count = lba_max - lba;
@@ -330,7 +344,7 @@ usage:
 
         if ( file ) {
             /* Write file */
-            ret = write(fd, iobuf, lba_count * info.zbd_physical_block_size);
+            ret = write(fd, iobuf, lba_count * info.zbd_logical_block_size);
             if ( ret < 0 ) {
                 fprintf(stderr, "Write file \"%s\" failed %d (%s)\n",
                         file,
@@ -346,7 +360,7 @@ usage:
         lba      += lba_count;
         lba_ofst += lba_count;//Shift the offset by the number of read lba
 
-        bcount += lba_count * info.zbd_physical_block_size;
+        bcount += lba_count * info.zbd_logical_block_size;
         iocount++;
         ret = 0;
 
@@ -367,7 +381,7 @@ usage:
                iocount,
                elapsed / 1000000,
                (elapsed % 1000000) / 1000);
-        printf("  IOPS %llu)\n",
+        printf("  IOPS %llu\n",
                iocount * 1000000 / elapsed);
         brate = bcount * 1000000 / elapsed;
         printf("  BW %llu.%03llu MB/s\n",
