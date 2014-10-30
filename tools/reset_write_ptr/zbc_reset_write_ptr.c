@@ -39,10 +39,14 @@ int main(int argc,
     /* Check command line */
     if ( argc < 2 ) {
 usage:
-        printf("Usage: %s [options] <dev> <zone number>\n"
+        printf("Usage: %s [options] <dev> <zone>\n"
+	       "    By default <zone> is interpreted as a zone number.\n"
+	       "    If the -lba option is used, <zone> is interpreted as\n"
+	       "    the start LBA of the zone to reset.\n"
+	       "    If <zone> is -1, all zones are reset.\n"
                "Options:\n"
                "    -v   : Verbose mode\n"
-               "    -lba : Specify a zone using its zone start LBA instead of its number\n",
+               "    -lba : Interpret <zone> as a zone start LBA instead of a zone nmumber\n",
                argv[0]);
         return( 1 );
     }
