@@ -155,7 +155,7 @@ typedef struct zbc_device_info zbc_device_info_t;
 
 /**
  * Set the library log level.
- * log_level can be: "none", "info", "error", "debug" or "vdebug".
+ * log_level can be: "none", "error", "info", "debug" or "vdebug".
  */
 extern void
 zbc_set_log_level(char *log_level);

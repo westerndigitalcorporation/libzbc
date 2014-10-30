@@ -60,12 +60,10 @@ zbc_set_log_level(char *log_level)
     if ( log_level ) {
         if ( strcmp(log_level, "none") == 0 ) {
             zbc_log_level = ZBC_LOG_NONE;
-        } else if ( strcmp(log_level, "test") == 0 ) {
-            zbc_log_level = ZBC_LOG_TEST;
-        } else if ( strcmp(log_level, "info") == 0 ) {
-            zbc_log_level = ZBC_LOG_INFO;
         } else if ( strcmp(log_level, "error") == 0 ) {
             zbc_log_level = ZBC_LOG_ERROR;
+        } else if ( strcmp(log_level, "info") == 0 ) {
+            zbc_log_level = ZBC_LOG_INFO;
         } else if ( strcmp(log_level, "debug") == 0 ) {
             zbc_log_level = ZBC_LOG_DEBUG;
         } else if ( strcmp(log_level, "vdebug") == 0 ) {

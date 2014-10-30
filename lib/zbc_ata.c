@@ -116,7 +116,6 @@ zbc_ata_classify(zbc_device_t *dev)
     /* Execute the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
-	zbc_error("ATA EXECUTE DEVICE DIAGNOSTIC failed\n");
 	goto out;
     }
 

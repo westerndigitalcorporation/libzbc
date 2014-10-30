@@ -29,9 +29,8 @@
  */
 enum {
     ZBC_LOG_NONE = 0,
-    ZBC_LOG_TEST,
-    ZBC_LOG_INFO,
     ZBC_LOG_ERROR,
+    ZBC_LOG_INFO,
     ZBC_LOG_DEBUG,
     ZBC_LOG_VDEBUG,
     ZBC_LOG_MAX
@@ -81,12 +80,6 @@ extern int zbc_log_level;
 
 #define zbc_vdebug(format,args...)              \
     zbc_print_level(ZBC_LOG_VDEBUG,             \
-                    stdout,                     \
-                    format,                     \
-                    ##args)
-
-#define zbc_test(format,args...)                \
-    zbc_print_level(ZBC_LOG_TEST,               \
                     stdout,                     \
                     format,                     \
                     ##args)
