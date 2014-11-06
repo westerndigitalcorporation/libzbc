@@ -96,15 +96,26 @@ zbc_open(const char *filename,
 {
     int ret = -ENODEV, i;
 
+    /* Test all backends until one (eventually) accepts the drive */
     for (i = 0; zbc_ops[i] != NULL; i++) {
+
         ret = zbc_ops[i]->zbd_open(filename, flags, pdev);
-        if (!ret) {
+        if ( ret == 0 ) {
+	    /* This backend accepted the drive */
             (*pdev)->zbd_ops = zbc_ops[i];
-            return 0;
+	    break;
         }
+
+	/* If anything else than -ENXIO is returned, then */
+	/* assume that testing of the drive type failed   */
+        if ( ret != -ENXIO ) {
+	    return( ret );
+	}
+
     }
 
-    return( ret );
+    return( 0 );
+
 }
 
 /**

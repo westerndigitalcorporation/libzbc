@@ -279,7 +279,7 @@ zbc_ata_classify(zbc_device_t *dev)
 
 	/* ZAC host-managed signature */
 	zbc_debug("ZAC signature detected\n");
-	ret = ZBC_DEV_TYPE_HOST_MANAGED;
+	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 
     } else if ( (desc[9] == 0x00) & (desc[11] == 0x00) ) {
 
@@ -288,9 +288,11 @@ zbc_ata_classify(zbc_device_t *dev)
 	zbc_debug("Standard ATA signature detected\n");
 	ret = zbc_ata_report_zones_pages(dev);
 	if ( ret == 0 ) {
-	    ret = ZBC_DEV_TYPE_STANDARD;
+	    /* No zones: standard or drive managed disk */
+	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
 	} else if ( ret > 0 ) {
-	    ret = ZBC_DEV_TYPE_HOST_AWARE;
+	    /* We have zones: host-aware disk */
+	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	}
 
     } else {
@@ -299,6 +301,7 @@ zbc_ata_classify(zbc_device_t *dev)
 	zbc_debug("Unsupported device (signature %02x:%02x)\n",
 		  desc[9],
 		  desc[11]);
+	ret = -ENXIO;
 
     }
 
@@ -318,7 +321,6 @@ zbc_ata_get_info(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
     int logical_per_physical;
-    int dev_type;
     int ret;
 
     /* Get device model */
@@ -327,23 +329,9 @@ zbc_ata_get_info(zbc_device_t *dev)
         return( ret );
     }
 
-    if ( ret == ZBC_DEV_TYPE_HOST_MANAGED ) {
-
-        /* Host-managed device */
-        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-
-    } else if ( ret == ZBC_DEV_TYPE_HOST_AWARE ) {
-
-        /* Host-aware device */
-        zbc_error("Device %s is a host-aware device (not supported for now)\n",
-                  dev->zbd_filename);
+    if ( dev->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
+        /* Non-SMR or drive managed device... Nothing to do with it */
         return( -ENXIO );
-
-    } else {
-
-        /* Unknown or standard device */
-        return( -ENXIO );
-
     }
 
     /* READ CAPACITY 16 */
@@ -706,8 +694,6 @@ zbc_ata_flush(zbc_device_t *dev,
     return( ret );
 
 }
-
-
 
 #define ZBC_ATA_LOG_SIZE	65536
 

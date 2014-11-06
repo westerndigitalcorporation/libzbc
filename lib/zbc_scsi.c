@@ -37,6 +37,13 @@
  */
 #define ZBC_ZONE_DESCRIPTOR_OFFSET              64
 
+/**
+ * ZBC Device types.
+ */
+#define ZBC_DEV_TYPE_STANDARD                   0x0
+#define ZBC_DEV_TYPE_HOST_AWARE                 0x0
+#define ZBC_DEV_TYPE_HOST_MANAGED               0x14
+
 /***** Definition of private functions *****/
 
 /**

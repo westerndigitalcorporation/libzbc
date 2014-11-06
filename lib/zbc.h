@@ -26,15 +26,6 @@
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
 
-/***** Macro definitions *****/
-
-/**
- * Device types.
- */
-#define ZBC_DEV_TYPE_STANDARD                   0x0
-#define ZBC_DEV_TYPE_HOST_AWARE                 0x0
-#define ZBC_DEV_TYPE_HOST_MANAGED               0x14
-
 /***** Type definitions *****/
 
 /**

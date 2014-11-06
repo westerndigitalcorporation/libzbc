@@ -43,7 +43,7 @@ enum zbc_dev_type {
 enum zbc_dev_model {
     ZBC_DM_HOST_AWARE           = 0x01,
     ZBC_DM_HOST_MANAGED         = 0x02,
-    ZBC_DM_STANDARD             = 0x03,
+    ZBC_DM_DRIVE_MANAGED        = 0x03,
 };
 
 /**
@@ -389,8 +389,8 @@ zbc_disk_model_str(int model)
 {
 
     switch( model ) {
-    case ZBC_DM_STANDARD:
-        return( "Standard" );
+    case ZBC_DM_DRIVE_MANAGED:
+        return( "Standard/Drive-managed" );
     case ZBC_DM_HOST_AWARE:
         return( "Host-aware" );
     case ZBC_DM_HOST_MANAGED:
