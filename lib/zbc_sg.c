@@ -394,10 +394,10 @@ zbc_sg_cmd_set_bytes(uint8_t *cmd,
 
     for(i = 0; i < bytes; i++) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        /* The least significant byte stored is first */
+        /* The least significant byte is stored last */
         cmd[bytes - i - 1] = v[i];
 #else
-        /* The most significant byte being is stored first */
+        /* The most significant byte is stored first */
         cmd[i] = v[i];
 #endif
     }

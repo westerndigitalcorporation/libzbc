@@ -222,6 +222,20 @@ zbc_sg_cmd_set_int32(uint8_t *buf,
 }
 
 /**
+ * Set a 16 bits integer in a command cdb.
+ */
+static inline void
+zbc_sg_cmd_set_int16(uint8_t *buf,
+                     uint16_t val)
+{
+
+    zbc_sg_cmd_set_bytes(buf, &val, 2);
+    
+    return;
+    
+}
+
+/**
  * Converter structure.
  */
 union converter {
@@ -264,6 +278,20 @@ zbc_sg_cmd_get_int32(uint8_t *buf)
     zbc_sg_cmd_get_bytes(buf, &conv, 4);
 
     return( conv.val32 );
+
+}
+
+/**
+ * Get a 16 bits integer from a command output buffer.
+ */
+static inline uint16_t
+zbc_sg_cmd_get_int16(uint8_t *buf)
+{
+    union converter conv;
+
+    zbc_sg_cmd_get_bytes(buf, &conv, 2);
+
+    return( conv.val16 );
 
 }
 

@@ -271,6 +271,7 @@ zbc_ata_classify(zbc_device_t *dev)
 
     /* Test device signature */
     desc = &cmd.sense_buf[8];
+
     zbc_debug("Device signature is %02x:%02x\n",
 	      desc[9],
 	      desc[11]);
@@ -297,7 +298,7 @@ zbc_ata_classify(zbc_device_t *dev)
 
     } else {
 
-	/* Unsupported device signature */
+	/* Unsupported device */
 	zbc_debug("Unsupported device (signature %02x:%02x)\n",
 		  desc[9],
 		  desc[11]);

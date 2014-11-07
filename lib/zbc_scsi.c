@@ -41,7 +41,6 @@
  * ZBC Device types.
  */
 #define ZBC_DEV_TYPE_STANDARD                   0x0
-#define ZBC_DEV_TYPE_HOST_AWARE                 0x0
 #define ZBC_DEV_TYPE_HOST_MANAGED               0x14
 
 /***** Definition of private functions *****/
@@ -50,11 +49,10 @@
  * Get information (model, vendor, ...) from a SCSI device.
  */
 static int
-zbc_scsi_inquiry(zbc_device_t *dev,
-                 uint8_t **pbuf,
-                 int *dev_type)
+zbc_scsi_classify(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
+    int dev_type;
     int ret;
 
     /* Allocate and intialize inquiry command */
@@ -75,28 +73,71 @@ zbc_scsi_inquiry(zbc_device_t *dev,
      * |-----+-----------------------------------------------------------------------|
      * | 2   |                           Page Code                                   |
      * |-----+-----------------------------------------------------------------------|
-     * | 3   |                           Reserved                                    |
-     * |-----+-----------------------------------------------------------------------|
-     * | 4   |                           Allocation Length                           |
+     * | 3   | (MSB)                                                                 |
+     * |- - -+---                    Allocation Length                            ---|
+     * | 4   |                                                                 (LSB) |
      * |-----+-----------------------------------------------------------------------|
      * | 5   |                           Control                                     |
      * +=============================================================================+
      */
     cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-    cmd.cdb[4] = ZBC_SG_INQUIRY_REPLY_LEN;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
 
-    /* Send the SG_IO command */
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret != 0 ) {
+	goto out;
+    }
+
+    /* Make sure we are not dealing with an ATA device */
+    if ( strncmp((char *)&cmd.out_buf[8], "ATA", 3) == 0 ) {
+	ret = -ENXIO;
+	goto out;
+    }
+
+    /* This is a SCSI device */
+    dev->zbd_info.zbd_type = ZBC_DT_SCSI;
+
+    /* Now check the device type */
+    dev_type = (int)(cmd.out_buf[0] & 0x1f);
+
+    if ( dev_type == ZBC_DEV_TYPE_HOST_MANAGED ) {
+        /* Host-managed device */
+        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	goto out;
+    }
+
+    if ( dev_type != ZBC_DEV_TYPE_STANDARD ) {
+	/* Unsupported device */
+	ret = -ENXIO;
+	goto out;
+    }
+
+    /* This may be a host-managed device: look at VPD    */
+    /* page B5h (block device characteristics extension) */
+    memset(cmd.cdb, 0, sizeof(cmd.cdb));
+    memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN);
+    cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+    cmd.cdb[1] = 0x01;
+    cmd.cdb[2] = 0xB5;
+    zbc_sg_cmd_set_int32(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+
+    /* Execute the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
 
-        if ( dev_type ) {
-            *dev_type = (int)(cmd.out_buf[0] & 0x1f);
-        }
-
-        *pbuf = cmd.out_buf;
-        cmd.out_buf = NULL;
+	if ( cmd.out_buf[8] & 0x10 ) {
+	    /* Host aware device */
+	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+	} else {
+	    /* Standard or drive-managed device */
+	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+	}
 
     }
+
+out:
 
     zbc_sg_cmd_destroy(&cmd);
 
@@ -112,48 +153,17 @@ zbc_scsi_get_info(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
     int logical_per_physical;
-    int dev_type = -1;
-    uint8_t *buf = NULL;
-    int is_ata, ret;
+    int ret;
 
-    /* INQUIRY device */
-    ret = zbc_scsi_inquiry(dev, &buf, &dev_type);
+    /* Get device model */
+    ret = zbc_scsi_classify(dev);
     if ( ret != 0 ) {
-        zbc_error("zbc_scsi_inquiry failed\n");
         return( ret );
     }
 
-    /* SATA or SCSI ? */
-    zbc_debug("INQUIRY model: %s\n", (char *) (buf + 8));
-    is_ata = (strncmp((char *) (buf + 8), "ATA", 3) == 0);
-    free(buf);
-
-    if ( is_ata ) {
-	/* ZAC drives are supported in zbc_ata.c */
+    if ( dev->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
+        /* Non-SMR or drive managed device... Nothing to do with it */
         return( -ENXIO );
-    }
-
-    dev->zbd_info.zbd_type = ZBC_DT_SCSI;
-
-    if ( dev_type == ZBC_DEV_TYPE_HOST_MANAGED ) {
-
-        /* Host-managed device */
-        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-
-    } else if ( dev_type == ZBC_DEV_TYPE_HOST_AWARE ) {
-
-        /* Host-aware device */
-        zbc_error("Device %s is a host-aware device (not supported for now)\n",
-                  dev->zbd_filename);
-        return( -ENXIO );
-
-    } else {
-
-        /* Unknown device */
-        zbc_debug("Device %s does not have a known device type\n",
-                  dev->zbd_filename);
-        return( -ENXIO );
-
     }
 
     /* READ CAPACITY 16 */

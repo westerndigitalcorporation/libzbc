@@ -26,7 +26,7 @@
 
 #include "zbc.h"
 
-struct zbc_file_device {
+struct zbc_fake_device {
         struct zbc_device dev;
 
         unsigned int zbd_nr_zones;
@@ -35,13 +35,13 @@ struct zbc_file_device {
 
 };
 
-static inline struct zbc_file_device *to_file_dev(struct zbc_device *dev)
+static inline struct zbc_fake_device *to_file_dev(struct zbc_device *dev)
 {
-        return container_of(dev, struct zbc_file_device, dev);
+        return container_of(dev, struct zbc_fake_device, dev);
 }
 
 static struct zbc_zone *
-zbf_file_find_zone(struct zbc_file_device *fdev, uint64_t zone_start_lba)
+zbf_fake_find_zone(struct zbc_fake_device *fdev, uint64_t zone_start_lba)
 {
         int i;
 
@@ -52,7 +52,7 @@ zbf_file_find_zone(struct zbc_file_device *fdev, uint64_t zone_start_lba)
 }
 
 static int
-zbc_file_open_metadata(struct zbc_file_device *fdev)
+zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 {
         char meta_path[512];
         struct stat st;
@@ -109,7 +109,7 @@ out_close:
 #define ZBC_FILE_SECTOR_SIZE    512
 
 static int
-zbc_file_get_info(struct zbc_device *dev, struct stat *st)
+zbc_fake_get_info(struct zbc_device *dev, struct stat *st)
 {
         dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE;
         dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FILE_SECTOR_SIZE;
@@ -203,9 +203,9 @@ out:
 }
 
 static int
-zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
+zbc_fake_open(const char *filename, int flags, struct zbc_device **pdev)
 {
-        struct zbc_file_device *fdev;
+        struct zbc_fake_device *fdev;
         struct stat st;
         int fd, ret;
 
@@ -244,16 +244,17 @@ zbc_file_open(const char *filename, int flags, struct zbc_device **pdev)
         if (!fdev->dev.zbd_filename)
                 goto out_free_dev;
 
+        fdev->dev.zbd_info.zbd_type = ZBC_DT_FAKE;
         fdev->dev.zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
         if (S_ISBLK(st.st_mode))
                 ret = zbc_blkdev_get_info(&fdev->dev);
         else
-                ret = zbc_file_get_info(&fdev->dev, &st);
+                ret = zbc_fake_get_info(&fdev->dev, &st);
 
         if (ret)
                 goto out_free_filename;
 
-        ret = zbc_file_open_metadata(fdev);
+        ret = zbc_fake_open_metadata(fdev);
         if (ret)
                 goto out_free_filename;
 
@@ -270,9 +271,9 @@ out:
 }
 
 static int
-zbc_file_close(zbc_device_t *dev)
+zbc_fake_close(zbc_device_t *dev)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         int ret = 0;
 
         if (fdev->zbd_meta_fd != -1) {
@@ -325,7 +326,7 @@ want_zone(struct zbc_zone *zone, uint64_t start_lba,
 }
 
 static int
-zbc_file_nr_zones(struct zbc_file_device *fdev, uint64_t start_lba,
+zbc_fake_nr_zones(struct zbc_fake_device *fdev, uint64_t start_lba,
                   enum zbc_reporting_options options, unsigned int *nr_zones)
 {
         int in, out;
@@ -341,11 +342,11 @@ zbc_file_nr_zones(struct zbc_file_device *fdev, uint64_t start_lba,
 }
 
 static int
-zbc_file_report_zones(struct zbc_device *dev, uint64_t start_lba,
+zbc_fake_report_zones(struct zbc_device *dev, uint64_t start_lba,
                       enum zbc_reporting_options options, struct zbc_zone *zones,
                       unsigned int *nr_zones)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         unsigned int max_nr_zones = *nr_zones;
         int in, out;
 
@@ -353,7 +354,7 @@ zbc_file_report_zones(struct zbc_device *dev, uint64_t start_lba,
                 return -ENXIO;
 
         if (!zones)
-                return zbc_file_nr_zones(fdev, start_lba, options, nr_zones);
+                return zbc_fake_nr_zones(fdev, start_lba, options, nr_zones);
 
         out = 0;
         for (in = 0; in < fdev->zbd_nr_zones; in++) {
@@ -383,7 +384,7 @@ zbc_zone_reset_allowed(struct zbc_zone *zone)
 }
 
 static int
-zbc_file_reset_one_write_pointer(struct zbc_zone *zone)
+zbc_fake_reset_one_write_pointer(struct zbc_zone *zone)
 {
         if (!zbc_zone_reset_allowed(zone))
                 return -EINVAL;
@@ -393,9 +394,9 @@ zbc_file_reset_one_write_pointer(struct zbc_zone *zone)
 }
 
 static int
-zbc_file_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
+zbc_fake_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
         if (!fdev->zbd_zones)
@@ -405,25 +406,25 @@ zbc_file_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
                 int i;
 
                 for (i = 0; i < fdev->zbd_nr_zones; i++)
-                        zbc_file_reset_one_write_pointer(&fdev->zbd_zones[i]);
+                        zbc_fake_reset_one_write_pointer(&fdev->zbd_zones[i]);
         } else {
-                zone = zbf_file_find_zone(fdev, zone_start_lba);
+                zone = zbf_fake_find_zone(fdev, zone_start_lba);
                 if (!zone)
                         return -EIO;
 
                 /* XXX(hch): reject for conventional zones? */
 
-                zbc_file_reset_one_write_pointer(zone);
+                zbc_fake_reset_one_write_pointer(zone);
         }
 
         return 0;
 }
 
 static int32_t
-zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
+zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                uint32_t lba_count, uint64_t start_lba)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         off_t offset;
         size_t count, ret;
 
@@ -447,7 +448,7 @@ zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                         uint64_t lba = zbc_zone_end_lba(zone) + 1;
                         uint64_t count = start_lba + lba_count - lba;
                         struct zbc_zone *next_zone = zone;
-                        while( count && (next_zone = zbf_file_find_zone(fdev, lba)) ) {
+                        while( count && (next_zone = zbf_fake_find_zone(fdev, lba)) ) {
                                 if (next_zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
                                         return -EIO;
                                 if ( count > next_zone->zbz_length )
@@ -470,10 +471,10 @@ zbc_file_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
 }
 
 static int32_t
-zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
+zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
                 uint32_t lba_count, uint64_t start_lba)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
         off_t offset;
         size_t count, ret;
@@ -481,7 +482,7 @@ zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
-        zone = zbf_file_find_zone(fdev, z->zbz_start);
+        zone = zbf_fake_find_zone(fdev, z->zbz_start);
         if (!zone)
                 return -EIO;
 
@@ -533,17 +534,17 @@ zbc_file_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
 }
 
 static int
-zbc_file_flush(struct zbc_device *dev, uint64_t lba_offset, uint32_t lba_count,
+zbc_fake_flush(struct zbc_device *dev, uint64_t lba_offset, uint32_t lba_count,
                 int immediate)
 {
         return fsync(dev->zbd_fd);
 }
 
 static int
-zbc_file_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
+zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                    uint64_t seq_zone_size)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         char meta_path[512];
         struct stat st;
         off_t len;
@@ -645,16 +646,16 @@ out_close:
 }
 
 static int
-zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
+zbc_fake_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
                            uint64_t write_pointer)
 {
-        struct zbc_file_device *fdev = to_file_dev(dev);
+        struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
-        zone = zbf_file_find_zone(fdev, start_lba);
+        zone = zbf_fake_find_zone(fdev, start_lba);
         if (!zone)
                 return -EINVAL;
 
@@ -670,14 +671,14 @@ zbc_file_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
         return 0;
 }
 
-struct zbc_ops zbc_file_ops = {
-        .zbd_open                       = zbc_file_open,
-        .zbd_close                      = zbc_file_close,
-        .zbd_pread                      = zbc_file_pread,
-        .zbd_pwrite                     = zbc_file_pwrite,
-        .zbd_flush                      = zbc_file_flush,
-        .zbd_report_zones               = zbc_file_report_zones,
-        .zbd_reset_wp                   = zbc_file_reset_wp,
-        .zbd_set_zones                  = zbc_file_set_zones,
-        .zbd_set_wp                     = zbc_file_set_write_pointer,
+struct zbc_ops zbc_fake_ops = {
+        .zbd_open                       = zbc_fake_open,
+        .zbd_close                      = zbc_fake_close,
+        .zbd_pread                      = zbc_fake_pread,
+        .zbd_pwrite                     = zbc_fake_pwrite,
+        .zbd_flush                      = zbc_fake_flush,
+        .zbd_report_zones               = zbc_fake_report_zones,
+        .zbd_reset_wp                   = zbc_fake_reset_wp,
+        .zbd_set_zones                  = zbc_fake_set_zones,
+        .zbd_set_wp                     = zbc_fake_set_write_pointer,
 };

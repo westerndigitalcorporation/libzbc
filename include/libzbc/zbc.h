@@ -28,11 +28,13 @@
 /***** Macro definitions *****/
 
 /**
- * Device type: SCSI or ATA.
+ * Device type: SCSI, ATA or fake (emulation).
+ * Each type correspond to a different internal backend driver.
  */
 enum zbc_dev_type {
     ZBC_DT_SCSI                 = 0x01,
     ZBC_DT_ATA                  = 0x02,
+    ZBC_DT_FAKE                 = 0x03,
 };
 /**
  * Device model:
@@ -375,6 +377,8 @@ zbc_disk_type_str(int type)
         return( "SCSI ZBC" );
     case ZBC_DT_ATA:
         return( "ATA ZAC" );
+    case ZBC_DT_FAKE:
+        return( "Emulated zoned device" );
     }
 
     return( "Unknown" );

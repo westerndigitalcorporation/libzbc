@@ -146,7 +146,7 @@ extern zbc_ops_t zbc_scsi_ops;
 /**
  * ZBC emulation (file or block device).
  */
-extern struct zbc_ops zbc_file_ops;
+extern struct zbc_ops zbc_fake_ops;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
