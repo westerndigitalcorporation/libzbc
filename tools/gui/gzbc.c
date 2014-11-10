@@ -39,10 +39,11 @@ dz_set_signal_handlers(void);
 
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
-    char *filename = NULL;
+    char *path = NULL;
     gboolean init_ret;
     gboolean verbose = FALSE;
     GError *error = NULL;
@@ -50,7 +51,7 @@ int main(int argc,
     GOptionEntry options[] = {
         {
             "dev", 'd', 0,
-            G_OPTION_ARG_FILENAME, &filename,
+            G_OPTION_ARG_FILENAME, &path,
             "ZBC device file", NULL
         },
         {
@@ -68,8 +69,6 @@ int main(int argc,
 
     /* Init */
     memset(&dz, 0, sizeof(dz));
-    dz.interval = DZ_INTERVAL;
-    gtk_set_locale();
     init_ret = gtk_init_with_args(&argc,
                                   &argv,
                                   "ZBC device zone state GUI",
@@ -84,8 +83,8 @@ int main(int argc,
         return( 1 );
     }
 
-    if ( ! filename ) {
-        fprintf(stderr, "No ZBC device file specified\n");
+    if ( ! path ) {
+        fprintf(stderr, "No ZBC device file specified (use -d | --dev option)\n");
         return( 1 );
     }
 
@@ -96,23 +95,26 @@ int main(int argc,
     dz_set_signal_handlers();
 
     /* Open device file */
-    ret = zbc_open(filename, O_RDONLY, &dz.dev);
+    ret = zbc_open(path, O_RDONLY, &dz.dev);
     if ( ret != 0 ) {
         fprintf(stderr, "Open device %s failed\n",
-                filename);
+                path);
         return( 1 );
     }
 
     ret = zbc_get_device_info(dz.dev, &dz.info);
-    if ( ret < 0 ) {
+    if ( ret != 0 ) {
         fprintf(stderr,
                 "zbc_get_device_info failed\n");
         goto out;
     }
 
-    dz.filename = filename;
-
-    printf("Creating interface...\n");
+    /* Get zone information */
+    dz.path = path;
+    ret = dz_get_zones();
+    if ( ret != 0 ) {
+        goto out;
+    }
 
     /* Create GUI */
     dz_if_create();
@@ -134,35 +136,39 @@ out:
 int
 dz_get_zones(void)
 {
-    unsigned int nr_zones;
+    int nr_zones = dz.nr_zones;
     int ret;
 
-    ret = zbc_report_nr_zones(dz.dev, 0, ZBC_RO_ALL, &nr_zones);
+    if ( ! nr_zones ) {
+list:
+	/* Get zone list */
+	ret = zbc_list_zones(dz.dev, 0, ZBC_RO_ALL, &dz.zones, &dz.nr_zones);
+	if ( ret == 0 ) {
+	    printf("Device \"%s\": %llu sectors of %u B, %d zones\n",
+		   dz.path,
+		   (unsigned long long) dz.info.zbd_physical_blocks,
+		   (unsigned int) dz.info.zbd_physical_block_size,
+		   dz.nr_zones);
+	}
+
+    } else {
+
+	/* Refresh zone list */
+	ret = zbc_report_nr_zones(dz.dev, 0, ZBC_RO_ALL, &nr_zones);
+	if ( (ret == 0) && (nr_zones != dz.nr_zones) ) {
+	    /* Number of zones changed... */
+	    free(dz.zones);
+            dz.zones = NULL;
+            dz.nr_zones = 0;
+	    goto list;
+	}
+
+	ret = zbc_report_zones(dz.dev, 0, ZBC_RO_ALL, dz.zones, &nr_zones);
+
+    }
+
     if ( ret != 0 ) {
-        return( ret );
-    }
-
-    if ( dz.nr_zones
-         && (dz.nr_zones != nr_zones) ) {
-        /* Zone list changed: clean it */
-        free(dz.zones);
-        dz.zones = NULL;
-        dz.nr_zones = 0;
-    }
-
-    if ( ! dz.nr_zones ) {
-        printf("Device \"%s\": %llu sectors of %u B, %d zones\n",
-               dz.filename,
-               (unsigned long long) dz.info.zbd_physical_blocks,
-               (unsigned int) dz.info.zbd_physical_block_size,
-               nr_zones);
-    }
-
-    /* Get/refresh zone list */
-    ret = zbc_list_zones(dz.dev, 0, ZBC_RO_ALL, &dz.zones, &dz.nr_zones);
-    if ( ret != 0 ) {
-        ret = errno;
-        fprintf(stderr, "zbc_list_zones failed %d (%s)\n",
+        fprintf(stderr, "Get zone information failed %d (%s)\n",
                 errno,
                 strerror(errno));
         if ( dz.zones ) {
@@ -170,23 +176,20 @@ dz_get_zones(void)
             dz.zones = NULL;
             dz.nr_zones = 0;
         }
-        goto out;
     }
-
-out:
 
     return( ret );
 
 }
 
 int
-dz_reset_zone(int idx)
+dz_reset_zone(int zno)
 {
     int ret = 0;
 
-    if ( (idx >= 0)
-         && (idx < dz.nr_zones) ) {
-        ret = zbc_reset_write_pointer(dz.dev, dz.zones[idx].zbz_write_pointer);
+    if ( (zno >= 0)
+         && (zno < dz.nr_zones) ) {
+        ret = zbc_reset_write_pointer(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
         if ( ret != 0 ) {
             ret = errno;
             fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",

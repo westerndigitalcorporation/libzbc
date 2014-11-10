@@ -32,46 +32,33 @@
 #define DZ_INTERVAL     1000
 
 /**
- * Colors.
+ * Number of fields in the zone info list.
  */
-enum {
-    DZ_COLOR_CONV = 0,
-    DZ_COLOR_FREE,
-    DZ_COLOR_USED,
-};
+#define DZ_ZONE_INFO_FIELD_NUM  7
 
 /**
- * Number of fields in zone info list.
+ * Initial number of visible lines in the zone info list.
  */
-#define DZ_ZONE_INFO_FIELD_NUM  8
+#define DZ_ZONE_INFO_LINE_NUM  	10
 
 /***** Type definitions *****/
 
 /**
- * Demo GUI control.
+ * Zone info line.
  */
-typedef struct dz_zone {
+typedef struct dz_zinfo_line {
 
-    /**
-     * Zone index and length.
-     */
-    int                 idx;
-    uint64_t            length;
+    GtkWidget                   *label;
+    GtkWidget                   *entry[DZ_ZONE_INFO_FIELD_NUM];
 
-    /**
-     * Interface stuff.
-     */
-    GtkWidget           *da;
-    GtkWidget           *entry[DZ_ZONE_INFO_FIELD_NUM - 1];
-
-} dz_zone_t;
+} dz_zinfo_line_t;
 
 /**
- * Demo control.
+ * GUI data.
  */
 typedef struct dz {
 
-    char                        *filename;
+    char                        *path;
 
     struct zbc_device           *dev;
     struct zbc_device_info      info;
@@ -86,23 +73,24 @@ typedef struct dz {
      * Interface stuff.
      */
     GtkWidget                   *window;
-    GtkWidget                   *zda;
     GtkAdjustment               *zadj;
     GtkWidget                   *notebook;
 
-    GdkGC                       *conv_gc;
-    GdkGC                       *free_gc;
-    GdkGC                       *used_gc;
+    GdkRGBA			conv_color;
+    GdkRGBA			seqnw_color;
+    GdkRGBA			seqw_color;
 
-    GtkWidget                   *zstate_container;
-    GtkWidget                   *zstate_hbox;
-    int                         zstate_base_width;
+    GtkWidget                   *zinfo_frame_label;
+    GtkWidget                   *zinfo_viewport;
+    GtkWidget                   *zinfo_grid;
+    int				zinfo_height;
+    int				zinfo_line_height;
+    int				zinfo_nr_lines;
+    dz_zinfo_line_t		*zinfo_lines;
+    int				zinfo_zno;
+    GtkAdjustment               *zinfo_vadj;
 
-    GtkWidget                   *zinfo_container;
-    GtkWidget                   *zinfo_table;
-
-    dz_zone_t                   *z;
-    int                         nz;
+    GtkWidget                   *zstate_da;
 
     /**
      * For handling timer and signals.
@@ -138,7 +126,7 @@ extern int
 dz_get_zones(void);
 
 extern int
-dz_reset_zone(int idx);
+dz_reset_zone(int zno);
 
 extern int
 dz_if_create(void);

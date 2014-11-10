@@ -28,18 +28,33 @@
 /***** Declaration of private functions *****/
 
 static gboolean
-dz_if_expose_cb(GtkWidget *widget,
-                GdkEventButton *event,
-                gpointer user_data);
+dz_if_zstate_draw_legend_cb(GtkWidget *widget,
+			    cairo_t *cr,
+			    gpointer user_data);
+
+static gboolean
+dz_if_zstate_draw_cb(GtkWidget *widget,
+		     cairo_t *cr,
+		     gpointer user_data);
+
+static gboolean
+dz_if_zinfo_scroll_cb(GtkWidget *widget,
+		      GdkEvent *event,
+		      gpointer user_data);
+
+static gboolean
+dz_if_zinfo_update_cb(GtkWidget *widget,
+		      GdkEvent *event,
+		      gpointer user_data);
 
 static void
 dz_if_delete_cb(GtkWidget *widget,
-                GdkEventButton *event,
+                GdkEvent *event,
                 gpointer user_data);
 
 static gboolean
 dz_if_exit_cb(GtkWidget *widget,
-              GdkEventButton *event,
+              GdkEvent *event,
               gpointer user_data);
 
 static gboolean
@@ -47,66 +62,52 @@ dz_if_timer_cb(gpointer user_data);
 
 static gboolean
 dz_if_refresh_cb(GtkWidget *widget,
-                 GdkEventButton *event,
+                 GdkEvent *event,
                  gpointer user_data);
 
 static gboolean
 dz_if_reset_cb(GtkWidget *widget,
-               GdkEventButton *event,
+               GdkEvent *event,
                gpointer user_data);
 
 static void
-dz_if_refresh_zones(void);
+dz_if_create_zinfo(int nr_lines);
 
 static void
-dz_if_destroy_zones(void);
+dz_if_update_zinfo();
 
-static GdkColor dz_colors[] =
-    {
-        { 0, 65535,     0, 65535 },        /* Magenta -> conv zone */
-        { 0,     0, 32768,     0 },        /* Dark green -> free space in seq write zone */
-        { 0, 65535,     0,     0 },        /* Red -> used space in seq write zone */
-        { 0, 32768,     0, 32768 },        /* Dark violet */
-        { 0, 32768,     0, 65535 },        /* Violet      */
-        { 0,     0, 32768, 65535 },        /* Light blue  */
-
-        { 0,     0, 65535,     0 },        /* Green       */
-        { 0,     0, 32768, 65535 },        /* Light blue  */
-        { 0, 65535, 32768,     0 },        /* Orange      */
-        { 0, 42496, 38400,     0 },        /* Gold        */
-        { 0,     0, 65535, 65535 },        /* Cyan        */
-        { 0, 32768, 32768, 32768 },        /* Grey        */
-        { 0, 45056,     0,     0 },        /* Dark red    */
-        { 0, 65535, 65535, 65535 },        /* White       */
-        { 0,     0,     0, 65535 },        /* Blue        */
-        { 0, 65535, 32768, 32768 },        /* Pink        */
-        { 0, 32768, 49152, 32768 },        /* Bad green   */
-
-    };
+static void
+dz_if_refresh_zones(void);
 
 /***** Definition of public functions *****/
 
 int
 dz_if_create(void)
 {
-    GtkWidget *win_vbox, *hbox, *ctrl_hbox;
-    GtkWidget *notebook;
-    GtkWidget *notebook_page;
+    GtkWidget *win_vbox, *hbox, *ctrl_hbox, *vbox;
     GtkWidget *scrolledwindow, *viewport;
+    GtkWidget *scrollbar;
     GtkWidget *window;
-    GtkWidget *alignment;
+    GtkWidget *frame, *alignment;
     GtkWidget *button;
     GtkWidget *image;
     GtkWidget *label;
+    GtkWidget *entry;
     GtkWidget *spinbutton;
     GtkWidget *hbuttonbox;
     GtkWidget *da;
+    char str[128];
+
+    /* Get colors */
+    gdk_rgba_parse(&dz.conv_color, "Magenta");
+    gdk_rgba_parse(&dz.seqw_color, "Red");
+    gdk_rgba_parse(&dz.seqnw_color, "Dark Green");
 
     /* Window */
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "ZBC Device Zone State");
     gtk_container_set_border_width(GTK_CONTAINER(window), 5);
-    gtk_window_resize(GTK_WINDOW(window), 1280, 320);
+    gtk_window_resize(GTK_WINDOW(window), 720, 480);
     dz.window = window;
 
     g_signal_connect((gpointer) window, "delete-event",
@@ -114,85 +115,124 @@ dz_if_create(void)
                      NULL);
 
     /* Top vbox */
-    win_vbox = gtk_vbox_new(FALSE, 0);
+    win_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_show(win_vbox);
     gtk_container_add(GTK_CONTAINER(window), win_vbox);
 
-    /* Garbage (for colors) */
+    /* Zone information frame */
+    snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dz.path, dz.nr_zones);
+    frame = gtk_frame_new(str);
+    gtk_widget_show(frame);
+    gtk_box_pack_start(GTK_BOX(win_vbox), frame, TRUE, TRUE, 0);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+    gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
+    dz.zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
+    gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
+
+    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
+    gtk_widget_show(alignment);
+    gtk_container_add(GTK_CONTAINER(frame), alignment);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
+    
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+
+    scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_POLICY_ALWAYS, GTK_POLICY_NEVER);
+    gtk_widget_show(scrolledwindow);
+    gtk_box_pack_start(GTK_BOX(hbox), scrolledwindow, TRUE, TRUE, 0);
+
+    dz.zinfo_vadj = gtk_adjustment_new(0, 0, dz.nr_zones, 1, DZ_ZONE_INFO_LINE_NUM, DZ_ZONE_INFO_LINE_NUM);
+    scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, dz.zinfo_vadj);
+    gtk_widget_show(scrollbar);
+    gtk_box_pack_start(GTK_BOX(hbox), scrollbar, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) dz.zinfo_vadj, "value_changed",
+		     G_CALLBACK(dz_if_zinfo_update_cb),
+		     NULL);
+
+    viewport = gtk_viewport_new(NULL, NULL);
+    gtk_widget_set_size_request(viewport, -1, 300);
+    gtk_widget_show(viewport);
+    gtk_container_set_border_width(GTK_CONTAINER(viewport), 10);
+    gtk_widget_add_events(viewport, GDK_SCROLL_MASK);
+    gtk_container_add(GTK_CONTAINER(scrolledwindow), viewport);
+    dz.zinfo_viewport = viewport;
+
+    g_signal_connect((gpointer) viewport, "scroll-event",
+		     G_CALLBACK(dz_if_zinfo_scroll_cb),
+		     NULL);
+
+    /* Create info lines */
+    dz_if_create_zinfo(DZ_ZONE_INFO_LINE_NUM);
+
+    /* Zone use state drawing frame */
+    frame = gtk_frame_new("<b>Zone State</b>");
+    gtk_widget_show(frame);
+    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, TRUE, 0);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+    gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
+
+    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
+    gtk_widget_show(alignment);
+    gtk_container_add(GTK_CONTAINER(frame), alignment);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
+
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_show(vbox);
+    gtk_container_add(GTK_CONTAINER(alignment), vbox);
+
     da = gtk_drawing_area_new();
+    gtk_widget_set_size_request(da, -1, 20);
     gtk_widget_show(da);
-    gtk_box_pack_start(GTK_BOX(win_vbox), da, FALSE, FALSE, 0);
-    dz.zda = da;
+    gtk_container_add(GTK_CONTAINER(vbox), da);
 
-    /* Notbook */
-    notebook = gtk_notebook_new();
-    gtk_widget_show(notebook);
-    gtk_box_pack_start(GTK_BOX(win_vbox), notebook, TRUE, TRUE, 0);
-    dz.notebook = notebook;
+    g_signal_connect((gpointer) da, "draw",
+                     G_CALLBACK(dz_if_zstate_draw_legend_cb),
+                     NULL);
 
-    /* Notbook zone state page */
-    notebook_page = gtk_vbox_new(FALSE, 0);
-    gtk_widget_show(notebook_page);
-    gtk_container_add(GTK_CONTAINER(notebook), notebook_page);
-    gtk_container_set_border_width(GTK_CONTAINER(notebook_page), 10);
+    da = gtk_drawing_area_new();
+    gtk_widget_set_size_request(da, -1, 100);
+    gtk_widget_show(da);
+    gtk_container_add(GTK_CONTAINER(vbox), da);
+    dz.zstate_da = da;
 
-    label = gtk_label_new ("<b>Zone State</b>");
-    gtk_widget_show(label);
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_notebook_set_tab_label(GTK_NOTEBOOK(notebook), gtk_notebook_get_nth_page(GTK_NOTEBOOK(notebook), 0), label);
+    g_signal_connect((gpointer) da, "draw",
+                     G_CALLBACK(dz_if_zstate_draw_cb),
+                     NULL);
 
-    scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_show(scrolledwindow);
-    gtk_container_add(GTK_CONTAINER(notebook_page), scrolledwindow);
+    /* Controls frame */
+    frame = gtk_frame_new(NULL);
+    gtk_widget_show(frame);
+    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, TRUE, 0);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
-    viewport = gtk_viewport_new(NULL, NULL);
-    gtk_widget_show(viewport);
-    gtk_container_set_border_width(GTK_CONTAINER(viewport), 10);
-    gtk_container_add(GTK_CONTAINER(scrolledwindow), viewport);
-
-    dz.zstate_container = viewport;
-
-    /* Notbook zone info page */
-    notebook_page = gtk_vbox_new(FALSE, 0);
-    gtk_widget_show(notebook_page);
-    gtk_container_add(GTK_CONTAINER(notebook), notebook_page);
-    gtk_container_set_border_width(GTK_CONTAINER(notebook_page), 10);
-
-    label = gtk_label_new ("<b>Zone Information</b>");
-    gtk_widget_show(label);
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_notebook_set_tab_label(GTK_NOTEBOOK(notebook), gtk_notebook_get_nth_page(GTK_NOTEBOOK(notebook), 1), label);
-
-    scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_show(scrolledwindow);
-    gtk_container_add(GTK_CONTAINER(notebook_page), scrolledwindow);
-
-    viewport = gtk_viewport_new(NULL, NULL);
-    gtk_widget_show(viewport);
-    gtk_container_set_border_width(GTK_CONTAINER(viewport), 10);
-    gtk_container_add(GTK_CONTAINER(scrolledwindow), viewport);
-    dz.zinfo_container = viewport;
+    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
+    gtk_widget_show(alignment);
+    gtk_container_add(GTK_CONTAINER(frame), alignment);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
 
     /* Hbox for controls */
-    ctrl_hbox = gtk_hbox_new(FALSE, 2);
+    ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(ctrl_hbox);
-    gtk_box_pack_start(GTK_BOX(win_vbox), ctrl_hbox, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(alignment), ctrl_hbox);
 
-    /* Reset zone controls: label, spinbutton and button */
+    /* Reset zone control */
     label = gtk_label_new("<b>Zone index</b>");
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
 
-    dz.zadj = (GtkAdjustment *) gtk_adjustment_new(0, 0, 0, 1, 10, 0);
+    dz.zadj = gtk_adjustment_new(0, 0, dz.nr_zones - 1, 1, 10, 0);
     spinbutton = gtk_spin_button_new(GTK_ADJUSTMENT(dz.zadj), 1, 0);
     gtk_widget_show(spinbutton);
     gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
 
     /* Zone control button Box */
-    hbuttonbox = gtk_hbutton_box_new();
+    hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_widget_show(hbuttonbox);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), hbuttonbox, FALSE, FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbuttonbox), 10);
@@ -208,11 +248,11 @@ dz_if_create(void)
     gtk_widget_show(alignment);
     gtk_container_add(GTK_CONTAINER(button), alignment);
 
-    hbox = gtk_hbox_new(FALSE, 2);
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
     gtk_container_add(GTK_CONTAINER(alignment), hbox);
 
-    image = gtk_image_new_from_stock("gtk-clear", GTK_ICON_SIZE_BUTTON);
+    image = gtk_image_new_from_icon_name("gtk-clear", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
@@ -225,58 +265,54 @@ dz_if_create(void)
                       spinbutton);
 
     /* Exit, refresh, ... button Box */
-    hbuttonbox = gtk_hbutton_box_new();
+    hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_widget_show(hbuttonbox);
     gtk_box_pack_end(GTK_BOX(ctrl_hbox), hbuttonbox, FALSE, FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbuttonbox), 10);
     gtk_button_box_set_layout(GTK_BUTTON_BOX(hbuttonbox), GTK_BUTTONBOX_END);
     gtk_box_set_spacing(GTK_BOX(hbuttonbox), 10);
 
-    if ( ! dz.interval ) {
-
-        /* Refresh button */
-        button = gtk_button_new();
-        gtk_widget_show(button);
-        gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-        GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-
-        alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
-        gtk_widget_show(alignment);
-        gtk_container_add(GTK_CONTAINER(button), alignment);
-
-        hbox = gtk_hbox_new(FALSE, 2);
-        gtk_widget_show(hbox);
-        gtk_container_add(GTK_CONTAINER(alignment), hbox);
-
-        image = gtk_image_new_from_stock("gtk-refresh", GTK_ICON_SIZE_BUTTON);
-        gtk_widget_show(image);
-        gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-        label = gtk_label_new_with_mnemonic("Refresh");
-        gtk_widget_show(label);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-        g_signal_connect((gpointer) button, "button_press_event",
-                         G_CALLBACK(dz_if_refresh_cb),
-                         &dz);
-
-    }
+    /* Refresh button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
+    gtk_widget_set_can_default(button, TRUE);
+    
+    alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
+    gtk_widget_show(alignment);
+    gtk_container_add(GTK_CONTAINER(button), alignment);
+    
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+    
+    image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+    
+    label = gtk_label_new_with_mnemonic("Refresh");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    
+    g_signal_connect((gpointer) button, "button_press_event",
+		     G_CALLBACK(dz_if_refresh_cb),
+		     &dz);
 
     /* Exit button */
     button = gtk_button_new();
     gtk_widget_show(button);
     gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_widget_set_can_default(button, TRUE);
 
     alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
     gtk_widget_show(alignment);
     gtk_container_add(GTK_CONTAINER(button), alignment);
 
-    hbox = gtk_hbox_new(FALSE, 2);
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
     gtk_container_add(GTK_CONTAINER(alignment), hbox);
 
-    image = gtk_image_new_from_stock("gtk-quit", GTK_ICON_SIZE_BUTTON);
+    image = gtk_image_new_from_icon_name("gtk-quit", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
@@ -288,13 +324,17 @@ dz_if_create(void)
                       G_CALLBACK(dz_if_exit_cb),
                       &dz);
 
-    if ( dz.interval ) {
-        /* Add timer */
+    if ( dz.interval > DZ_INTERVAL ) {
+        /* Add timer for automatic refresh */
         dz.timer_id = g_timeout_add(dz.interval, dz_if_timer_cb, NULL);
     }
 
+    g_signal_connect((gpointer) dz.window, "configure-event",
+		     G_CALLBACK(dz_if_zinfo_update_cb),
+		     NULL);
+
     /* Done */
-    gtk_widget_show(dz.window);
+    gtk_widget_show_all(dz.window);
 
     /* Update drawing area */
     dz_if_refresh_zones();
@@ -307,31 +347,14 @@ void
 dz_if_destroy(void)
 {
 
-    dz_if_destroy_zones();
+    if ( dz.timer_id ) {
+        g_source_remove(dz.timer_id);
+        dz.timer_id = 0;
+    }
 
     if ( dz.window ) {
         gtk_widget_destroy(dz.window);
         dz.window = NULL;
-    }
-
-    if ( dz.conv_gc ) {
-        g_object_unref(dz.conv_gc);
-        dz.conv_gc = NULL;
-    }
-
-    if ( dz.free_gc ) {
-        g_object_unref(dz.free_gc);
-        dz.free_gc = NULL;
-    }
-
-    if ( dz.used_gc ) {
-        g_object_unref(dz.used_gc);
-        dz.used_gc = NULL;
-    }
-
-    if ( dz.timer_id ) {
-        g_source_remove(dz.timer_id);
-        dz.timer_id = 0;
     }
 
     return;
@@ -342,7 +365,6 @@ dz_if_destroy(void)
 
 static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] =
     {
-        "Index",
         "Type",
         "Condition",
         "Need Reset",
@@ -353,383 +375,303 @@ static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] =
     };
 
 static void
-dz_if_refresh_zones_info(void)
+dz_if_create_zinfo(int nr_lines)
 {
-    GtkWidget *table;
-    GtkWidget *label;
+    GtkWidget *grid = dz.zinfo_grid;
+    GtkWidget *viewport;
     GtkWidget *entry;
-    char str[64];
-    int i, z;
-
-    if ( ! dz.zinfo_table ) {
-
-        /* Table container */
-        table = gtk_table_new(dz.nr_zones + 1, 7, FALSE);
-        gtk_widget_show(table);
-        gtk_container_set_border_width(GTK_CONTAINER(table), 10);
-        gtk_table_set_col_spacings(GTK_TABLE(table), 10);
-        gtk_container_add(GTK_CONTAINER(dz.zinfo_container), table);
-        dz.zinfo_table = table;
-
-        /* Info labels */
-        for(i = 0; i < DZ_ZONE_INFO_FIELD_NUM; i++) {
-            sprintf(str, "<b>%s</b>", dz_info_label[i]);
-            label = gtk_label_new(str);
-            gtk_label_set_text(GTK_LABEL(label), str);
-            gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-            gtk_widget_show(label);
-            gtk_table_attach(GTK_TABLE(table), label, i, i + 1, 0, 1,
-                             (GtkAttachOptions) (GTK_FILL),
-                             (GtkAttachOptions) 0,
-                             0, 0);
-        }
-
-        /* Zone list */
-        for(z = 0; z < dz.nr_zones; z++) {
-
-            /* Line header */
-            sprintf(str, "<b>%03d</b>", z);
-            label = gtk_label_new(str);
-            gtk_label_set_text(GTK_LABEL(label), str);
-            gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-            gtk_widget_show(label);
-            gtk_table_attach(GTK_TABLE(table), label, 0, 1, z + 1, z + 2,
-                             (GtkAttachOptions) (GTK_FILL),
-                             (GtkAttachOptions) 0,
-                             0, 0);
-
-            /* Line fields */
-            for(i = 0; i < DZ_ZONE_INFO_FIELD_NUM - 1; i++) {
-                entry = gtk_entry_new();
-                gtk_widget_show(entry);
-                gtk_table_attach(GTK_TABLE(table), entry, i + 1, i + 2, z + 1, z + 2,
-                                 (GtkAttachOptions) (GTK_EXPAND | GTK_FILL),
-                                 (GtkAttachOptions) 0,
-                                 0, 0);
-                dz.z[z].entry[i] = entry;
-            }
-
-        }
-
-    }
-
-    /* Update values */
-    for(z = 0; z < dz.nr_zones; z++) {
-
-        sprintf(str, "0x%01x", dz.zones[z].zbz_type);
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[0]), str);
-
-        sprintf(str, "0x%01x", dz.zones[z].zbz_condition);
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[1]), str);
-
-        sprintf(str, "%s", dz.zones[z].zbz_need_reset ? "true" : "false");
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[2]), str);
-
-        sprintf(str, "%s", dz.zones[z].zbz_non_seq? "true" : "false");
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[3]), str);
-
-        sprintf(str, "%llu", zbc_zone_start_lba(&dz.zones[z]));
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[4]), str);
-
-        sprintf(str, "%llu", zbc_zone_length(&dz.zones[z]));
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[5]), str);
-
-        sprintf(str, "%llu", zbc_zone_wp_lba(&dz.zones[z]));
-        gtk_entry_set_text(GTK_ENTRY(dz.z[z].entry[6]), str);
-
-    }
-
-    return;
-
-}
-
-static void
-dz_if_init_colors(void)
-{
-
-    /* Colors */
-    if ( ! dz.conv_gc ) {
-        dz.conv_gc = gdk_gc_new(dz.zda->window);
-        gdk_gc_copy(dz.conv_gc, dz.zda->style->white_gc);
-        gdk_gc_set_line_attributes(dz.conv_gc, 2, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_MITER);
-        gdk_gc_set_rgb_fg_color(dz.conv_gc, &dz_colors[DZ_COLOR_CONV]);
-    }
-
-    if ( ! dz.free_gc ) {
-        dz.free_gc = gdk_gc_new(dz.zda->window);
-        gdk_gc_copy(dz.free_gc, dz.zda->style->white_gc);
-        gdk_gc_set_line_attributes(dz.free_gc, 2, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_MITER);
-        gdk_gc_set_rgb_fg_color(dz.free_gc, &dz_colors[DZ_COLOR_FREE]);
-    }
-
-    if ( ! dz.used_gc ) {
-        dz.used_gc = gdk_gc_new(dz.zda->window);
-        gdk_gc_copy(dz.used_gc, dz.zda->style->white_gc);
-        gdk_gc_set_line_attributes(dz.used_gc, 2, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_MITER);
-        gdk_gc_set_rgb_fg_color(dz.used_gc, &dz_colors[DZ_COLOR_USED]);
-    }
-
-    return;
-
-}
-
-static void
-dz_if_refresh_zone_state(dz_zone_t *z)
-{
-    struct zbc_zone *zone = &dz.zones[z->idx];
-    gint w, uw, fw, h;
-    double used;
-
-    /* Current size */
-    w = gdk_window_get_width(z->da->window);
-    h = gdk_window_get_height(z->da->window);
-
-    if ( zbc_zone_wp_lba(zone) > zbc_zone_start_lba(zone) ) {
-        used = (double)(zbc_zone_wp_lba(zone) - zbc_zone_start_lba(zone)) / (double)zbc_zone_length(zone);
-    } else {
-        used = 0.0;
-    }
-
-    uw = w * used;
-    fw = w - uw;
-    if ( fw < 0 ) {
-        fw = 0;
-        uw = w;
-    }
-
-    if ( zbc_zone_conventional(zone) ) {
-
-         gdk_draw_rectangle(z->da->window,
-                           dz.conv_gc,
-                           TRUE,
-                           0, 0,
-                           w, h);
-
-    } else {
-
-        /* Draw used (red) */
-        if ( uw ) {
-            gdk_draw_rectangle(z->da->window,
-                               dz.used_gc,
-                               TRUE,
-                               0, 0,
-                               uw, h);
-        }
-
-        /* Draw free (green) */
-        if ( fw ) {
-            gdk_draw_rectangle(z->da->window,
-                               dz.free_gc,
-                               TRUE,
-                               uw, 0,
-                               w, h);
-        }
-
-    }
-
-    /* Draw black rectangle around the zone */
-    gdk_draw_rectangle(z->da->window,
-                       z->da->style->black_gc,
-                       FALSE,
-                       0, 0,
-                       w, h);
-
-    return;
-
-}
-
-static void
-dz_if_refresh_zones_state(void)
-{
-    int i;
-
-    /* Redraw zones */
-    for(i = 0; i < dz.nr_zones; i++) {
-        dz_if_refresh_zone_state(&dz.z[i]);
-    }
-
-    return;
-
-}
-
-static void
-dz_if_create_zone(int idx)
-{
-    unsigned long long cap;
-    struct zbc_zone *zone = &dz.zones[idx];
-    dz_zone_t *z = &dz.z[idx];
-    GtkWidget *vbox;
     GtkWidget *label;
-    GtkWidget *da;
-    char str[16];
-    int w, h;
-
-    /* Set zone */
-    z->idx = idx;
-    z->length = zone->zbz_length;
-
-    /* Container */
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_widget_show(vbox);
-    gtk_box_pack_start(GTK_BOX(dz.zstate_hbox), vbox, TRUE, TRUE, 0);
-
-    /* Zone number label */
-    sprintf(str, "<b>%d</b>", idx);
-    label = gtk_label_new(str);
-    gtk_label_set_text(GTK_LABEL(label), str);
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-
-    /* Drawing area */
-    da = gtk_drawing_area_new();
-    gtk_widget_show(da);
-    gtk_box_pack_start(GTK_BOX(vbox), da, TRUE, TRUE, 0);
-    z->da = da;
-
-    g_signal_connect((gpointer) da, "expose_event",
-                     G_CALLBACK(dz_if_expose_cb),
-                     z);
-
-    /* Zone size label */
-    cap = (zbc_zone_length(zone) * dz.info.zbd_physical_block_size) / 1000000;
-    sprintf(str, "<b>%llu.%01llu</b>",
-            cap / 1000,
-            (cap % 1000) / 100);
-    label = gtk_label_new(str);
-    gtk_label_set_text(GTK_LABEL(label), str);
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-
-    //w = gdk_window_get_width(z->da->window);
-    w = dz.zstate_base_width * ((double)zbc_zone_length(zone) / (double)dz.info.zbd_physical_blocks);
-    h = gdk_window_get_height(z->da->window);
-    gtk_widget_set_size_request(z->da, w, h);
-
-    return;
-
-}
-
-static void
-dz_if_create_zones(void)
-{
-    GtkAllocation *alloc = g_new(GtkAllocation, 1);
-    GtkWidget *vbox, *label;
-    uint64_t min_cap;
-    int i, w;
-
-    /* Zone list hbox */
-    dz.zstate_hbox = gtk_hbox_new(FALSE, 2);
-    gtk_widget_show(dz.zstate_hbox);
-    gtk_box_set_spacing(GTK_BOX(dz.zstate_hbox), 0);
-    gtk_container_set_border_width(GTK_CONTAINER(dz.zstate_hbox), 10);
-    gtk_container_add(GTK_CONTAINER(dz.zstate_container), dz.zstate_hbox);
-
-    /* Header container */
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_widget_show(vbox);
-    gtk_box_pack_start(GTK_BOX(dz.zstate_hbox), vbox, FALSE, TRUE, 0);
-
-    /* Zone number label */
-    label = gtk_label_new("<b>Zone index</b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-
-    /* Zone state label */
-    label = gtk_label_new( "<b>Zone state</b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, TRUE, 0);
-
-    /* Zone size label */
-    label = gtk_label_new("<b>Zone size (GB) </b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, TRUE, 0);
-
-    /* Calculate minimum da base size based on zone capacity ratio */
-    min_cap = dz.info.zbd_physical_blocks;
-    for(i = 0; i < dz.nr_zones; i++) {
-        if ( dz.zones[i].zbz_length < min_cap ) {
-            min_cap = dz.zones[i].zbz_length;
-        }
-    }
-
-    gtk_widget_get_allocation(dz.zstate_container, alloc);
-    dz.zstate_base_width = alloc->width;
-    gtk_widget_get_allocation(label, alloc);
-    dz.zstate_base_width -= alloc->width;
-
-    w = dz.zstate_base_width * ((double)min_cap / (double)dz.info.zbd_physical_blocks);
-    if ( w < 120 ) {
-        dz.zstate_base_width = dz.nr_zones * 120;
-    }
-
-    g_free(alloc);
-
-    /* Create zones */
-    for(i = 0; i < dz.nr_zones; i++) {
-        dz_if_create_zone(i);
-    }
-
-    return;
-
-}
-
-static void
-dz_if_destroy_zones(void)
-{
-
-    if ( dz.window ) {
-
-        if ( dz.zstate_hbox ) {
-            gtk_widget_destroy(dz.zstate_hbox);
-            dz.zstate_hbox = NULL;
-        }
-
-        if ( dz.zinfo_table ) {
-            gtk_widget_destroy(dz.zinfo_table);
-            dz.zinfo_table = NULL;
-        }
-
-    }
-
-    if ( dz.z ) {
-        free(dz.z);
-        dz.z = NULL;
-        dz.nz = 0;
-    }
-
-    return;
-
-}
-
-static int
-dz_if_zone_changed(void)
-{
+    char str[64];
     int i;
 
-    if ( dz.nr_zones
-         && (dz.nr_zones != dz.nz) ) {
-        return( 1 );
+    if ( nr_lines > dz.nr_zones ) {
+	nr_lines = dz.nr_zones;
     }
 
-    for(i = 0; i < dz.nr_zones; i++) {
-        if ( dz.z[i].length != dz.zones[i].zbz_length ) {
-            return( 1 );
-        }
+    if ( grid && (nr_lines == dz.zinfo_nr_lines) ) {
+	return;
     }
 
-    return( 0 );
+    /* Cleanup */
+    if ( grid ) {
+	gtk_widget_destroy(grid);
+    }
+
+    if ( dz.zinfo_lines ) {
+	free(dz.zinfo_lines);
+	dz.zinfo_lines = NULL;
+	dz.zinfo_nr_lines = 0;
+    }
+
+    /* Allocate zone information lines */
+    dz.zinfo_lines = (dz_zinfo_line_t *) malloc(sizeof(dz_zinfo_line_t) * nr_lines);
+    if ( ! dz.zinfo_lines ) {
+	fprintf(stderr, "No memory\n");
+	return;
+    }
+    memset(dz.zinfo_lines, 0, sizeof(dz_zinfo_line_t) * nr_lines);
+
+    /* Re-create zone list */
+    dz.zinfo_zno = 0;
+    gtk_adjustment_configure(dz.zinfo_vadj,
+			     dz.zinfo_zno,
+			     0, dz.nr_zones,
+			     1, nr_lines, nr_lines);
+    dz.zinfo_nr_lines = nr_lines;
+
+    grid = gtk_grid_new();
+    gtk_widget_show(grid);
+    gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_widget_set_hexpand(grid, TRUE);
+    gtk_widget_set_vexpand(grid, FALSE);
+    gtk_container_add(GTK_CONTAINER(dz.zinfo_viewport), grid);
+    dz.zinfo_grid = grid;
+
+    /* Info labels (grid top line) */
+    for(i = 0; i < DZ_ZONE_INFO_FIELD_NUM; i++) {
+	sprintf(str, "<b>%s</b>", dz_info_label[i]);
+	label = gtk_label_new(str);
+	gtk_label_set_text(GTK_LABEL(label), str);
+	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+	gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+	gtk_widget_set_hexpand(label, TRUE);
+	gtk_widget_set_vexpand(label, FALSE);
+	gtk_widget_show(label);
+	gtk_grid_attach(GTK_GRID(grid), label, i + 1, 0, 1, 1);
+    }
+
+    /* Info lines */
+    for(i = 0; i < dz.zinfo_nr_lines; i++) {
+
+	/* Zone number label (grid left column) */
+	sprintf(str, "<b>%05d</b>", i);
+	label = gtk_label_new(str);
+	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+	gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+	gtk_widget_set_hexpand(label, FALSE);
+	gtk_widget_set_vexpand(label, FALSE);
+	gtk_widget_show(label);
+	gtk_grid_attach(GTK_GRID(grid), label, 0, i + 1, 1, 1);
+	dz.zinfo_lines[i].label = label;
+
+	/* Zone type */
+	entry = gtk_entry_new();
+	sprintf(str, "0x%01x", dz.zones[i].zbz_type);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 1, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[0] = entry;
+
+	/* Zone condition */
+	entry = gtk_entry_new();
+        sprintf(str, "0x%01x", dz.zones[i].zbz_condition);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 2, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[1] = entry;
+
+	/* Zone need reset */
+	entry = gtk_entry_new();
+        sprintf(str, "%s", dz.zones[i].zbz_need_reset ? "true" : "false");
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 3, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[2] = entry;
+
+	/* Zone non seq */
+	entry = gtk_entry_new();
+        sprintf(str, "%s", dz.zones[i].zbz_non_seq? "true" : "false");
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 4, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[3] = entry;
+
+	/* Zone start LBA */
+	entry = gtk_entry_new();
+        sprintf(str, "%llu", zbc_zone_start_lba(&dz.zones[i]));
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 5, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[4] = entry;
+
+	/* Zone length */
+	entry = gtk_entry_new();
+        sprintf(str, "%llu", zbc_zone_length(&dz.zones[i]));
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 6, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[5] = entry;
+
+	/* Zone wp LBA */
+	entry = gtk_entry_new();
+        sprintf(str, "%llu", zbc_zone_wp_lba(&dz.zones[i]));
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+	gtk_editable_set_editable(GTK_EDITABLE(entry), FALSE);
+	gtk_widget_set_hexpand(entry, TRUE);
+	gtk_widget_set_vexpand(entry, FALSE);
+	gtk_widget_show(entry);
+	gtk_grid_attach(GTK_GRID(grid), entry, 7, i + 1, 1, 1);
+	dz.zinfo_lines[i].entry[6] = entry;
+
+    }
+
+    return;
+    
+}
+
+static void
+dz_if_update_zinfo(void)
+{
+    GtkWidget *label, *entry;
+    GdkRGBA color;
+    struct zbc_zone *z;
+    char str[64];
+    int i;
+
+    /* Info lines */
+    for(i = 0; i < dz.zinfo_nr_lines; i++) {
+
+	z = &dz.zones[dz.zinfo_zno + i];
+
+	/* Zone index label (grid left column) */
+	label = dz.zinfo_lines[i].label;
+	sprintf(str, "<b>%05d</b>", dz.zinfo_zno + i);
+	gtk_label_set_text(GTK_LABEL(label), str);
+	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+
+	/* Zone type */
+	entry = dz.zinfo_lines[i].entry[0];
+	if ( zbc_zone_conventional(z) ) {
+	    strcpy(str, "Conventional");
+	} else if ( zbc_zone_sequential_req(z) ) {
+	    strcpy(str, "Seq write req.");
+	} else if ( zbc_zone_sequential_pref(z) ) {
+	    strcpy(str, "Seq write pref.");
+	} else {
+	    sprintf(str, "??? (0x%01x)", z->zbz_type);
+	}
+	gdk_rgba_parse(&color, "Black");
+	gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone condition */
+	entry = dz.zinfo_lines[i].entry[1];
+	gdk_rgba_parse(&color, "Black");
+	if ( zbc_zone_not_wp(z) ) {
+	    strcpy(str, "Not WP");
+	} else if ( zbc_zone_empty(z) ) {
+	    gdk_rgba_parse(&color, "Green");
+	    strcpy(str, "Empty");
+	} else if ( zbc_zone_full(z) ) {
+	    gdk_rgba_parse(&color, "Red");
+	    strcpy(str, "Full");
+	} else if ( zbc_zone_open(z) ) {
+	    strcpy(str, "Open");
+	} else if ( zbc_zone_rdonly(z) ) {
+	    strcpy(str, "Read-only");
+	} else if ( zbc_zone_offline(z) ) {
+	    strcpy(str, "Offline");
+	} else {
+	    sprintf(str, "??? (0x%01x)", z->zbz_condition);
+	}
+	gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone need reset */
+	entry = dz.zinfo_lines[i].entry[2];
+	if ( zbc_zone_need_reset(z) ) {
+	    gdk_rgba_parse(&color, "Red");
+	    strcpy(str, "Yes");
+	} else {
+	    gdk_rgba_parse(&color, "Green");
+	    strcpy(str, "No");
+	}
+	gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone non seq */
+	entry = dz.zinfo_lines[i].entry[3];
+	if ( zbc_zone_non_seq(z) ) {
+	    strcpy(str, "Yes");
+	} else {
+	    strcpy(str, "No");
+	}
+	gdk_rgba_parse(&color, "Black");
+	gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone start LBA */
+	entry = dz.zinfo_lines[i].entry[4];
+        sprintf(str, "%llu", zbc_zone_start_lba(z));
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone length */
+	entry = dz.zinfo_lines[i].entry[5];
+        sprintf(str, "%llu", zbc_zone_length(z));
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+	/* Zone wp LBA */
+	entry = dz.zinfo_lines[i].entry[6];
+	if ( zbc_zone_not_wp(z) ) {
+	    strcpy(str, "N/A");
+	    gdk_rgba_parse(&color, "Grey");
+	    gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+	} else {
+	    sprintf(str, "%llu", zbc_zone_wp_lba(z));
+	}
+        gtk_entry_set_text(GTK_ENTRY(entry), str);
+
+    }
+
+    if ( ! dz.zinfo_line_height ) {
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(dz.zinfo_lines[0].label, &allocation);
+	dz.zinfo_line_height = allocation.height;
+    }
+
+    return;
+
+}
+
+static void
+dz_if_refresh_zinfo(void)
+{
+    int zstart;
+
+    /* Get current position in the list (first zone to show) */
+    zstart = (int) gtk_adjustment_get_value(dz.zinfo_vadj);
+    if ( (zstart + dz.zinfo_nr_lines) > dz.nr_zones ) {
+	zstart = dz.nr_zones - dz.zinfo_nr_lines;
+    }
+    dz.zinfo_zno = zstart;
+
+    /* Update list view */
+    dz_if_update_zinfo();
+
+    /* Re-draw zone state */
+    gtk_widget_queue_draw(dz.zstate_da);
+
+    return;
 
 }
 
@@ -737,14 +679,14 @@ static void
 dz_if_refresh_zones(void)
 {
     GtkWidget *dialog;
+    int nr_zones = dz.nr_zones;
+    char str[128];
     int ret;
-
-    /* Colors */
-    dz_if_init_colors();
 
     /* Refresh zone list */
     ret = dz_get_zones();
     if ( ret != 0 ) {
+
         dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
                                         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                         GTK_MESSAGE_ERROR,
@@ -755,54 +697,194 @@ dz_if_refresh_zones(void)
                                                  strerror(errno));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
-    }
 
-    if ( dz_if_zone_changed() ) {
-
-        /* Clear old GUI zone list */
-        dz_if_destroy_zones();
-
-        /* Alloc new GUI zone list */
-        dz.nz = dz.nr_zones;
-        dz.z = (dz_zone_t *) malloc(sizeof(dz_zone_t) * dz.nz);
-        if ( ! dz.z ) {
-            fprintf(stderr, "No memory\n");
-            exit(1);
-        }
-        memset(dz.z, 0, sizeof(dz_zone_t) * dz.nz);
-
-        /* Set zone selector */
-        gtk_adjustment_configure(dz.zadj, 0, 0, dz.nz - 1, 1, 10, 0);
+	return;
 
     }
 
-    if ( ! dz.zstate_hbox ) {
-        /* Create zones state */
-        dz_if_create_zones();
+    if ( dz.nr_zones != nr_zones ) {
+
+	/* Number of zones changed... */
+	snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dz.path, dz.nr_zones);
+	gtk_label_set_text(GTK_LABEL(dz.zinfo_frame_label), str);
+	gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
+	
+	if ( dz.zinfo_grid ) {
+	    gtk_widget_destroy(dz.zinfo_grid);
+	    dz.zinfo_grid = NULL;
+	}
+
+	dz.zinfo_zno = 0;
+	dz_if_create_zinfo(dz.zinfo_nr_lines);
+
     }
 
-    if ( gtk_notebook_get_current_page(GTK_NOTEBOOK(dz.notebook)) == 0 ) {
-        /* Redraw zone state */
-        dz_if_refresh_zones_state();
-    }
-
-    if ( (gtk_notebook_get_current_page(GTK_NOTEBOOK(dz.notebook)) == 1)
-         || (! dz.zinfo_table) ) {
-        /* Update zone info */
-        dz_if_refresh_zones_info();
-    }
+    /* Update zone info */
+    dz_if_refresh_zinfo();
 
     return;
 
 }
 
 static gboolean
-dz_if_expose_cb(GtkWidget *widget,
-                GdkEventButton *event,
-                gpointer user_data)
+dz_if_zstate_draw_legend_cb(GtkWidget *widget,
+			    cairo_t *cr,
+			    gpointer data)
 {
+    GtkAllocation allocation;
+    cairo_text_extents_t te;
+    GdkRGBA color;
+    gint w, h, x = 10;
 
-    dz_if_refresh_zone_state((dz_zone_t *) user_data);
+    /* Current size */
+    gtk_widget_get_allocation(widget, &allocation);
+    h = allocation.height;
+    w = h / 2;
+
+    /* Set font */
+    cairo_select_font_face(cr, "Monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size(cr, 10);
+    
+    /* Conventional zone legend */
+    gdk_rgba_parse(&color, "Black");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_set_line_width(cr, 2);
+    cairo_rectangle(cr, x, (h - w) / 2, w, w);
+    cairo_stroke_preserve(cr);
+    gdk_rgba_parse(&color, "Magenta");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_fill(cr);
+    x += w;
+
+    cairo_text_extents(cr, "Conventional zone", &te);
+    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
+    cairo_show_text(cr, "Conventional zone");
+    x += te.x_advance + 20;
+
+    /* Seq unwritten zone legend */
+    gdk_rgba_parse(&color, "Black");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_set_line_width(cr, 2);
+    cairo_rectangle(cr, x, (h - w) / 2, w, w);
+    cairo_stroke_preserve(cr);
+    gdk_rgba_parse(&color, "Green");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_fill(cr);
+    x += w;
+
+    cairo_text_extents(cr, "Sequential zone unwritten space", &te);
+    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
+    cairo_show_text(cr, "Sequential zone unwritten space");
+    x += te.x_advance + 20;
+
+    /* Seq written zone legend */
+    gdk_rgba_parse(&color, "Black");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_set_line_width(cr, 2);
+    cairo_rectangle(cr, x, (h - w) / 2, w, w);
+    cairo_stroke_preserve(cr);
+    gdk_rgba_parse(&color, "Red");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_fill(cr);
+    x += w;
+
+    cairo_text_extents(cr, "Sequential zone written space", &te);
+    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
+    cairo_show_text(cr, "Sequential zone written space");
+
+    return( FALSE );
+
+}
+
+#define DZ_DRAW_WOFST	5
+#define DZ_DRAW_HOFST	20
+
+static gboolean
+dz_if_zstate_draw_cb(GtkWidget *widget,
+		     cairo_t *cr,
+		     gpointer data)
+{
+    GtkAllocation allocation;
+    cairo_text_extents_t te;
+    unsigned long long cap = 0, sz;
+    struct zbc_zone *z;
+    GdkRGBA color;
+    int w, h, x = 0, zw, ww;
+    char str[64];
+    int i;
+
+    /* Current size */
+    gtk_widget_get_allocation(dz.zstate_da, &allocation);
+    w = allocation.width;
+    h = allocation.height;
+
+    /* Get total viewed capacity */
+    for(i = 0; i < dz.zinfo_nr_lines; i++) {
+	z = &dz.zones[dz.zinfo_zno + i];
+	cap += zbc_zone_length(z);
+    }
+
+    /* Draw zones */
+    for(i = 0; i < dz.zinfo_nr_lines; i++) {
+
+	z = &dz.zones[dz.zinfo_zno + i];
+
+	/* Draw zone outline */
+	zw = (w - DZ_DRAW_WOFST * 2) * zbc_zone_length(z) / cap;
+	gdk_rgba_parse(&color, "Black");
+	gdk_cairo_set_source_rgba(cr, &color);
+	cairo_set_line_width(cr, 1);
+	cairo_rectangle(cr, x + DZ_DRAW_WOFST, DZ_DRAW_HOFST, zw, h - DZ_DRAW_HOFST * 2);
+	cairo_stroke_preserve(cr);
+
+	if ( zbc_zone_conventional(z) ) {
+	    gdk_rgba_parse(&color, "Magenta");
+	} else if ( zbc_zone_full(z) ) {
+	    gdk_rgba_parse(&color, "Red");
+	} else {
+	    gdk_rgba_parse(&color, "Green");
+	}
+	gdk_cairo_set_source_rgba(cr, &color);
+	cairo_fill(cr);
+
+	if ( (! zbc_zone_conventional(z))
+	     && zbc_zone_open(z) ) {
+	    /* Written space in zone */
+	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);
+	    if ( ww ) {
+		gdk_rgba_parse(&color, "Red");
+		gdk_cairo_set_source_rgba(cr, &color);
+		cairo_rectangle(cr, x + DZ_DRAW_WOFST, DZ_DRAW_HOFST, ww, h - DZ_DRAW_HOFST * 2);
+		cairo_fill(cr);
+	    }
+	}
+
+	/* Set font */
+	gdk_rgba_parse(&color, "Black");
+	gdk_cairo_set_source_rgba(cr, &color);
+	cairo_select_font_face(cr, "Monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+	cairo_set_font_size(cr, 10);
+
+	/* Write zone number */
+	sprintf(str, "%05d", dz.zinfo_zno + i);
+	cairo_text_extents(cr, str, &te);
+	cairo_move_to(cr, x + DZ_DRAW_WOFST + zw / 2 - te.width / 2 - te.x_bearing, DZ_DRAW_HOFST - te.height / 2);
+	cairo_show_text(cr, str);
+
+	/* Write zone size */
+	sz = zbc_zone_length(z) * dz.info.zbd_logical_block_size;
+	if ( sz > (1024 * 1024 *1024) ) {
+	    sprintf(str, "%llu GiB", sz / (1024 * 1024 *1024));
+	} else {
+	    sprintf(str, "%llu MiB", sz / (1024 * 1024));
+	}
+	cairo_text_extents(cr, str, &te);
+	cairo_move_to(cr, x + DZ_DRAW_WOFST + zw / 2 - te.width / 2 - te.x_bearing, h - te.height / 2);
+	cairo_show_text(cr, str);
+
+	x += zw;
+
+    }
 
     return( FALSE );
 
@@ -810,7 +892,7 @@ dz_if_expose_cb(GtkWidget *widget,
 
 static void
 dz_if_delete_cb(GtkWidget *widget,
-                GdkEventButton *event,
+                GdkEvent *event,
                 gpointer user_data)
 {
 
@@ -824,7 +906,7 @@ dz_if_delete_cb(GtkWidget *widget,
 
 static gboolean
 dz_if_exit_cb(GtkWidget *widget,
-              GdkEventButton *event,
+              GdkEvent *event,
               gpointer user_data)
 {
 
@@ -845,8 +927,92 @@ dz_if_timer_cb(gpointer user_data)
 }
 
 static gboolean
+dz_if_zinfo_update_cb(GtkWidget *widget,
+		      GdkEvent *event,
+		      gpointer user_data)
+{
+    GtkAllocation allocation;
+    int nr_lines = dz.zinfo_nr_lines;
+    int h, lh;
+
+    /* Handle resize event */
+    gtk_widget_get_allocation(dz.zinfo_viewport, &allocation);
+    if ( dz.zinfo_height && dz.zinfo_line_height ) {
+	
+	if ( allocation.height > dz.zinfo_height ) {
+	    /* Increase the number of lines displayed */
+	    nr_lines += (allocation.height - dz.zinfo_height) / dz.zinfo_line_height;
+	} else if ( allocation.height < dz.zinfo_height ) {
+	    /* Decrease the number of lines displayed */
+	    nr_lines -= (dz.zinfo_height - allocation.height) / dz.zinfo_line_height;
+	    if ( nr_lines < dz.zinfo_nr_lines ) {
+		nr_lines = dz.zinfo_nr_lines;
+	    }
+	}
+
+	if ( nr_lines != dz.zinfo_nr_lines ) {
+	    dz_if_create_zinfo(nr_lines);
+	    dz.zinfo_height = allocation.height;
+	}
+
+    } else {
+
+	dz.zinfo_height = allocation.height;
+
+    }
+
+    dz_if_refresh_zinfo();
+
+    return( TRUE );
+    
+}
+
+static gboolean
+dz_if_zinfo_scroll_cb(GtkWidget *widget,
+		      GdkEvent *event,
+		      gpointer user_data)
+{
+    GdkEventScroll *scroll = &event->scroll;
+    int zno = dz.zinfo_zno;
+
+    if ( (event->type == GDK_SCROLL)
+	 || (event->type == GDK_SCROLL_SMOOTH) ) {
+
+	if ( scroll->direction == GDK_SCROLL_UP ) {
+	    if ( zno > 0 ) {
+		zno--;
+	    }
+	} else if ( scroll->direction == GDK_SCROLL_DOWN ) {
+	    zno++;
+	}
+
+	if ( zno == dz.zinfo_zno ) {
+	    goto out;
+	}
+
+	if ( zno > (dz.nr_zones - dz.zinfo_nr_lines) ) {
+	    zno = dz.nr_zones - dz.zinfo_nr_lines;
+	}
+	if ( zno < 0 ) {
+	    zno = 0;
+	}
+
+	gtk_adjustment_configure(dz.zinfo_vadj,
+				 zno,
+				 0, dz.nr_zones,
+				 1, dz.zinfo_nr_lines, dz.zinfo_nr_lines);
+
+    }
+
+out:
+
+    return( TRUE );
+
+}
+
+static gboolean
 dz_if_refresh_cb(GtkWidget *widget,
-                 GdkEventButton *event,
+                 GdkEvent *event,
                  gpointer user_data)
 {
 
@@ -858,27 +1024,29 @@ dz_if_refresh_cb(GtkWidget *widget,
 
 static gboolean
 dz_if_reset_cb(GtkWidget *widget,
-               GdkEventButton *event,
+               GdkEvent *event,
                gpointer user_data)
 {
     GtkWidget *spinbutton = (GtkWidget *) user_data;
-    int idx = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    int zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
     GtkWidget *dialog;
     int ret;
 
-    ret = dz_reset_zone(idx);
+    ret = dz_reset_zone(zno);
     if ( ret != 0 ) {
+
         dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
                                         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                         GTK_MESSAGE_ERROR,
                                         GTK_BUTTONS_OK,
                                         "Reset zone write pointer failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Reset zone %d failed %d (%s)",
-                                                 idx,
+                                                 zno,
                                                  errno,
                                                  strerror(errno));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
+
     }
 
     dz_if_refresh_zones();
