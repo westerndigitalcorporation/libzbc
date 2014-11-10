@@ -7,14 +7,16 @@ I.1. Overview
 -------------
 
 libzbc is a simple library providing functions for manipulating Zoned
-Block Command (ZBC) disks. It is implemented to be compliant with the
-current version of the ZBC standard draft defined by INCITS technical
-committee T10.  At the time of this writing, the current version of the
-standard draft is Rev 01b, released on 2014/09/09.
+Block Command (ZBC) dnd Zoned-device ATA command set (ZAC) disks.
+Its implemented is compliant with the current version of the ZBC and
+ZAC standard drafts defined by INCITS technical committee T10 and T13.
+At the time of this writing, the current version of the ZBC standard
+draft is Rev 01c (released on 2014/10/17) and Rev 00 of the ZAC
+standard draft (released on 2014/06/23).
 
-In addition to supporting ZBC disks, libzbc also implements an emulation
-mode allowing emulating the behavior of a ZBC device using a regular
-file or a raw standard block device.
+In addition to supporting ZBC and ZAC disks, libzbc also implements
+an emulation mode allowing emulating the behavior of a zoned disks
+using a regular file or a raw standard block device.
 
 Several example applications using libzbc are available under the tools
 directory.
@@ -34,6 +36,12 @@ without technical support, and WITHOUT ANY WARRANTY, without even the
 implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 You should have received a copy of the GNU Lesser General Public License
 along with libzbc.  If not, see <http://www.gnu.org/licenses/>.
+
+I.3. Contact and Bug Reports
+----------------------------
+
+Please contact Damine Le Moal (damien.lemoal@hgst.com) and
+Adam Manzanares (adam.manzanares@hgst.com) to report problems.
 
 II. Compilation and installation
 ================================
@@ -136,9 +144,10 @@ as examples.  These appliations are as follows.
 IV.1. gzbc (tools/gui)
 ----------------------
 
-A simple graphical interface showing the zone configuration of a device.
-This application may not be able to handle devices with a large number
-of zones (> 100).
+A simple graphical interface showing zone information of a zoned device.
+It alos displays the write status (write pointer position) of zones
+graphically using color coding (red for written space and green for
+unwritten space). 
 
 IV.2. zbc_report_zones (tools/report_zones/)
 --------------------------------------------
