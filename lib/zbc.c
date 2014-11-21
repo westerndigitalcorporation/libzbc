@@ -381,6 +381,8 @@ zbc_pwrite(zbc_device_t *dev,
     if ( dev && zone && buf ) {
 
 	if ( lba_count ) {
+
+	    /* Execute write */
 	    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
 	    if ( ret <= 0 ) {
 		zbc_error("Write %u blocks at block %llu failed %zd (%s)\n",
@@ -389,8 +391,11 @@ zbc_pwrite(zbc_device_t *dev,
 			  -ret,
 			  strerror(-ret));
 	    }
+
 	} else {
+
 	    ret = 0;
+
 	}
 
     }

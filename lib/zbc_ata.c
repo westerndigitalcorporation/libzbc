@@ -543,8 +543,8 @@ zbc_ata_pread(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
     cmd.cdb[2] = 0x1e;			/* off_line=0, ck_cond=0, t_type=1, t_dir=1, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (lba_count >> 8) % 0xff;
-    cmd.cdb[6] = lba_count % 0xff;
+    cmd.cdb[5] = (lba_count >> 8) & 0xff;
+    cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
@@ -584,7 +584,7 @@ zbc_ata_pwrite(zbc_device_t *dev,
 
     /* Check */
     if ( lba_count > 65536 ) {
-	zbc_error("Read operation too large (limited to 65536 x 512 B sectors)\n");
+	zbc_error("Write operation too large (limited to 65536 x 512 B sectors)\n");
         return( ret );
     }
 
@@ -637,8 +637,8 @@ zbc_ata_pwrite(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
     cmd.cdb[2] = 0x16;			/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (lba_count >> 8) % 0xff;
-    cmd.cdb[6] = lba_count % 0xff;
+    cmd.cdb[5] = (lba_count >> 8) & 0xff;
+    cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
