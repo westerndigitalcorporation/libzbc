@@ -225,8 +225,7 @@ dz_if_create(void)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
 
-    dz.zadj = gtk_adjustment_new(0, 0, dz.nr_zones - 1, 1, 10, 0);
-    spinbutton = gtk_spin_button_new(GTK_ADJUSTMENT(dz.zadj), 1, 0);
+    spinbutton = gtk_spin_button_new(0, dz.nr_zones - 1, 1);
     gtk_widget_show(spinbutton);
     gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
@@ -1028,9 +1027,11 @@ dz_if_reset_cb(GtkWidget *widget,
                gpointer user_data)
 {
     GtkWidget *spinbutton = (GtkWidget *) user_data;
-    int zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
     GtkWidget *dialog;
-    int ret;
+    int zno, ret;
+
+    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
 
     ret = dz_reset_zone(zno);
     if ( ret != 0 ) {

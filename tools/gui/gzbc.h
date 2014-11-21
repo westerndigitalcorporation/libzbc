@@ -73,7 +73,6 @@ typedef struct dz {
      * Interface stuff.
      */
     GtkWidget                   *window;
-    GtkAdjustment               *zadj;
     GtkWidget                   *notebook;
 
     GdkRGBA			conv_color;
