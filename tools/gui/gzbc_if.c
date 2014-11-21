@@ -225,9 +225,10 @@ dz_if_create(void)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
 
-    spinbutton = gtk_spin_button_new(0, dz.nr_zones - 1, 1);
+    spinbutton = gtk_spin_button_new_with_range(0, dz.nr_zones - 1, 1);
     gtk_widget_show(spinbutton);
     gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
+    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(spinbutton), 0);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
 
     /* Zone control button Box */
