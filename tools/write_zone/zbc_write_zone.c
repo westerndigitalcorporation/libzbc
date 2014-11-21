@@ -79,15 +79,15 @@ main(int argc,
     struct stat st;
     int zidx;
     int floop = 0, fd = -1, i, ret = 1;
-    size_t iosize, ioalign, ios;
+    size_t iosize, ioalign, iosize_lba;
     void *iobuf = NULL;
-    uint32_t lba_count;
+    uint32_t lba_io_count, lba_count = 0, lba_max_count;
     int ionum = 0;
     struct zbc_zone *zones = NULL;
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones, iocount = 0;
     char *path, *file = NULL;
-    long long lba_ofst = -1;
+    long long lba_ofst = 0;
     int flush = 0;
 
     /* Check command line */
@@ -254,7 +254,7 @@ usage:
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));
 
-    /* Check alignment and get an I/O buffer */
+    /* Check I/O size alignment */
     if ( zbc_zone_sequential_req(iozone) ) {
 	ioalign = info.zbd_physical_block_size;
     } else {
@@ -268,6 +268,9 @@ usage:
         ret = 1;
         goto out;
     }
+    iosize_lba = iosize / info.zbd_logical_block_size;
+
+    /* Get an I/O buffer */
     ret = posix_memalign((void **) &iobuf, ioalign, iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
@@ -341,18 +344,18 @@ usage:
 
     }
 
-    if ( zbc_zone_conventional(iozone) && (lba_ofst < 0) ) {
-	lba_ofst = 0;
+    if ( ! zbc_zone_conventional(iozone) ) {
+        lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
     }
 
     elapsed = zbc_write_zone_usec();
 
     while( (! zbc_write_zone_abort)
-           && (zbc_zone_conventional(iozone) || (zbc_zone_wp_lba(iozone) < zbc_zone_end_lba(iozone))) ) {
-
-        lba_count = iosize / info.zbd_logical_block_size;
+           && (lba_ofst < zbc_zone_length(iozone)) ) {
 
         if ( file ) {
+
+	    size_t ios;
 
             /* Read file */
             ret = read(fd, iobuf, iosize);
@@ -391,28 +394,41 @@ usage:
                 break;
             }
 
-            //lba_count = (ios + info.zbd_logical_block_size - 1) / info.zbd_logical_block_size;
-
         }
 
         /* Write to zone */
-        if ( (zbc_zone_wp_lba(iozone) + lba_count) > zbc_zone_end_lba(iozone) ) {
-            lba_count = zbc_zone_end_lba(iozone) - zbc_zone_wp_lba(iozone);
+        lba_count = iosize / info.zbd_logical_block_size;
+        if ( (lba_ofst + lba_count) > zbc_zone_length(iozone) ) {
+            lba_count = zbc_zone_length(iozone) - lba_ofst;
         }
 
-        if ( lba_ofst >= 0 ) {
+        if ( zbc_zone_conventional(iozone) ) {
             ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba_ofst);
+	    if ( ret > 0 ) {
+	        lba_ofst += ret;
+	    }
         } else {
             ret = zbc_write(dev, iozone, iobuf, lba_count);
         }
+
         if ( ret <= 0 ) {
             ret = 1;
             break;
         }
 
-        if ( lba_ofst >= 0 ) {
-	    lba_ofst += ret;
-	}
+        /* Update zone write pointer */
+	lba_ofst += ret;
+        if ( zbc_zone_sequential_req(iozone) ) {
+            iozone->zbz_write_pointer += ret;
+	} else if ( zbc_zone_sequential_pref(iozone) ) {
+    	    ret = zbc_report_zones(dev, 0, ZBC_RO_ALL, zones, &nr_zones);
+    	    if ( ret != 0 ) {
+       	        fprintf(stderr, "zbc_report_zones failed\n");
+       	        ret = 1;
+       	        goto out;
+    	    }
+  	}
+
         bcount += ret * info.zbd_logical_block_size;
         iocount++;
 
