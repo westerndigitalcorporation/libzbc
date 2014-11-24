@@ -86,7 +86,7 @@ int main(int argc,
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones, iocount = 0;
     char *path, *file = NULL;
-    long long lba_ofst = -1;
+    long long lba_ofst = 0;
     long long lba_max = 0;
 
     /* Check command line */
@@ -306,22 +306,13 @@ usage:
 
     }
 
-    if ( lba_ofst >= 0 ) {
-        /* lba offset was given as input.
-         * Then there is no limitation on the lba unless a number of IO (option -nio)
-         * was given as input. In that case lba_max = iozone + lba_ofst + ionum * io size.
-         */
-        lba_max = info.zbd_logical_blocks;
-    } else {
-        /* No lba offset given as input.
-         * The limitation is given by the lba of the write pointer.
-         * Or if a number of IO was given as input it will be min(wp_lba, ionum).
-         */
+    if ( zbc_zone_sequential_req(iozone) ) {
         lba_max = zbc_zone_wp_lba(iozone);
-        lba_ofst = 0;
+    } else {
+        lba_max = zbc_zone_end_lba(iozone);
     }
 
-    lba = iozone->zbz_start;//Used to control current lba versus lba_max
+    lba = iozone->zbz_start+ lba_ofst;
 
     elapsed = zbc_read_zone_usec();
 
@@ -331,7 +322,7 @@ usage:
         /* Read zone */
         lba_count = iosize / info.zbd_logical_block_size;
 
-        if (  (lba + lba_count) >= lba_max ) {
+        if (  (lba + lba_count) > lba_max ) {
             lba_count = lba_max - lba;
         }
 
@@ -356,10 +347,8 @@ usage:
             ret = 0;
         }
 
-        /* Update the value of the current lba and the value of the next offset. */
-        lba      += lba_count;
-        lba_ofst += lba_count;//Shift the offset by the number of read lba
-
+        lba += lba_count;
+        lba_ofst += lba_count;
         bcount += lba_count * info.zbd_logical_block_size;
         iocount++;
         ret = 0;
