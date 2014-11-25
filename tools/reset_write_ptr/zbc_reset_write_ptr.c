@@ -28,10 +28,9 @@ int main(int argc,
          char **argv)
 {
     struct zbc_device_info info;
-    unsigned long long z;
-    int lba = 0;
+    long long z;
     struct zbc_device *dev;
-    int i, ret = 1;
+    int i, lba = 0, ret = 1;
     zbc_zone_t *zones = NULL, *rzone = NULL;;
     unsigned int nr_zones, rzone_idx = -1;
     char *path;
@@ -128,8 +127,8 @@ usage:
                 rzone_idx = z;
             }
         } else {
-            for(i = 0; i < nr_zones; i++) {
-                if ( zones[i].zbz_start == z ) {
+            for(i = 0; i < (int)nr_zones; i++) {
+                if ( zones[i].zbz_start == (uint64_t)z ) {
                     rzone = &zones[i];
                     rzone_idx = i;
                     break;

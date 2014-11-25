@@ -92,7 +92,6 @@ dz_if_create(void)
     GtkWidget *button;
     GtkWidget *image;
     GtkWidget *label;
-    GtkWidget *entry;
     GtkWidget *spinbutton;
     GtkWidget *hbuttonbox;
     GtkWidget *da;
@@ -378,13 +377,12 @@ static void
 dz_if_create_zinfo(int nr_lines)
 {
     GtkWidget *grid = dz.zinfo_grid;
-    GtkWidget *viewport;
     GtkWidget *entry;
     GtkWidget *label;
     char str[64];
     int i;
 
-    if ( nr_lines > dz.nr_zones ) {
+    if ( nr_lines > (int)dz.nr_zones ) {
 	nr_lines = dz.nr_zones;
     }
 
@@ -660,7 +658,7 @@ dz_if_refresh_zinfo(void)
 
     /* Get current position in the list (first zone to show) */
     zstart = (int) gtk_adjustment_get_value(dz.zinfo_vadj);
-    if ( (zstart + dz.zinfo_nr_lines) > dz.nr_zones ) {
+    if ( (zstart + dz.zinfo_nr_lines) > (int)dz.nr_zones ) {
 	zstart = dz.nr_zones - dz.zinfo_nr_lines;
     }
     dz.zinfo_zno = zstart;
@@ -679,7 +677,7 @@ static void
 dz_if_refresh_zones(void)
 {
     GtkWidget *dialog;
-    int nr_zones = dz.nr_zones;
+    unsigned int nr_zones = dz.nr_zones;
     char str[128];
     int ret;
 
@@ -933,7 +931,6 @@ dz_if_zinfo_update_cb(GtkWidget *widget,
 {
     GtkAllocation allocation;
     int nr_lines = dz.zinfo_nr_lines;
-    int h, lh;
 
     /* Handle resize event */
     gtk_widget_get_allocation(dz.zinfo_viewport, &allocation);
@@ -945,8 +942,8 @@ dz_if_zinfo_update_cb(GtkWidget *widget,
 	} else if ( allocation.height < dz.zinfo_height ) {
 	    /* Decrease the number of lines displayed */
 	    nr_lines -= (dz.zinfo_height - allocation.height) / dz.zinfo_line_height;
-	    if ( nr_lines < dz.zinfo_nr_lines ) {
-		nr_lines = dz.zinfo_nr_lines;
+	    if ( nr_lines < DZ_ZONE_INFO_LINE_NUM ) {
+		nr_lines = DZ_ZONE_INFO_LINE_NUM;
 	    }
 	}
 
@@ -975,8 +972,8 @@ dz_if_zinfo_scroll_cb(GtkWidget *widget,
     GdkEventScroll *scroll = &event->scroll;
     int zno = dz.zinfo_zno;
 
-    if ( (event->type == GDK_SCROLL)
-	 || (event->type == GDK_SCROLL_SMOOTH) ) {
+    if ( (event->type == (GdkEventType)GDK_SCROLL)
+	 || (event->type == (GdkEventType)GDK_SCROLL_SMOOTH) ) {
 
 	if ( scroll->direction == GDK_SCROLL_UP ) {
 	    if ( zno > 0 ) {
@@ -990,7 +987,7 @@ dz_if_zinfo_scroll_cb(GtkWidget *widget,
 	    goto out;
 	}
 
-	if ( zno > (dz.nr_zones - dz.zinfo_nr_lines) ) {
+	if ( zno > (int)(dz.nr_zones - dz.zinfo_nr_lines) ) {
 	    zno = dz.nr_zones - dz.zinfo_nr_lines;
 	}
 	if ( zno < 0 ) {

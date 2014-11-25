@@ -203,7 +203,7 @@ usage:
     }
 
     printf("%u / %u zones:\n", nz, nr_zones);
-    for(i = 0; i < nz; i++) {
+    for(i = 0; i < (int)nz; i++) {
 	printf("Zone %05d: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
 	       i,
 	       zones[i].zbz_type,

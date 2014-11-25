@@ -268,7 +268,8 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                 zbc_sg_cmd_t *cmd)
 {
     char msg[512];
-    int n, i = 0, j, ret;
+    int n, ret;
+    unsigned i = 0, j;
 
     if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
 

@@ -434,13 +434,14 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     size_t out_bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
     zbc_sg_cmd_t cmd;
     uint8_t *buf;
-    int i, nz, ret, reported_zones;
+    unsigned int i, nz, reported_zones;
+    int ret;
 
     if ( *nr_zones ) {
         zbc_debug("Report at most %d zones\n",
                  *nr_zones);
         out_bufsz += *nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if ( out_bufsz > sysconf(_SC_PAGESIZE) ) {
+        if ( out_bufsz > (size_t)sysconf(_SC_PAGESIZE) ) {
             out_bufsz = sysconf(_SC_PAGESIZE);
             zbc_debug("Limit zone report to %d / %d zones\n",
                      (int)((out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH),

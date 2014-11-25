@@ -1,11 +1,14 @@
 
 ACLOCAL_AMFLAGS = -I m4
+
 SUBDIRS = . $(subdirs)
 EXTRA_DIST = \
 	autogen.sh \
 	exports
 
 AM_CPPFLAGS = \
+	-O2 \
+	-Wall -Wextra -Wno-unused-parameter \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include
 

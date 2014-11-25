@@ -136,7 +136,7 @@ out:
 int
 dz_get_zones(void)
 {
-    int nr_zones = dz.nr_zones;
+    unsigned int nr_zones = dz.nr_zones;
     int ret;
 
     if ( ! nr_zones ) {
@@ -187,8 +187,7 @@ dz_reset_zone(int zno)
 {
     int ret = 0;
 
-    if ( (zno >= 0)
-         && (zno < dz.nr_zones) ) {
+    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
         ret = zbc_reset_write_pointer(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
         if ( ret != 0 ) {
             ret = errno;

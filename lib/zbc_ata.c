@@ -180,17 +180,12 @@ static int
 zbc_ata_report_zones_pages(zbc_device_t *dev)
 {
     uint8_t buf[512];
-    zbc_sg_cmd_t cmd;
     int ret;
 
     /* Get general purpose log */
     ret = zbc_ata_read_log(dev, 0x00, 0, 0, buf, sizeof(buf));
     if ( ret == 0 ) {
-
 	ret = zbc_ata_get_word(&buf[ZBC_ATA_REPORT_ZONES_LOG_PAGE * 2]);
-
-	zbc_debug("%d log pages in report zones log\n", ret);
-
     }
 
     return( ret );
@@ -484,14 +479,13 @@ zbc_ata_pread(zbc_device_t *dev,
 {
     size_t sz = (size_t) lba_count * dev->zbd_info.zbd_logical_block_size;
     uint64_t lba = zone->zbz_start + lba_ofst;
-    uint32_t count;
     zbc_sg_cmd_t cmd;
     int ret;
 
     /* Check */
     if ( lba_count > 65536 ) {
 	zbc_error("Read operation too large (limited to 65536 x 512 B sectors)\n");
-        return( ret );
+        return( -EINVAL );
     }
 
     /* Initialize the command */
@@ -585,7 +579,7 @@ zbc_ata_pwrite(zbc_device_t *dev,
     /* Check */
     if ( lba_count > 65536 ) {
 	zbc_error("Write operation too large (limited to 65536 x 512 B sectors)\n");
-        return( ret );
+        return( -EINVAL );
     }
 
     /* Initialize the command */
@@ -709,9 +703,9 @@ zbc_ata_report_zones(zbc_device_t *dev,
 		     unsigned int *nr_zones)
 {
     uint8_t *buf = NULL, *buf_z;
-    int i, n, nz, ret;
+    unsigned int i, nz, buf_nz;
+    int n, ret;
     int buf_sz = 512;
-    int buf_nz;
     int page = 0;
 
     /* Get a buffer */

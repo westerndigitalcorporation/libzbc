@@ -80,7 +80,7 @@ int main(int argc,
     size_t iosize;
     void *iobuf = NULL;
     uint32_t lba_count;
-    int ionum = 0;
+    unsigned int ionum = 0;
     struct zbc_zone *zones = NULL;
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones, iocount = 0;
@@ -213,7 +213,7 @@ usage:
     }
 
     /* Get target zone */
-    if ( zidx >= nr_zones ) {
+    if ( (unsigned int)zidx >= nr_zones ) {
         fprintf(stderr, "Target zone not found\n");
         ret = 1;
         goto out;

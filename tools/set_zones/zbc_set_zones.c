@@ -264,21 +264,21 @@ zbc_set_zones_align(unsigned long long sectors,
                     unsigned long long *sz_size)
 {
     unsigned long long r = 0;
+    unsigned long long rem_phy_blocks = 0;
     unsigned long long abs = 0;
-    long long int rem_phy_blocks = 0;
 
     /* Align the zone sizes */
     if ( sector_size % align ) {
 
         r = ((unsigned long long)((double)(*cz_size) * (double)sector_size)) % align;
-        abs = ((align - sector_size) < 0) ? (r - align) : (align - r);
+        abs = (align < sector_size) ? (r - align) : (align - r);
 
         if ( r ) {
             *cz_size +=  abs / sector_size;
         }
         rem_phy_blocks = sectors - *cz_size;
 
-        if ( ! (rem_phy_blocks - *sz_size >= 0) ) {
+        if ( rem_phy_blocks < *sz_size ) {
             printf("    Request alignment cannot be fullfil (1)\n");
             return( 1 );
         }
@@ -286,13 +286,13 @@ zbc_set_zones_align(unsigned long long sectors,
         if ( *sz_size > 0) {
 
             r = ((unsigned long long)((double)(*sz_size) * (double)sector_size)) % align;
-            abs = ((align - sector_size) < 0) ? (r - align) : (align - r);
+            abs = (align < sector_size) ? (r - align) : (align - r);
 
             if ( r ) {
                 *sz_size += abs / sector_size;
             }
 
-            if ( !(rem_phy_blocks / *sz_size >= 1) ) {
+            if ( rem_phy_blocks < *sz_size ) {
                 printf("    Request alignment cannot be fullfil (2)\n");
                 return( 1 );
             }

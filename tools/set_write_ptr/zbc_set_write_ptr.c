@@ -33,7 +33,7 @@ int main(int argc,
     struct zbc_device *dev;
     zbc_zone_t *zones = NULL;
     unsigned int nr_zones;
-    unsigned long long lba;
+    long long lba;
     int i, z, ret = 1;
     char *path;
 
@@ -107,8 +107,7 @@ usage:
 
     /* Check target zone */
     z = atoi(argv[i + 1]);
-    if ( (z < 0)
-         || (z > nr_zones) ) {
+    if ( (z < 0) || (z > (int)nr_zones) ) {
         fprintf(stderr, "Invalid target zone number\n");
         ret = 1;
         goto out;

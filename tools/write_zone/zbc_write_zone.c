@@ -79,13 +79,13 @@ main(int argc,
     struct stat st;
     int zidx;
     int floop = 0, fd = -1, i, ret = 1;
-    size_t iosize, ioalign, iosize_lba;
+    size_t iosize, ioalign;
     void *iobuf = NULL;
-    uint32_t lba_io_count, lba_count = 0, lba_max_count;
-    int ionum = 0;
+    uint32_t lba_count = 0;
+    int iocount = 0, ionum = 0;
     struct zbc_zone *zones = NULL;
     struct zbc_zone *iozone = NULL;
-    unsigned int nr_zones, iocount = 0;
+    unsigned int nr_zones;
     char *path, *file = NULL;
     long long lba_ofst = 0;
     int flush = 0;
@@ -225,7 +225,7 @@ usage:
     }
 
     /* Get target zone */
-    if ( zidx >= nr_zones ) {
+    if ( zidx >= (int)nr_zones ) {
         fprintf(stderr, "Target zone not found\n");
         ret = 1;
         goto out;
@@ -268,7 +268,6 @@ usage:
         ret = 1;
         goto out;
     }
-    iosize_lba = iosize / info.zbd_logical_block_size;
 
     /* Get an I/O buffer */
     ret = posix_memalign((void **) &iobuf, ioalign, iosize);
@@ -351,7 +350,7 @@ usage:
     elapsed = zbc_write_zone_usec();
 
     while( (! zbc_write_zone_abort)
-           && (lba_ofst < zbc_zone_length(iozone)) ) {
+           && (lba_ofst < (long long)zbc_zone_length(iozone)) ) {
 
         if ( file ) {
 
@@ -398,7 +397,7 @@ usage:
 
         /* Write to zone */
         lba_count = iosize / info.zbd_logical_block_size;
-        if ( (lba_ofst + lba_count) > zbc_zone_length(iozone) ) {
+        if ( (lba_ofst + lba_count) > (long long)zbc_zone_length(iozone) ) {
             lba_count = zbc_zone_length(iozone) - lba_ofst;
         }
 
@@ -463,7 +462,6 @@ usage:
 	ret = zbc_flush(dev);
 	if ( ret != 0 ) {
 	    fprintf(stderr, "zbc_flush failed %d (%s)\n",
-		    file,
 		    -ret,
 		    strerror(-ret));
 	    ret = 1;

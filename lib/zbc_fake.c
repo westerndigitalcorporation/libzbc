@@ -43,7 +43,7 @@ static inline struct zbc_fake_device *to_file_dev(struct zbc_device *dev)
 static struct zbc_zone *
 zbf_fake_find_zone(struct zbc_fake_device *fdev, uint64_t zone_start_lba)
 {
-        int i;
+        unsigned int i;
 
         for (i = 0; i < fdev->zbd_nr_zones; i++)
                 if (fdev->zbd_zones[i].zbz_start == zone_start_lba)
@@ -329,7 +329,7 @@ static int
 zbc_fake_nr_zones(struct zbc_fake_device *fdev, uint64_t start_lba,
                   enum zbc_reporting_options options, unsigned int *nr_zones)
 {
-        int in, out;
+        unsigned int in, out;
 
         out = 0;
         for (in = 0; in < fdev->zbd_nr_zones; in++) {
@@ -348,7 +348,7 @@ zbc_fake_report_zones(struct zbc_device *dev, uint64_t start_lba,
 {
         struct zbc_fake_device *fdev = to_file_dev(dev);
         unsigned int max_nr_zones = *nr_zones;
-        int in, out;
+        unsigned int in, out;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
@@ -403,7 +403,7 @@ zbc_fake_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
                 return -ENXIO;
 
         if (zone_start_lba == (uint64_t)-1) {
-                int i;
+                unsigned int i;
 
                 for (i = 0; i < fdev->zbd_nr_zones; i++)
                         zbc_fake_reset_one_write_pointer(&fdev->zbd_zones[i]);
@@ -426,7 +426,8 @@ zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
 {
         struct zbc_fake_device *fdev = to_file_dev(dev);
         off_t offset;
-        size_t count, ret;
+        size_t count;
+	ssize_t ret;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
@@ -477,7 +478,8 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
         off_t offset;
-        size_t count, ret;
+        size_t count;
+	ssize_t ret;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
@@ -545,12 +547,13 @@ zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                    uint64_t seq_zone_size)
 {
         struct zbc_fake_device *fdev = to_file_dev(dev);
+	uint64_t device_size = dev->zbd_info.zbd_logical_blocks;
         char meta_path[512];
         struct stat st;
         off_t len;
         int error;
-        off_t device_size, start = 0;
-        int z = 0;
+        off_t start = 0;
+        unsigned int z = 0;
 
         if (fstat(dev->zbd_fd, &st) < 0) {
                 perror("fstat");
@@ -558,9 +561,7 @@ zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
         }
 
         /* Convert device size into # of physical blocks */
-        device_size = dev->zbd_info.zbd_logical_blocks;
-
-        if (conv_zone_size + seq_zone_size > device_size) {
+        if ( (conv_zone_size + seq_zone_size) > device_size ) {
                 printf("size: %llu + %llu > %llu\n",
                        (unsigned long long) conv_zone_size,
                        (unsigned long long) seq_zone_size,
