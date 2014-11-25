@@ -79,7 +79,6 @@ int main(int argc,
     int fd = -1, i, ret = 1;
     size_t iosize;
     void *iobuf = NULL;
-    uint64_t lba;
     uint32_t lba_count;
     int ionum = 0;
     struct zbc_zone *zones = NULL;
@@ -232,7 +231,7 @@ usage:
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
 
-    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
+    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
            zidx,
            nr_zones,
            iozone->zbz_type,
@@ -266,7 +265,14 @@ usage:
 
         if ( strcmp(file, "-") == 0 ) {
 
-            freopen(NULL, "wb", stdout);
+	    /* 
+            if ( ! freopen(NULL, "wb", stdout) ) {
+        	fprintf(stderr, "Reopen stdout failed\n");
+                ret = 1;
+                goto out;
+            }
+	    */
+
             fd = fileno(stdout);
             printf("Writting target zone %d to standard output, %zu B I/Os\n",
                    zidx,
@@ -306,24 +312,23 @@ usage:
 
     }
 
-    if ( zbc_zone_sequential_req(iozone) ) {
-        lba_max = zbc_zone_wp_lba(iozone);
+    if ( zbc_zone_sequential_req(iozone)
+	 && (! zbc_zone_full(iozone)) ) {
+        lba_max = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
     } else {
-        lba_max = zbc_zone_end_lba(iozone);
+        lba_max = zbc_zone_length(iozone);
     }
 
-    lba = iozone->zbz_start+ lba_ofst;
+    lba_count = iosize / info.zbd_logical_block_size;
 
     elapsed = zbc_read_zone_usec();
 
     while( (! zbc_read_zone_abort)
-           && (lba < lba_max) ) {
+           && (lba_ofst < lba_max) ) {
 
         /* Read zone */
-        lba_count = iosize / info.zbd_logical_block_size;
-
-        if (  (lba + lba_count) > lba_max ) {
-            lba_count = lba_max - lba;
+        if (  (lba_ofst + lba_count) > lba_max ) {
+            lba_count = lba_max - lba_ofst;
         }
 
         ret = zbc_pread(dev, iozone, iobuf, lba_count, lba_ofst);
@@ -344,10 +349,8 @@ usage:
                 ret = 1;
                 break;
             }
-            ret = 0;
         }
 
-        lba += lba_count;
         lba_ofst += lba_count;
         bcount += lba_count * info.zbd_logical_block_size;
         iocount++;

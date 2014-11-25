@@ -337,8 +337,9 @@ zbc_pread(zbc_device_t *dev,
 	if ( lba_count ) {
 	    ret = (dev->zbd_ops->zbd_pread)(dev, zone, buf, lba_count, lba_ofst);
 	    if ( ret <= 0 ) {
-		zbc_error("Read %u blocks at block %llu failed %zd (%s)\n",
+		zbc_error("Read %u blocks at block %llu + %llu failed %zd (%s)\n",
 			  lba_count,
+			  (unsigned long long) zbc_zone_start_lba(zone),
 			  (unsigned long long) lba_ofst,
 			  -ret,
 			  strerror(-ret));
@@ -385,8 +386,9 @@ zbc_pwrite(zbc_device_t *dev,
 	    /* Execute write */
 	    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
 	    if ( ret <= 0 ) {
-		zbc_error("Write %u blocks at block %llu failed %zd (%s)\n",
+		zbc_error("Write %u blocks at block %llu + %llu failed %zd (%s)\n",
 			  lba_count,
+			  (unsigned long long) zbc_zone_start_lba(zone),
 			  (unsigned long long) lba_ofst,
 			  -ret,
 			  strerror(-ret));
