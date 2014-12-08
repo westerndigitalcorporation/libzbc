@@ -24,11 +24,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pthread.h>
+
 #include "zbc.h"
 
 struct zbc_fake_device {
         struct zbc_device dev;
-
+	pthread_mutex_t mutex;
         unsigned int zbd_nr_zones;
         struct zbc_zone *zbd_zones;
         int zbd_meta_fd;
@@ -258,6 +260,8 @@ zbc_fake_open(const char *filename, int flags, struct zbc_device **pdev)
         if (ret)
                 goto out_free_filename;
 
+	pthread_mutex_init(&fdev->mutex, NULL);
+
         *pdev = &fdev->dev;
         return 0;
 
@@ -338,7 +342,9 @@ zbc_fake_nr_zones(struct zbc_fake_device *fdev, uint64_t start_lba,
         }
 
         *nr_zones = out;
+
         return 0;
+
 }
 
 static int
@@ -349,12 +355,16 @@ zbc_fake_report_zones(struct zbc_device *dev, uint64_t start_lba,
         struct zbc_fake_device *fdev = to_file_dev(dev);
         unsigned int max_nr_zones = *nr_zones;
         unsigned int in, out;
+        int ret;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
-        if (!zones)
-                return zbc_fake_nr_zones(fdev, start_lba, options, nr_zones);
+	pthread_mutex_lock(&fdev->mutex);
+        if (!zones) {
+                ret = zbc_fake_nr_zones(fdev, start_lba, options, nr_zones);
+		goto out_unlock;
+	}
 
         out = 0;
         for (in = 0; in < fdev->zbd_nr_zones; in++) {
@@ -367,7 +377,14 @@ zbc_fake_report_zones(struct zbc_device *dev, uint64_t start_lba,
         }
 
         *nr_zones = out;
-        return 0;
+	ret = 0;
+
+out_unlock:
+
+	pthread_mutex_unlock(&fdev->mutex);
+
+        return ret;
+
 }
 
 static bool
@@ -398,10 +415,12 @@ zbc_fake_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
 {
         struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
+	int ret;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
+	pthread_mutex_lock(&fdev->mutex);
         if (zone_start_lba == (uint64_t)-1) {
                 unsigned int i;
 
@@ -409,15 +428,24 @@ zbc_fake_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
                         zbc_fake_reset_one_write_pointer(&fdev->zbd_zones[i]);
         } else {
                 zone = zbf_fake_find_zone(fdev, zone_start_lba);
-                if (!zone)
-                        return -EIO;
+                if (!zone) {
+                        ret = -EIO;
+			goto out_unlock;
+		}
 
                 /* XXX(hch): reject for conventional zones? */
 
                 zbc_fake_reset_one_write_pointer(zone);
         }
 
-        return 0;
+	ret = 0;
+
+out_unlock:
+
+	pthread_mutex_unlock(&fdev->mutex);
+
+        return ret;
+
 }
 
 static int32_t
@@ -432,8 +460,10 @@ zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
+        ret = -EIO;
+	pthread_mutex_lock(&fdev->mutex);
         if (start_lba > zone->zbz_length)
-                return -EIO;
+		goto out_unlock;
         start_lba += zone->zbz_start;
 
         /* Note: unrestricted read will be added to the standard */
@@ -442,7 +472,7 @@ zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
         if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
                 /* Cannot read unwritten data */
                 if (start_lba + lba_count > zone->zbz_write_pointer)
-                        return -EIO;
+			goto out_unlock;
         } else {
                 /* Reads spanning other types of zones are OK. */
                 if (start_lba + lba_count > zone->zbz_start + zone->zbz_length) {
@@ -451,14 +481,14 @@ zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                         struct zbc_zone *next_zone = zone;
                         while( count && (next_zone = zbf_fake_find_zone(fdev, lba)) ) {
                                 if (next_zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
-                                        return -EIO;
+					goto out_unlock;
                                 if ( count > next_zone->zbz_length )
                                         count -= next_zone->zbz_length;
                                 lba += next_zone->zbz_length;
                         }
                 }
         }
-
+	pthread_mutex_unlock(&fdev->mutex);
 
         /* XXX: check for overflows */
         count = lba_count * dev->zbd_info.zbd_logical_block_size;
@@ -469,6 +499,10 @@ zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
                 return -errno;
 
         return ret / dev->zbd_info.zbd_logical_block_size;
+
+out_unlock:
+	pthread_mutex_unlock(&fdev->mutex);
+        return ret;
 }
 
 static int32_t
@@ -484,30 +518,33 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
+	ret = -EIO;
+	pthread_mutex_lock(&fdev->mutex);
         zone = zbf_fake_find_zone(fdev, z->zbz_start);
         if (!zone)
-                return -EIO;
+                goto out_unlock;
 
         if (start_lba > zone->zbz_length)
-                return -EIO;
+                goto out_unlock;
         start_lba += zone->zbz_start;
 
         if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
                 /* Can only write at the write pointer */
                 if (start_lba != zone->zbz_write_pointer)
-                        return -EIO;
+                        goto out_unlock;
         }
 
         /* Writes cannot span zones */
         if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
                 if (zone->zbz_write_pointer + lba_count >
                     zone->zbz_start + zone->zbz_length)
-                        return -EIO;
+                        goto out_unlock;
         } else {
                 if (start_lba + lba_count >
                     zone->zbz_start + zone->zbz_length)
-                        return -EIO;
+                        goto out_unlock;
         }
+	pthread_mutex_unlock(&fdev->mutex);
 
         /* XXX: check for overflows */
         count = (size_t)lba_count * dev->zbd_info.zbd_logical_block_size;
@@ -519,6 +556,7 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
 
         ret /= dev->zbd_info.zbd_logical_block_size;
 
+	pthread_mutex_lock(&fdev->mutex);
         if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
                 /*
                 * XXX: What protects us from a return value that's not LBA aligned?
@@ -532,7 +570,12 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         }
         memcpy(z, zone, sizeof(*z));
 
+out_unlock:
+
+	pthread_mutex_unlock(&fdev->mutex);
+
         return ret;
+
 }
 
 static int
@@ -560,13 +603,16 @@ zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 return -errno;
         }
 
+	pthread_mutex_unlock(&fdev->mutex);
+
         /* Convert device size into # of physical blocks */
         if ( (conv_zone_size + seq_zone_size) > device_size ) {
                 printf("size: %llu + %llu > %llu\n",
                        (unsigned long long) conv_zone_size,
                        (unsigned long long) seq_zone_size,
                        (unsigned long long) device_size);
-                return -EINVAL;
+                error = -EINVAL;
+		goto out_unlock;
         }
 
         fdev->zbd_nr_zones =
@@ -583,7 +629,8 @@ zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
                 if (fdev->zbd_meta_fd < 0) {
                         perror("open");
-                        return -errno;
+                        error = -errno;
+			goto out_unlock;
                 }
         }
 
@@ -639,11 +686,13 @@ zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
                 start += zone->zbz_length;
         }
 
-        return 0;
-
+        error = 0;
+out_unlock:
+	pthread_mutex_unlock(&fdev->mutex);
+        return error;
 out_close:
         close(fdev->zbd_meta_fd);
-        return error;
+	goto out_unlock;
 }
 
 static int
@@ -652,13 +701,19 @@ zbc_fake_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
 {
         struct zbc_fake_device *fdev = to_file_dev(dev);
         struct zbc_zone *zone;
+	int ret;
 
-        if (!fdev->zbd_zones)
-                return -ENXIO;
+	pthread_mutex_lock(&fdev->mutex);
+        if (!fdev->zbd_zones) {
+                ret = -ENXIO;
+		goto out_unlock;
+	}
 
         zone = zbf_fake_find_zone(fdev, start_lba);
-        if (!zone)
-                return -EINVAL;
+        if (!zone) {
+                ret = -EINVAL;
+		goto out_unlock;
+	}
 
         /* Do nothing for conventional zones */
         if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
@@ -669,7 +724,14 @@ zbc_fake_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
                         zone->zbz_condition = ZBC_ZC_OPEN;
         }
 
-        return 0;
+        ret = 0;
+
+out_unlock:
+
+	pthread_mutex_unlock(&fdev->mutex);
+
+        return ret;
+
 }
 
 struct zbc_ops zbc_fake_ops = {
