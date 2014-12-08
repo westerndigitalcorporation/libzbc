@@ -24,18 +24,26 @@ directory.
 I.2. License
 ------------
 
-With the exception of the linear key value store (lkvs) tool, libzbc
-and all example applications are distributed under the term of the of
-the GNU Lesser General Public License version 3, or any later version.
+libzbc is distributed under the terms of the of the BSD 2-clause license
+("Simplified BSD License" or "FreeBSD License"). A copy of this license
+with the library copyright can be found in the COPYING.BSD file.
 
-The lkvs tool is distributed under the term of the of the GNU General
-Public License version 3, or any later version.
+With the exception of the linear key value store (lkvs) tool, all example
+applications under the tools directory are distributed under the terms of
+the GNU Lesser General Public License version 3, or any later version. A
+copy of version 3 this license can be found in the COPYING.LESSER file.
+
+The lkvs tool is distributed under the terms of the of the GNU General
+Public License version 3, or any later version. A copy of version 3 of
+this license can be found in the COPYING.GPL file.
 
 libzbc and all its example applications are distributed "as is,"
 without technical support, and WITHOUT ANY WARRANTY, without even the
 implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-You should have received a copy of the GNU Lesser General Public License
-along with libzbc.  If not, see <http://www.gnu.org/licenses/>.
+Along with libzbc, you should have received a copy of the BSD 2-clause 
+license, GNU General Public License and og the GNU Lesser General Public
+License. If not, please see <http://opensource.org/licenses/BSD-2-Clause>
+and <http://www.gnu.org/licenses/>.
 
 I.3. Contact and Bug Reports
 ----------------------------

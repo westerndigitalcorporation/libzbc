@@ -1,13 +1,13 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
- * under the terms of the GNU Lesser General Public License version 3,
- * or any later version, "as is," without technical support, and WITHOUT
- * ANY WARRANTY, without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
- * of the GNU Lesser General Public License along with libzbc.  If not,
- * see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+ *
+ * This software is distributed under the terms of the BSD 2-clause license,
+ * "as is," without technical support, and WITHOUT ANY WARRANTY, without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE. You should have received a copy of the BSD 2-clause license along
+ * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
  *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
