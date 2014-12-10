@@ -289,6 +289,7 @@ zbc_ata_classify(zbc_device_t *dev)
 	    /* No zones: standard or drive managed disk */
 	    zbc_debug("Standard or drive managed ATA device detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+	    ret = -ENXIO;
 	} else if ( ret > 0 ) {
 	    /* We have zones: host-aware disk */
 	    zbc_debug("Host aware ATA device detected\n");
@@ -327,11 +328,6 @@ zbc_ata_get_info(zbc_device_t *dev)
     ret = zbc_ata_classify(dev);
     if ( ret < 0 ) {
         return( ret );
-    }
-
-    if ( dev->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
-        /* Non-SMR or drive managed device... Nothing to do with it */
-        return( 0 );
     }
 
     /* READ CAPACITY 16 */

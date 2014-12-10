@@ -138,6 +138,7 @@ zbc_scsi_classify(zbc_device_t *dev)
 	    /* Standard or drive-managed device */
 	    zbc_debug("Standard or drive managed SCSI disk detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+	    ret = -ENXIO;
 	}
 
     }
@@ -164,11 +165,6 @@ zbc_scsi_get_info(zbc_device_t *dev)
     ret = zbc_scsi_classify(dev);
     if ( ret != 0 ) {
         return( ret );
-    }
-
-    if ( dev->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
-        /* Non-SMR or drive managed device... Nothing to do with it */
-        return( -ENXIO );
     }
 
     /* READ CAPACITY 16 */
