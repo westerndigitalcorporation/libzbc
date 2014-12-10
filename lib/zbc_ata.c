@@ -276,7 +276,7 @@ zbc_ata_classify(zbc_device_t *dev)
     if ( (desc[9] == 0xCD) & (desc[11] == 0xAB) ) {
 
 	/* ZAC host-managed signature */
-	zbc_debug("ZAC signature detected\n");
+	zbc_debug("Host-managed ZAC signature detected\n");
 	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 
     } else if ( (desc[9] == 0x00) & (desc[11] == 0x00) ) {
@@ -287,9 +287,11 @@ zbc_ata_classify(zbc_device_t *dev)
 	ret = zbc_ata_report_zones_pages(dev);
 	if ( ret == 0 ) {
 	    /* No zones: standard or drive managed disk */
+	    zbc_debug("Standard or drive managed ATA device detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
 	} else if ( ret > 0 ) {
 	    /* We have zones: host-aware disk */
+	    zbc_debug("Host aware ATA device detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	}
 
@@ -329,7 +331,7 @@ zbc_ata_get_info(zbc_device_t *dev)
 
     if ( dev->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
         /* Non-SMR or drive managed device... Nothing to do with it */
-        return( -ENXIO );
+        return( 0 );
     }
 
     /* READ CAPACITY 16 */

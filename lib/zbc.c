@@ -94,23 +94,32 @@ zbc_open(const char *filename,
          int flags,
          zbc_device_t **pdev)
 {
-    int ret, i;
+    int ret = -ENODEV, i;
 
     /* Test all backends until one (eventually) accepts the drive */
-    for (i = 0; zbc_ops[i] != NULL; i++) {
+    for(i = 0; zbc_ops[i] != NULL; i++) {
 
         ret = zbc_ops[i]->zbd_open(filename, flags, pdev);
-        if ( ret == 0 ) {
+	if ( ret == 0 ) {
+
 	    /* This backend accepted the drive */
             (*pdev)->zbd_ops = zbc_ops[i];
+
+	    if ( (*pdev)->zbd_info.zbd_model == ZBC_DM_DRIVE_MANAGED ) {
+		zbc_error("Device %s is a starndard disk or drive managed SMR disk\n", filename);
+		zbc_close(*pdev);
+		return( -EINVAL );
+	    }
+
 	    return( 0 );
-        }
+
+	}
 
     }
 
     zbc_error("Open device %s failed\n", filename);
 
-    return( -ENODEV );
+    return( ret );
 
 }
 

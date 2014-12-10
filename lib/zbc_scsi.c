@@ -103,6 +103,7 @@ zbc_scsi_classify(zbc_device_t *dev)
 
     if ( dev_type == ZBC_DEV_TYPE_HOST_MANAGED ) {
         /* Host-managed device */
+	zbc_debug("Host-managed ZBC disk signature detected\n");
         dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 	goto out;
     }
@@ -112,6 +113,8 @@ zbc_scsi_classify(zbc_device_t *dev)
 	ret = -ENXIO;
 	goto out;
     }
+
+    zbc_debug("Standard SCSI disk signature detected\n");
 
     /* This may be a host-managed device: look at VPD    */
     /* page B5h (block device characteristics extension) */
@@ -129,9 +132,11 @@ zbc_scsi_classify(zbc_device_t *dev)
 
 	if ( cmd.out_buf[8] & 0x10 ) {
 	    /* Host aware device */
+	    zbc_debug("Host aware ZBC disk detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	} else {
 	    /* Standard or drive-managed device */
+	    zbc_debug("Standard or drive managed SCSI disk detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
 	}
 
