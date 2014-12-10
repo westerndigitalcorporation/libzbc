@@ -294,6 +294,7 @@ zbc_ata_classify(zbc_device_t *dev)
 	    /* We have zones: host-aware disk */
 	    zbc_debug("Host aware ATA device detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+	    ret = 0;
 	}
 
     } else {
