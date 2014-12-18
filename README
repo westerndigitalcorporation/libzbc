@@ -86,12 +86,13 @@ III.1 Kernel Version
 libzbc functions operate using device handles which are obtained by executing
 the zbc_open function. This function argument can be a regular file or a
 legacy raw block device file for operating in emulation mode, or the SG node
-device file (/dev/sg<x>) of the target ZBC or ZAC disk.s such some level of
-kernel support is required for these SG nodes to exist.
+device file (/dev/sg<x>) of the target ZBC or ZAC disk. Kernel support is
+required for these SG nodes to exist.
 
 Linux kernel introduced support for ZBC device type with version 3.17. Any
 kernel with version 3.17 and above will thus recognize SAS ZBC devices and
-create an SG node for these disks (but not a regular block device).
+create an SG node for these disks, but will not create a regular block
+device (such as /dev/sd<y>).
 
 As of kernel version 3.17.4, ZAC device types are not yet recognized and
 no SG device node is created for those devices. To allow using ZAC disks,
