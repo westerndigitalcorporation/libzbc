@@ -83,7 +83,7 @@ III. Usage
 III.1 Kernel Version
 --------------------
 
-libzbc functions operate using device handles which are obtain by executing
+libzbc functions operate using device handles which are obtained by executing
 the zbc_open function. This function argument can be a regular file or a
 legacy raw block device file for operating in emulation mode, or the SG node
 device file (/dev/sg<x>) of the target ZBC or ZAC disk.s such some level of
