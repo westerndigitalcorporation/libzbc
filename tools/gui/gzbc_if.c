@@ -323,7 +323,7 @@ dz_if_create(void)
                       G_CALLBACK(dz_if_exit_cb),
                       &dz);
 
-    if ( dz.interval > DZ_INTERVAL ) {
+    if ( dz.interval >= DZ_INTERVAL ) {
         /* Add timer for automatic refresh */
         dz.timer_id = g_timeout_add(dz.interval, dz_if_timer_cb, NULL);
     }
@@ -368,9 +368,9 @@ static char *dz_info_label[DZ_ZONE_INFO_FIELD_NUM] =
         "Condition",
         "Need Reset",
         "Non Seq",
-        "Start LBA",
+        "Start",
         "Length",
-        "Write pointer LBA"
+        "Write pointer"
     };
 
 static void
@@ -537,6 +537,12 @@ dz_if_create_zinfo(int nr_lines)
     
 }
 
+static unsigned long long
+dz_if_blocks(unsigned long long lba)
+{
+    return( (lba * dz.info.zbd_logical_block_size) / dz.block_size );
+}
+
 static void
 dz_if_update_zinfo(void)
 {
@@ -620,12 +626,12 @@ dz_if_update_zinfo(void)
 
 	/* Zone start LBA */
 	entry = dz.zinfo_lines[i].entry[4];
-        sprintf(str, "%llu", zbc_zone_start_lba(z));
+        sprintf(str, "%llu", dz_if_blocks(zbc_zone_start_lba(z)));
         gtk_entry_set_text(GTK_ENTRY(entry), str);
 
 	/* Zone length */
 	entry = dz.zinfo_lines[i].entry[5];
-        sprintf(str, "%llu", zbc_zone_length(z));
+        sprintf(str, "%llu", dz_if_blocks(zbc_zone_length(z)));
         gtk_entry_set_text(GTK_ENTRY(entry), str);
 
 	/* Zone wp LBA */
@@ -633,10 +639,14 @@ dz_if_update_zinfo(void)
 	if ( zbc_zone_not_wp(z) ) {
 	    strcpy(str, "N/A");
 	    gdk_rgba_parse(&color, "Grey");
-	    gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
+	} else if ( zbc_zone_full(z) ) {
+	    gdk_rgba_parse(&color, "Red");
+	    strcpy(str, "Full");
 	} else {
-	    sprintf(str, "%llu", zbc_zone_wp_lba(z));
+	    gdk_rgba_parse(&color, "Black");
+	    sprintf(str, "%llu", dz_if_blocks(zbc_zone_wp_lba(z)));
 	}
+	gtk_widget_override_color(entry, GTK_STATE_NORMAL, &color);
         gtk_entry_set_text(GTK_ENTRY(entry), str);
 
     }

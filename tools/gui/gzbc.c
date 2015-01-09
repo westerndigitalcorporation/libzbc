@@ -59,6 +59,11 @@ main(int argc,
             G_OPTION_ARG_INT, &dz.interval,
             "Refresh interval (milliseconds)", NULL
         },
+	{
+            "block", 'b', 0,
+            G_OPTION_ARG_INT, &dz.block_size,
+            "Use block bytes as the unit for displaying zone LBA, length and writepointer position", NULL
+        },
         {
             "verbose", 'v', 0,
             G_OPTION_ARG_NONE, &verbose,
@@ -88,6 +93,11 @@ main(int argc,
         return( 1 );
     }
 
+    if ( dz.interval < 0 ) {
+        fprintf(stderr, "Invalid update interval\n");
+        return( 1 );
+    }
+
     if ( verbose ) {
         zbc_set_log_level("debug");
     }
@@ -106,7 +116,42 @@ main(int argc,
     if ( ret != 0 ) {
         fprintf(stderr,
                 "zbc_get_device_info failed\n");
+	ret = 1;
         goto out;
+    }
+
+    if ( dz.block_size ) {
+
+	if ( dz.block_size < 0 ) {
+	    fprintf(stderr, "Invalid block size\n");
+	    ret = 1;
+	    goto out;
+	}
+
+	if ( ((unsigned int) dz.block_size < dz.info.zbd_logical_block_size)
+	     && (dz.info.zbd_logical_block_size % dz.block_size) ) {
+	    fprintf(stderr,
+		    "Block size %d is not a divisor of the disk logical sector size %u\n",
+		    dz.block_size,
+		    (unsigned int) dz.info.zbd_logical_block_size);
+	    ret = 1;
+	    goto out;
+	}
+
+	if ( ((unsigned int) dz.block_size >= dz.info.zbd_logical_block_size)
+	     && (dz.block_size % dz.info.zbd_logical_block_size) ) {
+	    fprintf(stderr,
+		    "Block size %d is not a multiple of the disk logical sector size %u\n",
+		    dz.block_size,
+		    (unsigned int) dz.info.zbd_logical_block_size);
+	    ret = 1;
+	    goto out;
+	}
+
+    } else {
+
+	dz.block_size = dz.info.zbd_logical_block_size;
+
     }
 
     /* Get zone information */

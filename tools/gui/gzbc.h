@@ -67,6 +67,7 @@ typedef struct dz {
     struct zbc_zone             *zones;
 
     int                         interval;
+    int                         block_size;
     int                         abort;
 
     /**
