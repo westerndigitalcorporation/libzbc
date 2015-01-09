@@ -130,7 +130,10 @@ zbc_scsi_classify(zbc_device_t *dev)
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
 
-	if ( cmd.out_buf[8] & 0x10 ) {
+	if ( (cmd.out_buf[1] == 0xB1)
+	     && (cmd.out_buf[2] == 0x00)
+	     && (cmd.out_buf[3] == 0x3C)
+	     && (cmd.out_buf[8] & 0x10) ) {
 	    /* Host aware device */
 	    zbc_debug("Host aware ZBC disk detected\n");
 	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
