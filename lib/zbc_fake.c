@@ -513,13 +513,13 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
         struct zbc_zone *zone;
         off_t offset;
         size_t count;
-	ssize_t ret;
+	ssize_t ret = -EIO;
 
         if (!fdev->zbd_zones)
                 return -ENXIO;
 
-	ret = -EIO;
 	pthread_mutex_lock(&fdev->mutex);
+
         zone = zbf_fake_find_zone(fdev, z->zbz_start);
         if (!zone)
                 goto out_unlock;
@@ -544,31 +544,36 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
                     zone->zbz_start + zone->zbz_length)
                         goto out_unlock;
         }
-	pthread_mutex_unlock(&fdev->mutex);
 
         /* XXX: check for overflows */
         count = (size_t)lba_count * dev->zbd_info.zbd_logical_block_size;
         offset = start_lba * dev->zbd_info.zbd_logical_block_size;
 
         ret = pwrite(dev->zbd_fd, buf, count, offset);
-        if (ret < 0)
-                return -errno;
+        if (ret < 0) {
+                ret = -errno;
+		goto out_unlock;
+	}
 
         ret /= dev->zbd_info.zbd_logical_block_size;
 
-	pthread_mutex_lock(&fdev->mutex);
         if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
                 /*
                 * XXX: What protects us from a return value that's not LBA aligned?
                 * (Except for hoping the OS implementation isn't insane..)
                 */
-                zone->zbz_write_pointer += ret;
                 if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
                         zone->zbz_condition = ZBC_ZC_FULL;
                 else
                         zone->zbz_condition = ZBC_ZC_OPEN;
+
+		/* write pointer in z is advanced on return of this function in zbc.c */
+		memcpy(z, zone, sizeof(*z));
+
+		/* Advance write pointer */
+                zone->zbz_write_pointer += ret;
+
         }
-        memcpy(z, zone, sizeof(*z));
 
 out_unlock:
 
