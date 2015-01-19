@@ -39,7 +39,7 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 
 static gboolean
 dz_if_zinfo_scroll_cb(GtkWidget *widget,
-		      GdkEvent *event,
+                      GdkEvent *event,
 		      gpointer user_data);
 
 static gboolean
@@ -88,7 +88,7 @@ dz_if_create(void)
     GtkWidget *scrolledwindow, *viewport;
     GtkWidget *scrollbar;
     GtkWidget *window;
-    GtkWidget *frame, *alignment;
+    GtkWidget *frame;
     GtkWidget *button;
     GtkWidget *image;
     GtkWidget *label;
@@ -128,14 +128,9 @@ dz_if_create(void)
     dz.zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
     gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
 
-    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(frame), alignment);
-    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
-    
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
 
     scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_POLICY_ALWAYS, GTK_POLICY_NEVER);
@@ -173,14 +168,9 @@ dz_if_create(void)
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
     gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
 
-    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(frame), alignment);
-    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
-
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_show(vbox);
-    gtk_container_add(GTK_CONTAINER(alignment), vbox);
+    gtk_container_add(GTK_CONTAINER(frame), vbox);
 
     da = gtk_drawing_area_new();
     gtk_widget_set_size_request(da, -1, 20);
@@ -207,15 +197,10 @@ dz_if_create(void)
     gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
-    alignment = gtk_alignment_new(1.0, 1.0, 1.0, 1.0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(frame), alignment);
-    gtk_alignment_set_padding(GTK_ALIGNMENT(alignment), 10, 10, 10, 10);
-
     /* Hbox for controls */
     ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(ctrl_hbox);
-    gtk_container_add(GTK_CONTAINER(alignment), ctrl_hbox);
+    gtk_container_add(GTK_CONTAINER(frame), ctrl_hbox);
 
     /* Reset zone control */
     label = gtk_label_new("<b>Zone index</b>");
@@ -243,13 +228,9 @@ dz_if_create(void)
     gtk_widget_show(button);
     gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
 
-    alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(button), alignment);
-
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
 
     image = gtk_image_new_from_icon_name("gtk-clear", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
@@ -277,13 +258,9 @@ dz_if_create(void)
     gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
     gtk_widget_set_can_default(button, TRUE);
     
-    alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(button), alignment);
-    
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
     
     image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
@@ -303,13 +280,9 @@ dz_if_create(void)
     gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
     gtk_widget_set_can_default(button, TRUE);
 
-    alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
-    gtk_widget_show(alignment);
-    gtk_container_add(GTK_CONTAINER(button), alignment);
-
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(alignment), hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
 
     image = gtk_image_new_from_icon_name("gtk-quit", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
@@ -433,7 +406,8 @@ dz_if_create_zinfo(int nr_lines)
 	label = gtk_label_new(str);
 	gtk_label_set_text(GTK_LABEL(label), str);
 	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-	gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+        gtk_widget_set_halign(label, GTK_ALIGN_START);
+        gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
 	gtk_widget_set_hexpand(label, TRUE);
 	gtk_widget_set_vexpand(label, FALSE);
 	gtk_widget_show(label);
@@ -447,7 +421,8 @@ dz_if_create_zinfo(int nr_lines)
 	sprintf(str, "<b>%05d</b>", i);
 	label = gtk_label_new(str);
 	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-	gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+        gtk_widget_set_halign(label, GTK_ALIGN_START);
+        gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
 	gtk_widget_set_hexpand(label, FALSE);
 	gtk_widget_set_vexpand(label, FALSE);
 	gtk_widget_show(label);
