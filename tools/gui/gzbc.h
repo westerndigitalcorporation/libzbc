@@ -32,26 +32,22 @@
 #define DZ_INTERVAL     1000
 
 /**
- * Number of fields in the zone info list.
+ * Zone information list columns.
  */
-#define DZ_ZONE_INFO_FIELD_NUM  7
+enum {
+    DZ_ZONE_NUM = 0,
+    DZ_ZONE_TYPE,
+    DZ_ZONE_COND,
+    DZ_ZONE_NEED_RESET,
+    DZ_ZONE_NONSEQ,
+    DZ_ZONE_START,
+    DZ_ZONE_LENGTH,
+    DZ_ZONE_WP,
+    DZ_ZONE_LIST_COLUMS
+};
 
-/**
- * Initial number of visible lines in the zone info list.
- */
-#define DZ_ZONE_INFO_LINE_NUM  	10
 
 /***** Type definitions *****/
-
-/**
- * Zone info line.
- */
-typedef struct dz_zinfo_line {
-
-    GtkWidget                   *label;
-    GtkWidget                   *entry[DZ_ZONE_INFO_FIELD_NUM];
-
-} dz_zinfo_line_t;
 
 /**
  * GUI data.
@@ -81,14 +77,12 @@ typedef struct dz {
     GdkRGBA			seqw_color;
 
     GtkWidget                   *zinfo_frame_label;
-    GtkWidget                   *zinfo_viewport;
-    GtkWidget                   *zinfo_grid;
-    int				zinfo_height;
-    int				zinfo_line_height;
-    int				zinfo_nr_lines;
-    dz_zinfo_line_t		*zinfo_lines;
-    int				zinfo_zno;
-    GtkAdjustment               *zinfo_vadj;
+    GtkWidget                   *zinfo_treeview;
+    GtkTreeModel                *zinfo_model;
+    GtkListStore                *zinfo_store;
+    unsigned int		zinfo_start_no;
+    unsigned int		zinfo_end_no;
+    unsigned int		zinfo_lines;
 
     GtkWidget                   *zstate_da;
 
