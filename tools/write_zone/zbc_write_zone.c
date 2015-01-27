@@ -232,8 +232,10 @@ usage:
     }
     iozone = &zones[zidx];
 
-    printf("Device %s: %s interface, %s disk model\n",
+    printf("Device %s: %s\n",
            path,
+           info.zbd_vendor_id);
+    printf("    %s interface, %s disk model\n",
            zbc_disk_type_str(info.zbd_type),
            zbc_disk_model_str(info.zbd_model));
     printf("    %llu logical blocks of %u B\n",
@@ -242,6 +244,8 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
+    printf("    %.03F GiB capacity\n",
+           (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
     printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
            zidx,
