@@ -53,7 +53,7 @@ zbc_scsi_classify(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
     int dev_type;
-    int ret;
+    int n, ret;
 
     /* Allocate and intialize inquiry command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
@@ -98,6 +98,15 @@ zbc_scsi_classify(zbc_device_t *dev)
     /* This is a SCSI device */
     dev->zbd_info.zbd_type = ZBC_DT_SCSI;
 
+    /* Vendor identification */
+    n = zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[0], (char *)&cmd.out_buf[8], 8);
+    
+    /* Product identification */
+    n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&cmd.out_buf[16], 16);
+    
+    /* Product revision */
+    n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&cmd.out_buf[32], 4);
+    
     /* Now check the device type */
     dev_type = (int)(cmd.out_buf[0] & 0x1f);
 
@@ -234,7 +243,7 @@ zbc_scsi_open(const char *filename,
                   filename,
                   errno,
                   strerror(errno));
-        return -errno;
+        return( -errno );
     }
 
     /* Check device */
@@ -274,7 +283,7 @@ zbc_scsi_open(const char *filename,
 
     *pdev = dev;
 
-    return 0;
+    return( 0 );
 
 out_free_filename:
 
@@ -288,7 +297,7 @@ out:
 
     close(fd);
 
-    return ret;
+    return( ret );
 
 }
 
@@ -297,13 +306,13 @@ zbc_scsi_close(zbc_device_t *dev)
 {
 
     if ( close(dev->zbd_fd) ) {
-        return -errno;
+        return( -errno );
     }
 
     free(dev->zbd_filename);
     free(dev);
 
-    return 0;
+    return( 0 );
 
 }
 
@@ -425,6 +434,8 @@ zbc_scsi_flush(zbc_device_t *dev,
 
 }
 
+#define ZBC_SCSI_REPORT_ZONES_BUFSZ     1048576
+
 /**
  * Get device zone information.
  */
@@ -436,20 +447,20 @@ zbc_scsi_report_zones(zbc_device_t *dev,
                       unsigned int *nr_zones)
 {
     size_t out_bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+    unsigned int i, nz, reported_zones;
     zbc_sg_cmd_t cmd;
     uint8_t *buf;
-    unsigned int i, nz, reported_zones;
     int ret;
 
     if ( *nr_zones ) {
         zbc_debug("Report at most %d zones\n",
                  *nr_zones);
-        out_bufsz += *nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if ( out_bufsz > (size_t)sysconf(_SC_PAGESIZE) ) {
-            out_bufsz = sysconf(_SC_PAGESIZE);
+        out_bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
+        if ( out_bufsz > ZBC_SCSI_REPORT_ZONES_BUFSZ ) {
+            out_bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
             zbc_debug("Limit zone report to %d / %d zones\n",
-                     (int)((out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH),
-                     *nr_zones);
+                      (int)((out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH),
+                      *nr_zones);
             *nr_zones = (out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
         }
     }
@@ -486,12 +497,20 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
-    zbc_sg_cmd_set_int32(&cmd.cdb[10], out_bufsz);
+    zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int)out_bufsz);
     cmd.cdb[14] = ro & 0x0f;
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
+        goto out;
+    }
+
+    if ( cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET ) {
+        zbc_error("Not enough data received (need at least %d B, got %zu B\n",
+                  ZBC_ZONE_DESCRIPTOR_OFFSET,
+                  cmd.out_bufsz);
+        ret = -EIO;
         goto out;
     }
 
@@ -529,7 +548,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     /* Get number of zones in result */
     buf = (uint8_t *) cmd.out_buf;
     nz = zbc_sg_cmd_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
-    reported_zones = (out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+    reported_zones = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 
     if ( zones && reported_zones ) {
 

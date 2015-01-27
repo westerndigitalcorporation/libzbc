@@ -238,7 +238,7 @@ zbc_sg_cmd_init(zbc_sg_cmd_t *cmd,
 
     cmd->io_hdr.interface_id    = 'S';
     cmd->io_hdr.timeout         = 20000;
-    cmd->io_hdr.flags           = SG_FLAG_DIRECT_IO;
+    cmd->io_hdr.flags           = 0; //SG_FLAG_DIRECT_IO;
 
     cmd->io_hdr.cmd_len         = cmd->cdb_sz;
     cmd->io_hdr.cmdp            = &cmd->cdb[0];
@@ -275,7 +275,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
         zbc_debug("*****************************************\n");
 
-        zbc_debug("* Sending cmd 0x%02x:0x%02x (%s) to device %s:\n",
+        zbc_debug("* Sending cmd 0x%02x:0x%02x (%s) to device %s\n",
                   cmd->cdb_opcode,
                   cmd->cdb_sa,
                   zbc_sg_cmd_name(cmd),
@@ -371,13 +371,67 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
         cmd->out_bufsz -= cmd->io_hdr.resid;
     }
 
-    zbc_debug("%s: Command %s executed in %u ms\n",
+    zbc_debug("%s: Command %s executed in %u ms, %zu B transfered\n",
               dev->zbd_filename,
               zbc_sg_cmd_name(cmd),
-              cmd->io_hdr.duration);
+              cmd->io_hdr.duration,
+              cmd->out_bufsz);
 
 out:
 
+    return( ret );
+
+}
+
+/**
+ * Fill the buffer with the result of INQUIRY command.
+ * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
+ */
+int
+zbc_sg_cmd_inquiry(zbc_device_t *dev,
+                   void *buf)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Allocate and intialize inquiry command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+=======================================================================|
+     * | 0   |                           Operation Code (12h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |                           Page Code                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   | (MSB)                                                                 |
+     * |- - -+---                    Allocation Length                            ---|
+     * | 4   |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret == 0 ) {
+
+        memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
+    
+    }
+
+    zbc_sg_cmd_destroy(&cmd);
+    
     return( ret );
 
 }

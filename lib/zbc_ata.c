@@ -316,6 +316,34 @@ out:
 }
 
 /**
+ * Use IDENTIFY to get disk vendor, product ID and revision.
+ */
+static int
+zbc_ata_vendor_id(zbc_device_t *dev)
+{
+    uint8_t buf[512];
+    int n, ret;
+
+    /* Use inquiry. We could use log 30h page 05h (ATA strings) here... */
+    ret = zbc_sg_cmd_inquiry(dev, buf);
+    if ( ret == 0 ) {
+
+        /* Vendor identification */
+        n = zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[0], (char *)&buf[8], 8);
+        
+        /* Product identification */
+        n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&buf[16], 16);
+        
+        /* Product revision */
+        n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&buf[32], 4);
+
+    }
+
+    return( ret );
+
+}
+
+/**
  * Get a device information (capacity & sector sizes).
  */
 static int
@@ -330,6 +358,8 @@ zbc_ata_get_info(zbc_device_t *dev)
     if ( ret < 0 ) {
         return( ret );
     }
+
+    zbc_ata_vendor_id(dev);
 
     /* READ CAPACITY 16 */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
@@ -691,7 +721,7 @@ zbc_ata_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_ATA_LOG_SIZE	65536
+#define ZBC_ATA_LOG_SIZE	1048576
 
 /**
  * Get device zone information.
@@ -705,9 +735,8 @@ zbc_ata_report_zones(zbc_device_t *dev,
 {
     uint8_t *buf = NULL, *buf_z;
     unsigned int i, nz, buf_nz;
-    int n, ret;
-    int buf_sz = 512;
-    int page = 0;
+    int buf_sz = ZBC_ATA_LOG_SIZE;
+    int n, ret, page = 0;
 
     /* Get a buffer */
     ret = posix_memalign((void **) &buf, sysconf(_SC_PAGESIZE), ZBC_ATA_LOG_SIZE);
@@ -716,7 +745,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
         return( -ENOMEM );
     }
 
-    /* Get the first page of log 0x1A */
+    /* Get the first pages of log 0x1A */
     ret = zbc_ata_read_log(dev, ZBC_ATA_REPORT_ZONES_LOG_PAGE, page, ro & 0xf, buf, buf_sz);
     if ( ret != 0 ) {
 	zbc_error("Read report zones log failed (page %d)\n", page);

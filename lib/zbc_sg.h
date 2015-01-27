@@ -20,6 +20,7 @@
 
 #include "zbc.h"
 
+#include <string.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
 
@@ -184,6 +185,37 @@ zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd);
 extern int
 zbc_sg_cmd_exec(zbc_device_t *dev,
                 zbc_sg_cmd_t *cmd);
+
+/**
+ * Fill the buffer with the result of INQUIRY command.
+ * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
+ */
+extern int
+zbc_sg_cmd_inquiry(zbc_device_t *dev,
+                   void *buf);
+
+/**
+ * Get information string from inquiry output.
+ */
+static inline int
+zbc_sg_cmd_strcpy(char *dst,
+                  char *buf,
+                  int buf_len)
+{
+    int len = buf_len - 1;
+
+    while( len && ((buf[len] == 0) || (buf[len] == ' ')) ) {
+        len--;
+    }
+
+    len++;
+    strncpy(dst, buf, len);
+    dst[len] = ' ';
+    dst[len + 1] = '\0';
+
+    return( len + 1);
+
+}
 
 /**
  * Set bytes in a command cdb.

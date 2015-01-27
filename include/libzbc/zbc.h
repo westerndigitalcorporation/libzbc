@@ -134,6 +134,11 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
 /**
+ * Vendor ID string length.
+ */
+#define ZBC_DEVICE_INFO_LENGTH  32
+
+/**
  * Misc information about ZBC device.
  */
 struct zbc_device_info {
@@ -148,7 +153,7 @@ struct zbc_device_info {
     uint32_t                    zbd_physical_block_size;
     uint64_t                    zbd_physical_blocks;
 
-    char                        __pad[16];
+    char                        zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
 
 };
 typedef struct zbc_device_info zbc_device_info_t;

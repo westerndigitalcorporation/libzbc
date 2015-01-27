@@ -108,16 +108,21 @@ out_close:
 /**
  * Default to regular sector size for emulation on top of a regular file.
  */
-#define ZBC_FILE_SECTOR_SIZE    512
+#define ZBC_FAKE_SECTOR_SIZE    512
 
 static int
 zbc_fake_get_info(struct zbc_device *dev, struct stat *st)
 {
-        dev->zbd_info.zbd_logical_block_size = ZBC_FILE_SECTOR_SIZE;
-        dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FILE_SECTOR_SIZE;
-        dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
-        dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
-        return 0;
+
+    dev->zbd_info.zbd_logical_block_size = ZBC_FAKE_SECTOR_SIZE;
+    dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FAKE_SECTOR_SIZE;
+    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
+    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
+
+    strncpy(dev->zbd_info.zbd_vendor_id, "FAKE HGST HM libzbc", ZBC_DEVICE_INFO_LENGTH - 1);
+
+    return( 0 );
+
 }
 
 /**
