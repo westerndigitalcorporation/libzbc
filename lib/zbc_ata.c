@@ -721,7 +721,7 @@ zbc_ata_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_ATA_LOG_SIZE	1048576
+#define ZBC_ATA_LOG_SIZE	524288
 
 /**
  * Get device zone information.
