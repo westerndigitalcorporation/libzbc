@@ -276,7 +276,9 @@ dz_sig_handler(int sig)
 
     /* Send signal */
     printf("\nSignal %d caught\n", sig);
-    write(dz.sig_pipe[1], &sig, sizeof(int));
+    if ( write(dz.sig_pipe[1], &sig, sizeof(int)) < 0 ) {
+        printf("Signal %d processing failed\n", sig);
+    }
 
     return;
 
