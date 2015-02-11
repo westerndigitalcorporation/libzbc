@@ -40,9 +40,9 @@ LkvsDev::LkvsDev()
 	aligned4kBuf = (char *)memalign(ALIGNMENT, ALIGNMENT);
 	memset(aligned4kBuf, 0, ALIGNMENT);
 	numZones = 0;
-	lastZoneAlloc = 1;
 	lastReadZone = 0;
 	zDevBlockSize = 0;
+	cZones = 0;
 	zDev = NULL;
 	zDevZones = NULL;
 	zoneMeta = NULL;
@@ -54,9 +54,9 @@ LkvsDev::~LkvsDev()
 	
 	// Release all of the zone specific MD buffers
 	if ( zoneMeta ) {
-		for( i = 1; i < zDevNumZones; i++){
+		for( i = cZones; i < zDevNumZones; i++){
 
-		  if( zoneMeta[i-1].mdBuf ) free( zoneMeta[i-1].mdBuf);
+		  if( zoneMeta[i-cZones].mdBuf ) free( zoneMeta[i-cZones].mdBuf);
 		}
 		free(zoneMeta);
 	}
@@ -206,7 +206,7 @@ int LkvsDev::populateMeta(int zoneIndex)
 				char *mdBufLocation = zoneMeta[zoneIndex -1].mdBuf;
 				mdBufLocation += zoneMeta[zoneIndex -1].mdEntries * MD_PB_SZ;
 				memcpy(mdBufLocation, putMeta, MD_PB_SZ);	
-				zoneMeta[zoneIndex -1].mdEntries++;
+				zoneMeta[zoneIndex - cZones].mdEntries++;
 			}
 			metaCount++;
 			mdPopOffset += MD_PB_SZ;
@@ -255,7 +255,13 @@ int LkvsDev::openDev(const char *dev, int flags)
 		ret = LKVS_FAILURE;
 		goto out;
 	}
-	
+
+	// Determine how many zones that are not sequential only
+	for( i = 0; i < zDevNumZones; i++)
+	{
+		if(zbc_zone_conventional(&zDevZones[i])) cZones++;
+	}
+	lastZoneAlloc = cZones;
 	zDevInfo = (zbc_device_info_t *)malloc(sizeof(zbc_device_info_t));
 	if(!zDevInfo){
 		std::cerr << "Lkvs Dev info allocation failed" << std::endl;
@@ -288,26 +294,26 @@ int LkvsDev::openDev(const char *dev, int flags)
 	}
 
 	// Alocate memory for zone MetaData
-	zoneMeta = (LkvsZone*)malloc(sizeof(LkvsZone) * zDevNumZones - 1);	
+	zoneMeta = (LkvsZone*)malloc(sizeof(LkvsZone) * zDevNumZones - cZones);	
 	if( !zoneMeta ) {
 		std::cerr << " ZoneMeta alloc fails" << std::endl;
 		ret = LKVS_FAILURE;
 		goto out;
 	}
-	memset(zoneMeta, 0, sizeof(LkvsZone) * zDevNumZones - 1);
+	memset(zoneMeta, 0, sizeof(LkvsZone) * (zDevNumZones - cZones));
 	// Iterate over sequential only zones and grab metadata from 
 	// zones that have data
-	for( i = 1; i < zDevNumZones; i++)
+	for( i = cZones; i < zDevNumZones; i++)
 	{
-		zoneMeta[ i - 1].mdBuf = (char *)memalign(ALIGNMENT, ALIGNMENT);
-		if( ! zoneMeta[i - 1].mdBuf ){
+		zoneMeta[ i - cZones].mdBuf = (char *)memalign(ALIGNMENT, ALIGNMENT);
+		if( ! zoneMeta[i - cZones].mdBuf ){
 			std::cerr << "MdBuf alloc fails" << std::endl;
 			ret = LKVS_FAILURE;
 			goto out;
 		}
-		memset(zoneMeta[i-1].mdBuf, 0, ALIGNMENT);
-		zoneMeta[i-1].lastMDump = 0;
-		zoneMeta[i-1].mdEntries = 0;
+		memset(zoneMeta[i- cZones].mdBuf, 0, ALIGNMENT);
+		zoneMeta[i - cZones].lastMDump = 0;
+		zoneMeta[i - cZones].mdEntries = 0;
 
 		if(zDevZones[i].zbz_write_pointer > zDevZones[i].zbz_start )
 		{
@@ -445,15 +451,15 @@ int LkvsDev::Put(const char *key, void *buf, size_t size)
 		goto out;
 	}
 		
-	mdBufLocation = zoneMeta[lastZoneAlloc -1].mdBuf;
-	if( zoneMeta[lastZoneAlloc -1].mdEntries < MD_ENTRIES_PER_BLOCK){
-		mdBufLocation += (MD_PB_SZ * zoneMeta[lastZoneAlloc -1].mdEntries);
-		zoneMeta[lastZoneAlloc -1].mdEntries++;
+	mdBufLocation = zoneMeta[lastZoneAlloc - cZones].mdBuf;
+	if( zoneMeta[lastZoneAlloc - cZones].mdEntries < MD_ENTRIES_PER_BLOCK){
+		mdBufLocation += (MD_PB_SZ * zoneMeta[lastZoneAlloc - cZones].mdEntries);
+		zoneMeta[lastZoneAlloc - cZones].mdEntries++;
 	}else{
 		//std::cerr << "MdEntries: " << curZone->mdEntries 
 		//          << ". Going to reset" << std::endl;
-		memset(zoneMeta[lastZoneAlloc - 1].mdBuf, 0, ALIGNMENT);
-		zoneMeta[lastZoneAlloc -1 ].mdEntries = 1;
+		memset(zoneMeta[lastZoneAlloc - cZones].mdBuf, 0, ALIGNMENT);
+		zoneMeta[lastZoneAlloc - cZones ].mdEntries = 1;
 	}
 
 	putMeta = (MetaData *)mdBufLocation;
@@ -463,24 +469,24 @@ int LkvsDev::Put(const char *key, void *buf, size_t size)
 	                    ((size + slack) / zDevBlockSize);
 	keyContainer.metaKeySet(putMeta);
 	// Check the logic of this across zones
-	putMeta->mddump = zoneMeta[lastZoneAlloc - 1].lastMDump;
+	putMeta->mddump = zoneMeta[lastZoneAlloc - cZones].lastMDump;
 	putMeta->magic = LKVS_META_MAGIC;
 
 	// Write the MD
 
-	written = zbc_write(zDev, curZone, zoneMeta[lastZoneAlloc - 1].mdBuf, 
+	written = zbc_write(zDev, curZone, zoneMeta[lastZoneAlloc - cZones].mdBuf, 
 	                     ALIGNMENT / zDevBlockSize );
 	if( written != ALIGNMENT / zDevBlockSize){
 		std::cerr << "MD Wanted to write: " << ALIGNMENT / zDevBlockSize 
 		          << " bytes but wrote: " 
 		          << written << " bytes." << std::endl;
 		std::cerr << strerror(errno);
-		zoneMeta[lastZoneAlloc - 1].mdEntries--;
+		zoneMeta[lastZoneAlloc - cZones].mdEntries--;
 		goto out;
 	}
 	// Update last offset 
-	if( zoneMeta[lastZoneAlloc - 1 ].mdEntries == MD_ENTRIES_PER_BLOCK ){
-		zoneMeta[lastZoneAlloc - 1 ].lastMDump = 
+	if( zoneMeta[lastZoneAlloc - cZones ].mdEntries == MD_ENTRIES_PER_BLOCK ){
+		zoneMeta[lastZoneAlloc - cZones ].lastMDump = 
 		  curZone->zbz_write_pointer - ALIGNMENT / zDevBlockSize;  
 	}
 	zbc_flush(zDev);
