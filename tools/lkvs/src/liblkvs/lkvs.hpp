@@ -151,7 +151,7 @@ class LkvsDev{
 		unsigned long long devSize;
 		unsigned int numZones, lastZoneAlloc, lastReadZone; 
 		unsigned int zDevBlockSize;
-		unsigned int zDevNumZones, cZones;
+		unsigned int zDevNumZones;
 		char *aligned4kBuf;
 		LkvsZone *zoneMeta;
 
