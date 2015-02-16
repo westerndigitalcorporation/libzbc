@@ -434,7 +434,7 @@ zbc_scsi_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_SCSI_REPORT_ZONES_BUFSZ     1048576
+#define ZBC_SCSI_REPORT_ZONES_BUFSZ     524288
 
 /**
  * Get device zone information.

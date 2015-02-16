@@ -137,8 +137,13 @@ dz_if_create(void)
     gtk_widget_show(scrolledwindow);
     gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_SHADOW_IN);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
+#if GTK_CHECK_VERSION(3, 12, 0)
     gtk_widget_set_margin_start(scrolledwindow, 7);
     gtk_widget_set_margin_end(scrolledwindow, 7);
+#else
+    gtk_widget_set_margin_left(scrolledwindow, 7);
+    gtk_widget_set_margin_right(scrolledwindow, 7);
+#endif
     gtk_widget_set_margin_top(scrolledwindow, 10);
     gtk_widget_set_margin_bottom(scrolledwindow, 10);
     gtk_container_add(GTK_CONTAINER(frame), scrolledwindow);
@@ -261,8 +266,13 @@ dz_if_create(void)
     /* Hbox for controls */
     ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(ctrl_hbox);
+#if GTK_CHECK_VERSION(3, 12, 0)
     gtk_widget_set_margin_start(ctrl_hbox, 7);
     gtk_widget_set_margin_end(ctrl_hbox, 7);
+#else
+    gtk_widget_set_margin_left(ctrl_hbox, 7);
+    gtk_widget_set_margin_right(ctrl_hbox, 7);
+#endif
     gtk_container_add(GTK_CONTAINER(frame), ctrl_hbox);
 
     /* Reset zone control */
