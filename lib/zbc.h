@@ -32,6 +32,7 @@
  * Device operations.
  */
 typedef struct zbc_ops {
+
     /**
      * Open device.
      */
@@ -128,6 +129,11 @@ typedef struct zbc_device {
      * Device operations.
      */
     zbc_ops_t           *zbd_ops;
+
+    /**
+     * Device flags: defined by backend drivers.
+     */
+    unsigned int        zbd_flags;
 
 } zbc_device_t;
 
