@@ -71,8 +71,6 @@ TEST_F(LkvsDevTest, Open){
 	tester = new LkvsDev();
 	// Format of ZBC drive succeeds 
 	EXPECT_EQ(LKVS_SUCCESS, tester->openDev(devPath, LKVS_FLAG_FORMAT));
-	// Open of currently open ZBC drive fails
-	EXPECT_EQ(LKVS_FAILURE, tester->openDev(devPath, 0));
 	delete tester;
 
 	tester = new LkvsDev();
