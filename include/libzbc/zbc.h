@@ -117,6 +117,7 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
 #define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
 #define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
+#define zbc_zone_seq(z)     		(zbc_zone_sequential_req(z) || zbc_zone_sequential_pref(z))
 
 #define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
 #define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
@@ -132,6 +133,19 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
 #define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
+
+#define zbc_zone_wp_lba_reset(z)                        	\
+    do {                                                	\
+        (z)->zbz_write_pointer = zbc_zone_start_lba(z); 	\
+    } while( 0 )
+
+#define zbc_zone_wp_lba_inc(z, count)                           \
+    do {                                                        \
+        (z)->zbz_write_pointer += (count);                      \
+        if ( zbc_zone_wp_lba(z) > zbc_zone_end_lba(z) ) {	\
+            (z)->zbz_write_pointer = zbc_zone_end_lba(z);       \
+        }                                                       \
+    } while( 0 )
 
 /**
  * Vendor ID string length.
@@ -317,7 +331,8 @@ zbc_pread(struct zbc_device *dev,
  * This an the equivalent to pwrite(2) that operates on a ZBC device handle,
  * and uses LBA addressing for the buffer length. It attempts to writes in the
  * zone (@zone) at the offset (@lba_ofst).
- * The write pointer is updated in case of a succesful call.
+ * The disk write pointer may be updated in case of a succesful call, but this function
+ * does not updates the write pointer value of @zone.
  *
  * All errors returned by write(2) can be returned. On success, the number of
  * logical blocks written is returned.
@@ -337,9 +352,9 @@ zbc_pwrite(struct zbc_device *dev,
  * @lba_count:          (IN) Number of LBAs to write
  *
  * This an the equivalent to write(2) that operates on a ZBC device handle,
- * and uses LBA addressing for the buffer length.  Instead of writing at
+ * and uses LBA addressing for the buffer length. Instead of writing at
  * the current file offset it writes at the write pointer for the zone
- * identified by @zone, which is advanced by a successful write call.
+ * identified by @zone, which is advanced if the write operation succeeds.
  * This function thus cannot be used for a conventional zone, which is not
  * a write pointer zone.
  *
@@ -352,20 +367,23 @@ zbc_write(struct zbc_device *dev,
           const void *buf,
           uint32_t lba_count)
 {
+    int ret = -EINVAL;
 
-	int ret;
-	if ( zbc_zone_conventional(zone) ) {
-		return( -EINVAL );
-	}
+    if ( zbc_zone_seq(zone) ) {
 
-	ret = zbc_pwrite(dev, zone, buf, lba_count, 
-		(zone->zbz_write_pointer - zone->zbz_start));
-	
-	if( ret > 0 ){
-		zone->zbz_write_pointer += ret;
-	}
-	
-	return ret;
+        ret = zbc_pwrite(dev,
+                         zone,
+                         buf,
+                         lba_count,
+                         zbc_zone_wp_lba(zone) - zbc_zone_start_lba(zone));
+        if ( ret > 0 ) {
+            zbc_zone_wp_lba_inc(zone, ret);
+        }
+
+    }
+    
+    return( ret );
+
 }
 
 /**
