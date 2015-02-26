@@ -419,19 +419,6 @@ usage:
             break;
         }
 
-        /* Update zone write pointer */
-	lba_ofst += ret;
-        if ( zbc_zone_sequential_req(iozone) ) {
-            iozone->zbz_write_pointer += ret;
-	} else if ( zbc_zone_sequential_pref(iozone) ) {
-    	    ret = zbc_report_zones(dev, 0, ZBC_RO_ALL, zones, &nr_zones);
-    	    if ( ret != 0 ) {
-       	        fprintf(stderr, "zbc_report_zones failed\n");
-       	        ret = 1;
-       	        goto out;
-    	    }
-  	}
-
         bcount += ret * info.zbd_logical_block_size;
         iocount++;
 
