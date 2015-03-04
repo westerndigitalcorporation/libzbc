@@ -127,6 +127,12 @@ libzbc exports the following functions.
 +------------------------------+------------------------------------+
 | zbc_list_zones               | Get device zone information        |
 +------------------------------+------------------------------------+
+| zbc_open_zones               | Open a zone                        |
++------------------------------+------------------------------------+
+| zbc_close_zones              | Close a zone                       |
++------------------------------+------------------------------------+
+| zbc_finish_zones             | Finish a zone                      |
++------------------------------+------------------------------------+
 | zbc_reset_write_pointer      | Reset a zone write pointer         |
 +------------------------------+------------------------------------+
 | zbc_reset_all_write_pointers | Reset all zones write pointer      |
@@ -194,33 +200,51 @@ This application illustrates the use of the zone reporting functions
 the zone information of a device and displays it in readable form on
 the standard output.
 
-IV.3. zbc_reset_write_ptr (tools/reset_write_ptr/)
+IV.3. zbc_open_zone (tools/open_zone/)
+--------------------------------------------------
+
+This application illustrates the use of the zbc_open_zone
+function allowing opening a zone.
+
+IV.4. zbc_close_zone (tools/close_zone/)
+--------------------------------------------------
+
+This application illustrates the use of the zbc_close_zone
+function allowing closing a zone.
+
+IV.5. zbc_finish_zone (tools/finish_zone/)
+--------------------------------------------------
+
+This application illustrates the use of the zbc_finish_zone
+function allowing finishing a zone.
+
+IV.6. zbc_reset_write_ptr (tools/reset_write_ptr/)
 --------------------------------------------------
 
 This application illustrates the use of the zbc_reset_write_pointer
 function allowing resetting the write pointer of a zone to the start
 LBA of the zone.
 
-IV.4. zbc_read_zone (tools/read_zone/)
+IV.7. zbc_read_zone (tools/read_zone/)
 --------------------------------------
 
 This application reads data from a zone, up to the zone write pointer
 location and either send the read data to the standard output or copy
 the data to a regular file. It implementation uses the function zbc_pread.
 
-IV.5. zbc_write_zone (tools/write_zone/)
+IV.8. zbc_write_zone (tools/write_zone/)
 ----------------------------------------
 
 This application illustrates the use of the zbc_pwrite function which
 write data to a zone at the zone write pointer location.
 
-IV.6. zbc_set_zones (tools/set_zones/)
+IV.9. zbc_set_zones (tools/set_zones/)
 --------------------------------------
 
 This application can be used to initialize the ZBC emulation mode for
 a regular file or a raw standard block device.
 
-IV.7. zbc_set_write_ptr (tools/set_write_ptr/)
+IV.10. zbc_set_write_ptr (tools/set_write_ptr/)
 ----------------------------------------------
 
 This application can be used to set the write pointer of a zone of an
@@ -228,7 +252,7 @@ emulated ZBC device to any LBA value (within the range of the specified
 zone). It is intended for testing purposes only and is not valid for
 native ZBC devices.
 
-IV.8. lkvs (tools/lkvs/)
+IV.11. lkvs (tools/lkvs/)
 ------------------------
 
 ### Purpose
