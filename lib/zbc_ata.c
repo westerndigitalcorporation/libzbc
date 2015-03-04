@@ -985,7 +985,7 @@ zbc_ata_scsi_rw(zbc_device_t *dev)
     }
 
     /* Host managed: find a conventional zone, or an open sequential zone */
-    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_OPEN, &zone, &nr_zones);
+    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_EXP_OPEN, &zone, &nr_zones);
     if ( ret != 0 ) {
         zbc_error("Report zones failed %d\n", ret);
         return( 1 );

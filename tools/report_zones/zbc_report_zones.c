@@ -48,8 +48,8 @@ usage:
                "    -nz <num>  : Get at most <num> zones\n"
                "    -lba <lba> : Specify zone start LBA (default is 0)\n"
                "    -ro <opt>  : Specify reporting option: \"all\", \"empty\",\n"
-               "                 \"open\", \"rdonly\", \"full\", \"offline\",\n"
-               "                 \"reset\", \"non_seq\" or \"not_wp\".\n"
+               "                 \"imp_open\", \"exp_open\", \"closed\", \"full\",\n"
+               "                 \"rdonly\", \"offline\", \"reset\", \"non_seq\" or \"not_wp\".\n"
                "                 Default is \"all\"\n",
                argv[0]);
         return( 1 );
@@ -96,12 +96,16 @@ usage:
 
             if ( strcmp(argv[i], "all") == 0 ) {
                 ro = ZBC_RO_ALL;
-            } else if ( strcmp(argv[i], "full") == 0 ) {
-                ro = ZBC_RO_FULL;
-            } else if ( strcmp(argv[i], "open") == 0 ) {
-                ro = ZBC_RO_OPEN;
             } else if ( strcmp(argv[i], "empty") == 0 ) {
                 ro = ZBC_RO_EMPTY;
+            } else if ( strcmp(argv[i], "imp_open") == 0 ) {
+                ro = ZBC_RO_IMP_OPEN;
+            } else if ( strcmp(argv[i], "exp_open") == 0 ) {
+                ro = ZBC_RO_EXP_OPEN;
+            } else if ( strcmp(argv[i], "closed") == 0 ) {
+                ro = ZBC_RO_CLOSED;
+            } else if ( strcmp(argv[i], "full") == 0 ) {
+                ro = ZBC_RO_FULL;
             } else if ( strcmp(argv[i], "rdonly") == 0 ) {
                 ro = ZBC_RO_RDONLY;
             } else if ( strcmp(argv[i], "offline") == 0 ) {

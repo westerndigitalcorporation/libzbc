@@ -228,6 +228,63 @@ list:
 }
 
 int
+dz_open_zone(int zno)
+{
+    int ret = 0;
+
+    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
+        ret = zbc_open_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+        if ( ret != 0 ) {
+            ret = errno;
+            fprintf(stderr, "zbc_open_zone failed %d (%s)\n",
+                    errno,
+                    strerror(errno));
+        }
+    }
+
+    return( ret );
+
+}
+
+int
+dz_close_zone(int zno)
+{
+    int ret = 0;
+
+    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
+        ret = zbc_close_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+        if ( ret != 0 ) {
+            ret = errno;
+            fprintf(stderr, "zbc_close_zone failed %d (%s)\n",
+                    errno,
+                    strerror(errno));
+        }
+    }
+
+    return( ret );
+
+}
+
+int
+dz_finish_zone(int zno)
+{
+    int ret = 0;
+
+    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
+        ret = zbc_finish_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+        if ( ret != 0 ) {
+            ret = errno;
+            fprintf(stderr, "zbc_finish_zone failed %d (%s)\n",
+                    errno,
+                    strerror(errno));
+        }
+    }
+
+    return( ret );
+
+}
+
+int
 dz_reset_zone(int zno)
 {
     int ret = 0;

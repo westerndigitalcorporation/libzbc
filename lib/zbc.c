@@ -23,9 +23,9 @@
 #include <linux/fs.h>
 
 static struct zbc_ops *zbc_ops[] = {
-	&zbc_ata_ops,
+//	&zbc_ata_ops,
 	&zbc_scsi_ops,
-	&zbc_fake_ops,
+//	&zbc_fake_ops,
 	NULL
 };
 
@@ -276,6 +276,103 @@ zbc_list_zones(struct zbc_device *dev,
     } else {
         *pzones = zones;
         *pnr_zones = nr_zones;
+    }
+
+    return( ret );
+
+}
+
+/**
+ * zbc_close_zone - close the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be closed or -1 to close all zones
+ *
+ * Closes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are closed.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN state,
+ * otherwise -EINVAL will be returned. If write pointer is at start LBA of the zone,
+ * the zone state changes to ZBC_ZC_EMPTY. And if the zone status is ZBC_ZC_FULL or
+ * ZBC_ZC_CLOSED, the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+int
+zbc_close_zone(zbc_device_t *dev,
+               uint64_t start_lba)
+{
+    int ret;
+
+    /* Close zone */
+    ret = (dev->zbd_ops->zbd_close_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("CLOSE ZONE command failed\n");
+    }
+
+    return( ret );
+
+}
+
+/**
+ * zbc_finish_zone - finish the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be finished or -1 to finish all zones
+ *
+ * Finishes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are finished.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED state,
+ * otherwise -EINVAL will be returned.  If the zone status is ZBC_ZC_FULL,
+ * the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+int
+zbc_finish_zone(zbc_device_t *dev,
+                uint64_t start_lba)
+{
+    int ret;
+
+    /* Finish zone */
+    ret = (dev->zbd_ops->zbd_finish_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("FINISH ZONE command failed\n");
+    }
+
+    return( ret );
+
+}
+
+/**
+ * zbc_open_zone - open the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
+ *
+ * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are opened.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED state,
+ * otherwise -EINVAL will be returned.  If the zone status is ZBC_ZC_EXP_OPEN or
+ * ZBC_ZC_FULL, the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+int
+zbc_open_zone(zbc_device_t *dev,
+              uint64_t start_lba)
+{
+    int ret;
+
+    /* Open zone */
+    ret = (dev->zbd_ops->zbd_open_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("OPEN ZONE command failed\n");
     }
 
     return( ret );

@@ -63,7 +63,9 @@ enum zbc_zone_type {
 enum zbc_zone_condition {
     ZBC_ZC_NOT_WP               = 0x00,
     ZBC_ZC_EMPTY                = 0x01,
-    ZBC_ZC_OPEN                 = 0x02,
+    ZBC_ZC_IMP_OPEN             = 0x02,
+    ZBC_ZC_EXP_OPEN             = 0x03,
+    ZBC_ZC_CLOSED               = 0x04,
     ZBC_ZC_RDONLY               = 0x0d,
     ZBC_ZC_FULL                 = 0x0e,
     ZBC_ZC_OFFLINE              = 0x0f,
@@ -75,15 +77,17 @@ enum zbc_zone_condition {
  * of zones.
  */
 enum zbc_reporting_options {
-    ZBC_RO_ALL                  = 0x0,
-    ZBC_RO_FULL                 = 0x1,
-    ZBC_RO_OPEN                 = 0x2,
-    ZBC_RO_EMPTY                = 0x3,
-    ZBC_RO_RDONLY               = 0x4,
-    ZBC_RO_OFFLINE              = 0x5,
-    ZBC_RO_RESET                = 0x6,
-    ZBC_RO_NON_SEQ              = 0x7,
-    ZBC_RO_NOT_WP               = 0xf,
+    ZBC_RO_ALL                  = 0x00,
+    ZBC_RO_EMPTY                = 0x01,
+    ZBC_RO_IMP_OPEN             = 0x02,
+    ZBC_RO_EXP_OPEN             = 0x03,
+    ZBC_RO_CLOSED               = 0x04,
+    ZBC_RO_FULL                 = 0x05,
+    ZBC_RO_RDONLY               = 0x06,
+    ZBC_RO_OFFLINE              = 0x07,
+    ZBC_RO_RESET                = 0x10,
+    ZBC_RO_NON_SEQ              = 0x11,
+    ZBC_RO_NOT_WP               = 0x3f,
 };
 
 /***** Type definitions *****/
@@ -121,7 +125,9 @@ typedef struct zbc_zone zbc_zone_t;
 
 #define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
 #define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
-#define zbc_zone_open(z)                ((z)->zbz_condition == ZBC_ZC_OPEN)
+#define zbc_zone_imp_open(z)            ((z)->zbz_condition == ZBC_ZC_IMP_OPEN)
+#define zbc_zone_exp_open(z)            ((z)->zbz_condition == ZBC_ZC_EXP_OPEN)
+#define zbc_zone_closed(z)              ((z)->zbz_condition == ZBC_ZC_CLOSED)
 #define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
 #define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
 #define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
@@ -279,6 +285,66 @@ zbc_list_zones(struct zbc_device *dev,
                enum zbc_reporting_options ro,
                struct zbc_zone **zones,
                unsigned int *nr_zones);
+
+/**
+ * zbc_close_zone - close the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be closed or -1 to close all zones
+ *
+ * Closes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are closed.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_FULL state,
+ * otherwise -EINVAL will be returned. If write pointer is at start LBA of the zone,
+ * the zone state changes to ZBC_ZC_EMPTY. And if the zone status is ZBC_ZC_FULL,
+ * the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+extern int
+zbc_close_zone(struct zbc_device *dev,
+               uint64_t start_lba);
+
+/**
+ * zbc_finish_zone - finish the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be finished or -1 to finish all zones
+ *
+ * Finishes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are finished.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED state,
+ * otherwise -EINVAL will be returned. If zone is in ZBC_ZC_CLOSED state,
+ * the zone state changes to ZBC_ZC_IMP_OPEN exceptionally.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+extern int
+zbc_finish_zone(struct zbc_device *dev,
+                uint64_t start_lba);
+
+/**
+ * zbc_open_zone - open the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
+ *
+ * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are opened.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_EXP_OPEN state,
+ * otherwise -EINVAL will be returned.
+ *
+ * Returns -EIO if an error happened when communicating to the device.
+ */
+extern int
+zbc_open_zone(struct zbc_device *dev,
+              uint64_t start_lba);
 
 /**
  * zbc_reset_write_pointer - reset the write pointer for a ZBC zone
