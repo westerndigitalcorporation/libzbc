@@ -36,6 +36,7 @@ enum zbc_dev_type {
     ZBC_DT_ATA                  = 0x02,
     ZBC_DT_FAKE                 = 0x03,
 };
+
 /**
  * Device model:
  *   - Host aware: device type 0h & HAW_ZBC bit 1b
@@ -121,12 +122,13 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
 #define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
 #define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
-#define zbc_zone_seq(z)     		(zbc_zone_sequential_req(z) || zbc_zone_sequential_pref(z))
+#define zbc_zone_sequential(z)     	(zbc_zone_sequential_req(z) || zbc_zone_sequential_pref(z))
 
 #define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
 #define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
 #define zbc_zone_imp_open(z)            ((z)->zbz_condition == ZBC_ZC_IMP_OPEN)
 #define zbc_zone_exp_open(z)            ((z)->zbz_condition == ZBC_ZC_EXP_OPEN)
+#define zbc_zone_is_open(z)             (zbc_zone_imp_open(z) || zbc_zone_exp_open(z))
 #define zbc_zone_closed(z)              ((z)->zbz_condition == ZBC_ZC_CLOSED)
 #define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
 #define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
@@ -167,13 +169,17 @@ struct zbc_device_info {
 
     enum zbc_dev_model          zbd_model;
 
+    char                        zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
+
     uint32_t                    zbd_logical_block_size;
     uint64_t                    zbd_logical_blocks;
 
     uint32_t                    zbd_physical_block_size;
     uint64_t                    zbd_physical_blocks;
 
-    char                        zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
+    uint32_t                    zbd_opt_nr_open_seq_pref;
+    uint32_t                    zbd_opt_nr_open_non_seq_write_seq_pref;
+    uint32_t                    zbd_max_nr_open_seq_req;
 
 };
 typedef struct zbc_device_info zbc_device_info_t;
@@ -238,7 +244,7 @@ zbc_get_device_info(struct zbc_device *dev,
  *
  * Update an array of zone information previously obtained using zbc_report_zones,
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 extern int
 zbc_report_zones(struct zbc_device *dev,
@@ -276,7 +282,7 @@ zbc_report_nr_zones(struct zbc_device *dev,
  * malloc(3) internally and needs to be freed using free(3).  The number
  * of zones in @zones is returned in @nr_zones.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  * Returns -ENOMEM if memory could not be allocated for @zones.
  */
 extern int
@@ -285,6 +291,25 @@ zbc_list_zones(struct zbc_device *dev,
                enum zbc_reporting_options ro,
                struct zbc_zone **zones,
                unsigned int *nr_zones);
+
+/**
+ * zbc_open_zone - open the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
+ *
+ * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are opened.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_EXP_OPEN state,
+ * otherwise -EINVAL will be returned.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+extern int
+zbc_open_zone(struct zbc_device *dev,
+              uint64_t start_lba);
 
 /**
  * zbc_close_zone - close the zone for a ZBC zone
@@ -301,7 +326,7 @@ zbc_list_zones(struct zbc_device *dev,
  * the zone state changes to ZBC_ZC_EMPTY. And if the zone status is ZBC_ZC_FULL,
  * the zone state doesn't change.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 extern int
 zbc_close_zone(struct zbc_device *dev,
@@ -321,30 +346,11 @@ zbc_close_zone(struct zbc_device *dev,
  * otherwise -EINVAL will be returned. If zone is in ZBC_ZC_CLOSED state,
  * the zone state changes to ZBC_ZC_IMP_OPEN exceptionally.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 extern int
 zbc_finish_zone(struct zbc_device *dev,
                 uint64_t start_lba);
-
-/**
- * zbc_open_zone - open the zone for a ZBC zone
- * @dev:                (IN) ZBC device handle to reset on
- * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
- *
- * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
- * If @start_lba specifies -1, the all zones are opened.
- * The start LBA for a zone is reported by zbc_report_zones().
- *
- * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_EXP_OPEN state,
- * otherwise -EINVAL will be returned.
- *
- * Returns -EIO if an error happened when communicating to the device.
- */
-extern int
-zbc_open_zone(struct zbc_device *dev,
-              uint64_t start_lba);
 
 /**
  * zbc_reset_write_pointer - reset the write pointer for a ZBC zone
@@ -359,7 +365,7 @@ zbc_open_zone(struct zbc_device *dev,
  * and be in the ZBC_ZC_OPEN or ZBC_ZC_FULL state, otherwise -EINVAL
  * will be returned.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 extern int
 zbc_reset_write_pointer(struct zbc_device *dev,
@@ -435,7 +441,7 @@ zbc_write(struct zbc_device *dev,
 {
     int ret = -EINVAL;
 
-    if ( zbc_zone_seq(zone) ) {
+    if ( zbc_zone_sequential(zone) ) {
 
         ret = zbc_pwrite(dev,
                          zone,

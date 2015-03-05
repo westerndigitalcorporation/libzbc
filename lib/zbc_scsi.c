@@ -508,7 +508,7 @@ zbc_scsi_close_zone(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_CLOSE_ZONE_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_CLOSE_ZONE_CDB_SA;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Close ALL zones */
+        /* Close all zones */
         cmd.cdb[14] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
@@ -567,7 +567,7 @@ zbc_scsi_finish_zone(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_FINISH_ZONE_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_FINISH_ZONE_CDB_SA;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Finish ALL zones */
+        /* Finish all zones */
         cmd.cdb[14] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
@@ -626,7 +626,7 @@ zbc_scsi_open_zone(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_OPEN_ZONE_CDB_SA;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Finish ALL zones */
+        /* Open all zones */
         cmd.cdb[14] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
