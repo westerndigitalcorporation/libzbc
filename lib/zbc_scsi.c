@@ -811,11 +811,11 @@ static int
 zbc_scsi_get_info(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
-    zbc_zone_t *zones = NULL, *tail_zone = NULL;
+    zbc_zone_t *zones = NULL;
     int logical_per_physical;
-    int ret;
     unsigned int nr_zones = 0;
     uint64_t slba = 0;
+    int ret;
 
     /* Get device model */
     ret = zbc_scsi_classify(dev);
@@ -841,28 +841,41 @@ zbc_scsi_get_info(zbc_device_t *dev)
         goto out;
     }
 
+    /* Logical block size */
     dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
+        zbc_error("%s: invalid logical sector size\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+        goto out;
+    }
+
     logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
 
-    /* Check RC_BASIS field. */
-    /* If RC_BASYS is 0x00, the drive capacity is calculated from tail zone information */
-    if ( (cmd.out_buf[12] & 0x30) >> 4 == 0x00 ) {
+    /* Check RC_BASIS field */
+    switch( (cmd.out_buf[12] & 0x30) >> 4 ) {
 
-        /* Get number of zones */
+    case 0x00:
+
+        /* The logical block address indicates the last LBA of the */
+        /* conventional zones at the beginning of the disk. To get */
+        /* the entire disk capacity, we need to get last LBA of    */
+        /* the last zone of the disk.                              */
         ret = zbc_scsi_report_zones(dev, 0, 0, NULL, &nr_zones);
         if ( ret != 0 ) {
             zbc_error("zbc_report_zones failed\n");
-            return( ret );
+            goto out;
         }
-        if ( !nr_zones ) {
+        if ( ! nr_zones ) {
+            ret = -EIO;
             goto out;
         }
 
         /* Allocate zone array */
         zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nr_zones);
         if ( ! zones ) { 
-            fprintf(stderr, "No memory\n");
-            ret = 1;
+            zbc_error("No memory\n");
+            ret = -ENOMEM;
             goto out;
         }
         memset(zones, 0, sizeof(zbc_zone_t) * nr_zones);
@@ -875,12 +888,12 @@ zbc_scsi_get_info(zbc_device_t *dev)
             n= nr_zones - nz;
             ret = zbc_scsi_report_zones(dev, slba, 0, &zones[z], &n);
             if ( ret != 0 ) { 
-                fprintf(stderr, "zbc_report_zones failed\n");
-                ret = 1;
+                zbc_error("zbc_report_zones failed\n");
                 goto out;
             }
 
             if ( n == 0 ) {
+                ret = -EIO;
                 break;
             }
             
@@ -890,20 +903,26 @@ zbc_scsi_get_info(zbc_device_t *dev)
 
         }
 
-        /* calculate the drive capacity from tail zone information */
-        tail_zone = zones + nr_zones - 1;
-        dev->zbd_info.zbd_logical_blocks = tail_zone->zbz_start + tail_zone->zbz_length;
+        /* Get the drive capacity from the last zone last LBA */
+        dev->zbd_info.zbd_logical_blocks = zbc_zone_end_lba(&zones[nr_zones - 1]);
 
-    } else {
+        break;
+
+    case 0x01:
+        
+        /* The disk last LBA was reproted */
         dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
-    }
 
-    /* Check */
-    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
-        zbc_error("%s: invalid logical sector size\n",
+        break;
+
+    default:
+
+        zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
                   dev->zbd_filename);
-        ret = -EINVAL;
+        ret = -EIO;
+
         goto out;
+
     }
 
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
