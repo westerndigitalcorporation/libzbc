@@ -54,9 +54,10 @@ enum {
  * Inquiry command definition.
  */
 #define ZBC_SG_INQUIRY_CDB_OPCODE               0x12
-#define ZBC_SG_INQUIRY_CDB_SA                   0x12
 #define ZBC_SG_INQUIRY_CDB_LENGTH               6
 #define ZBC_SG_INQUIRY_REPLY_LEN                96
+#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1    64
+#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6    64
 
 /**
  * Read capacity command definition.

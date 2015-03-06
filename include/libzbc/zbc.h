@@ -44,6 +44,7 @@ enum zbc_dev_type {
  *   - Regular: device type 0h (standard block device)
  */
 enum zbc_dev_model {
+    ZBC_DM_DRIVE_UNKNOWN        = 0x00,
     ZBC_DM_HOST_AWARE           = 0x01,
     ZBC_DM_HOST_MANAGED         = 0x02,
     ZBC_DM_DRIVE_MANAGED        = 0x03,
@@ -139,7 +140,7 @@ typedef struct zbc_zone zbc_zone_t;
 
 #define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
 #define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
-#define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z))
+#define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z) - 1)
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
 #define zbc_zone_wp_lba_reset(z)                        	\

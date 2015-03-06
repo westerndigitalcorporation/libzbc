@@ -125,15 +125,14 @@ zbc_scsi_classify(zbc_device_t *dev)
 
     zbc_debug("Standard SCSI disk signature detected\n");
 
-    /* This may be a host-managed device: look at VPD    */
-    /* page B5h (block device characteristics extension) */
+    /* This may be a host-aware device: look at VPD    */
+    /* page B1h (block device characteristics) */
     memset(cmd.cdb, 0, sizeof(cmd.cdb));
-    memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN);
+    memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
     cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
     cmd.cdb[1] = 0x01;
-    cmd.cdb[2] = 0xB5;
-    zbc_sg_cmd_set_int32(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+    cmd.cdb[2] = 0xB1;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
 
     /* Execute the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -141,16 +140,29 @@ zbc_scsi_classify(zbc_device_t *dev)
 
 	if ( (cmd.out_buf[1] == 0xB1)
 	     && (cmd.out_buf[2] == 0x00)
-	     && (cmd.out_buf[3] == 0x3C)
-	     && (cmd.out_buf[8] & 0x10) ) {
-	    /* Host aware device */
-	    zbc_debug("Host aware ZBC disk detected\n");
-	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-	} else {
-	    /* Standard or drive-managed device */
-	    zbc_debug("Standard or drive managed SCSI disk detected\n");
-	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
-	    ret = -ENXIO;
+	     && (cmd.out_buf[3] == 0x3C) ) {
+
+            switch ((cmd.out_buf[8] & 0x30) >> 4 ) {
+                case 0x01:
+                    /* Host aware device */
+                    zbc_debug("Host aware ZBC disk detected\n");
+	            dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+                    break;
+                case 0x00:
+                case 0x10:
+                    /* Standard or drive-managed device */
+                    zbc_debug("Standard or drive managed SCSI disk detected\n");
+                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+                    ret = -ENXIO;
+                    break;
+
+                default:
+                    zbc_debug("Unknown device type\n");
+                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+                    ret = -ENXIO;
+                    break;
+            }
+
 	}
 
     }
@@ -808,7 +820,7 @@ zbc_scsi_set_write_pointer(zbc_device_t *dev,
  * Get a device information (capacity & sector sizes).
  */
 static int
-zbc_scsi_get_info(zbc_device_t *dev)
+zbc_scsi_get_capacity(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
     zbc_zone_t *zones = NULL;
@@ -816,12 +828,6 @@ zbc_scsi_get_info(zbc_device_t *dev)
     unsigned int nr_zones = 0;
     uint64_t slba = 0;
     int ret;
-
-    /* Get device model */
-    ret = zbc_scsi_classify(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
 
     /* READ CAPACITY 16 */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
@@ -904,7 +910,7 @@ zbc_scsi_get_info(zbc_device_t *dev)
         }
 
         /* Get the drive capacity from the last zone last LBA */
-        dev->zbd_info.zbd_logical_blocks = zbc_zone_end_lba(&zones[nr_zones - 1]);
+        dev->zbd_info.zbd_logical_blocks = zbc_zone_end_lba(&zones[nr_zones - 1]) + 1;
 
         break;
 
@@ -941,6 +947,83 @@ out:
 
     if ( zones ) {
         free(zones);
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Get zoned block device characteristics(Maximum or optimul number of opening zones).
+ */
+static int
+zbc_scsi_get_zbd_chars(zbc_device_t *dev)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* READ CAPACITY 16 */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB */
+    cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+    cmd.cdb[1] = 0x01;
+    cmd.cdb[2] = 0xB6;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret != 0 ) {
+        goto out;
+    }
+
+    /* Resource of handling zones */
+    dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
+    dev->zbd_info.zbd_max_nr_open_seq_req = zbc_sg_cmd_get_int32(&cmd.out_buf[16]);
+
+    if ( dev->zbd_info.zbd_max_nr_open_seq_req <= 0 ) {
+        zbc_error("%s: invalid maximum number of open sequential write required zones\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+    }
+
+out:
+
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_scsi_get_info(zbc_device_t *dev)
+{
+    int ret;
+
+    /* Get device model */
+    ret = zbc_scsi_classify(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get capacity information */
+    ret = zbc_scsi_get_capacity(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get zoned block device characteristics */
+    ret = zbc_scsi_get_zbd_chars(dev);
+    if ( ret != 0 ) {
+        return( ret );
     }
 
     return( ret );
