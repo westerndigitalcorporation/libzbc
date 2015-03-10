@@ -33,7 +33,7 @@ int zbc_log_level = ZBC_LOG_ERROR;
  * Backend drivers.
  */
 static struct zbc_ops *zbc_ops[] = {
-    // &zbc_ata_ops,
+    &zbc_ata_ops,
     &zbc_scsi_ops,
     // &zbc_fake_ops,
     NULL

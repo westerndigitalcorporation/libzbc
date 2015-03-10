@@ -48,9 +48,47 @@
 #define ZBC_ATA_READ_DMA_EXT			0x25
 #define ZBC_ATA_WRITE_DMA_EXT			0x35
 #define ZBC_ATA_FLUSH_CACHE_EXT			0xEA
-#define ZBC_ATA_RESET_WRITE_POINTER_EXT		0x9F
+#define ZBC_ATA_ZAC_MANAGEMENT_IN               0x4A
+#define ZBC_ATA_ZAC_MANAGEMENT_OUT              0x9F
 
-#define ZBC_ATA_REPORT_ZONES_LOG_PAGE  		0x1A
+/**
+ * ZAC management commands
+ */
+/**
+ * Report zones command
+ */
+#define ZBC_ATA_REPORT_ZONES_EXT_CMD            ZBC_ATA_ZAC_MANAGEMENT_IN
+#define ZBC_ATA_REPORT_ZONES_EXT_AF             0x00
+
+/**
+ * Close zone command
+ */
+#define ZBC_ATA_CLOSE_ZONE_EXT_CMD              ZBC_ATA_ZAC_MANAGEMENT_OUT
+#define ZBC_ATA_CLOSE_ZONE_EXT_AF               0x01
+
+/**
+ * Finish zone command
+ */
+#define ZBC_ATA_FINISH_ZONE_EXT_CMD             ZBC_ATA_ZAC_MANAGEMENT_OUT
+#define ZBC_ATA_FINISH_ZONE_EXT_AF              0x02
+
+/**
+ * Open zone command
+ */
+#define ZBC_ATA_OPEN_ZONE_EXT_CMD               ZBC_ATA_ZAC_MANAGEMENT_OUT
+#define ZBC_ATA_OPEN_ZONE_EXT_AF                0x03
+
+/**
+ * Reset write pointer command
+ */
+#define ZBC_ATA_RESET_WRITE_POINTER_EXT_CMD     ZBC_ATA_ZAC_MANAGEMENT_OUT
+#define ZBC_ATA_RESET_WRITE_POINTER_EXT_AF      0x04
+
+/**
+ * Zoned device infomation page
+ */
+#define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDRESS 0x30
+#define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE    0x09
 
 /**
  * For a disk connected to an AHCI port, the kernel libata/SCSI layer
@@ -109,7 +147,6 @@ static int
 zbc_ata_read_log(zbc_device_t *dev,
 		 uint8_t log,
 		 int page,
-		 uint8_t opt,
 		 uint8_t *buf,
 		 size_t bufsz)
 {
@@ -165,9 +202,6 @@ zbc_ata_read_log(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
     cmd.cdb[2] = 0x0e; 			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
-    if ( opt ) {
-	cmd.cdb[4] = opt;
-    }
     cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
     cmd.cdb[6] = (bufsz / 512) & 0xff;
     cmd.cdb[8] = log;
@@ -186,18 +220,105 @@ zbc_ata_read_log(zbc_device_t *dev,
 }
 
 /**
+ * Report zones.
+ */
+static int
+zbc_ata_exec_report_zones(zbc_device_t *dev,
+		     uint64_t start_lba,
+		     uint8_t opt,
+		     uint8_t *buf,
+		     size_t bufsz)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, buf, bufsz);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          features (15:8)                              |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                            count (15:8)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                            count (7:0)                                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          LBA (31:24 (15:8 if ext == 0)                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          LBA (39:32)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          LBA (47:40)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |                           Device                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                           Command                                     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
+    cmd.cdb[2] = 0x1e; 			/* off_line=0, ck_cond=0, t_type=1, t_dir=1, byt_blk=1, t_length=10 */
+    cmd.cdb[3] = ZBC_ATA_REPORT_ZONES_EXT_AF;
+    if ( opt ) {
+	cmd.cdb[4] = opt & 0x3f;
+    }
+    cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
+    cmd.cdb[6] = (bufsz / 512) & 0xff;
+    cmd.cdb[8]  = start_lba & 0xff;
+    cmd.cdb[10] = (start_lba >>  8) & 0xff;
+    cmd.cdb[12] = (start_lba >> 16) & 0xff;
+    cmd.cdb[7]  = (start_lba >> 24) & 0xff;
+    cmd.cdb[9]  = (start_lba >> 32) & 0xff;
+    cmd.cdb[11] = (start_lba >> 40) & 0xff;
+    cmd.cdb[13] = 1 << 6;
+    cmd.cdb[14] = ZBC_ATA_REPORT_ZONES_EXT_CMD;
+
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Done */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
  * Test if the disk has zones.
  */
 static int
-zbc_ata_report_zones_pages(zbc_device_t *dev)
+zbc_ata_report_a_zone(zbc_device_t *dev)
 {
     uint8_t buf[512];
     int ret;
 
     /* Get general purpose log */
-    ret = zbc_ata_read_log(dev, 0x00, 0, 0, buf, sizeof(buf));
+    ret = zbc_ata_exec_report_zones(dev, 0, ZBC_RO_ALL, buf, sizeof(buf));
     if ( ret == 0 ) {
-	ret = zbc_ata_get_word(&buf[ZBC_ATA_REPORT_ZONES_LOG_PAGE * 2]);
+	ret = zbc_ata_get_word(buf);
     }
 
     return( ret );
@@ -294,7 +415,7 @@ zbc_ata_classify(zbc_device_t *dev)
 	/* Normal device signature: it may be a host-aware device */
 	/* So check log page 1Ah to see if there are zones.       */
 	zbc_debug("Standard ATA signature detected\n");
-	ret = zbc_ata_report_zones_pages(dev);
+	ret = zbc_ata_report_a_zone(dev);
 	if ( ret == 0 ) {
 	    /* No zones: standard or drive managed disk */
 	    zbc_debug("Standard or drive managed ATA device detected\n");
@@ -362,20 +483,11 @@ zbc_ata_vendor_id(zbc_device_t *dev)
  * Get a device information (capacity & sector sizes).
  */
 static int
-zbc_ata_get_info(zbc_device_t *dev)
+zbc_ata_get_capacity(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
     int logical_per_physical;
     int ret;
-
-    /* Get device model */
-    ret = zbc_ata_classify(dev);
-    if ( ret < 0 ) {
-        return( ret );
-    }
-
-    /* Get vendor information */
-    zbc_ata_vendor_id(dev);
 
     /* READ CAPACITY 16 */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
@@ -420,6 +532,74 @@ zbc_ata_get_info(zbc_device_t *dev)
 out:
 
     zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Get zoned block device information(Maximum or optimul number of opening zones).
+ */
+static int
+zbc_ata_get_zbd_info(zbc_device_t *dev)
+{
+    
+    uint8_t buf[512];
+    int ret;
+
+    /* Get zoned blockd device information */
+    ret = zbc_ata_read_log(dev,
+                           ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDRESS,
+	                   ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE,
+		           buf,
+		           sizeof(buf));
+    if ( ret < 0 ) {
+        return( ret );
+    }
+
+    /* Resource of handling zones */
+    dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_ata_get_qword(&buf[24]) & 0xffffffff;
+    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
+    dev->zbd_info.zbd_max_nr_open_seq_req = zbc_ata_get_qword(&buf[40]) & 0xffffffff;
+
+    if ( dev->zbd_info.zbd_max_nr_open_seq_req <= 0 ) {
+        zbc_error("%s: invalid maximum number of open sequential write required zones\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_ata_get_info(zbc_device_t *dev)
+{
+    int ret;
+
+    /* Get device model */
+    ret = zbc_ata_classify(dev);
+    if ( ret < 0 ) {
+        return( ret );
+    }
+
+    /* Get vendor information */
+    zbc_ata_vendor_id(dev);
+
+    /* Get capacity information */
+    ret = zbc_ata_get_capacity(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get zoned block device information */
+    ret = zbc_ata_get_zbd_info(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
 
     return( ret );
 
@@ -774,7 +954,7 @@ zbc_ata_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_ATA_LOG_SIZE	524288
+#define ZBC_ATA_REPORT_ZONES_BUFSZ	524288
 
 /**
  * Get device zone information.
@@ -788,20 +968,21 @@ zbc_ata_report_zones(zbc_device_t *dev,
 {
     uint8_t *buf = NULL, *buf_z;
     unsigned int i, nz, buf_nz;
-    int buf_sz = ZBC_ATA_LOG_SIZE;
-    int n, ret, page = 0;
+    int buf_sz = ZBC_ATA_REPORT_ZONES_BUFSZ;
+    int n, ret;
+    uint64_t slba = 0;
 
     /* Get a buffer */
-    ret = posix_memalign((void **) &buf, sysconf(_SC_PAGESIZE), ZBC_ATA_LOG_SIZE);
+    ret = posix_memalign((void **) &buf, sysconf(_SC_PAGESIZE), ZBC_ATA_REPORT_ZONES_BUFSZ);
     if ( ret != 0 ) {
 	zbc_error("No memory\n");
         return( -ENOMEM );
     }
 
-    /* Get the first pages of log 0x1A */
-    ret = zbc_ata_read_log(dev, ZBC_ATA_REPORT_ZONES_LOG_PAGE, page, ro & 0xf, buf, buf_sz);
+    /* Get the first zone information */
+    ret = zbc_ata_exec_report_zones(dev, slba, ro, buf, buf_sz);
     if ( ret != 0 ) {
-	zbc_error("Read report zones log failed (page %d)\n", page);
+	zbc_error("Report zones failed (start lba %lld)\n", (long long)slba);
 	goto out;
     }
 
@@ -844,24 +1025,24 @@ zbc_ata_report_zones(zbc_device_t *dev,
 	    }
 
 	    /* Get next pages */
-	    page += buf_sz / 512;
+	    slba = zones[n - 1].zbz_start + zones[n - 1].zbz_length;
 	    buf_sz = (nz / (512 / ZBC_ATA_ZONE_DESCRIPTOR_LENGTH)) * 512;
 	    if ( ! buf_sz ) {
 		buf_sz = 512;
-	    } else if ( buf_sz > ZBC_ATA_LOG_SIZE ) {
-		buf_sz = ZBC_ATA_LOG_SIZE;
+	    } else if ( buf_sz > ZBC_ATA_REPORT_ZONES_BUFSZ ) {
+		buf_sz = ZBC_ATA_REPORT_ZONES_BUFSZ;
 	    }
 
-	    ret = zbc_ata_read_log(dev, ZBC_ATA_REPORT_ZONES_LOG_PAGE, page, ro & 0xf, buf, buf_sz);
+	    ret = zbc_ata_exec_report_zones(dev, slba, ro, buf, buf_sz);
 	    if ( ret != 0 ) {
-		zbc_error("Read report zones log failed (page %d)\n", page);
+		zbc_error("Report zones failed (slba %lld)\n", (long long)slba);
 		goto out;
 	    }
 	    
-	    buf_z = buf;
-	    buf_nz = buf_sz / ZBC_ATA_ZONE_DESCRIPTOR_LENGTH;
+	    buf_z = buf + ZBC_ATA_ZONE_DESCRIPTOR_OFFSET;
+	    buf_nz = (buf_sz - ZBC_ATA_ZONE_DESCRIPTOR_OFFSET) / ZBC_ATA_ZONE_DESCRIPTOR_LENGTH;
 	    if ( buf_nz > nz ) {
-		buf_nz = nz;
+	        buf_nz = nz;
 	    }
 
 	}
@@ -876,6 +1057,258 @@ zbc_ata_report_zones(zbc_device_t *dev,
 out:
 
     free(buf);
+
+    return( ret );
+
+}
+
+/**
+ * Close zone(s).
+ */
+static int
+zbc_ata_close_zone(zbc_device_t *dev,
+                   uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          features (15:8)                              |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                            count (15:8)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                            count (7:0)                                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          LBA (31:24 (15:8 if ext == 0)                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          LBA (39:32)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          LBA (47:40)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |                           Device                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                           Command                                     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
+    cmd.cdb[3] = ZBC_ATA_CLOSE_ZONE_EXT_AF;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Close ALL zones */
+        cmd.cdb[4] = 0x01;
+    } else {
+        /* Close only the zone at start_lba */
+	cmd.cdb[8] = start_lba & 0xff;
+	cmd.cdb[10] = (start_lba >> 8) & 0xff;
+	cmd.cdb[12] = (start_lba >> 16) & 0xff;
+	cmd.cdb[7] = (start_lba >> 24) & 0xff;
+	cmd.cdb[9] = (start_lba >> 32) & 0xff;
+	cmd.cdb[11] = (start_lba >> 40) & 0xff;
+    }
+    cmd.cdb[13] = 1 << 6;
+    cmd.cdb[14] = ZBC_ATA_CLOSE_ZONE_EXT_CMD;
+
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Done */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Finish zone(s).
+ */
+static int
+zbc_ata_finish_zone(zbc_device_t *dev,
+                    uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          features (15:8)                              |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                            count (15:8)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                            count (7:0)                                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          LBA (31:24 (15:8 if ext == 0)                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          LBA (39:32)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          LBA (47:40)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |                           Device                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                           Command                                     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
+    cmd.cdb[3] = ZBC_ATA_FINISH_ZONE_EXT_AF;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Finish ALL zones */
+        cmd.cdb[4] = 0x01;
+    } else {
+        /* Finish only the zone at start_lba */
+	cmd.cdb[8] = start_lba & 0xff;
+	cmd.cdb[10] = (start_lba >> 8) & 0xff;
+	cmd.cdb[12] = (start_lba >> 16) & 0xff;
+	cmd.cdb[7] = (start_lba >> 24) & 0xff;
+	cmd.cdb[9] = (start_lba >> 32) & 0xff;
+	cmd.cdb[11] = (start_lba >> 40) & 0xff;
+    }
+    cmd.cdb[13] = 1 << 6;
+    cmd.cdb[14] = ZBC_ATA_FINISH_ZONE_EXT_CMD;
+
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Done */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Open zone(s).
+ */
+static int
+zbc_ata_open_zone(zbc_device_t *dev,
+                  uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          features (15:8)                              |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                            count (15:8)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                            count (7:0)                                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          LBA (31:24 (15:8 if ext == 0)                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          LBA (39:32)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          LBA (47:40)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |                           Device                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                           Command                                     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
+    cmd.cdb[3] = ZBC_ATA_OPEN_ZONE_EXT_AF;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Open ALL zones */
+        cmd.cdb[4] = 0x01;
+    } else {
+        /* Open only the zone at start_lba */
+	cmd.cdb[8] = start_lba & 0xff;
+	cmd.cdb[10] = (start_lba >> 8) & 0xff;
+	cmd.cdb[12] = (start_lba >> 16) & 0xff;
+	cmd.cdb[7] = (start_lba >> 24) & 0xff;
+	cmd.cdb[9] = (start_lba >> 32) & 0xff;
+	cmd.cdb[11] = (start_lba >> 40) & 0xff;
+    }
+    cmd.cdb[13] = 1 << 6;
+    cmd.cdb[14] = ZBC_ATA_OPEN_ZONE_EXT_CMD;
+
+    /* Execute the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Done */
+    zbc_sg_cmd_destroy(&cmd);
 
     return( ret );
 
@@ -939,6 +1372,7 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
+    cmd.cdb[3] = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
         /* Reset ALL zones */
         cmd.cdb[4] = 0x01;
@@ -952,7 +1386,7 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
 	cmd.cdb[11] = (start_lba >> 40) & 0xff;
     }
     cmd.cdb[13] = 1 << 6;
-    cmd.cdb[14] = ZBC_ATA_RESET_WRITE_POINTER_EXT;
+    cmd.cdb[14] = ZBC_ATA_RESET_WRITE_POINTER_EXT_CMD;
 
     /* Execute the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -1146,6 +1580,9 @@ zbc_ops_t zbc_ata_ops =
     .zbd_pwrite       = zbc_ata_pwrite,
     .zbd_flush        = zbc_ata_flush,
     .zbd_report_zones = zbc_ata_report_zones,
+    .zbd_close_zone   = zbc_ata_close_zone,
+    .zbd_finish_zone  = zbc_ata_finish_zone,
+    .zbd_open_zone    = zbc_ata_open_zone,
     .zbd_reset_wp     = zbc_ata_reset_write_pointer,
 };
 
