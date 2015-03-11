@@ -479,6 +479,65 @@ out:
 }
 
 /**
+ * Open zone(s).
+ */
+static int
+zbc_scsi_open_zone(zbc_device_t *dev,
+                   uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Allocate and intialize open zone command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_OPEN_ZONE, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (94h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Reserved            |       Service Action (03h)                 |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   | (MSB)                                                                 |
+     * |- - -+---                        Zone ID                                  ---|
+     * | 9   |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  | (MSB)                                                                 |
+     * |- - -+---                        Reserved                                 ---|
+     * | 13  |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |               Reserved                                       |  All   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.cdb[0] = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
+    cmd.cdb[1] = ZBC_SG_OPEN_ZONE_CDB_SA;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Open all zones */
+        cmd.cdb[14] = 0x01;
+    } else {
+        /* Reset only the zone at start_lba */
+        zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+    }
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Cleanup */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
  * Close zone(s).
  */
 static int
@@ -580,65 +639,6 @@ zbc_scsi_finish_zone(zbc_device_t *dev,
     cmd.cdb[1] = ZBC_SG_FINISH_ZONE_CDB_SA;
     if ( start_lba == (uint64_t)-1 ) {
         /* Finish all zones */
-        cmd.cdb[14] = 0x01;
-    } else {
-        /* Reset only the zone at start_lba */
-        zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
-    }
-
-    /* Send the SG_IO command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
-
-    /* Cleanup */
-    zbc_sg_cmd_destroy(&cmd);
-
-    return( ret );
-
-}
-
-/**
- * Open zone(s).
- */
-static int
-zbc_scsi_open_zone(zbc_device_t *dev,
-                   uint64_t start_lba)
-{
-    zbc_sg_cmd_t cmd;
-    int ret;
-
-    /* Allocate and intialize open zone command */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_OPEN_ZONE, NULL, 0);
-    if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
-        return( ret );
-    }
-
-    /* Fill command CDB:
-     * +=============================================================================+
-     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-     * |Byte |        |        |        |        |        |        |        |        |
-     * |=====+==========================+============================================|
-     * | 0   |                           Operation Code (94h)                        |
-     * |-----+-----------------------------------------------------------------------|
-     * | 1   |      Reserved            |       Service Action (03h)                 |
-     * |-----+-----------------------------------------------------------------------|
-     * | 2   | (MSB)                                                                 |
-     * |- - -+---                        Zone ID                                  ---|
-     * | 9   |                                                                 (LSB) |
-     * |-----+-----------------------------------------------------------------------|
-     * | 10  | (MSB)                                                                 |
-     * |- - -+---                        Reserved                                 ---|
-     * | 13  |                                                                 (LSB) |
-     * |-----+-----------------------------------------------------------------------|
-     * | 14  |               Reserved                                       |  All   |
-     * |-----+-----------------------------------------------------------------------|
-     * | 15  |                           Control                                     |
-     * +=============================================================================+
-     */
-    cmd.cdb[0] = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
-    cmd.cdb[1] = ZBC_SG_OPEN_ZONE_CDB_SA;
-    if ( start_lba == (uint64_t)-1 ) {
-        /* Open all zones */
         cmd.cdb[14] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
@@ -1130,9 +1130,9 @@ zbc_ops_t zbc_scsi_ops =
     .zbd_pwrite       = zbc_scsi_pwrite,
     .zbd_flush        = zbc_scsi_flush,
     .zbd_report_zones = zbc_scsi_report_zones,
+    .zbd_open_zone    = zbc_scsi_open_zone,
     .zbd_close_zone   = zbc_scsi_close_zone,
     .zbd_finish_zone  = zbc_scsi_finish_zone,
-    .zbd_open_zone    = zbc_scsi_open_zone,
     .zbd_reset_wp     = zbc_scsi_reset_write_pointer,
     .zbd_set_zones    = zbc_scsi_set_zones,
     .zbd_set_wp       = zbc_scsi_set_write_pointer,

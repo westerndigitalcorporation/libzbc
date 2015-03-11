@@ -81,6 +81,13 @@ typedef struct zbc_ops {
                                     unsigned int *);
 
     /**
+     * Open a zone or all zones.
+     * (mandatory)
+     */
+    int         (*zbd_open_zone)(struct zbc_device *,
+                                 uint64_t);
+
+    /**
      * Close a zone or all zones.
      * (mandatory)
      */
@@ -93,13 +100,6 @@ typedef struct zbc_ops {
      */
     int         (*zbd_finish_zone)(struct zbc_device *,
                                    uint64_t);
-
-    /**
-     * Open a zone or all zones.
-     * (mandatory)
-     */
-    int         (*zbd_open_zone)(struct zbc_device *,
-                                 uint64_t);
 
     /**
      * Reset a zone or all zones write pointer.

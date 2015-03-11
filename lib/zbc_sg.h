@@ -37,9 +37,9 @@ enum {
     ZBC_SG_WRITE,
     ZBC_SG_SYNC_CACHE,
     ZBC_SG_REPORT_ZONES,
+    ZBC_SG_OPEN_ZONE,
     ZBC_SG_CLOSE_ZONE,
     ZBC_SG_FINISH_ZONE,
-    ZBC_SG_OPEN_ZONE,
     ZBC_SG_RESET_WRITE_POINTER,
     ZBC_SG_SET_ZONES,
     ZBC_SG_SET_WRITE_POINTER,
@@ -93,6 +93,13 @@ enum {
 #define ZBC_SG_REPORT_ZONES_CDB_LENGTH          16
 
 /**
+ * Open zone command definition.
+ */
+#define ZBC_SG_OPEN_ZONE_CDB_OPCODE             0x94
+#define ZBC_SG_OPEN_ZONE_CDB_SA                 0x03
+#define ZBC_SG_OPEN_ZONE_CDB_LENGTH             16
+
+/**
  * Close zone command definition.
  */
 #define ZBC_SG_CLOSE_ZONE_CDB_OPCODE            0x94
@@ -105,13 +112,6 @@ enum {
 #define ZBC_SG_FINISH_ZONE_CDB_OPCODE           0x94
 #define ZBC_SG_FINISH_ZONE_CDB_SA               0x02
 #define ZBC_SG_FINISH_ZONE_CDB_LENGTH           16
-
-/**
- * Open zone command definition.
- */
-#define ZBC_SG_OPEN_ZONE_CDB_OPCODE             0x94
-#define ZBC_SG_OPEN_ZONE_CDB_SA                 0x03
-#define ZBC_SG_OPEN_ZONE_CDB_LENGTH             16
 
 /**
  * Reset write pointer command definition.

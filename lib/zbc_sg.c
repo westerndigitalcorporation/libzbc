@@ -94,6 +94,15 @@ static struct zbc_sg_cmd_s
 	SG_DXFER_FROM_DEV
     },
 
+    /* ZBC_SG_OPEN_ZONE */
+    {
+        "OPEN ZONE",
+        ZBC_SG_OPEN_ZONE_CDB_OPCODE,
+        ZBC_SG_OPEN_ZONE_CDB_SA,
+        ZBC_SG_OPEN_ZONE_CDB_LENGTH,
+	SG_DXFER_NONE
+    },
+
     /* ZBC_SG_CLOSE_ZONE */
     {
         "CLOSE ZONE",
@@ -109,15 +118,6 @@ static struct zbc_sg_cmd_s
         ZBC_SG_FINISH_ZONE_CDB_OPCODE,
         ZBC_SG_FINISH_ZONE_CDB_SA,
         ZBC_SG_FINISH_ZONE_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
-
-    /* ZBC_SG_OPEN_ZONE */
-    {
-        "OPEN ZONE",
-        ZBC_SG_OPEN_ZONE_CDB_OPCODE,
-        ZBC_SG_OPEN_ZONE_CDB_SA,
-        ZBC_SG_OPEN_ZONE_CDB_LENGTH,
 	SG_DXFER_NONE
     },
 
