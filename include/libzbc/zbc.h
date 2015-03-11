@@ -143,6 +143,9 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z) - 1)
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
+#define zbc_zone_wp_within_zone(z)      (zbc_zone_start_lba(z) <= zbc_zone_wp_lba(z)   \
+                                         && zbc_zone_wp_lba(z) <= zbc_zone_end_lba(z))
+
 #define zbc_zone_wp_lba_reset(z)                        	\
     do {                                                	\
         (z)->zbz_write_pointer = zbc_zone_start_lba(z); 	\
@@ -151,8 +154,8 @@ typedef struct zbc_zone zbc_zone_t;
 #define zbc_zone_wp_lba_inc(z, count)                           \
     do {                                                        \
         (z)->zbz_write_pointer += (count);                      \
-        if ( zbc_zone_wp_lba(z) > zbc_zone_end_lba(z) ) {	\
-            (z)->zbz_write_pointer = zbc_zone_end_lba(z);       \
+        if ( zbc_zone_wp_lba(z) > zbc_zone_end_lba(z) + 1 ) {	\
+            (z)->zbz_write_pointer = zbc_zone_end_lba(z) + 1;   \
         }                                                       \
     } while( 0 )
 
@@ -442,7 +445,8 @@ zbc_write(struct zbc_device *dev,
 {
     int ret = -EINVAL;
 
-    if ( zbc_zone_sequential(zone) ) {
+    if ( zbc_zone_sequential(zone) 
+         && zbc_zone_wp_within_zone(zone) ) {
 
         ret = zbc_pwrite(dev,
                          zone,
