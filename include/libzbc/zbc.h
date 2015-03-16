@@ -353,12 +353,19 @@ zbc_write(struct zbc_device *dev,
           uint32_t lba_count)
 {
 
-    if ( zbc_zone_conventional(zone) ) {
-	return( -EINVAL );
-    }
+	int ret;
+	if ( zbc_zone_conventional(zone) ) {
+		return( -EINVAL );
+	}
 
-    return( zbc_pwrite(dev, zone, buf, lba_count, (zone->zbz_write_pointer - zone->zbz_start)) );
-
+	ret = zbc_pwrite(dev, zone, buf, lba_count, 
+		(zone->zbz_write_pointer - zone->zbz_start));
+	
+	if( ret > 0 ){
+		zone->zbz_write_pointer += ret;
+	}
+	
+	return ret;
 }
 
 /**
