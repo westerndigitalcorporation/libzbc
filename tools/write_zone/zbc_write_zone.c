@@ -348,7 +348,11 @@ usage:
     }
 
     if ( ! zbc_zone_conventional(iozone) ) {
-        lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
+        if ( zbc_zone_wp_lba(iozone) >= zbc_zone_end_lba(iozone) ) {
+            lba_ofst = zbc_zone_length(iozone);
+	} else {
+            lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
+	}
     }
 
     elapsed = zbc_write_zone_usec();
