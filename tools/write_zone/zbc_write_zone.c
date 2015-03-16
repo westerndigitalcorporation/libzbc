@@ -409,16 +409,19 @@ usage:
             lba_count = zbc_zone_length(iozone) - lba_ofst;
         }
 
+      	if ( ! lba_count ) {
+	    break;
+	}
+
         if ( zbc_zone_conventional(iozone) ) {
             ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba_ofst);
-	    if ( ret > 0 ) {
-	        lba_ofst += ret;
-	    }
         } else {
             ret = zbc_write(dev, iozone, iobuf, lba_count);
         }
 
-        if ( ret <= 0 ) {
+	if ( ret > 0 ) {
+	    lba_ofst += ret;
+	} else {
             ret = 1;
             break;
         }
