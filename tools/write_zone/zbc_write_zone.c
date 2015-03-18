@@ -347,6 +347,14 @@ usage:
 
     }
 
+    if ( ! zbc_zone_conventional(iozone) ) {
+        if ( zbc_zone_wp_lba(iozone) >= zbc_zone_end_lba(iozone) ) {
+            lba_ofst = zbc_zone_length(iozone);
+	} else {
+            lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
+	}
+    }
+
     elapsed = zbc_write_zone_usec();
 
     while( ! zbc_write_zone_abort ) {
@@ -407,16 +415,19 @@ usage:
         }
 
         /* Write to zone */
+      	if ( ! lba_count ) {
+	    break;
+	}
+
         if ( zbc_zone_conventional(iozone) ) {
             ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba_ofst);
-	    if ( ret > 0 ) {
-	        lba_ofst += ret;
-	    }
         } else {
             ret = zbc_write(dev, iozone, iobuf, lba_count);
         }
 
-        if ( ret <= 0 ) {
+	if ( ret > 0 ) {
+	    lba_ofst += ret;
+	} else {
             ret = 1;
             break;
         }
