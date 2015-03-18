@@ -303,8 +303,6 @@ zbc_set_zones_align(unsigned long long sectors,
 
         }
 
-        zbc_display_zones_sizes(sectors, sector_size, *cz_size, *sz_size);
-
     }
 
     return( 0 );
