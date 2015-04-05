@@ -37,6 +37,9 @@ enum {
     ZBC_SG_WRITE,
     ZBC_SG_SYNC_CACHE,
     ZBC_SG_REPORT_ZONES,
+    ZBC_SG_OPEN_ZONE,
+    ZBC_SG_CLOSE_ZONE,
+    ZBC_SG_FINISH_ZONE,
     ZBC_SG_RESET_WRITE_POINTER,
     ZBC_SG_SET_ZONES,
     ZBC_SG_SET_WRITE_POINTER,
@@ -51,9 +54,10 @@ enum {
  * Inquiry command definition.
  */
 #define ZBC_SG_INQUIRY_CDB_OPCODE               0x12
-#define ZBC_SG_INQUIRY_CDB_SA                   0x12
 #define ZBC_SG_INQUIRY_CDB_LENGTH               6
 #define ZBC_SG_INQUIRY_REPLY_LEN                96
+#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1    64
+#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6    64
 
 /**
  * Read capacity command definition.
@@ -84,15 +88,36 @@ enum {
 /**
  * Report zones command definition.
  */
-#define ZBC_SG_REPORT_ZONES_CDB_OPCODE          0x9E
-#define ZBC_SG_REPORT_ZONES_CDB_SA              0x14
+#define ZBC_SG_REPORT_ZONES_CDB_OPCODE          0x95
+#define ZBC_SG_REPORT_ZONES_CDB_SA              0x00
 #define ZBC_SG_REPORT_ZONES_CDB_LENGTH          16
+
+/**
+ * Open zone command definition.
+ */
+#define ZBC_SG_OPEN_ZONE_CDB_OPCODE             0x94
+#define ZBC_SG_OPEN_ZONE_CDB_SA                 0x03
+#define ZBC_SG_OPEN_ZONE_CDB_LENGTH             16
+
+/**
+ * Close zone command definition.
+ */
+#define ZBC_SG_CLOSE_ZONE_CDB_OPCODE            0x94
+#define ZBC_SG_CLOSE_ZONE_CDB_SA                0x01
+#define ZBC_SG_CLOSE_ZONE_CDB_LENGTH            16
+
+/**
+ * Finish zone command definition.
+ */
+#define ZBC_SG_FINISH_ZONE_CDB_OPCODE           0x94
+#define ZBC_SG_FINISH_ZONE_CDB_SA               0x02
+#define ZBC_SG_FINISH_ZONE_CDB_LENGTH           16
 
 /**
  * Reset write pointer command definition.
  */
-#define ZBC_SG_RESET_WRITE_POINTER_CDB_OPCODE   0x9F
-#define ZBC_SG_RESET_WRITE_POINTER_CDB_SA       0x14
+#define ZBC_SG_RESET_WRITE_POINTER_CDB_OPCODE   0x94
+#define ZBC_SG_RESET_WRITE_POINTER_CDB_SA       0x04
 #define ZBC_SG_RESET_WRITE_POINTER_CDB_LENGTH   16
 
 /**

@@ -313,12 +313,16 @@ want_zone(struct zbc_zone *zone, uint64_t start_lba,
         switch (options) {
         case ZBC_RO_ALL:
                 return true;
-        case ZBC_RO_FULL:
-                return zone->zbz_condition == ZBC_ZC_FULL;
-        case ZBC_RO_OPEN:
-                return zone->zbz_condition == ZBC_ZC_OPEN;
         case ZBC_RO_EMPTY:
                 return zone->zbz_condition == ZBC_ZC_EMPTY;
+        case ZBC_RO_IMP_OPEN:
+                return zone->zbz_condition == ZBC_ZC_IMP_OPEN;
+        case ZBC_RO_EXP_OPEN:
+                return zone->zbz_condition == ZBC_ZC_EXP_OPEN;
+        case ZBC_RO_CLOSED:
+                return zone->zbz_condition == ZBC_ZC_CLOSED;
+        case ZBC_RO_FULL:
+                return zone->zbz_condition == ZBC_ZC_FULL;
         case ZBC_RO_RDONLY:
                 return zone->zbz_condition == ZBC_ZC_RDONLY;
         case ZBC_RO_OFFLINE:
@@ -398,7 +402,7 @@ zbc_zone_reset_allowed(struct zbc_zone *zone)
         switch (zone->zbz_type) {
         case ZBC_ZT_SEQUENTIAL_REQ:
         case ZBC_ZT_SEQUENTIAL_PREF:
-                return zone->zbz_condition == ZBC_ZC_OPEN ||
+                return zone->zbz_condition == ZBC_ZC_CLOSED ||
                         zone->zbz_condition == ZBC_ZC_FULL;
         default:
                 return false;
@@ -570,7 +574,7 @@ zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
                 if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
                         zone->zbz_condition = ZBC_ZC_FULL;
                 else
-                        zone->zbz_condition = ZBC_ZC_OPEN;
+                        zone->zbz_condition = ZBC_ZC_CLOSED;
 
 		/* write pointer in z is advanced on return of this function in zbc.c */
 		memcpy(z, zone, sizeof(*z));
@@ -731,7 +735,7 @@ zbc_fake_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
                 if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
                         zone->zbz_condition = ZBC_ZC_FULL;
                 else
-                        zone->zbz_condition = ZBC_ZC_OPEN;
+                        zone->zbz_condition = ZBC_ZC_CLOSED;
         }
 
         ret = 0;

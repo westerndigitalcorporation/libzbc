@@ -26,6 +26,9 @@
 *.hex
 zbc_report_zones
 zbc_reset_write_ptr
+zbc_close_zone
+zbc_finish_zone
+zbc_open_zone
 zbc_write_zone
 zbc_read_zone
 zbc_set_zones

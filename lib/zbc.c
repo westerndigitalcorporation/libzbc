@@ -22,16 +22,26 @@
 #include <sys/stat.h>
 #include <linux/fs.h>
 
+/***** Definition of private data *****/
+
+/**
+ * Log level.
+ */
+int zbc_log_level = ZBC_LOG_ERROR;
+
+/**
+ * Backend drivers.
+ */
 static struct zbc_ops *zbc_ops[] = {
-	&zbc_ata_ops,
-	&zbc_scsi_ops,
-	&zbc_fake_ops,
-	NULL
+    &zbc_ata_ops,
+    &zbc_scsi_ops,
+    // &zbc_fake_ops,
+    NULL
 };
 
 /***** Declaration of private funtions *****/
 
-static int
+static inline int
 zbc_do_report_zones(zbc_device_t *dev,
                     uint64_t start_lba,
                     enum zbc_reporting_options ro,
@@ -43,10 +53,6 @@ zbc_do_report_zones(zbc_device_t *dev,
     return( (dev->zbd_ops->zbd_report_zones)(dev, start_lba, ro, zones, nr_zones) );
 
 }
-
-/***** Definition of private data *****/
-
-int zbc_log_level = ZBC_LOG_ERROR;
 
 /***** Definition of public functions *****/
 
@@ -168,7 +174,7 @@ zbc_get_device_info(zbc_device_t *dev,
  *
  * Update an array of zone information previously obtained using zbc_report_zones,
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 int
 zbc_report_zones(struct zbc_device *dev,
@@ -236,7 +242,7 @@ zbc_report_zones(struct zbc_device *dev,
  * malloc(3) internally and needs to be freed using free(3).  The number
  * of zones in @zones is returned in @nr_zones.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  * Returns -ENOMEM if memory could not be allocated for @zones.
  */
 int
@@ -283,6 +289,103 @@ zbc_list_zones(struct zbc_device *dev,
 }
 
 /**
+ * zbc_open_zone - open the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
+ *
+ * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are opened.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED state,
+ * otherwise -EINVAL will be returned.  If the zone status is ZBC_ZC_EXP_OPEN or
+ * ZBC_ZC_FULL, the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+int
+zbc_open_zone(zbc_device_t *dev,
+              uint64_t start_lba)
+{
+    int ret;
+
+    /* Open zone */
+    ret = (dev->zbd_ops->zbd_open_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("OPEN ZONE command failed\n");
+    }
+
+    return( ret );
+
+}
+
+/**
+ * zbc_close_zone - close the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be closed or -1 to close all zones
+ *
+ * Closes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are closed.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN state,
+ * otherwise an error will be returned. If the zone write pointer is at the start LBA
+ * of the zone, the zone state changes to ZBC_ZC_EMPTY. And if the zone status is
+ * ZBC_ZC_FULL or ZBC_ZC_CLOSED, the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+int
+zbc_close_zone(zbc_device_t *dev,
+               uint64_t start_lba)
+{
+    int ret;
+
+    /* Close zone */
+    ret = (dev->zbd_ops->zbd_close_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("CLOSE ZONE command failed\n");
+    }
+
+    return( ret );
+
+}
+
+/**
+ * zbc_finish_zone - finish the zone for a ZBC zone
+ * @dev:                (IN) ZBC device handle to reset on
+ * @start_lba:          (IN) Start LBA for the zone to be finished or -1 to finish all zones
+ *
+ * Finishes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
+ * If @start_lba specifies -1, the all zones are finished.
+ * The start LBA for a zone is reported by zbc_report_zones().
+ *
+ * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED state,
+ * otherwise -EINVAL will be returned.  If the zone status is ZBC_ZC_FULL,
+ * the zone state doesn't change.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+int
+zbc_finish_zone(zbc_device_t *dev,
+                uint64_t start_lba)
+{
+    int ret;
+
+    /* Finish zone */
+    ret = (dev->zbd_ops->zbd_finish_zone)(dev, start_lba);
+    if ( ret != 0 ) {
+        zbc_error("FINISH ZONE command failed\n");
+    }
+
+    return( ret );
+
+}
+
+/**
  * zbc_reset_write_pointer - reset the write pointer for a ZBC zone
  * @dev:                ZBC device handle to reset on
  * @start_lba:     start LBA for the zone to be reset or -1 to reset all zones
@@ -295,7 +398,7 @@ zbc_list_zones(struct zbc_device *dev,
  * and be in the ZBC_ZC_OPEN or ZBC_ZC_FULL state, otherwise -EINVAL
  * will be returned.
  *
- * Returns -EIO if an error happened when communicating to the device.
+ * Returns -EIO if an error happened when communicating with the device.
  */
 int
 zbc_reset_write_pointer(zbc_device_t *dev,

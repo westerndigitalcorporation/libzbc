@@ -120,6 +120,15 @@ extern int
 dz_get_zones(void);
 
 extern int
+dz_open_zone(int zno);
+
+extern int
+dz_close_zone(int zno);
+
+extern int
+dz_finish_zone(int zno);
+
+extern int
 dz_reset_zone(int zno);
 
 extern int

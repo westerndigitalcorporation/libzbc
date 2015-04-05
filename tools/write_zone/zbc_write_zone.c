@@ -404,7 +404,7 @@ usage:
 
         /* Do not exceed the end of the zone */
         lba_count = iosize / info.zbd_logical_block_size;
-        if ( zbc_zone_seq(iozone) ) {
+        if ( zbc_zone_sequential(iozone) ) {
             lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
         }
         if ( (lba_ofst + lba_count) > (long long)zbc_zone_length(iozone) ) {

@@ -125,15 +125,14 @@ zbc_scsi_classify(zbc_device_t *dev)
 
     zbc_debug("Standard SCSI disk signature detected\n");
 
-    /* This may be a host-managed device: look at VPD    */
-    /* page B5h (block device characteristics extension) */
+    /* This may be a host-aware device: look at VPD    */
+    /* page B1h (block device characteristics) */
     memset(cmd.cdb, 0, sizeof(cmd.cdb));
-    memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN);
+    memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
     cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
     cmd.cdb[1] = 0x01;
-    cmd.cdb[2] = 0xB5;
-    zbc_sg_cmd_set_int32(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+    cmd.cdb[2] = 0xB1;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
 
     /* Execute the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -141,16 +140,29 @@ zbc_scsi_classify(zbc_device_t *dev)
 
 	if ( (cmd.out_buf[1] == 0xB1)
 	     && (cmd.out_buf[2] == 0x00)
-	     && (cmd.out_buf[3] == 0x3C)
-	     && (cmd.out_buf[8] & 0x10) ) {
-	    /* Host aware device */
-	    zbc_debug("Host aware ZBC disk detected\n");
-	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-	} else {
-	    /* Standard or drive-managed device */
-	    zbc_debug("Standard or drive managed SCSI disk detected\n");
-	    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
-	    ret = -ENXIO;
+	     && (cmd.out_buf[3] == 0x3C) ) {
+
+            switch ((cmd.out_buf[8] & 0x30) >> 4 ) {
+                case 0x01:
+                    /* Host aware device */
+                    zbc_debug("Host aware ZBC disk detected\n");
+	            dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+                    break;
+                case 0x00:
+                case 0x10:
+                    /* Standard or drive-managed device */
+                    zbc_debug("Standard or drive managed SCSI disk detected\n");
+                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+                    ret = -ENXIO;
+                    break;
+
+                default:
+                    zbc_debug("Unknown device type\n");
+                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+                    ret = -ENXIO;
+                    break;
+            }
+
 	}
 
     }
@@ -160,159 +172,6 @@ out:
     zbc_sg_cmd_destroy(&cmd);
 
     return( ret );
-
-}
-
-/**
- * Get a device information (capacity & sector sizes).
- */
-static int
-zbc_scsi_get_info(zbc_device_t *dev)
-{
-    zbc_sg_cmd_t cmd;
-    int logical_per_physical;
-    int ret;
-
-    /* Get device model */
-    ret = zbc_scsi_classify(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* READ CAPACITY 16 */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
-    if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
-        return( ret );
-    }
-
-    /* Fill command CDB */
-    cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
-    cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-    zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
-
-    /* Send the SG_IO command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
-    if ( ret != 0 ) {
-        goto out;
-    }
-
-    dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
-    dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-    logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
-
-    /* Check */
-    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
-        zbc_error("%s: invalid logical sector size\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    if ( ! dev->zbd_info.zbd_logical_blocks ) {
-        zbc_error("%s: invalid capacity (logical blocks)\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size * logical_per_physical;
-    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks / logical_per_physical;
-
-out:
-
-    zbc_sg_cmd_destroy(&cmd);
-
-    return( ret );
-
-}
-
-static int
-zbc_scsi_open(const char *filename,
-              int flags,
-              struct zbc_device **pdev)
-{
-    struct zbc_device *dev;
-    struct stat st;
-    int fd, ret;
-
-    /* Open the device file */
-    fd = open(filename, flags);
-    if ( fd < 0 ) {
-        zbc_error("Open device file %s failed %d (%s)\n",
-                  filename,
-                  errno,
-                  strerror(errno));
-        return( -errno );
-    }
-
-    /* Check device */
-    if ( fstat(fd, &st) != 0 ) {
-        zbc_error("Stat device %s failed %d (%s)\n",
-                  filename,
-                  errno,
-                  strerror(errno));
-        ret = -errno;
-        goto out;
-    }
-
-    if ( (! S_ISCHR(st.st_mode))
-         && (! S_ISBLK(st.st_mode)) ) {
-        ret = -ENXIO;
-        goto out;
-    }
-
-    /* Set device decriptor */
-    ret = -ENOMEM;
-    dev = calloc(1, sizeof(struct zbc_device));
-    if ( ! dev ) {
-        goto out;
-    }
-
-    dev->zbd_filename = strdup(filename);
-    if ( ! dev->zbd_filename ) {
-        goto out_free_dev;
-    }
-
-    dev->zbd_fd = fd;
-
-    ret = zbc_scsi_get_info(dev);
-    if ( ret ) {
-        goto out_free_filename;
-    }
-
-    *pdev = dev;
-
-    return( 0 );
-
-out_free_filename:
-
-    free(dev->zbd_filename);
-
-out_free_dev:
-
-    free(dev);
-
-out:
-
-    close(fd);
-
-    return( ret );
-
-}
-
-static int
-zbc_scsi_close(zbc_device_t *dev)
-{
-
-    if ( close(dev->zbd_fd) ) {
-        return( -errno );
-    }
-
-    free(dev->zbd_filename);
-    free(dev);
-
-    return( 0 );
 
 }
 
@@ -477,9 +336,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
      * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
      * |Byte |        |        |        |        |        |        |        |        |
      * |=====+==========================+============================================|
-     * | 0   |                           Operation Code (9Eh)                        |
+     * | 0   |                           Operation Code (95h)                        |
      * |-----+-----------------------------------------------------------------------|
-     * | 1   |      Reserved            |       Service Action (14h)                 |
+     * | 1   |      Reserved            |       Service Action (00h)                 |
      * |-----+-----------------------------------------------------------------------|
      * | 2   | (MSB)                                                                 |
      * |- - -+---                        Zone Start LBA                           ---|
@@ -489,7 +348,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
      * |- - -+---                        Allocation Length                        ---|
      * | 13  |                                                                 (LSB) |
      * |-----+-----------------------------------------------------------------------|
-     * | 14  |               Reserved            |       Reporting Options           |
+     * | 14  |    Reserved     |                 Reporting Options                   |
      * |-----+-----------------------------------------------------------------------|
      * | 15  |                           Control                                     |
      * +=============================================================================+
@@ -498,7 +357,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
     zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int)out_bufsz);
-    cmd.cdb[14] = ro & 0x0f;
+    cmd.cdb[14] = ro & 0x3f;
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -620,6 +479,183 @@ out:
 }
 
 /**
+ * Open zone(s).
+ */
+static int
+zbc_scsi_open_zone(zbc_device_t *dev,
+                   uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Allocate and intialize open zone command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_OPEN_ZONE, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (94h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Reserved            |       Service Action (03h)                 |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   | (MSB)                                                                 |
+     * |- - -+---                        Zone ID                                  ---|
+     * | 9   |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  | (MSB)                                                                 |
+     * |- - -+---                        Reserved                                 ---|
+     * | 13  |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |               Reserved                                       |  All   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.cdb[0] = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
+    cmd.cdb[1] = ZBC_SG_OPEN_ZONE_CDB_SA;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Open all zones */
+        cmd.cdb[14] = 0x01;
+    } else {
+        /* Reset only the zone at start_lba */
+        zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+    }
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Cleanup */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Close zone(s).
+ */
+static int
+zbc_scsi_close_zone(zbc_device_t *dev,
+                    uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Allocate and intialize close zone command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_CLOSE_ZONE, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (94h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Reserved            |       Service Action (01h)                 |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   | (MSB)                                                                 |
+     * |- - -+---                        Zone ID                                  ---|
+     * | 9   |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  | (MSB)                                                                 |
+     * |- - -+---                        Reserved                                 ---|
+     * | 13  |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |               Reserved                                       |  All   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.cdb[0] = ZBC_SG_CLOSE_ZONE_CDB_OPCODE;
+    cmd.cdb[1] = ZBC_SG_CLOSE_ZONE_CDB_SA;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Close all zones */
+        cmd.cdb[14] = 0x01;
+    } else {
+        /* Reset only the zone at start_lba */
+        zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+    }
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Cleanup */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Finish zone(s).
+ */
+static int
+zbc_scsi_finish_zone(zbc_device_t *dev,
+                     uint64_t start_lba)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Allocate and intialize finish zone command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_FINISH_ZONE, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (94h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Reserved            |       Service Action (02h)                 |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   | (MSB)                                                                 |
+     * |- - -+---                        Zone ID                                  ---|
+     * | 9   |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  | (MSB)                                                                 |
+     * |- - -+---                        Reserved                                 ---|
+     * | 13  |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |               Reserved                                       |  All   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    cmd.cdb[0] = ZBC_SG_FINISH_ZONE_CDB_OPCODE;
+    cmd.cdb[1] = ZBC_SG_FINISH_ZONE_CDB_SA;
+    if ( start_lba == (uint64_t)-1 ) {
+        /* Finish all zones */
+        cmd.cdb[14] = 0x01;
+    } else {
+        /* Reset only the zone at start_lba */
+        zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+    }
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    /* Cleanup */
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
  * Reset zone(s) write pointer.
  */
 static int
@@ -641,9 +677,9 @@ zbc_scsi_reset_write_pointer(zbc_device_t *dev,
      * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
      * |Byte |        |        |        |        |        |        |        |        |
      * |=====+==========================+============================================|
-     * | 0   |                           Operation Code (9Fh)                        |
+     * | 0   |                           Operation Code (94h)                        |
      * |-----+-----------------------------------------------------------------------|
-     * | 1   |      Reserved            |       Service Action (14h)                 |
+     * | 1   |      Reserved            |       Service Action (04h)                 |
      * |-----+-----------------------------------------------------------------------|
      * | 2   | (MSB)                                                                 |
      * |- - -+---                        Zone ID                                  ---|
@@ -781,6 +817,309 @@ zbc_scsi_set_write_pointer(zbc_device_t *dev,
 }
 
 /**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_scsi_get_capacity(zbc_device_t *dev)
+{
+    zbc_sg_cmd_t cmd;
+    zbc_zone_t *zones = NULL;
+    int logical_per_physical;
+    unsigned int nr_zones = 0;
+    uint64_t slba = 0;
+    int ret;
+
+    /* READ CAPACITY 16 */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB */
+    cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
+    cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
+    zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret != 0 ) {
+        goto out;
+    }
+
+    /* Logical block size */
+    dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
+        zbc_error("%s: invalid logical sector size\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
+
+    /* Check RC_BASIS field */
+    switch( (cmd.out_buf[12] & 0x30) >> 4 ) {
+
+    case 0x00:
+
+        /* The logical block address indicates the last LBA of the */
+        /* conventional zones at the beginning of the disk. To get */
+        /* the entire disk capacity, we need to get last LBA of    */
+        /* the last zone of the disk.                              */
+        ret = zbc_scsi_report_zones(dev, 0, 0, NULL, &nr_zones);
+        if ( ret != 0 ) {
+            zbc_error("zbc_report_zones failed\n");
+            goto out;
+        }
+        if ( ! nr_zones ) {
+            ret = -EIO;
+            goto out;
+        }
+
+        /* Allocate zone array */
+        zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nr_zones);
+        if ( ! zones ) { 
+            zbc_error("No memory\n");
+            ret = -ENOMEM;
+            goto out;
+        }
+        memset(zones, 0, sizeof(zbc_zone_t) * nr_zones);
+    
+        /* Get all zone information */
+        unsigned int n, z = 0, nz = 0;
+
+        while ( nz < nr_zones ) {
+
+            n= nr_zones - nz;
+            ret = zbc_scsi_report_zones(dev, slba, 0, &zones[z], &n);
+            if ( ret != 0 ) { 
+                zbc_error("zbc_report_zones failed\n");
+                goto out;
+            }
+
+            if ( n == 0 ) {
+                ret = -EIO;
+                break;
+            }
+            
+            nz += n;
+            z  += n;
+            slba = zones[z - 1].zbz_start + zones[z - 1].zbz_length;
+
+        }
+
+        /* Get the drive capacity from the last zone last LBA */
+        dev->zbd_info.zbd_logical_blocks = zbc_zone_end_lba(&zones[nr_zones - 1]) + 1;
+
+        break;
+
+    case 0x01:
+        
+        /* The disk last LBA was reproted */
+        dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
+
+        break;
+
+    default:
+
+        zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+                  dev->zbd_filename);
+        ret = -EIO;
+
+        goto out;
+
+    }
+
+    if ( ! dev->zbd_info.zbd_logical_blocks ) {
+        zbc_error("%s: invalid capacity (logical blocks)\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size * logical_per_physical;
+    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks / logical_per_physical;
+
+out:
+
+    zbc_sg_cmd_destroy(&cmd);
+
+    if ( zones ) {
+        free(zones);
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Get zoned block device characteristics(Maximum or optimul number of opening zones).
+ */
+static int
+zbc_scsi_get_zbd_chars(zbc_device_t *dev)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* READ CAPACITY 16 */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB */
+    cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+    cmd.cdb[1] = 0x01;
+    cmd.cdb[2] = 0xB6;
+    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+
+    /* Send the SG_IO command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret != 0 ) {
+        goto out;
+    }
+
+    /* Resource of handling zones */
+    dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
+    dev->zbd_info.zbd_max_nr_open_seq_req = zbc_sg_cmd_get_int32(&cmd.out_buf[16]);
+
+    if ( dev->zbd_info.zbd_max_nr_open_seq_req <= 0 ) {
+        zbc_error("%s: invalid maximum number of open sequential write required zones\n",
+                  dev->zbd_filename);
+        ret = -EINVAL;
+    }
+
+out:
+
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_scsi_get_info(zbc_device_t *dev)
+{
+    int ret;
+
+    /* Get device model */
+    ret = zbc_scsi_classify(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get capacity information */
+    ret = zbc_scsi_get_capacity(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get zoned block device characteristics */
+    ret = zbc_scsi_get_zbd_chars(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    return( ret );
+
+}
+
+static int
+zbc_scsi_open(const char *filename,
+              int flags,
+              struct zbc_device **pdev)
+{
+    struct zbc_device *dev;
+    struct stat st;
+    int fd, ret;
+
+    /* Open the device file */
+    fd = open(filename, flags);
+    if ( fd < 0 ) {
+        zbc_error("Open device file %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        return( -errno );
+    }
+
+    /* Check device */
+    if ( fstat(fd, &st) != 0 ) {
+        zbc_error("Stat device %s failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        ret = -errno;
+        goto out;
+    }
+
+    if ( (! S_ISCHR(st.st_mode))
+         && (! S_ISBLK(st.st_mode)) ) {
+        ret = -ENXIO;
+        goto out;
+    }
+
+    /* Set device decriptor */
+    ret = -ENOMEM;
+    dev = calloc(1, sizeof(struct zbc_device));
+    if ( ! dev ) {
+        goto out;
+    }
+
+    dev->zbd_filename = strdup(filename);
+    if ( ! dev->zbd_filename ) {
+        goto out_free_dev;
+    }
+
+    dev->zbd_fd = fd;
+
+    ret = zbc_scsi_get_info(dev);
+    if ( ret ) {
+        goto out_free_filename;
+    }
+
+    *pdev = dev;
+
+    return( 0 );
+
+out_free_filename:
+
+    free(dev->zbd_filename);
+
+out_free_dev:
+
+    free(dev);
+
+out:
+
+    close(fd);
+
+    return( ret );
+
+}
+
+static int
+zbc_scsi_close(zbc_device_t *dev)
+{
+
+    if ( close(dev->zbd_fd) ) {
+        return( -errno );
+    }
+
+    free(dev->zbd_filename);
+    free(dev);
+
+    return( 0 );
+
+}
+
+/**
  * ZBC with SCSI I/O device operations.
  */
 zbc_ops_t zbc_scsi_ops =
@@ -791,6 +1130,9 @@ zbc_ops_t zbc_scsi_ops =
     .zbd_pwrite       = zbc_scsi_pwrite,
     .zbd_flush        = zbc_scsi_flush,
     .zbd_report_zones = zbc_scsi_report_zones,
+    .zbd_open_zone    = zbc_scsi_open_zone,
+    .zbd_close_zone   = zbc_scsi_close_zone,
+    .zbd_finish_zone  = zbc_scsi_finish_zone,
     .zbd_reset_wp     = zbc_scsi_reset_write_pointer,
     .zbd_set_zones    = zbc_scsi_set_zones,
     .zbd_set_wp       = zbc_scsi_set_write_pointer,

@@ -4,7 +4,7 @@ global:
 	zbc_set_zones;
 };
 
-ZBC_0.1 {
+ZBC_GLOBAL {
 global:
 	zbc_open;
 	zbc_close;
@@ -12,6 +12,9 @@ global:
 	zbc_report_zones;
 	zbc_report_nr_zones;
 	zbc_list_zones;
+	zbc_open_zone;
+	zbc_close_zone;
+	zbc_finish_zone;
 	zbc_reset_write_pointer;
 	zbc_reset_all_write_pointers;
 	zbc_pread;

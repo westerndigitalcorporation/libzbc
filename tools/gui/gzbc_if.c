@@ -76,6 +76,21 @@ dz_if_refresh_cb(GtkWidget *widget,
                  gpointer user_data);
 
 static gboolean
+dz_if_open_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data);
+
+static gboolean
+dz_if_close_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data);
+
+static gboolean
+dz_if_finish_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data);
+
+static gboolean
 dz_if_reset_cb(GtkWidget *widget,
                GdkEvent *event,
                gpointer user_data);
@@ -296,6 +311,69 @@ dz_if_create(void)
     gtk_button_box_set_layout(GTK_BUTTON_BOX(hbuttonbox), GTK_BUTTONBOX_START);
     gtk_box_set_spacing(GTK_BOX(hbuttonbox), 10);
 
+    /* Open button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
+
+    image = gtk_image_new_from_icon_name("gtk-connect", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+
+    label = gtk_label_new_with_mnemonic("Open Zone");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) button, "button_press_event",
+                      G_CALLBACK(dz_if_open_cb),
+                      spinbutton);
+
+    /* Close button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
+
+    image = gtk_image_new_from_icon_name("gtk-close", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+
+    label = gtk_label_new_with_mnemonic("Close Zone");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) button, "button_press_event",
+                      G_CALLBACK(dz_if_close_cb),
+                      spinbutton);
+
+    /* Finish button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
+
+    image = gtk_image_new_from_icon_name("gtk-goto-last", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+
+    label = gtk_label_new_with_mnemonic("Finish Zone");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) button, "button_press_event",
+                      G_CALLBACK(dz_if_finish_cb),
+                      spinbutton);
+
     /* Reset button */
     button = gtk_button_new();
     gtk_widget_show(button);
@@ -462,8 +540,15 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
 	} else if ( zbc_zone_full(z) ) {
             g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
 	    strncpy(str, "Full", sizeof(str));
-	} else if ( zbc_zone_open(z) ) {
-	    strncpy(str, "Open", sizeof(str));
+        } else if ( zbc_zone_imp_open(z) ) {
+            g_object_set(renderer, "foreground", "Blue", "foreground-set", TRUE, NULL);
+            strncpy(str, "Implicit Open", sizeof(str));
+        } else if ( zbc_zone_exp_open(z) ) {
+            g_object_set(renderer, "foreground", "Blue", "foreground-set", TRUE, NULL);
+            strncpy(str, "Explicit Open", sizeof(str));
+        } else if ( zbc_zone_closed(z) ) {
+            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
+            strncpy(str, "Closed", sizeof(str));
 	} else if ( zbc_zone_rdonly(z) ) {
 	    strncpy(str, "Read-only", sizeof(str));
 	} else if ( zbc_zone_offline(z) ) {
@@ -726,7 +811,7 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     cairo_set_line_width(cr, 2);
     cairo_rectangle(cr, x, (h - w) / 2, w, w);
     cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Magenta");
+    gdk_rgba_parse(&color, "Grey");
     gdk_cairo_set_source_rgba(cr, &color);
     cairo_fill(cr);
     x += w;
@@ -736,7 +821,7 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     cairo_show_text(cr, "Conventional zone");
     x += te.x_advance + 20;
 
-    /* Seq unwritten zone legend */
+    /* Empty or closed Seq zone legend */
     gdk_rgba_parse(&color, "Black");
     gdk_cairo_set_source_rgba(cr, &color);
     cairo_set_line_width(cr, 2);
@@ -747,9 +832,41 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     cairo_fill(cr);
     x += w;
 
-    cairo_text_extents(cr, "Sequential zone unwritten space", &te);
+    cairo_text_extents(cr, "Empty or closed sequential zone", &te);
     cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Sequential zone unwritten space");
+    cairo_show_text(cr, "Empty or closed sequential zone");
+    x += te.x_advance + 20;
+
+    /* Implicit opened seq unwritten zone legend */
+    gdk_rgba_parse(&color, "Black");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_set_line_width(cr, 2);
+    cairo_rectangle(cr, x, (h - w) / 2, w, w);
+    cairo_stroke_preserve(cr);
+    gdk_rgba_parse(&color, "Dodger Blue");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_fill(cr);
+    x += w;
+
+    cairo_text_extents(cr, "Implicit opened sequential zone", &te);
+    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
+    cairo_show_text(cr, "Implicit opened sequential zone");
+    x += te.x_advance + 20;
+
+    /* Explicit opened zone legend */
+    gdk_rgba_parse(&color, "Black");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_set_line_width(cr, 2);
+    cairo_rectangle(cr, x, (h - w) / 2, w, w);
+    cairo_stroke_preserve(cr);
+    gdk_rgba_parse(&color, "Deep Sky Blue");
+    gdk_cairo_set_source_rgba(cr, &color);
+    cairo_fill(cr);
+    x += w;
+
+    cairo_text_extents(cr, "Explicit opened sequential zone", &te);
+    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
+    cairo_show_text(cr, "Explicit opened sequential zone");
     x += te.x_advance + 20;
 
     /* Seq written zone legend */
@@ -823,9 +940,15 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 	cairo_stroke_preserve(cr);
 
 	if ( zbc_zone_conventional(z) ) {
-	    gdk_rgba_parse(&color, "Magenta");
+	    gdk_rgba_parse(&color, "Grey");
 	} else if ( zbc_zone_full(z) ) {
 	    gdk_rgba_parse(&color, "Red");
+	} else if ( zbc_zone_imp_open(z) ) {
+	    gdk_rgba_parse(&color, "Dodger Blue");
+	} else if ( zbc_zone_exp_open(z) ) {
+	    gdk_rgba_parse(&color, "Deep Sky Blue");
+	} else if ( zbc_zone_closed(z) ) {
+	    gdk_rgba_parse(&color, "Green");
 	} else {
 	    gdk_rgba_parse(&color, "Green");
 	}
@@ -833,7 +956,9 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 	cairo_fill(cr);
 
 	if ( (! zbc_zone_conventional(z))
-	     && zbc_zone_open(z) ) {
+             && (zbc_zone_imp_open(z) 
+                 || zbc_zone_exp_open(z) 
+                 || zbc_zone_closed(z)) ) {
 	    /* Written space in zone */
 	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);
 	    if ( ww ) {
@@ -933,6 +1058,123 @@ dz_if_refresh_cb(GtkWidget *widget,
 }
 
 static gboolean
+dz_if_open_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data)
+{
+    GtkWidget *spinbutton = (GtkWidget *) user_data;
+    GtkWidget *dialog;
+    int zno, ret;
+
+    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+
+    ret = dz_open_zone(zno);
+    if ( ret != 0 ) {
+
+        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR,
+                                        GTK_BUTTONS_OK,
+                                        "Open zone failed\n");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Open zone %d failed %d (%s)",
+                                                 zno,
+                                                 errno,
+                                                 strerror(errno));
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+
+    }
+
+    /* Update zinfo */
+    dz_if_update_zinfo();
+
+    /* Redraw zone info */
+    dz_if_redraw_zinfo();
+
+    return( FALSE );
+
+}
+
+static gboolean
+dz_if_close_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data)
+{
+    GtkWidget *spinbutton = (GtkWidget *) user_data;
+    GtkWidget *dialog;
+    int zno, ret;
+
+    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+
+    ret = dz_close_zone(zno);
+    if ( ret != 0 ) {
+
+        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR,
+                                        GTK_BUTTONS_OK,
+                                        "Close zone failed\n");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Close zone %d failed %d (%s)",
+                                                 zno,
+                                                 errno,
+                                                 strerror(errno));
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+
+    }
+
+    /* Update zinfo */
+    dz_if_update_zinfo();
+
+    /* Redraw zone info */
+    dz_if_redraw_zinfo();
+
+    return( FALSE );
+
+}
+
+static gboolean
+dz_if_finish_cb(GtkWidget *widget,
+               GdkEvent *event,
+               gpointer user_data)
+{
+    GtkWidget *spinbutton = (GtkWidget *) user_data;
+    GtkWidget *dialog;
+    int zno, ret;
+
+    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+
+    ret = dz_finish_zone(zno);
+    if ( ret != 0 ) {
+
+        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR,
+                                        GTK_BUTTONS_OK,
+                                        "Finish zone failed\n");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Finish zone %d failed %d (%s)",
+                                                 zno,
+                                                 errno,
+                                                 strerror(errno));
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+
+    }
+
+    /* Update zinfo */
+    dz_if_update_zinfo();
+
+    /* Redraw zone info */
+    dz_if_redraw_zinfo();
+
+    return( FALSE );
+
+}
+
+static gboolean
 dz_if_reset_cb(GtkWidget *widget,
                GdkEvent *event,
                gpointer user_data)
@@ -970,3 +1212,4 @@ dz_if_reset_cb(GtkWidget *widget,
     return( FALSE );
 
 }
+
