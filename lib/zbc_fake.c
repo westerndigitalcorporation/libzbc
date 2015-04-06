@@ -10,7 +10,10 @@
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
  *
  * Author: Christoph Hellwig (hch@infradead.org)
+ *         Damien Le Moal (damien.lemoal@hgst.com)
  */
+
+/***** Including files *****/
 
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -28,147 +31,303 @@
 
 #include "zbc.h"
 
-struct zbc_fake_device {
-        struct zbc_device dev;
-	pthread_mutex_t mutex;
-        unsigned int zbd_nr_zones;
-        struct zbc_zone *zbd_zones;
-        int zbd_meta_fd;
+/***** Macro and types definitions *****/
 
-};
+/**
+ * Logical and physical sector size for emulation on top of a regular file.
+ * For emulation on top of a raw disk, the disk logical and physical
+ * sector sizes are used.
+ */
+#define ZBC_FAKE_FILE_SECTOR_SIZE       512
 
-static inline struct zbc_fake_device *to_file_dev(struct zbc_device *dev)
+/**
+ * Maximum number of open zones (implicit + explicit).
+ */
+#define ZBC_FAKE_MAX_OPEN_NR_ZONES      32
+
+/**
+ * Metadata header.
+ */
+typedef struct zbc_fake_meta {
+
+    /**
+     * Capacity in B.
+     */
+    uint64_t            zbd_capacity;
+
+    /**
+     * Total number of zones.
+     */
+    uint32_t            zbd_nr_zones;
+
+    /**
+     * Number of conventional zones.
+     */
+    uint32_t            zbd_nr_conv_zones;
+
+    /**
+     * Number of sequential zones.
+     */
+    uint32_t            zbd_nr_seq_zones;
+
+    /**
+     * Number of explicitly open zones.
+     */
+    uint32_t            zbd_nr_exp_open_zones;
+
+    /**
+     * Number of implicitely open zones.
+     */
+    uint32_t            zbd_nr_imp_open_zones;
+
+    /**
+     * Padding.
+     */
+    uint8_t             __pad[4];
+
+} zbc_fake_meta_t;
+
+/**
+ * Fake device descriptor data.
+ */
+typedef struct zbc_fake_device {
+
+    struct zbc_device   dev;
+
+    pthread_mutex_t     mutex;
+
+    int                 zbd_meta_fd;
+    size_t              zbd_meta_size;
+    zbc_fake_meta_t     *zbd_meta;
+    
+    uint32_t            zbd_nr_zones;
+    struct zbc_zone     *zbd_zones;
+
+} zbc_fake_device_t;
+
+/***** Definition of private functions *****/
+
+/**
+ * Convert device address to fake device address.
+ */
+static inline zbc_fake_device_t *
+zbc_fake_to_file_dev(struct zbc_device *dev)
 {
-        return container_of(dev, struct zbc_fake_device, dev);
+    return container_of(dev, struct zbc_fake_device, dev);
 }
 
+/**
+ * Find a zone using its start LBA.
+ */
 static struct zbc_zone *
-zbf_fake_find_zone(struct zbc_fake_device *fdev, uint64_t zone_start_lba)
+zbf_fake_find_zone(zbc_fake_device_t *fdev,
+                   uint64_t zone_start_lba)
 {
-        unsigned int i;
+    unsigned int i;
 
-        for (i = 0; i < fdev->zbd_nr_zones; i++)
-                if (fdev->zbd_zones[i].zbz_start == zone_start_lba)
-                        return &fdev->zbd_zones[i];
-        return NULL;
+    if ( fdev->zbd_zones ) {
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( fdev->zbd_zones[i].zbz_start == zone_start_lba ) {
+                return &fdev->zbd_zones[i];
+            }
+        }
+    }
+
+    return NULL;
+
 }
 
-static int
-zbc_fake_open_metadata(struct zbc_fake_device *fdev)
+/**
+ * Close metadata file of a fake device.
+ */
+static void
+zbc_fake_close_metadata(zbc_fake_device_t *fdev)
 {
-        char meta_path[512];
-        struct stat st;
-        int error;
-        int i;
 
-        sprintf(meta_path, "/tmp/zbc-%s.meta",
-                basename(fdev->dev.zbd_filename));
+    if ( fdev->zbd_meta_fd > 0 ) {
 
-        zbc_debug("Device %s: using meta file %s\n",
+        if ( fdev->zbd_meta ) {
+            msync(fdev->zbd_meta, fdev->zbd_meta_size, MS_SYNC);
+            munmap(fdev->zbd_meta, fdev->zbd_meta_size);
+            fdev->zbd_meta = NULL;
+            fdev->zbd_nr_zones = 0;
+            fdev->zbd_zones = NULL;
+        }
+
+        close(fdev->zbd_meta_fd);
+        fdev->zbd_meta_fd = -1;
+
+    }
+
+    return;
+
+}
+
+/**
+ * Open metadata file of a fake device.
+ */
+static int
+zbc_fake_open_metadata(zbc_fake_device_t *fdev)
+{
+    char meta_path[512];
+    struct stat st;
+    unsigned int i;
+    int ret;
+
+    sprintf(meta_path, "/tmp/zbc-%s.meta",
+            basename(fdev->dev.zbd_filename));
+
+    zbc_debug("Device %s: using meta file %s\n",
+              fdev->dev.zbd_filename,
+              meta_path);
+
+    fdev->zbd_meta_fd = open(meta_path, O_RDWR);
+    if ( fdev->zbd_meta_fd < 0 ) {
+        /* Metadata does not exist yet, we'll have to wait for a set_zones call */
+        if ( errno == ENOENT ) {
+            return 0;
+        }
+        ret = -errno;
+        zbc_error("%s: open metadata file %s failed %d (%s)\n",
+                  fdev->dev.zbd_filename,
+                  meta_path,
+                  errno,
+                  strerror(errno));
+        goto out;
+    }
+
+    if ( fstat(fdev->zbd_meta_fd, &st) < 0 ) {
+        zbc_error("%s: fstat metadata file %s failed %d (%s)\n",
+                  fdev->dev.zbd_filename,
+                  meta_path,
+                  errno,
+                  strerror(errno));
+        ret = -errno;
+        goto out;
+    }
+
+    /* mmap metadata file */
+    fdev->zbd_meta_size = st.st_size;
+    fdev->zbd_meta = mmap(NULL,
+                          fdev->zbd_meta_size,
+                          PROT_READ | PROT_WRITE,
+                          MAP_SHARED,
+                          fdev->zbd_meta_fd,
+                          0);
+    if ( fdev->zbd_meta == MAP_FAILED ) {
+        fdev->zbd_meta = NULL;
+        zbc_error("%s: mmap metadata file %s failed\n",
                   fdev->dev.zbd_filename,
                   meta_path);
+        ret = -ENOMEM;
+        goto out;
+    }
+    fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
+    fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
 
-        fdev->zbd_meta_fd = open(meta_path, O_RDWR);
-        if (fdev->zbd_meta_fd < 0) {
-                /*
-                 * Metadata didn't exist yet, we'll have to wait for a set_zones
-                 * call.
-                 */
-                if (errno == ENOENT)
-                        return 0;
-                perror("open metadata");
-                error = -errno;
-                goto out_close;
+    /* Check */
+    if ( (fdev->zbd_meta->zbd_capacity != (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
+         || (! fdev->zbd_meta->zbd_nr_zones) ) {
+        zbc_error("%s: invalid metadata file %s\n",
+                  fdev->dev.zbd_filename,
+                  meta_path);
+        ret = -EINVAL;
+        goto out;
+    }
+
+#if 0
+    /* Make sure all open zones are closed */
+    for(i = 0; i < fdev->zbd_nr_zones; i++) {
+        if ( zbc_zone_is_open(&fdev->zbd_zones[i]) ) {
+            fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
         }
+    }
+    fdev->zbd_meta->zbd_nr_exp_open_zones = 0;
+    fdev->zbd_meta->zbd_nr_imp_open_zones = 0;
+#endif
+    
+    ret = 0;
+    
+out:
 
-        if (fstat(fdev->zbd_meta_fd, &st) < 0) {
-                perror("fstat");
-                error = -errno;
-                goto out_close;
-        }
+    if ( ret != 0 ) {
+        zbc_fake_close_metadata(fdev);
+    }
 
-        fdev->zbd_zones = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
-                                MAP_SHARED, fdev->zbd_meta_fd, 0);
-        if (fdev->zbd_zones == MAP_FAILED) {
-                perror("mmap\n");
-                error = -ENOMEM;
-                goto out_close;
-        }
-
-        for (i = 0; fdev->zbd_zones[i].zbz_length != 0; i++)
-                ;
-
-        fdev->zbd_nr_zones = i;
-        return 0;
-out_close:
-        close(fdev->zbd_meta_fd);
-        return error;
+    return ret;
 }
 
 /**
- * Default to regular sector size for emulation on top of a regular file.
- */
-#define ZBC_FAKE_SECTOR_SIZE    512
-
-static int
-zbc_fake_get_info(struct zbc_device *dev, struct stat *st)
-{
-
-    dev->zbd_info.zbd_logical_block_size = ZBC_FAKE_SECTOR_SIZE;
-    dev->zbd_info.zbd_logical_blocks = st->st_size / ZBC_FAKE_SECTOR_SIZE;
-    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
-    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
-
-    strncpy(dev->zbd_info.zbd_vendor_id, "FAKE HGST HM libzbc", ZBC_DEVICE_INFO_LENGTH - 1);
-
-    return( 0 );
-
-}
-
-/**
- * Get a block device information (capacity & sector sizes).
+ * Set a device info.
  */
 static int
-zbc_blkdev_get_info(zbc_device_t *dev)
+zbc_fake_set_info(struct zbc_device *dev)
 {
     unsigned long long size64;
+    struct stat st;
     int size32;
     int ret;
 
-    /* Get logical block size */
-    ret = ioctl(dev->zbd_fd, BLKSSZGET, &size32);
-    if ( ret != 0 ) {
+    /* Get device stats */
+    if ( fstat(dev->zbd_fd, &st) < 0 ) {
         ret = -errno;
-        zbc_error("%s: ioctl BLKSSZGET failed %d (%s)\n",
+        zbc_error("%s: stat failed %d (%s)\n",
                   dev->zbd_filename,
                   errno,
                   strerror(errno));
-        goto out;
+        return ret;
     }
 
-    dev->zbd_info.zbd_logical_block_size = size32;
+    if ( S_ISBLK(st.st_mode) ) {
 
-    /* Get physical block size */
-    ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
-    if ( ret != 0 ) {
-        ret = -errno;
-        zbc_error("%s: ioctl BLKPBSZGET failed %d (%s)\n",
-                  dev->zbd_filename,
-                  errno,
-                  strerror(errno));
-        goto out;
-    }
-    dev->zbd_info.zbd_physical_block_size = size32;
+        /* Get logical block size */
+        ret = ioctl(dev->zbd_fd, BLKSSZGET, &size32);
+        if ( ret != 0 ) {
+            ret = -errno;
+            zbc_error("%s: ioctl BLKSSZGET failed %d (%s)\n",
+                      dev->zbd_filename,
+                      errno,
+                      strerror(errno));
+            return ret;
+        }
 
-    /* Get capacity (B) */
-    ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
-    if ( ret != 0 ) {
-        ret = -errno;
-        zbc_error("%s: ioctl BLKGETSIZE64 failed %d (%s)\n",
-                  dev->zbd_filename,
-                  errno,
-                  strerror(errno));
-        goto out;
+        dev->zbd_info.zbd_logical_block_size = size32;
+
+        /* Get physical block size */
+        ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
+        if ( ret != 0 ) {
+            ret = -errno;
+            zbc_error("%s: ioctl BLKPBSZGET failed %d (%s)\n",
+                      dev->zbd_filename,
+                      errno,
+                      strerror(errno));
+            return ret;
+        }
+        dev->zbd_info.zbd_physical_block_size = size32;
+
+        /* Get capacity (B) */
+        ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
+        if ( ret != 0 ) {
+            ret = -errno;
+            zbc_error("%s: ioctl BLKGETSIZE64 failed %d (%s)\n",
+                      dev->zbd_filename,
+                      errno,
+                      strerror(errno));
+            return ret;
+        }
+        
+    } else if ( S_ISREG(st.st_mode) ) {
+
+        /* Default value for files */
+        dev->zbd_info.zbd_logical_block_size = ZBC_FAKE_FILE_SECTOR_SIZE;
+        dev->zbd_info.zbd_logical_blocks = st.st_size / ZBC_FAKE_FILE_SECTOR_SIZE;
+        dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size;
+        dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks;
+
+    } else {
+
+        return -ENXIO;
+
     }
 
     /* Check */
@@ -176,586 +335,940 @@ zbc_blkdev_get_info(zbc_device_t *dev)
         zbc_error("%s: invalid logical sector size %d\n",
                   dev->zbd_filename,
                   size32);
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
-
+    
     dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
         zbc_error("%s: invalid capacity (logical blocks)\n",
                   dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     if ( dev->zbd_info.zbd_physical_block_size <= 0 ) {
         zbc_error("%s: invalid physical sector size %d\n",
                   dev->zbd_filename,
                   size32);
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
     if ( ! dev->zbd_info.zbd_physical_blocks ) {
         zbc_error("%s: invalid capacity (physical blocks)\n",
                   dev->zbd_filename);
-        ret = -EINVAL;
+        return -EINVAL;
+    }
+
+    /* Finish setting */
+    dev->zbd_info.zbd_type = ZBC_DT_FAKE;
+    dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+    strncpy(dev->zbd_info.zbd_vendor_id, "FAKE HGST HM libzbc", ZBC_DEVICE_INFO_LENGTH - 1);
+
+    dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
+    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = 0;
+    dev->zbd_info.zbd_max_nr_open_seq_req = ZBC_FAKE_MAX_OPEN_NR_ZONES;
+
+    return 0;
+
+}
+
+/**
+ * Open an emulation device or file.
+ */
+static int
+zbc_fake_open(const char *filename,
+              int flags,
+              struct zbc_device **pdev)
+{
+    zbc_fake_device_t *fdev;
+    int fd, ret;
+
+    /* Open emulation device/file */
+    fd = open(filename, flags);
+    if ( fd < 0 ) {
+        ret = -errno;
+        zbc_error("%s: open failed %d (%s)\n",
+                  filename,
+                  errno,
+                  strerror(errno));
+        return ret;
+    }
+
+    /* ALlocate a handle */
+    ret = -ENOMEM;
+    fdev = calloc(1, sizeof(*fdev));
+    if ( ! fdev ) {
+        goto out;
+    }
+
+    fdev->dev.zbd_fd = fd;
+    fdev->zbd_meta_fd = -1;
+    fdev->dev.zbd_filename = strdup(filename);
+    if ( ! fdev->dev.zbd_filename ) {
+        goto out_free_dev;
+    }
+
+    /* Set the fake device information */
+    ret = zbc_fake_set_info(&fdev->dev);
+    if ( ret != 0 ) {
+        goto out_free_filename;
+    }
+
+    /* Open metadata */
+    ret = zbc_fake_open_metadata(fdev);
+    if ( ret ) {
+        goto out_free_filename;
+    }
+
+    pthread_mutex_init(&fdev->mutex, NULL);
+
+    *pdev = &fdev->dev;
+
+    return 0;
+
+out_free_filename:
+
+    free(fdev->dev.zbd_filename);
+
+out_free_dev:
+
+    free(fdev);
+
+out:
+
+    close(fd);
+
+    return ret;
+
+}
+
+/**
+ * close a device.
+ */
+static int
+zbc_fake_close(zbc_device_t *dev)
+{
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    int ret = 0;
+
+    /* CLose metadata */
+    zbc_fake_close_metadata(fdev);
+
+    /* Close device */
+    if ( close(dev->zbd_fd) < 0 ) {
+        ret = -errno;
+    }
+
+    if ( ret == 0 ) {
+        free(dev->zbd_filename);
+        free(dev);
+    }
+
+    return ret;
+
+}
+
+/**
+ * Test if a zone must be reported.
+ */
+static bool
+zbc_fake_must_report_zone(struct zbc_zone *zone,
+                          uint64_t start_lba,
+                          enum zbc_reporting_options options)
+{
+
+    if ( (zbc_zone_length(zone) == 0)
+         || (zbc_zone_start_lba(zone) < start_lba) ) {
+        return false;
+    }
+
+    switch( options ) {
+    case ZBC_RO_ALL:
+        return true;
+    case ZBC_RO_EMPTY:
+        return zbc_zone_empty(zone);
+    case ZBC_RO_IMP_OPEN:
+        return zbc_zone_imp_open(zone);
+    case ZBC_RO_EXP_OPEN:
+        return zbc_zone_exp_open(zone);
+    case ZBC_RO_CLOSED:
+        return zbc_zone_closed(zone);
+    case ZBC_RO_FULL:
+        return zbc_zone_full(zone);
+    case ZBC_RO_RDONLY:
+        return zbc_zone_rdonly(zone);
+    case ZBC_RO_OFFLINE:
+        return zbc_zone_offline(zone);
+    case ZBC_RO_RESET:
+        return zbc_zone_need_reset(zone);
+    case ZBC_RO_NON_SEQ:
+        return zbc_zone_non_seq(zone);
+    case ZBC_RO_NOT_WP:
+        return zbc_zone_not_wp(zone);
+    }
+
+    return false;
+
+}
+
+/**
+ * Get device zone information.
+ */
+static int
+zbc_fake_report_zones(struct zbc_device *dev,
+                      uint64_t start_lba,
+                      enum zbc_reporting_options options,
+                      struct zbc_zone *zones,
+                      unsigned int *nr_zones)
+{
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    unsigned int max_nr_zones = *nr_zones;
+    unsigned int in, out = 0;
+
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
+
+    pthread_mutex_lock(&fdev->mutex);
+
+    if ( ! zones ) {
+
+        /* Only get the number of matching zones */
+        for(in = 0; in < fdev->zbd_nr_zones; in++) {
+            if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
+                out++;
+            }
+        }
+
+    } else {
+
+        /* Get matching zones */
+        for(in = 0; in < fdev->zbd_nr_zones; in++) {
+            if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
+                memcpy(&zones[out], &fdev->zbd_zones[in], sizeof(struct zbc_zone));
+                if ( ++out == max_nr_zones ) {
+                    break;
+                }
+            }
+        }
+
+    }
+
+    *nr_zones = out;
+
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return 0;
+
+}
+
+/**
+ * Open zone(s).
+ */
+static int
+zbc_fake_open_zone(zbc_device_t *dev,
+                   uint64_t start_lba)
+{
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    unsigned int i, open_count, need_close;
+    int ret = 0;
+
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
+
+    pthread_mutex_lock(&fdev->mutex);
+
+    if ( start_lba == (uint64_t)-1 ) {
+
+        unsigned int need_open = 0;
+
+        /* Count how many zones can be open */
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( zbc_zone_closed(&fdev->zbd_zones[i]) ) {
+                need_open++;
+            }
+        }
+
+        /* Check that all closed zones can be open */
+        if ( (need_open + fdev->zbd_meta->zbd_nr_exp_open_zones) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+            ret = -EBUSY;
+            goto out;
+        }
+
+        /* Open all closed zones */
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( zbc_zone_closed(&fdev->zbd_zones[i]) ) {
+                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_EXP_OPEN;
+            }
+        }
+        fdev->zbd_meta->zbd_nr_exp_open_zones += need_open;
+
+    } else {
+        
+        struct zbc_zone *zone;
+
+        /* Check limit */
+        if ( (fdev->zbd_meta->zbd_nr_exp_open_zones + 1) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+            ret = -EBUSY;
+            goto out;
+        }
+
+        /* Open the specified zone */
+        zone = zbf_fake_find_zone(fdev, start_lba);
+        if ( zbc_zone_closed(zone)
+             || zbc_zone_imp_open(zone)
+             || zbc_zone_empty(zone) ) {
+            zone->zbz_condition = ZBC_ZC_EXP_OPEN;
+            fdev->zbd_meta->zbd_nr_exp_open_zones++;
+        } else {
+            ret = -EIO;
+        }
+
+    }
+
+    /* Close implicitely open zones */
+    open_count = fdev->zbd_meta->zbd_nr_imp_open_zones + fdev->zbd_meta->zbd_nr_exp_open_zones;
+    if ( open_count > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+
+        need_close = open_count - fdev->dev.zbd_info.zbd_max_nr_open_seq_req;
+        for(i = 0; (i < fdev->zbd_nr_zones) && need_close; i++) {
+            if ( zbc_zone_imp_open(&fdev->zbd_zones[i]) ) {
+                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
+                need_close--;
+            }
+        }
+
+        if ( need_close ) {
+            zbc_error("%s: invalid implicit open zone count\n",
+                      fdev->dev.zbd_filename);
+            ret = -EINVAL;
+            goto out;
+        }
+        
+        fdev->zbd_meta->zbd_nr_imp_open_zones -= need_close;
+
     }
 
 out:
 
-    return( ret );
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
 
 }
 
-static int
-zbc_fake_open(const char *filename, int flags, struct zbc_device **pdev)
-{
-        struct zbc_fake_device *fdev;
-        struct stat st;
-        int fd, ret;
-
-        fd = open(filename, flags);
-        if (fd < 0) {
-                zbc_error("Open device file %s failed %d (%s)\n",
-                        filename,
-                        errno,
-                        strerror(errno));
-                return -errno;
-        }
-
-        if (fstat(fd, &st) < 0) {
-                zbc_error("Stat device %s failed %d (%s)\n",
-                        filename,
-                        errno,
-                        strerror(errno));
-                ret = -errno;
-                goto out;
-        }
-
-
-        /* Set device operation */
-        ret = -ENXIO;
-        if (!S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode))
-                goto out;
-
-        ret = -ENOMEM;
-        fdev = calloc(1, sizeof(*fdev));
-        if (!fdev)
-                goto out;
-
-        fdev->dev.zbd_fd = fd;
-        fdev->zbd_meta_fd = -1;
-        fdev->dev.zbd_filename = strdup(filename);
-        if (!fdev->dev.zbd_filename)
-                goto out_free_dev;
-
-        fdev->dev.zbd_info.zbd_type = ZBC_DT_FAKE;
-        fdev->dev.zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-        if (S_ISBLK(st.st_mode))
-                ret = zbc_blkdev_get_info(&fdev->dev);
-        else
-                ret = zbc_fake_get_info(&fdev->dev, &st);
-
-        if (ret)
-                goto out_free_filename;
-
-        ret = zbc_fake_open_metadata(fdev);
-        if (ret)
-                goto out_free_filename;
-
-	pthread_mutex_init(&fdev->mutex, NULL);
-
-        *pdev = &fdev->dev;
-        return 0;
-
-out_free_filename:
-        free(fdev->dev.zbd_filename);
-out_free_dev:
-        free(fdev);
-out:
-        close(fd);
-        return ret;
-}
-
-static int
-zbc_fake_close(zbc_device_t *dev)
-{
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-        int ret = 0;
-
-        if (fdev->zbd_meta_fd != -1) {
-                if (close(fdev->zbd_meta_fd) < 0)
-                        ret = -errno;
-        }
-        if (close(dev->zbd_fd) < 0) {
-                if (!ret)
-                        ret = -errno;
-        }
-
-        if (!ret) {
-                free(dev->zbd_filename);
-                free(dev);
-        }
-        return ret;
-}
-
+/**
+ * Test if a zone can be closed.
+ */
 static bool
-want_zone(struct zbc_zone *zone, uint64_t start_lba,
-                enum zbc_reporting_options options)
+zbc_zone_close_allowed(struct zbc_zone *zone)
 {
-        if (zone->zbz_length == 0)
-                return false;
-        if (zone->zbz_start < start_lba)
-                return false;
 
-        switch (options) {
-        case ZBC_RO_ALL:
-                return true;
-        case ZBC_RO_EMPTY:
-                return zone->zbz_condition == ZBC_ZC_EMPTY;
-        case ZBC_RO_IMP_OPEN:
-                return zone->zbz_condition == ZBC_ZC_IMP_OPEN;
-        case ZBC_RO_EXP_OPEN:
-                return zone->zbz_condition == ZBC_ZC_EXP_OPEN;
-        case ZBC_RO_CLOSED:
-                return zone->zbz_condition == ZBC_ZC_CLOSED;
-        case ZBC_RO_FULL:
-                return zone->zbz_condition == ZBC_ZC_FULL;
-        case ZBC_RO_RDONLY:
-                return zone->zbz_condition == ZBC_ZC_RDONLY;
-        case ZBC_RO_OFFLINE:
-                return zone->zbz_condition == ZBC_ZC_OFFLINE;
-        case ZBC_RO_RESET:
-                return zbc_zone_need_reset(zone);
-        case ZBC_RO_NON_SEQ:
-                return zbc_zone_non_seq(zone);
-        case ZBC_RO_NOT_WP:
-                return zone->zbz_condition == ZBC_ZC_NOT_WP;
-        default:
-                return false;
-        }
+    if ( zone && zbc_zone_sequential(zone) ) {
+        return zbc_zone_imp_open(zone)
+               || zbc_zone_exp_open(zone);
+    }
+
+    return false;
+
 }
 
+/**
+ * Close zone(s).
+ */
 static int
-zbc_fake_nr_zones(struct zbc_fake_device *fdev, uint64_t start_lba,
-                  enum zbc_reporting_options options, unsigned int *nr_zones)
+zbc_fake_close_zone(zbc_device_t *dev,
+                    uint64_t start_lba)
 {
-        unsigned int in, out;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    int ret = 0;
 
-        out = 0;
-        for (in = 0; in < fdev->zbd_nr_zones; in++) {
-                if (want_zone(&fdev->zbd_zones[in], start_lba, options))
-                        out++;
+    if ( ! fdev->zbd_zones ) {
+        return -ENXIO;
+    }
+
+    pthread_mutex_lock(&fdev->mutex);
+
+    if ( start_lba == (uint64_t)-1 ) {
+
+        unsigned int i;
+
+        /* Close all open zones */
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( zbc_zone_close_allowed(&fdev->zbd_zones[i]) ) {
+                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
+            }
         }
 
-        *nr_zones = out;
+    } else {
+        
+        struct zbc_zone *zone;
 
-        return 0;
+        /* Close the specified zone */
+        zone = zbf_fake_find_zone(fdev, start_lba);
+        if ( zbc_zone_close_allowed(zone) ) {
+            zone->zbz_condition = ZBC_ZC_CLOSED;
+        } else {
+            ret = -EIO;
+        }
+
+    }
+
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
 
 }
 
+/**
+ * Test if a zone can be finished.
+ */
+static bool
+zbc_zone_finish_allowed(struct zbc_zone *zone)
+{
+
+    if ( zone && zbc_zone_sequential(zone) ) {
+        return zbc_zone_imp_open(zone)
+               || zbc_zone_exp_open(zone)
+               || zbc_zone_closed(zone);
+    }
+
+    return false;
+
+}
+
+/**
+ * Finish zone(s).
+ */
 static int
-zbc_fake_report_zones(struct zbc_device *dev, uint64_t start_lba,
-                      enum zbc_reporting_options options, struct zbc_zone *zones,
-                      unsigned int *nr_zones)
+zbc_fake_finish_zone(zbc_device_t *dev,
+                     uint64_t start_lba)
 {
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-        unsigned int max_nr_zones = *nr_zones;
-        unsigned int in, out;
-        int ret;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    int ret = 0;
 
-        if (!fdev->zbd_zones)
-                return -ENXIO;
+    if ( ! fdev->zbd_zones ) {
+        return -ENXIO;
+    }
 
-	pthread_mutex_lock(&fdev->mutex);
-        if (!zones) {
-                ret = zbc_fake_nr_zones(fdev, start_lba, options, nr_zones);
-		goto out_unlock;
-	}
+    pthread_mutex_lock(&fdev->mutex);
 
-        out = 0;
-        for (in = 0; in < fdev->zbd_nr_zones; in++) {
-                if (want_zone(&fdev->zbd_zones[in], start_lba, options)) {
-                        memcpy(&zones[out], &fdev->zbd_zones[in],
-                                sizeof(struct zbc_zone));
-                        if (++out == max_nr_zones)
-                                break;
-                }
+    if ( start_lba == (uint64_t)-1 ) {
+
+        unsigned int i;
+
+        /* Finish all open and closed zones */
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( zbc_zone_finish_allowed(&fdev->zbd_zones[i]) ) {
+                fdev->zbd_zones[i].zbz_write_pointer = (uint64_t)-1;
+                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_FULL;
+            }
         }
 
-        *nr_zones = out;
-	ret = 0;
+    } else {
+        
+        struct zbc_zone *zone;
 
-out_unlock:
+        /* Finish the specified zone */
+        zone = zbf_fake_find_zone(fdev, start_lba);
+        if ( zbc_zone_finish_allowed(zone) ) {
+            zone->zbz_write_pointer = (uint64_t)-1;
+            zone->zbz_condition = ZBC_ZC_FULL;
+        } else {
+            ret = -EIO;
+        }
 
-	pthread_mutex_unlock(&fdev->mutex);
+    }
 
-        return ret;
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
 
 }
 
+/**
+ * Test if a zone write pointer can be reset.
+ */
 static bool
 zbc_zone_reset_allowed(struct zbc_zone *zone)
 {
-        switch (zone->zbz_type) {
-        case ZBC_ZT_SEQUENTIAL_REQ:
-        case ZBC_ZT_SEQUENTIAL_PREF:
-                return zone->zbz_condition == ZBC_ZC_CLOSED ||
-                        zone->zbz_condition == ZBC_ZC_FULL;
-        default:
-                return false;
+
+    if ( zone && zbc_zone_sequential(zone) ) {
+        return zbc_zone_imp_open(zone)
+               || zbc_zone_exp_open(zone)
+               || zbc_zone_closed(zone)
+               || zbc_zone_full(zone);
+    }
+
+    return false;
+
+}
+
+/**
+ * Reset zone(s) write pointer.
+ */
+static int
+zbc_fake_reset_wp(struct zbc_device *dev,
+                  uint64_t start_lba)
+{
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    int ret = 0;
+
+    if ( ! fdev->zbd_zones ) {
+        return -ENXIO;
+    }
+
+    pthread_mutex_lock(&fdev->mutex);
+
+    if ( start_lba == (uint64_t)-1 ) {
+
+        unsigned int i;
+
+        /* Reset all open, closed and full zones */
+        for(i = 0; i < fdev->zbd_nr_zones; i++) {
+            if ( zbc_zone_reset_allowed(&fdev->zbd_zones[i]) ) {
+                zbc_zone_wp_lba_reset(&fdev->zbd_zones[i]);
+            }
         }
-}
 
-static int
-zbc_fake_reset_one_write_pointer(struct zbc_zone *zone)
-{
-        if (!zbc_zone_reset_allowed(zone))
-                return -EINVAL;
-        zone->zbz_write_pointer = zone->zbz_start;
-        zone->zbz_condition = ZBC_ZC_EMPTY;
-        return 0;
-}
-
-static int
-zbc_fake_reset_wp(struct zbc_device *dev, uint64_t zone_start_lba)
-{
-        struct zbc_fake_device *fdev = to_file_dev(dev);
+    } else {
+        
         struct zbc_zone *zone;
-	int ret;
 
-        if (!fdev->zbd_zones)
-                return -ENXIO;
-
-	pthread_mutex_lock(&fdev->mutex);
-        if (zone_start_lba == (uint64_t)-1) {
-                unsigned int i;
-
-                for (i = 0; i < fdev->zbd_nr_zones; i++)
-                        zbc_fake_reset_one_write_pointer(&fdev->zbd_zones[i]);
+        /* Reset the specified zone */
+        zone = zbf_fake_find_zone(fdev, start_lba);
+        if ( zbc_zone_reset_allowed(zone) ) {
+            zbc_zone_wp_lba_reset(zone);
         } else {
-                zone = zbf_fake_find_zone(fdev, zone_start_lba);
-                if (!zone) {
-                        ret = -EIO;
-			goto out_unlock;
-		}
-
-                /* XXX(hch): reject for conventional zones? */
-
-                zbc_fake_reset_one_write_pointer(zone);
+            ret = -EIO;
         }
 
-	ret = 0;
+    }
 
-out_unlock:
+    pthread_mutex_unlock(&fdev->mutex);
 
-	pthread_mutex_unlock(&fdev->mutex);
-
-        return ret;
+    return ret;
 
 }
 
+/**
+ * Read from the emulated device/file.
+ */
 static int32_t
-zbc_fake_pread(struct zbc_device *dev, struct zbc_zone *zone, void *buf,
-               uint32_t lba_count, uint64_t start_lba)
+zbc_fake_pread(struct zbc_device *dev,
+               struct zbc_zone *z,
+               void *buf,
+               uint32_t lba_count,
+               uint64_t start_lba)
 {
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-        off_t offset;
-        size_t count;
-	ssize_t ret;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    struct zbc_zone *zone;
+    ssize_t ret = -EIO;
+    off_t offset;
+    size_t count;
 
-        if (!fdev->zbd_zones)
-                return -ENXIO;
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
 
-        ret = -EIO;
-	pthread_mutex_lock(&fdev->mutex);
-        if (start_lba > zone->zbz_length)
-		goto out_unlock;
-        start_lba += zone->zbz_start;
+    pthread_mutex_lock(&fdev->mutex);
 
-        /* Note: unrestricted read will be added to the standard */
-        /* and supported by a drive if the URSWRZ bit is set in  */
-        /* VPD page. So this test will need to change.           */
-        if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
-                /* Cannot read unwritten data */
-                if (start_lba + lba_count > zone->zbz_write_pointer)
-			goto out_unlock;
-        } else {
-                /* Reads spanning other types of zones are OK. */
-                if (start_lba + lba_count > zone->zbz_start + zone->zbz_length) {
-                        uint64_t lba = zbc_zone_end_lba(zone) + 1;
-                        uint64_t count = start_lba + lba_count - lba;
-                        struct zbc_zone *next_zone = zone;
-                        while( count && (next_zone = zbf_fake_find_zone(fdev, lba)) ) {
-                                if (next_zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
-					goto out_unlock;
-                                if ( count > next_zone->zbz_length )
-                                        count -= next_zone->zbz_length;
-                                lba += next_zone->zbz_length;
-                        }
+    /* Find the target zone */
+    zone = zbf_fake_find_zone(fdev, zbc_zone_start_lba(z));
+    if ( ! zone ) {
+        goto out;
+    }
+
+    if ( start_lba > zbc_zone_length(zone) ) {
+        goto out;
+    }
+
+    start_lba += zbc_zone_start_lba(zone);
+
+    /* Note: unrestricted read will be added to the standard */
+    /* and supported by a drive if the URSWRZ bit is set in  */
+    /* VPD page. So this test will need to change.           */
+    if ( zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ ) {
+
+        /* Cannot read unwritten data */
+        if ( (start_lba + lba_count) > zbc_zone_wp_lba(zone) ) {
+            goto out;
+        }
+
+    } else {
+
+        /* Reads spanning other types of zones are OK. */
+        uint64_t lba = zbc_zone_next_lba(zone);
+
+        if ( (start_lba + lba_count) > lba ) {
+
+            uint64_t count = start_lba + lba_count - lba;
+            struct zbc_zone *next_zone = zone;
+
+            while( count && (next_zone = zbf_fake_find_zone(fdev, lba)) ) {
+                if ( zbc_zone_sequential_req(next_zone) ) {
+                    goto out;
                 }
+                if ( count > zbc_zone_length(next_zone) ) {
+                    count -= zbc_zone_length(next_zone);
+                }
+                lba += zbc_zone_length(next_zone);
+            }
+
         }
-	pthread_mutex_unlock(&fdev->mutex);
 
-        /* XXX: check for overflows */
-        count = lba_count * dev->zbd_info.zbd_logical_block_size;
-        offset = start_lba * dev->zbd_info.zbd_logical_block_size;
+    }
 
-        ret = pread(dev->zbd_fd, buf, count, offset);
-        if (ret < 0)
-                return -errno;
+    /* XXX: check for overflows */
+    count = lba_count * dev->zbd_info.zbd_logical_block_size;
+    offset = start_lba * dev->zbd_info.zbd_logical_block_size;
 
-        return ret / dev->zbd_info.zbd_logical_block_size;
+    ret = pread(dev->zbd_fd, buf, count, offset);
+    if ( ret < 0 ) {
+        ret = -errno;
+    } else {
+        ret /= dev->zbd_info.zbd_logical_block_size;
+    }
 
-out_unlock:
-	pthread_mutex_unlock(&fdev->mutex);
-        return ret;
+out:
+
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
+
 }
 
+/**
+ * Write to the emulated device/file.
+ */
 static int32_t
-zbc_fake_pwrite(struct zbc_device *dev, struct zbc_zone *z, const void *buf,
-                uint32_t lba_count, uint64_t start_lba)
+zbc_fake_pwrite(struct zbc_device *dev,
+                struct zbc_zone *z,
+                const void *buf,
+                uint32_t lba_count,
+                uint64_t start_lba)
 {
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-        struct zbc_zone *zone;
-        off_t offset;
-        size_t count;
-	ssize_t ret = -EIO;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    struct zbc_zone *zone;
+    off_t offset;
+    size_t count;
+    ssize_t ret = -EIO;
 
-        if (!fdev->zbd_zones)
-                return -ENXIO;
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
 
-	pthread_mutex_lock(&fdev->mutex);
+    pthread_mutex_lock(&fdev->mutex);
 
-        zone = zbf_fake_find_zone(fdev, z->zbz_start);
-        if (!zone)
-                goto out_unlock;
+    /* Find the target zone */
+    zone = zbf_fake_find_zone(fdev, zbc_zone_start_lba(z));
+    if ( ! zone ) {
+        goto out;
+    }
 
-        if (start_lba > zone->zbz_length)
-                goto out_unlock;
-        start_lba += zone->zbz_start;
+    /* Writes cannot span zones */
+    if ( start_lba > zbc_zone_length(zone) ) {
+        goto out;
+    }
 
-        if (zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ) {
-                /* Can only write at the write pointer */
-                if (start_lba != zone->zbz_write_pointer)
-                        goto out_unlock;
+    start_lba += zone->zbz_start;
+
+    if ( (start_lba + lba_count) > zbc_zone_next_lba(zone) ) {
+        goto out;
+    }
+
+    if ( zbc_zone_sequential_req(zone) ) {
+
+        /* Can only write at the write pointer */
+        if ( start_lba != zbc_zone_wp_lba(zone) ) {
+            goto out;
         }
 
-        /* Writes cannot span zones */
-        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
-                if (zone->zbz_write_pointer + lba_count >
-                    zone->zbz_start + zone->zbz_length)
-                        goto out_unlock;
-        } else {
-                if (start_lba + lba_count >
-                    zone->zbz_start + zone->zbz_length)
-                        goto out_unlock;
+        /* Can only write an open zone */
+        if ( ! zbc_zone_is_open(zone) ) {
+
+            if ( fdev->zbd_meta->zbd_nr_exp_open_zones >= fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+                /* Too many explicit open on-going */
+                ret = -EBUSY;
+                goto out;
+            }
+
+            /* Implicitely open the zone */
+            if ( fdev->zbd_meta->zbd_nr_imp_open_zones >= fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+                unsigned int i;
+                for(i = 0; i < fdev->zbd_nr_zones; i++) {
+                    if ( zbc_zone_imp_open(&fdev->zbd_zones[i]) ) {
+                        fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
+                        fdev->zbd_meta->zbd_nr_imp_open_zones--;
+                        break;
+                    }
+                }
+            }
+
+            zone->zbz_condition = ZBC_ZC_IMP_OPEN;
+            fdev->zbd_meta->zbd_nr_imp_open_zones++;
+
         }
 
-        /* XXX: check for overflows */
-        count = (size_t)lba_count * dev->zbd_info.zbd_logical_block_size;
-        offset = start_lba * dev->zbd_info.zbd_logical_block_size;
+    }
 
-        ret = pwrite(dev->zbd_fd, buf, count, offset);
-        if (ret < 0) {
-                ret = -errno;
-		goto out_unlock;
-	}
+    /* XXX: check for overflows */
+    count = (size_t)lba_count * dev->zbd_info.zbd_logical_block_size;
+    offset = start_lba * dev->zbd_info.zbd_logical_block_size;
+
+    ret = pwrite(dev->zbd_fd, buf, count, offset);
+    if ( ret < 0 ) {
+
+        ret = -errno;
+
+    } else {
 
         ret /= dev->zbd_info.zbd_logical_block_size;
 
-        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
-                /*
-                * XXX: What protects us from a return value that's not LBA aligned?
-                * (Except for hoping the OS implementation isn't insane..)
-                */
-                if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
-                        zone->zbz_condition = ZBC_ZC_FULL;
-                else
-                        zone->zbz_condition = ZBC_ZC_CLOSED;
+        if ( zbc_zone_sequential_req(zone) ) {
 
-		/* write pointer in z is advanced on return of this function in zbc.c */
-		memcpy(z, zone, sizeof(*z));
+            /*
+             * XXX: What protects us from a return value that's not LBA aligned?
+             * (Except for hoping the OS implementation isn't insane..)
+             */
+            if ( (zbc_zone_wp_lba(zone) + lba_count) >= zbc_zone_next_lba(zone) ) {
+                if ( zbc_zone_imp_open(zone) ) {
+                    fdev->zbd_meta->zbd_nr_imp_open_zones--;
+                } else {
+                    fdev->zbd_meta->zbd_nr_exp_open_zones--;
+                }
+            }
 
-		/* Advance write pointer */
-                zone->zbz_write_pointer += ret;
+            /* Advance write pointer */
+            zbc_zone_wp_lba_inc(zone, lba_count);
 
         }
 
-out_unlock:
+    }
 
-	pthread_mutex_unlock(&fdev->mutex);
+out:
 
-        return ret;
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
 
 }
 
+/**
+ * Flush the emulated device data and metadata.
+ */
 static int
-zbc_fake_flush(struct zbc_device *dev, uint64_t lba_offset, uint32_t lba_count,
-                int immediate)
+zbc_fake_flush(struct zbc_device *dev,
+               uint64_t lba_offset,
+               uint32_t lba_count,
+               int immediate)
 {
-        return fsync(dev->zbd_fd);
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    int ret;
+
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
+    
+    ret = msync(fdev->zbd_meta, fdev->zbd_meta_size, MS_SYNC);
+    if ( ret == 0 ) {
+        ret = fsync(dev->zbd_fd);
+    }
+
+    return ret;
+
 }
 
+/**
+ * Initialize an emulated device metadata.
+ */
 static int
-zbc_fake_set_zones(struct zbc_device *dev, uint64_t conv_zone_size,
+zbc_fake_set_zones(struct zbc_device *dev,
+                   uint64_t conv_zone_size,
                    uint64_t seq_zone_size)
 {
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-	uint64_t device_size = dev->zbd_info.zbd_logical_blocks;
-        char meta_path[512];
-        struct stat st;
-        off_t len;
-        int error;
-        off_t start = 0;
-        unsigned int z = 0;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    uint64_t lba = 0, device_size = dev->zbd_info.zbd_logical_blocks;
+    zbc_fake_meta_t fmeta;
+    char meta_path[512];
+    struct zbc_zone *zone;
+    unsigned int z = 0;
+    int ret;
 
-        if (fstat(dev->zbd_fd, &st) < 0) {
-                perror("fstat");
-                return -errno;
+    pthread_mutex_unlock(&fdev->mutex);
+
+    /* Initialize meta */
+    memset(&fmeta, 0, sizeof(zbc_fake_meta_t));
+    fmeta.zbd_capacity = device_size * dev->zbd_info.zbd_logical_block_size;
+
+    /* Convert device size into # of physical blocks */
+    if ( (conv_zone_size + seq_zone_size) > device_size ) {
+        zbc_error("%s: invalid zone sizes (too large)\n",
+                  fdev->dev.zbd_filename);
+        ret = -EINVAL;
+        goto out_unlock;
+    }
+
+    fmeta.zbd_nr_conv_zones = conv_zone_size / seq_zone_size;
+    if ( conv_zone_size && (! fmeta.zbd_nr_conv_zones) ) {
+        fmeta.zbd_nr_conv_zones = 1;
+    }
+
+    fmeta.zbd_nr_seq_zones = (device_size - (fmeta.zbd_nr_conv_zones * seq_zone_size)) / seq_zone_size;
+    if ( ! fmeta.zbd_nr_seq_zones ) {
+        zbc_error("%s: invalid zone sizes (too large)\n",
+                  fdev->dev.zbd_filename);
+        ret = -EINVAL;
+        goto out_unlock;
+    }
+
+    fmeta.zbd_nr_zones = fmeta.zbd_nr_conv_zones + fmeta.zbd_nr_seq_zones;
+    fdev->zbd_nr_zones = fmeta.zbd_nr_zones;
+
+    fdev->zbd_meta_size = sizeof(zbc_fake_meta_t) + fdev->zbd_nr_zones * sizeof(struct zbc_zone);
+    if ( fdev->zbd_meta_fd < 0 ) {
+        sprintf(meta_path, "/tmp/zbc-%s.meta",
+                basename(fdev->dev.zbd_filename));
+        fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
+        if ( fdev->zbd_meta_fd < 0 ) {
+            ret = -errno;
+            zbc_error("%s: open metadata file %s failed %d (%s)\n",
+                      fdev->dev.zbd_filename,
+                      meta_path,
+                      errno,
+                      strerror(errno));
+            goto out_unlock;
         }
+    }
 
-	pthread_mutex_unlock(&fdev->mutex);
+    if ( ftruncate(fdev->zbd_meta_fd, fdev->zbd_meta_size) < 0) {
+        ret = -errno;
+        zbc_error("%s: truncate metadata file %s to %zu B failed %d (%s)\n",
+                  fdev->dev.zbd_filename,
+                  meta_path,
+                  fdev->zbd_meta_size,
+                  errno,
+                  strerror(errno));
+        goto out_close;
+    }
 
-        /* Convert device size into # of physical blocks */
-        if ( (conv_zone_size + seq_zone_size) > device_size ) {
-                printf("size: %llu + %llu > %llu\n",
-                       (unsigned long long) conv_zone_size,
-                       (unsigned long long) seq_zone_size,
-                       (unsigned long long) device_size);
-                error = -EINVAL;
-		goto out_unlock;
-        }
+    fdev->zbd_meta = mmap(NULL, fdev->zbd_meta_size, PROT_READ | PROT_WRITE, MAP_SHARED, fdev->zbd_meta_fd, 0);
+    if ( fdev->zbd_meta == MAP_FAILED ) {
+        fdev->zbd_meta = NULL;
+        zbc_error("%s: mmap metadata file %s failed\n",
+                  fdev->dev.zbd_filename,
+                  meta_path);
+        ret = -ENOMEM;
+        goto out_close;
+    }
+    fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
 
-        fdev->zbd_nr_zones =
-                (device_size - conv_zone_size + seq_zone_size - 1) /
-                 seq_zone_size;
-        if (conv_zone_size)
-                fdev->zbd_nr_zones++;
+    /* Initialize header */
+    memcpy(fdev->zbd_meta, &fmeta, sizeof(zbc_fake_meta_t));
 
-        len = (off_t)fdev->zbd_nr_zones * sizeof(struct zbc_zone);
+    /* Initialize conventional zones */
+    for(z = 0; z < fmeta.zbd_nr_conv_zones; z++) {
 
-        if (fdev->zbd_meta_fd < 0) {
-                sprintf(meta_path, "/tmp/zbc-%s.meta",
-                        basename(fdev->dev.zbd_filename));
-                fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
-                if (fdev->zbd_meta_fd < 0) {
-                        perror("open");
-                        error = -errno;
-			goto out_unlock;
-                }
-        }
+        zone = &fdev->zbd_zones[z];
 
-        if (ftruncate(fdev->zbd_meta_fd, len) < 0) {
-                perror("ftruncate");
-                error = -errno;
-                goto out_close;
-        }
+        zone->zbz_type = ZBC_ZT_CONVENTIONAL;
+        zone->zbz_condition = ZBC_ZC_NOT_WP;
+        zone->zbz_start = lba;
+        zone->zbz_length = seq_zone_size;
+        zone->zbz_write_pointer = (uint64_t)-1;
+        memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-        fdev->zbd_zones = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        fdev->zbd_meta_fd, 0);
-        if (fdev->zbd_zones == MAP_FAILED) {
-                perror("mmap");
-                error = -ENOMEM;
-                goto out_close;
-        }
+        lba += seq_zone_size;
 
-        if (conv_zone_size) {
-                struct zbc_zone *zone = &fdev->zbd_zones[z];
+    }
 
-                zone->zbz_type = ZBC_ZT_CONVENTIONAL;
-                zone->zbz_condition = ZBC_ZC_NOT_WP;
-                zone->zbz_start = start;
-                zone->zbz_write_pointer = 0;
-                zone->zbz_length = conv_zone_size;
-                zone->zbz_need_reset = false;
-                zone->zbz_non_seq = false;
-                memset(&zone->__pad, 0, sizeof(zone->__pad));
+    for (; z < fdev->zbd_nr_zones; z++) {
 
-                start += conv_zone_size;
-                z++;
-        }
+        zone = &fdev->zbd_zones[z];
 
-        for (; z < fdev->zbd_nr_zones; z++) {
-                struct zbc_zone *zone = &fdev->zbd_zones[z];
+        zone->zbz_type = ZBC_ZT_SEQUENTIAL_REQ;
+        zone->zbz_condition = ZBC_ZC_EMPTY;
 
-                zone->zbz_type = ZBC_ZT_SEQUENTIAL_REQ;
-                zone->zbz_condition = ZBC_ZC_EMPTY;
+        zone->zbz_start = lba;
+        zone->zbz_write_pointer = zone->zbz_start;
+        zone->zbz_length = seq_zone_size;
 
-                zone->zbz_start = start;
-                zone->zbz_write_pointer = zone->zbz_start;
+        memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-                if (zone->zbz_start + seq_zone_size <= device_size)
-                        zone->zbz_length = seq_zone_size;
-                else
-                        zone->zbz_length = device_size - zone->zbz_start;
+        lba += seq_zone_size;
 
-                zone->zbz_need_reset = false;
-                zone->zbz_non_seq = false;
+    }
 
-                memset(&zone->__pad, 0, sizeof(zone->__pad));
+    ret = 0;
 
-                start += zone->zbz_length;
-        }
-
-        error = 0;
 out_unlock:
-	pthread_mutex_unlock(&fdev->mutex);
-        return error;
+
+    pthread_mutex_unlock(&fdev->mutex);
+
+    return ret;
+
 out_close:
-        close(fdev->zbd_meta_fd);
-	goto out_unlock;
+
+    close(fdev->zbd_meta_fd);
+
+    goto out_unlock;
+
 }
 
+/**
+ * Change the value of a zone write pointer.
+ */
 static int
-zbc_fake_set_write_pointer(struct zbc_device *dev, uint64_t start_lba,
+zbc_fake_set_write_pointer(struct zbc_device *dev,
+                           uint64_t start_lba,
                            uint64_t write_pointer)
 {
-        struct zbc_fake_device *fdev = to_file_dev(dev);
-        struct zbc_zone *zone;
-	int ret;
+    zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+    struct zbc_zone *zone;
+    int ret = -EINVAL;
 
-	pthread_mutex_lock(&fdev->mutex);
-        if (!fdev->zbd_zones) {
-                ret = -ENXIO;
-		goto out_unlock;
-	}
+    if ( ! fdev->zbd_meta ) {
+        return -ENXIO;
+    }
 
-        zone = zbf_fake_find_zone(fdev, start_lba);
-        if (!zone) {
-                ret = -EINVAL;
-		goto out_unlock;
-	}
+    pthread_mutex_lock(&fdev->mutex);
+
+    zone = zbf_fake_find_zone(fdev, start_lba);
+    if ( zone ) {
 
         /* Do nothing for conventional zones */
-        if (zone->zbz_type != ZBC_ZT_CONVENTIONAL) {
-                zone->zbz_write_pointer = write_pointer;
-                if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length)
-                        zone->zbz_condition = ZBC_ZC_FULL;
-                else
-                        zone->zbz_condition = ZBC_ZC_CLOSED;
+        if ( zbc_zone_sequential_req(zone) ) {
+            zone->zbz_write_pointer = write_pointer;
+            if ( zbc_zone_wp_within_zone(zone) ) {
+                zone->zbz_condition = ZBC_ZC_CLOSED;
+            } else {
+                zone->zbz_condition = ZBC_ZC_FULL;
+                zone->zbz_write_pointer = (uint64_t)-1;
+            }
         }
 
         ret = 0;
 
-out_unlock:
+    }
 
-	pthread_mutex_unlock(&fdev->mutex);
+    pthread_mutex_unlock(&fdev->mutex);
 
-        return ret;
+    return ret;
 
 }
 
 struct zbc_ops zbc_fake_ops = {
-        .zbd_open                       = zbc_fake_open,
-        .zbd_close                      = zbc_fake_close,
-        .zbd_pread                      = zbc_fake_pread,
-        .zbd_pwrite                     = zbc_fake_pwrite,
-        .zbd_flush                      = zbc_fake_flush,
-        .zbd_report_zones               = zbc_fake_report_zones,
-        .zbd_reset_wp                   = zbc_fake_reset_wp,
-        .zbd_set_zones                  = zbc_fake_set_zones,
-        .zbd_set_wp                     = zbc_fake_set_write_pointer,
+    .zbd_open         = zbc_fake_open,
+    .zbd_close        = zbc_fake_close,
+    .zbd_pread        = zbc_fake_pread,
+    .zbd_pwrite       = zbc_fake_pwrite,
+    .zbd_flush        = zbc_fake_flush,
+    .zbd_report_zones = zbc_fake_report_zones,
+    .zbd_open_zone    = zbc_fake_open_zone,
+    .zbd_close_zone   = zbc_fake_close_zone,
+    .zbd_finish_zone  = zbc_fake_finish_zone,
+    .zbd_reset_wp     = zbc_fake_reset_wp,
+    .zbd_set_zones    = zbc_fake_set_zones,
+    .zbd_set_wp       = zbc_fake_set_write_pointer,
 };
