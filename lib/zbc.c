@@ -35,7 +35,7 @@ int zbc_log_level = ZBC_LOG_ERROR;
 static struct zbc_ops *zbc_ops[] = {
     &zbc_ata_ops,
     &zbc_scsi_ops,
-    // &zbc_fake_ops,
+    &zbc_fake_ops,
     NULL
 };
 
@@ -81,6 +81,108 @@ zbc_set_log_level(char *log_level)
     }
 
     return;
+
+}
+
+/**
+ * zbc_disk_type_str - returns a disk type name
+ * @type: (IN) ZBC_DT_SCSI, ZBC_DT_ATA, or ZBC_DT_FAKE
+ *
+ * Returns a string describing the interface type of a disk.
+ */
+const char *
+zbc_disk_type_str(int type)
+{
+
+    switch( type ) {
+    case ZBC_DT_SCSI:
+        return( "SCSI ZBC" );
+    case ZBC_DT_ATA:
+        return( "ATA ZAC" );
+    case ZBC_DT_FAKE:
+        return( "Emulated zoned device" );
+    }
+
+    return( "Unknown-disk-type" );
+
+}
+
+/**
+ * zbc_disk_model_str - returns a disk model name
+ * @model: (IN) ZBC_DM_DRIVE_MANAGED, ZBC_DM_HOST_AWARE, or ZBC_DM_HOST_MANAGED
+ *
+ * Returns a string describing a model type.
+ */
+const char *
+zbc_disk_model_str(int model)
+{
+
+    switch( model ) {
+    case ZBC_DM_DRIVE_MANAGED:
+        return( "Standard/Drive-managed" );
+    case ZBC_DM_HOST_AWARE:
+        return( "Host-aware" );
+    case ZBC_DM_HOST_MANAGED:
+        return( "Host-managed" );
+    }
+
+    return( "Unknown-model" );
+
+}
+
+/**
+ * zbc_zone_type_str - returns a string describing a zone type.
+ * @type: (IN)  ZBC_ZT_CONVENTIONAL, ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ *
+ * Returns a string describing a zone type.
+ */
+const char *
+zbc_zone_type_str(struct zbc_zone *zone)
+{
+
+    switch( zbc_zone_type(zone) ) {
+    case ZBC_ZT_CONVENTIONAL:
+        return( "Conventional" );
+    case ZBC_ZT_SEQUENTIAL_REQ:
+        return( "Sequential-write-required" );
+    case ZBC_ZT_SEQUENTIAL_PREF:
+        return( "Sequential-write-preferred" );
+    }
+
+    return( "Unknown-type" );
+
+}
+
+/**
+ * zbc_zone_cond_str - returns a string describing a zone condition.
+ * @cond: (IN)  ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
+ *              ZBC_ZC_CLOSED, ZBC_ZC_RDONLY, ZBC_ZC_FULL or ZBC_ZC_OFFLINE
+ *
+ * Returns a string describing a zone condition.
+ */
+const char *
+zbc_zone_condition_str(struct zbc_zone *zone)
+{
+    switch( zbc_zone_condition(zone) ) {
+    case ZBC_ZC_NOT_WP:
+        return( "Not-write-pointer" );
+    case ZBC_ZC_EMPTY:
+        return( "Empty" );
+    case ZBC_ZC_IMP_OPEN:
+        return( "Implicit-open" );
+    case ZBC_ZC_EXP_OPEN:
+        return( "Explicit-open" );
+    case ZBC_ZC_CLOSED:
+        return( "Closed" );
+    case ZBC_ZC_RDONLY:
+        return( "Read-only" );
+    case ZBC_ZC_FULL:
+        return( "Full" );
+    case ZBC_ZC_OFFLINE:
+        return( "Offline" );
+    }
+
+    return( "Unknown-cond" );
 
 }
 
@@ -512,6 +614,49 @@ zbc_pwrite(zbc_device_t *dev,
 
     }
 
+    return( ret );
+
+}
+
+/**
+ * zbc_write - write to a ZBC device
+ * @dev:                (IN) ZBC device handle to write to
+ * @zone:               (IN) The zone to write to (at the zone write pointer LBA)
+ * @buf:                (IN) Caller supplied buffer to write from
+ * @lba_count:          (IN) Number of LBAs to write
+ *
+ * This an the equivalent to write(2) that operates on a ZBC device handle,
+ * and uses LBA addressing for the buffer length. Instead of writing at
+ * the current file offset it writes at the write pointer for the zone
+ * identified by @zone, which is advanced if the write operation succeeds.
+ * This function thus cannot be used for a conventional zone, which is not
+ * a write pointer zone.
+ *
+ * All errors returned by write(2) can be returned. On success, the number of
+ * logical blocks written is returned.
+ */
+int32_t
+zbc_write(struct zbc_device *dev,
+          struct zbc_zone *zone,
+          const void *buf,
+          uint32_t lba_count)
+{
+    int ret = -EINVAL;
+
+    if ( zbc_zone_sequential(zone)
+         && (! zbc_zone_full(zone)) ) {
+
+        ret = zbc_pwrite(dev,
+                         zone,
+                         buf,
+                         lba_count,
+                         zbc_zone_wp_lba(zone) - zbc_zone_start_lba(zone));
+        if ( ret > 0 ) {
+            zbc_zone_wp_lba_inc(zone, ret);
+        }
+
+    }
+    
     return( ret );
 
 }

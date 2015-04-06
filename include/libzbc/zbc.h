@@ -74,6 +74,14 @@ enum zbc_zone_condition {
 };
 
 /**
+ * Zone flags: need reset, and non-seq write.
+ */
+enum zbc_zone_flags {
+    ZBC_ZF_NEED_RESET           = 0x0001,
+    ZBC_ZF_NON_SEQ              = 0x0002,
+};
+
+/**
  * Report zone reporting options: filters zone information
  * returned by the REPORT ZONES command based on the condition
  * of zones.
@@ -104,15 +112,15 @@ struct zbc_device;
  */
 struct zbc_zone {
 
-    enum zbc_zone_type          zbz_type;
-    enum zbc_zone_condition     zbz_condition;
     uint64_t                    zbz_length;
     uint64_t                    zbz_start;
     uint64_t                    zbz_write_pointer;
-    bool			zbz_need_reset;
-    bool			zbz_non_seq;
 
-    char                        __pad[12];
+    uint8_t                     zbz_type;
+    uint8_t                     zbz_condition;
+    uint8_t                     zbz_flags;
+
+    uint8_t                     __pad[5];
 
 };
 typedef struct zbc_zone zbc_zone_t;
@@ -120,42 +128,51 @@ typedef struct zbc_zone zbc_zone_t;
 /**
  * Some handy accessor macros.
  */
+#define zbc_zone_type(z)                ((int)(z)->zbz_type)
 #define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
 #define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
 #define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
 #define zbc_zone_sequential(z)     	(zbc_zone_sequential_req(z) || zbc_zone_sequential_pref(z))
 
+#define zbc_zone_condition(z)           ((int)(z)->zbz_condition)
 #define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
 #define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
 #define zbc_zone_imp_open(z)            ((z)->zbz_condition == ZBC_ZC_IMP_OPEN)
 #define zbc_zone_exp_open(z)            ((z)->zbz_condition == ZBC_ZC_EXP_OPEN)
 #define zbc_zone_is_open(z)             (zbc_zone_imp_open(z) || zbc_zone_exp_open(z))
 #define zbc_zone_closed(z)              ((z)->zbz_condition == ZBC_ZC_CLOSED)
-#define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
 #define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
+#define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
 #define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
 
-#define zbc_zone_need_reset(z)          ((z)->zbz_need_reset)
-#define zbc_zone_non_seq(z)          	((z)->zbz_non_seq)
+#define zbc_zone_need_reset(z)          (((z)->zbz_flags & ZBC_ZF_NEED_RESET) != 0)
+#define zbc_zone_non_seq(z)          	(((z)->zbz_flags & ZBC_ZF_NON_SEQ) != 0)
 
 #define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
 #define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
-#define zbc_zone_end_lba(z)             (zbc_zone_start_lba(z) + zbc_zone_length(z) - 1)
+#define zbc_zone_next_lba(z)            (zbc_zone_start_lba(z) + zbc_zone_length(z))
+#define zbc_zone_last_lba(z)            (zbc_zone_next_lba(z) - 1)
 #define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
 
-#define zbc_zone_wp_within_zone(z)      (zbc_zone_start_lba(z) <= zbc_zone_wp_lba(z)   \
-                                         && zbc_zone_wp_lba(z) <= zbc_zone_end_lba(z))
+#define zbc_zone_wp_within_zone(z)      ((zbc_zone_wp_lba(z) >= zbc_zone_start_lba(z)) \
+                                         && (zbc_zone_wp_lba(z) <= zbc_zone_last_lba(z)))
 
 #define zbc_zone_wp_lba_reset(z)                        	\
     do {                                                	\
-        (z)->zbz_write_pointer = zbc_zone_start_lba(z); 	\
+        if ( zbc_zone_sequential(z) ) {                         \
+            (z)->zbz_write_pointer = zbc_zone_start_lba(z); 	\
+            (z)->zbz_condition = ZBC_ZC_EMPTY;                  \
+        }                                                       \
     } while( 0 )
 
 #define zbc_zone_wp_lba_inc(z, count)                           \
     do {                                                        \
-        (z)->zbz_write_pointer += (count);                      \
-        if ( zbc_zone_wp_lba(z) > zbc_zone_end_lba(z) + 1 ) {	\
-            (z)->zbz_write_pointer = zbc_zone_end_lba(z) + 1;   \
+        if ( zbc_zone_sequential(z) ) {                         \
+            (z)->zbz_write_pointer += (count);                  \
+            if ( zbc_zone_wp_lba(z) > zbc_zone_last_lba(z) ) {	\
+                (z)->zbz_write_pointer = zbc_zone_next_lba(z);  \
+                (z)->zbz_condition = ZBC_ZC_FULL;               \
+            }                                                   \
         }                                                       \
     } while( 0 )
 
@@ -437,31 +454,11 @@ zbc_pwrite(struct zbc_device *dev,
  * All errors returned by write(2) can be returned. On success, the number of
  * logical blocks written is returned.
  */
-static inline int32_t
+extern int32_t
 zbc_write(struct zbc_device *dev,
           struct zbc_zone *zone,
           const void *buf,
-          uint32_t lba_count)
-{
-    int ret = -EINVAL;
-
-    if ( zbc_zone_sequential(zone) 
-         && zbc_zone_wp_within_zone(zone) ) {
-
-        ret = zbc_pwrite(dev,
-                         zone,
-                         buf,
-                         lba_count,
-                         zbc_zone_wp_lba(zone) - zbc_zone_start_lba(zone));
-        if ( ret > 0 ) {
-            zbc_zone_wp_lba_inc(zone, ret);
-        }
-
-    }
-    
-    return( ret );
-
-}
+          uint32_t lba_count);
 
 /**
  * zbc_flush - flush to a ZBC device cache
@@ -473,43 +470,42 @@ extern int
 zbc_flush(struct zbc_device *dev);
 
 /**
- * Returns a disk type name.
+ * zbc_disk_type_str - returns a disk type name
+ * @type: (IN) ZBC_DT_SCSI, ZBC_DT_ATA, or ZBC_DT_FAKE
+ *
+ * Returns a string describing the interface type of a disk.
  */
-static inline const char *
-zbc_disk_type_str(int type)
-{
-
-    switch( type ) {
-    case ZBC_DT_SCSI:
-        return( "SCSI ZBC" );
-    case ZBC_DT_ATA:
-        return( "ATA ZAC" );
-    case ZBC_DT_FAKE:
-        return( "Emulated zoned device" );
-    }
-
-    return( "Unknown" );
-
-}
+extern const char *
+zbc_disk_type_str(int type);
 
 /**
- * Returns a disk model name.
+ * zbc_disk_model_str - returns a disk model name
+ * @model: (IN) ZBC_DM_DRIVE_MANAGED, ZBC_DM_HOST_AWARE, or ZBC_DM_HOST_MANAGED
+ *
+ * Returns a string describing a model type.
  */
-static inline const char *
-zbc_disk_model_str(int model)
-{
+extern const char *
+zbc_disk_model_str(int model);
 
-    switch( model ) {
-    case ZBC_DM_DRIVE_MANAGED:
-        return( "Standard/Drive-managed" );
-    case ZBC_DM_HOST_AWARE:
-        return( "Host-aware" );
-    case ZBC_DM_HOST_MANAGED:
-        return( "Host-managed" );
-    }
+/**
+ * zbc_zone_type_str - returns a string describing a zone type.
+ * @zone: (IN)  The zone for which to get the type string. The zone type
+ *              must be ZBC_ZT_CONVENTIONAL, ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ *
+ * Returns a string describing a zone type.
+ */
+extern const char *
+zbc_zone_type_str(struct zbc_zone *zone);
 
-    return( "Unknown" );
-
-}
+/**
+ * zbc_zone_cond_str - returns a string describing a zone condition.
+ * @zone: (IN)  The zone for which to get the condition string. The zone condition
+ *              must be ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
+ *              ZBC_ZC_CLOSED, ZBC_ZC_RDONLY, ZBC_ZC_FULL or ZBC_ZC_OFFLINE
+ *
+ * Returns a string describing a zone condition.
+ */
+extern const char *
+zbc_zone_condition_str(struct zbc_zone *zone);
 
 #endif /* _LIBZBC_H_ */
