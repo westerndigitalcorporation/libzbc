@@ -89,8 +89,7 @@ main(int argc,
     }
 
     if ( ! path ) {
-        fprintf(stderr, "No ZBC device file specified (use -d | --dev option)\n");
-        return( 1 );
+        path = argv[1];
     }
 
     if ( dz.interval < 0 ) {

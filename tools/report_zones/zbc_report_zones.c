@@ -33,7 +33,7 @@ int main(int argc,
     struct zbc_device *dev;
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
-    zbc_zone_t *zones = NULL;
+    zbc_zone_t *z, *zones = NULL;
     unsigned int nr_zones, nz = 0;
     int num = 0;
     char *path;
@@ -166,7 +166,7 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
+    printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
     /* Get the number of zones */
@@ -212,15 +212,29 @@ usage:
 
     printf("%u / %u zones:\n", nz, nr_zones);
     for(i = 0; i < (int)nz; i++) {
-	printf("Zone %05d: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %11llu, %11llu sectors, wp %11llu\n",
-	       i,
-	       zones[i].zbz_type,
-	       zones[i].zbz_condition,
-	       zones[i].zbz_need_reset,
-	       zones[i].zbz_non_seq,
-	       (unsigned long long) zones[i].zbz_start,
-	       (unsigned long long) zones[i].zbz_length,
-	       (unsigned long long) zones[i].zbz_write_pointer);
+        z = &zones[i];
+        if ( zbc_zone_conventional(z) ) {
+            printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), LBA %llu, %llu sectors, wp N/A\n",
+                   i,
+                   zbc_zone_type(z),
+                   zbc_zone_type_str(z),
+                   zbc_zone_condition(z),
+                   zbc_zone_condition_str(z),
+                   zbc_zone_start_lba(z),
+                   zbc_zone_length(z));
+        } else {
+            printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+                   i,
+                   zbc_zone_type(z),
+                   zbc_zone_type_str(z),
+                   zbc_zone_condition(z),
+                   zbc_zone_condition_str(z),
+                   zbc_zone_need_reset(z),
+                   zbc_zone_non_seq(z),
+                   zbc_zone_start_lba(z),
+                   zbc_zone_length(z),
+                   zbc_zone_wp_lba(z));
+        }
     }
 
 out:

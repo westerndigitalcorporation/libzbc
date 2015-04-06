@@ -380,11 +380,6 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 	
 	/* ATA command status */
 	if ( cmd->sense_buf[21] != 0x50 ) {
-	    if ( dev->zbd_info.zbd_type == ZBC_DT_ATA ) {
-	        zbc_error("%s: ATA command failed with status 0x%02x\n",
-		          dev->zbd_filename,
-                          (unsigned int)cmd->sense_buf[21]);
-	    }
 	    ret = -EIO;
 	    goto out;
 	}

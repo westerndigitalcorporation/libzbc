@@ -244,16 +244,18 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
+    printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
-    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+    printf("Target zone: Zone %d / %d, type 0x%x (%s), cond 0x%x (%s), need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
            zidx,
            nr_zones,
-           iozone->zbz_type,
-           iozone->zbz_condition,
-           iozone->zbz_need_reset,
-           iozone->zbz_non_seq,
+           zbc_zone_type(iozone),
+           zbc_zone_type_str(iozone),
+           zbc_zone_condition(iozone),
+           zbc_zone_condition_str(iozone),
+           zbc_zone_need_reset(iozone),
+           zbc_zone_non_seq(iozone),
            zbc_zone_start_lba(iozone),
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));
@@ -347,8 +349,8 @@ usage:
 
     }
 
-    if ( ! zbc_zone_conventional(iozone) ) {
-        if ( zbc_zone_wp_lba(iozone) >= zbc_zone_end_lba(iozone) ) {
+    if ( zbc_zone_sequential(iozone) ) {
+        if ( zbc_zone_full(iozone) ) {
             lba_ofst = zbc_zone_length(iozone);
 	} else {
             lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
@@ -405,7 +407,12 @@ usage:
         /* Do not exceed the end of the zone */
         lba_count = iosize / info.zbd_logical_block_size;
         if ( zbc_zone_sequential(iozone) ) {
-            lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
+            if ( zbc_zone_full(iozone) ) {
+                lba_ofst = zbc_zone_length(iozone);
+                lba_count = 0;
+            } else {
+                lba_ofst = zbc_zone_wp_lba(iozone) - zbc_zone_start_lba(iozone);
+            }
         }
         if ( (lba_ofst + lba_count) > (long long)zbc_zone_length(iozone) ) {
             lba_count = zbc_zone_length(iozone) - lba_ofst;

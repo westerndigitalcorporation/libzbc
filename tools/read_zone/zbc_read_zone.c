@@ -232,16 +232,18 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
+    printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
-    printf("Target zone: Zone %d / %d, type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+    printf("Target zone: Zone %d / %d, type 0x%x (%s), cond 0x%x (%s), need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
            zidx,
            nr_zones,
-           iozone->zbz_type,
-           iozone->zbz_condition,
-           iozone->zbz_need_reset,
-           iozone->zbz_non_seq,
+           zbc_zone_type(iozone),
+           zbc_zone_type_str(iozone),
+           zbc_zone_condition(iozone),
+           zbc_zone_condition_str(iozone),
+           zbc_zone_need_reset(iozone),
+           zbc_zone_non_seq(iozone),
            zbc_zone_start_lba(iozone),
            zbc_zone_length(iozone),
            zbc_zone_wp_lba(iozone));
@@ -268,14 +270,6 @@ usage:
     if ( file ) {
 
         if ( strcmp(file, "-") == 0 ) {
-
-	    /* 
-            if ( ! freopen(NULL, "wb", stdout) ) {
-        	fprintf(stderr, "Reopen stdout failed\n");
-                ret = 1;
-                goto out;
-            }
-	    */
 
             fd = fileno(stdout);
             printf("Writting target zone %d to standard output, %zu B I/Os\n",

@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
 
@@ -41,6 +40,13 @@ static gboolean
 dz_if_zinfo_scroll_cb(GtkWidget *widget,
 		      GdkEvent *event,
 		      gpointer user_data);
+
+static gboolean
+dz_if_zinfo_select_cb(GtkTreeSelection *selection,
+                      GtkTreeModel *model,
+                      GtkTreePath *path,
+                      gboolean path_currently_selected,
+                      gpointer userdata);
 
 static gboolean
 dz_if_resize_cb(GtkWidget *widget,
@@ -119,8 +125,8 @@ dz_if_create(void)
 
     /* Get colors */
     gdk_rgba_parse(&dz.conv_color, "Magenta");
+    gdk_rgba_parse(&dz.seqnw_color, "Green");
     gdk_rgba_parse(&dz.seqw_color, "Red");
-    gdk_rgba_parse(&dz.seqnw_color, "Dark Green");
 
     /* Window */
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -452,6 +458,12 @@ dz_if_create(void)
         dz.timer_id = g_timeout_add(dz.interval, dz_if_timer_cb, NULL);
     }
 
+    /* Link tree view selection and spinbutton value */
+    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
+                                           dz_if_zinfo_select_cb,
+                                           spinbutton,
+                                           NULL);
+
     g_signal_connect((gpointer) dz.window, "configure-event",
 		     G_CALLBACK(dz_if_resize_cb),
 		     NULL);
@@ -525,7 +537,7 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
 	} else if ( zbc_zone_sequential_pref(z) ) {
 	    strncpy(str, "Seq write pref.", sizeof(str));
 	} else {
-	    snprintf(str, sizeof(str), "??? (0x%01x)", z->zbz_type);
+	    snprintf(str, sizeof(str), "??? (0x%01x)", zbc_zone_type(z));
 	}
         break;
 
@@ -547,7 +559,6 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
             g_object_set(renderer, "foreground", "Blue", "foreground-set", TRUE, NULL);
             strncpy(str, "Explicit Open", sizeof(str));
         } else if ( zbc_zone_closed(z) ) {
-            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
             strncpy(str, "Closed", sizeof(str));
 	} else if ( zbc_zone_rdonly(z) ) {
 	    strncpy(str, "Read-only", sizeof(str));
@@ -574,8 +585,10 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
 
         /* Zone non seq */
 	if ( zbc_zone_non_seq(z) ) {
+            g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
 	    strncpy(str, "Yes", sizeof(str));
 	} else {
+            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
 	    strncpy(str, "No", sizeof(str));
 	}
         break;
@@ -632,8 +645,8 @@ dz_if_zinfo_fill(void)
                            DZ_ZONE_NUM, i,
                            DZ_ZONE_TYPE, z->zbz_type,
                            DZ_ZONE_COND, z->zbz_condition,
-                           DZ_ZONE_NEED_RESET, z->zbz_need_reset,
-                           DZ_ZONE_NONSEQ, z->zbz_non_seq,
+                           DZ_ZONE_NEED_RESET, zbc_zone_need_reset(z),
+                           DZ_ZONE_NONSEQ, zbc_zone_non_seq(z),
                            DZ_ZONE_START, dz_if_blocks(zbc_zone_start_lba(z)),
                            DZ_ZONE_LENGTH, dz_if_blocks(zbc_zone_length(z)),
                            DZ_ZONE_WP, dz_if_blocks(zbc_zone_wp_lba(z)),
@@ -728,6 +741,34 @@ dz_if_zinfo_scroll_cb(GtkWidget *widget,
 }
 
 static gboolean
+dz_if_zinfo_select_cb(GtkTreeSelection *selection,
+                      GtkTreeModel *model,
+                      GtkTreePath *path,
+                      gboolean path_currently_selected,
+                      gpointer user_data)
+{
+    GtkWidget *spinbutton = (GtkWidget *) user_data;
+    GtkTreeIter iter;
+    int i, zno;
+
+    if ( ! path_currently_selected ) {
+
+        if ( gtk_tree_model_get_iter(model, &iter, path) ) {
+            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &i, -1);
+            gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+            zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+            if ( zno != i ) {
+                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) i);
+            }
+        }
+
+    }
+
+    return TRUE;
+
+}
+
+static gboolean
 dz_if_resize_cb(GtkWidget *widget,
                 GdkEvent *event,
                 gpointer user_data)
@@ -763,8 +804,8 @@ dz_if_update_zinfo(void)
                                         GTK_BUTTONS_OK,
                                         "Get zone list failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Get zone list failed %d (%s)",
-                                                 errno,
-                                                 strerror(errno));
+                                                 ret,
+                                                 strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
 
@@ -804,15 +845,14 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     /* Set font */
     cairo_select_font_face(cr, "Monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 10);
-    
+
     /* Conventional zone legend */
     gdk_rgba_parse(&color, "Black");
     gdk_cairo_set_source_rgba(cr, &color);
     cairo_set_line_width(cr, 2);
     cairo_rectangle(cr, x, (h - w) / 2, w, w);
     cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Grey");
-    gdk_cairo_set_source_rgba(cr, &color);
+    gdk_cairo_set_source_rgba(cr, &dz.conv_color);
     cairo_fill(cr);
     x += w;
 
@@ -821,52 +861,19 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     cairo_show_text(cr, "Conventional zone");
     x += te.x_advance + 20;
 
-    /* Empty or closed Seq zone legend */
+    /* Seq unwritten zone legend */
     gdk_rgba_parse(&color, "Black");
     gdk_cairo_set_source_rgba(cr, &color);
     cairo_set_line_width(cr, 2);
     cairo_rectangle(cr, x, (h - w) / 2, w, w);
     cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Green");
-    gdk_cairo_set_source_rgba(cr, &color);
+    gdk_cairo_set_source_rgba(cr, &dz.seqnw_color);
     cairo_fill(cr);
     x += w;
 
-    cairo_text_extents(cr, "Empty or closed sequential zone", &te);
+    cairo_text_extents(cr, "Sequential zone unwritten space", &te);
     cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Empty or closed sequential zone");
-    x += te.x_advance + 20;
-
-    /* Implicit opened seq unwritten zone legend */
-    gdk_rgba_parse(&color, "Black");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_set_line_width(cr, 2);
-    cairo_rectangle(cr, x, (h - w) / 2, w, w);
-    cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Dodger Blue");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_fill(cr);
-    x += w;
-
-    cairo_text_extents(cr, "Implicit opened sequential zone", &te);
-    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Implicit opened sequential zone");
-    x += te.x_advance + 20;
-
-    /* Explicit opened zone legend */
-    gdk_rgba_parse(&color, "Black");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_set_line_width(cr, 2);
-    cairo_rectangle(cr, x, (h - w) / 2, w, w);
-    cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Deep Sky Blue");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_fill(cr);
-    x += w;
-
-    cairo_text_extents(cr, "Explicit opened sequential zone", &te);
-    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Explicit opened sequential zone");
+    cairo_show_text(cr, "Sequential zone unwritten space");
     x += te.x_advance + 20;
 
     /* Seq written zone legend */
@@ -875,8 +882,7 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
     cairo_set_line_width(cr, 2);
     cairo_rectangle(cr, x, (h - w) / 2, w, w);
     cairo_stroke_preserve(cr);
-    gdk_rgba_parse(&color, "Red");
-    gdk_cairo_set_source_rgba(cr, &color);
+    gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
     cairo_fill(cr);
     x += w;
 
@@ -940,19 +946,12 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 	cairo_stroke_preserve(cr);
 
 	if ( zbc_zone_conventional(z) ) {
-	    gdk_rgba_parse(&color, "Grey");
+            gdk_cairo_set_source_rgba(cr, &dz.conv_color);
 	} else if ( zbc_zone_full(z) ) {
-	    gdk_rgba_parse(&color, "Red");
-	} else if ( zbc_zone_imp_open(z) ) {
-	    gdk_rgba_parse(&color, "Dodger Blue");
-	} else if ( zbc_zone_exp_open(z) ) {
-	    gdk_rgba_parse(&color, "Deep Sky Blue");
-	} else if ( zbc_zone_closed(z) ) {
-	    gdk_rgba_parse(&color, "Green");
+            gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
 	} else {
-	    gdk_rgba_parse(&color, "Green");
+            gdk_cairo_set_source_rgba(cr, &dz.seqnw_color);
 	}
-	gdk_cairo_set_source_rgba(cr, &color);
 	cairo_fill(cr);
 
 	if ( (! zbc_zone_conventional(z))
@@ -962,8 +961,7 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 	    /* Written space in zone */
 	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);
 	    if ( ww ) {
-		gdk_rgba_parse(&color, "Red");
-		gdk_cairo_set_source_rgba(cr, &color);
+		gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
 		cairo_rectangle(cr, x, DZ_DRAW_HOFST, ww, h - DZ_DRAW_HOFST * 2);
 		cairo_fill(cr);
 	    }
@@ -1079,8 +1077,8 @@ dz_if_open_cb(GtkWidget *widget,
                                         "Open zone failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Open zone %d failed %d (%s)",
                                                  zno,
-                                                 errno,
-                                                 strerror(errno));
+                                                 ret,
+                                                 strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
 
@@ -1118,8 +1116,8 @@ dz_if_close_cb(GtkWidget *widget,
                                         "Close zone failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Close zone %d failed %d (%s)",
                                                  zno,
-                                                 errno,
-                                                 strerror(errno));
+                                                 ret,
+                                                 strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
 
@@ -1157,8 +1155,8 @@ dz_if_finish_cb(GtkWidget *widget,
                                         "Finish zone failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Finish zone %d failed %d (%s)",
                                                  zno,
-                                                 errno,
-                                                 strerror(errno));
+                                                 ret,
+                                                 strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
 
@@ -1196,8 +1194,8 @@ dz_if_reset_cb(GtkWidget *widget,
                                         "Reset zone write pointer failed\n");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Reset zone %d failed %d (%s)",
                                                  zno,
-                                                 errno,
-                                                 strerror(errno));
+                                                 ret,
+                                                 strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
 

@@ -209,7 +209,7 @@ zbc_ata_read_log(zbc_device_t *dev,
     cmd.cdb[10] = page & 0xff;
     cmd.cdb[14] = ZBC_ATA_READ_LOG_DMA_EXT;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -224,10 +224,10 @@ zbc_ata_read_log(zbc_device_t *dev,
  */
 static int
 zbc_ata_exec_report_zones(zbc_device_t *dev,
-		     uint64_t start_lba,
-		     uint8_t opt,
-		     uint8_t *buf,
-		     size_t bufsz)
+                          uint64_t start_lba,
+                          uint8_t opt,
+                          uint8_t *buf,
+                          size_t bufsz)
 {
     zbc_sg_cmd_t cmd;
     int ret;
@@ -296,7 +296,7 @@ zbc_ata_exec_report_zones(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_REPORT_ZONES_EXT_CMD;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -310,7 +310,7 @@ zbc_ata_exec_report_zones(zbc_device_t *dev,
  * Test if the disk has zones.
  */
 static int
-zbc_ata_is_zoned(zbc_device_t *dev)
+zbc_ata_has_zones(zbc_device_t *dev)
 {
     uint8_t buf[512];
     int ret;
@@ -388,7 +388,7 @@ zbc_ata_classify(zbc_device_t *dev)
     cmd.cdb[2] = 0x1 << 5;		/* off_line=0, ck_cond=1, t_type=0, t_dir=0, byt_blk=0, t_length=00 */
     cmd.cdb[14] = ZBC_ATA_EXEC_DEV_DIAGNOSTIC;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
 	goto out;
@@ -415,7 +415,7 @@ zbc_ata_classify(zbc_device_t *dev)
 	/* Normal device signature: it may be a host-aware device */
 	/* So check log page 1Ah to see if there are zones.       */
 	zbc_debug("Standard ATA signature detected\n");
-	ret = zbc_ata_is_zoned(dev);
+	ret = zbc_ata_has_zones(dev);
 	if ( ret == 0 ) {
 	    /* No zones: standard or drive managed disk */
 	    zbc_debug("Standard or drive managed ATA device detected\n");
@@ -480,7 +480,7 @@ zbc_ata_vendor_id(zbc_device_t *dev)
 }
 
 /**
- * Get a device information (capacity & sector sizes).
+ * Get the disk capacity and sector size.
  */
 static int
 zbc_ata_get_capacity(zbc_device_t *dev)
@@ -489,7 +489,7 @@ zbc_ata_get_capacity(zbc_device_t *dev)
     int logical_per_physical;
     int ret;
 
-    /* READ CAPACITY 16 */
+    /* Initialize the command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
     if ( ret != 0 ) {
         zbc_error("zbc_sg_cmd_init failed\n");
@@ -501,7 +501,7 @@ zbc_ata_get_capacity(zbc_device_t *dev)
     cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
     zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
         goto out;
@@ -686,7 +686,7 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_READ_DMA_EXT;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
@@ -726,7 +726,7 @@ zbc_ata_pread_scsi(zbc_device_t *dev,
     zbc_sg_cmd_set_int64(&cmd.cdb[2], (zone->zbz_start + lba_ofst));
     zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
 
-    /* Send the SG_IO command */
+    /* Send the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
@@ -843,7 +843,7 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_WRITE_DMA_EXT;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
@@ -883,7 +883,7 @@ zbc_ata_pwrite_scsi(zbc_device_t *dev,
     zbc_sg_cmd_set_int64(&cmd.cdb[2], (zone->zbz_start + lba_ofst));
     zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
 
-    /* Send the SG_IO command */
+    /* Send the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
@@ -944,7 +944,7 @@ zbc_ata_flush(zbc_device_t *dev,
     cmd.cdb[1] = (0x3 << 1) | 0x01;		/* Non-Data protocol, ext=1 */
     cmd.cdb[14] = ZBC_ATA_FLUSH_CACHE_EXT;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -1011,8 +1011,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
 		zones[n].zbz_length = zbc_ata_get_qword(&buf_z[8]);
 		zones[n].zbz_start = zbc_ata_get_qword(&buf_z[16]);
 		zones[n].zbz_write_pointer = zbc_ata_get_qword(&buf_z[24]);
-		zones[n].zbz_need_reset = (buf_z[1] & 0x01) ? true : false;;
-		zones[n].zbz_non_seq = false;
+		zones[n].zbz_flags = buf_z[1] & 0x03;
 		
 		n++;
 		buf_z += ZBC_ATA_ZONE_DESCRIPTOR_LENGTH;
@@ -1122,7 +1121,7 @@ zbc_ata_open_zone(zbc_device_t *dev,
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
     cmd.cdb[3] = ZBC_ATA_OPEN_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Open ALL zones */
+        /* Open all zones */
         cmd.cdb[4] = 0x01;
     } else {
         /* Open only the zone at start_lba */
@@ -1136,7 +1135,7 @@ zbc_ata_open_zone(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_OPEN_ZONE_EXT_CMD;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -1206,7 +1205,7 @@ zbc_ata_close_zone(zbc_device_t *dev,
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
     cmd.cdb[3] = ZBC_ATA_CLOSE_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Close ALL zones */
+        /* Close all zones */
         cmd.cdb[4] = 0x01;
     } else {
         /* Close only the zone at start_lba */
@@ -1220,7 +1219,7 @@ zbc_ata_close_zone(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_CLOSE_ZONE_EXT_CMD;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -1290,7 +1289,7 @@ zbc_ata_finish_zone(zbc_device_t *dev,
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
     cmd.cdb[3] = ZBC_ATA_FINISH_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Finish ALL zones */
+        /* Finish all zones */
         cmd.cdb[4] = 0x01;
     } else {
         /* Finish only the zone at start_lba */
@@ -1304,7 +1303,7 @@ zbc_ata_finish_zone(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_FINISH_ZONE_EXT_CMD;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -1374,7 +1373,7 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
     cmd.cdb[3] = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
-        /* Reset ALL zones */
+        /* Reset all zones */
         cmd.cdb[4] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
@@ -1388,7 +1387,7 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
     cmd.cdb[13] = 1 << 6;
     cmd.cdb[14] = ZBC_ATA_RESET_WRITE_POINTER_EXT_CMD;
 
-    /* Execute the SG_IO command */
+    /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
     /* Done */
@@ -1443,10 +1442,10 @@ zbc_ata_scsi_rw(zbc_device_t *dev)
     }
 
     zbc_debug("R/W test zone: type 0x%x, cond 0x%x, need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
-              zone.zbz_type,
-              zone.zbz_condition,
-              zone.zbz_need_reset,
-              zone.zbz_non_seq,
+              (int)zone.zbz_type,
+              (int)zone.zbz_condition,
+              zbc_zone_need_reset(&zone),
+              zbc_zone_non_seq(&zone),
               (unsigned long long) zone.zbz_start,
               (unsigned long long) zone.zbz_length,
               (unsigned long long) zone.zbz_write_pointer);

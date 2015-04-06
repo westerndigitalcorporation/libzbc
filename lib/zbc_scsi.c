@@ -457,8 +457,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             zones[i].zbz_length = zbc_sg_cmd_get_int64(&buf[8]);
             zones[i].zbz_start = zbc_sg_cmd_get_int64(&buf[16]);
             zones[i].zbz_write_pointer = zbc_sg_cmd_get_int64(&buf[24]);
-            zones[i].zbz_need_reset = (buf[1] & 0x01) ? true : false;;
-            zones[i].zbz_non_seq= (buf[1] & 0x02) ? true : false;
+            zones[i].zbz_flags = buf[1] & 0x03;
 
             buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
 
@@ -910,7 +909,7 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
         }
 
         /* Get the drive capacity from the last zone last LBA */
-        dev->zbd_info.zbd_logical_blocks = zbc_zone_end_lba(&zones[nr_zones - 1]) + 1;
+        dev->zbd_info.zbd_logical_blocks = zbc_zone_next_lba(&zones[nr_zones - 1]);
 
         break;
 
@@ -1030,6 +1029,9 @@ zbc_scsi_get_info(zbc_device_t *dev)
 
 }
 
+/**
+ * Open a disk.
+ */
 static int
 zbc_scsi_open(const char *filename,
               int flags,
@@ -1104,6 +1106,9 @@ out:
 
 }
 
+/**
+ * Close a disk.
+ */
 static int
 zbc_scsi_close(zbc_device_t *dev)
 {

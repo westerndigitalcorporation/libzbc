@@ -45,7 +45,7 @@ usage:
 	       "    If <zone> is -1, all zones are finished.\n"
                "Options:\n"
                "    -v   : Verbose mode\n"
-               "    -lba : Interpret <zone> as a zone start LBA instead of a zone nmumber\n",
+               "    -lba : Interpret <zone> as a zone start LBA instead of a zone number\n",
                argv[0]);
         return( 1 );
     }
@@ -105,7 +105,7 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
+    printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
     /* Target zone */

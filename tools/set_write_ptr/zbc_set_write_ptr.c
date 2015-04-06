@@ -98,7 +98,7 @@ usage:
     printf("    %llu physical blocks of %u B\n",
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
+    printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
     /* Get zone list */
