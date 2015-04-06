@@ -178,48 +178,41 @@ out:
 }
 
 int
-dz_get_zones(void)
+dz_get_zones(void )
 {
-    unsigned int nr_zones = dz.nr_zones;
     int ret;
 
-    if ( ! nr_zones ) {
-list:
+    if ( ! dz.zones ) {
+
 	/* Get zone list */
-	ret = zbc_list_zones(dz.dev, 0, ZBC_RO_ALL, &dz.zones, &dz.nr_zones);
+        dz.zone_ro = ZBC_RO_ALL;
+	ret = zbc_list_zones(dz.dev, 0, dz.zone_ro, &dz.zones, &dz.nr_zones);
 	if ( ret == 0 ) {
 	    printf("Device \"%s\": %llu sectors of %u B, %d zones\n",
 		   dz.path,
 		   (unsigned long long) dz.info.zbd_physical_blocks,
 		   (unsigned int) dz.info.zbd_physical_block_size,
 		   dz.nr_zones);
+            dz.max_nr_zones = dz.nr_zones;
 	}
 
     } else {
 
-	/* Refresh zone list */
-	ret = zbc_report_nr_zones(dz.dev, 0, ZBC_RO_ALL, &nr_zones);
-	if ( (ret == 0) && (nr_zones != dz.nr_zones) ) {
-	    /* Number of zones changed... */
-	    free(dz.zones);
-            dz.zones = NULL;
-            dz.nr_zones = 0;
-	    goto list;
-	}
-
-	ret = zbc_report_zones(dz.dev, 0, ZBC_RO_ALL, dz.zones, &nr_zones);
-
-    }
-
-    if ( ret != 0 ) {
-        fprintf(stderr, "Get zone information failed %d (%s)\n",
-                errno,
-                strerror(errno));
-        if ( dz.zones ) {
-            free(dz.zones);
-            dz.zones = NULL;
-            dz.nr_zones = 0;
+        /* Refresh zone list */
+        dz.nr_zones = dz.max_nr_zones;
+        ret = zbc_report_zones(dz.dev, 0, dz.zone_ro, dz.zones, &dz.nr_zones);
+        if ( ret != 0 ) {
+            fprintf(stderr, "Get zone information failed %d (%s)\n",
+                    errno,
+                    strerror(errno));
+            if ( dz.zones ) {
+                free(dz.zones);
+                dz.zones = NULL;
+                dz.nr_zones = 0;
+                dz.max_nr_zones = 0;
+            }
         }
+
     }
 
     return( ret );

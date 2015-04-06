@@ -33,6 +33,10 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
                   GtkTreeIter *iter,
                   gpointer user_data);
 
+static gboolean
+dz_if_zinfo_filter_cb(GtkComboBox *button,
+                      gpointer user_data);
+
 static void
 dz_if_zinfo_fill(void);
 
@@ -101,13 +105,58 @@ dz_if_reset_cb(GtkWidget *widget,
                GdkEvent *event,
                gpointer user_data);
 
+static inline void
+dz_if_set_margin(GtkWidget *widget,
+                 int left, int right,
+                 int top, int bottom)
+{
+
+#if GTK_CHECK_VERSION(3, 12, 0)
+    gtk_widget_set_margin_start(widget, left);
+    gtk_widget_set_margin_end(widget, right);
+#else
+    gtk_widget_set_margin_left(widget, left);
+    gtk_widget_set_margin_right(widget, right);
+#endif
+
+    if ( top ) {
+        gtk_widget_set_margin_top(widget, top);
+    }
+
+    if ( bottom ) {
+        gtk_widget_set_margin_bottom(widget, bottom);
+    }
+
+    return;
+
+}
+
+static struct dz_if_zinfo_filter {
+    int ro;
+    char *str;
+} zfilter[] = 
+    {
+        { ZBC_RO_ALL,      "All zones"                      },
+        { ZBC_RO_NOT_WP,   "Conventional zones"             },
+        { ZBC_RO_EMPTY,    "Empty zones"                    },
+        { ZBC_RO_FULL,     "Full zones"                     },
+        { ZBC_RO_IMP_OPEN, "Implicitly open zones"          },
+        { ZBC_RO_EXP_OPEN, "Explicitly open zones"          },
+        { ZBC_RO_CLOSED,   "Closed zones"                   },
+        { ZBC_RO_RESET,    "Zones needing reset"            },
+        { ZBC_RO_NON_SEQ,  "Zones not sequentially written" },
+        { ZBC_RO_RDONLY,   "Read-only zones"                },
+        { ZBC_RO_OFFLINE,  "Offline zones"                  },
+        { 0, NULL }
+    };
+
 /***** Definition of public functions *****/
 
 int
 dz_if_create(void)
 {
     GtkWidget *win_vbox, *hbox, *ctrl_hbox, *vbox;
-    GtkWidget *scrolledwindow;
+    GtkWidget *combo, *scrolledwindow;
     GtkWidget *window;
     GtkWidget *frame;
     GtkWidget *button;
@@ -144,8 +193,48 @@ dz_if_create(void)
     gtk_widget_show(win_vbox);
     gtk_container_add(GTK_CONTAINER(window), win_vbox);
 
-    /* Zone information frame */
-    snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dz.path, dz.nr_zones);
+    /* Zone list filter frame */
+    snprintf(str, sizeof(str) - 1,
+             "<b>%s: %.03F GB, %u B logical sectors</b>",
+             dz.path,
+             (double) (dz.info.zbd_logical_blocks * dz.info.zbd_logical_block_size) / 1000000000,
+             dz.info.zbd_logical_block_size);
+    frame = gtk_frame_new(str);
+    gtk_widget_show(frame);
+    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, FALSE, 0);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+    dz.zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
+    gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
+    dz_if_set_margin(hbox, 7, 7, 0, 0);
+    
+    /* Zone list filter label */
+    label = gtk_label_new(NULL);
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    gtk_label_set_text(GTK_LABEL(label), "<b>Zone filter</b>");
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+
+    /* Zone list filter */
+    combo = gtk_combo_box_text_new();
+    gtk_widget_show(combo);
+    dz_if_set_margin(combo, 7, 7, 10, 5);
+    i = 0;
+    while( zfilter[i].str ) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), NULL, zfilter[i].str);
+        i++;
+    }
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+    gtk_box_pack_start(GTK_BOX(hbox), combo, TRUE, TRUE, 0);
+
+    g_signal_connect((gpointer) combo, "changed",
+		     G_CALLBACK(dz_if_zinfo_filter_cb),
+		     combo);
+
+    /* Zone list frame */
+    snprintf(str, sizeof(str) - 1, "<b>%d zones</b>", dz.nr_zones);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(win_vbox), frame, TRUE, TRUE, 0);
@@ -158,15 +247,7 @@ dz_if_create(void)
     gtk_widget_show(scrolledwindow);
     gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_SHADOW_IN);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-#if GTK_CHECK_VERSION(3, 12, 0)
-    gtk_widget_set_margin_start(scrolledwindow, 7);
-    gtk_widget_set_margin_end(scrolledwindow, 7);
-#else
-    gtk_widget_set_margin_left(scrolledwindow, 7);
-    gtk_widget_set_margin_right(scrolledwindow, 7);
-#endif
-    gtk_widget_set_margin_top(scrolledwindow, 10);
-    gtk_widget_set_margin_bottom(scrolledwindow, 10);
+    dz_if_set_margin(scrolledwindow, 7, 7, 10, 10);
     gtk_container_add(GTK_CONTAINER(frame), scrolledwindow);
 
     treeview = gtk_tree_view_new();
@@ -287,13 +368,7 @@ dz_if_create(void)
     /* Hbox for controls */
     ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(ctrl_hbox);
-#if GTK_CHECK_VERSION(3, 12, 0)
-    gtk_widget_set_margin_start(ctrl_hbox, 7);
-    gtk_widget_set_margin_end(ctrl_hbox, 7);
-#else
-    gtk_widget_set_margin_left(ctrl_hbox, 7);
-    gtk_widget_set_margin_right(ctrl_hbox, 7);
-#endif
+    dz_if_set_margin(ctrl_hbox, 7, 7, 0, 0);
     gtk_container_add(GTK_CONTAINER(frame), ctrl_hbox);
 
     /* Reset zone control */
@@ -635,6 +710,10 @@ dz_if_zinfo_fill(void)
     unsigned int i;
 
     /* Update device list */
+    if ( ! dz.nr_zones ) {
+        return;
+    }
+
     gtk_tree_model_get_iter_first(dz.zinfo_model, &iter);
 
     for(i = 0; i < dz.nr_zones; i++) {
@@ -667,6 +746,12 @@ dz_if_zinfo_update_range(void)
 {
     GtkTreePath *start = NULL, *end = NULL;
     GtkTreeIter iter;
+
+    if ( ! dz.nr_zones ) {
+        dz.zinfo_start_no = 0;
+        dz.zinfo_end_no = 0;
+        return;
+    }
 
     gtk_tree_view_get_visible_range(GTK_TREE_VIEW(dz.zinfo_treeview), &start, &end);
 
@@ -753,7 +838,9 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
 
     if ( ! path_currently_selected ) {
 
-        if ( gtk_tree_model_get_iter(model, &iter, path) ) {
+        if ( ! dz.nr_zones ) {
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), 0.0);
+        } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
             gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &i, -1);
             gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
             zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
@@ -777,8 +864,12 @@ dz_if_resize_cb(GtkWidget *widget,
     /* Update viewd range in list */
     dz_if_zinfo_update_range();
 
-    dz.zinfo_lines = dz.zinfo_end_no + 1 - dz.zinfo_start_no;
-    dz.zinfo_lines = (dz.zinfo_lines / 2) * 2;
+    if ( dz.nr_zones ) {
+        dz.zinfo_lines = dz.zinfo_end_no + 1 - dz.zinfo_start_no;
+        dz.zinfo_lines = (dz.zinfo_lines / 2) * 2;
+    } else {
+        dz.zinfo_lines = 0;
+    }
 
     dz_if_redraw_zinfo();
 
@@ -790,7 +881,8 @@ static void
 dz_if_update_zinfo(void)
 {
     GtkWidget *dialog;
-    unsigned int nr_zones = dz.nr_zones;
+    unsigned int i, nr_zones = dz.nr_zones;
+    GtkTreeIter iter;
     char str[128];
     int ret;
 
@@ -814,16 +906,57 @@ dz_if_update_zinfo(void)
     }
 
     if ( dz.nr_zones != nr_zones ) {
+
 	/* Number of zones changed... */
 	snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dz.path, dz.nr_zones);
 	gtk_label_set_text(GTK_LABEL(dz.zinfo_frame_label), str);
 	gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
+
+        gtk_list_store_clear(dz.zinfo_store);
+        for(i = 0; i < dz.nr_zones; i++) {
+            gtk_list_store_append(dz.zinfo_store, &iter);
+        }
+
     }
 
     /* Update list */
     dz_if_zinfo_fill();
 
     return;
+
+}
+
+static gboolean
+dz_if_zinfo_filter_cb(GtkComboBox *button,
+                      gpointer user_data)
+{
+    GtkWidget *combo = (GtkWidget *) user_data;
+    gchar *text;
+    int zone_ro = ZBC_RO_ALL;
+    int i = 0;
+
+    text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo));
+    if ( text ) {
+
+        while( zfilter[i].str ) {
+            if ( strcmp(zfilter[i].str, text) == 0 ) {
+                zone_ro = zfilter[i].ro;
+                break;
+            }
+            i++;
+        }
+
+        g_free(text);
+
+        if ( dz.zone_ro != zone_ro ) {
+            dz.zone_ro = zone_ro;
+            dz_if_update_zinfo();
+            dz_if_redraw_zinfo();
+        }
+
+    }
+
+    return( FALSE );
 
 }
 
@@ -915,6 +1048,10 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
     gtk_widget_get_allocation(dz.zstate_da, &allocation);
     w = allocation.width - (DZ_DRAW_WOFST * 2);
     h = allocation.height;
+
+    if ( ! dz.nr_zones ) {
+        return( FALSE );
+    }
 
     /* Get total viewed capacity */
     dz.zinfo_end_no = dz.zinfo_start_no + dz.zinfo_lines - 1;

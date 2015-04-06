@@ -59,6 +59,8 @@ typedef struct dz {
     struct zbc_device           *dev;
     struct zbc_device_info      info;
 
+    int                         zone_ro;
+    unsigned int                max_nr_zones;
     unsigned int                nr_zones;
     struct zbc_zone             *zones;
 
