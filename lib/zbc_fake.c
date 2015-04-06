@@ -708,7 +708,11 @@ zbc_fake_close_zone(zbc_device_t *dev,
         /* Close the specified zone */
         zone = zbf_fake_find_zone(fdev, start_lba);
         if ( zbc_zone_close_allowed(zone) ) {
-            zone->zbz_condition = ZBC_ZC_CLOSED;
+            if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
+                zone->zbz_condition = ZBC_ZC_EMPTY;
+            } else {
+                zone->zbz_condition = ZBC_ZC_CLOSED;
+            }
         } else {
             ret = -EIO;
         }
