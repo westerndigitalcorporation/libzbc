@@ -719,7 +719,7 @@ zbc_scsi_reset_write_pointer(zbc_device_t *dev,
 static int
 zbc_scsi_set_zones(zbc_device_t *dev,
                    uint64_t conv_sz,
-                   uint64_t seq_sz)
+                   uint64_t zone_sz)
 {
     zbc_sg_cmd_t cmd;
     int ret;
@@ -745,14 +745,14 @@ zbc_scsi_set_zones(zbc_device_t *dev,
      * | 8   |                                                                 (LSB) |
      * |-----+-----------------------------------------------------------------------|
      * | 9   | (MSB)                                                                 |
-     * |- - -+---             Sequential Zone Sise (LBA)                          ---|
+     * |- - -+---                   Zone Sise (LBA)                               ---|
      * | 15  |                                                                 (LSB) |
      * +=============================================================================+
      */
     cmd.cdb[0] = ZBC_SG_SET_ZONES_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_SET_ZONES_CDB_SA;
     zbc_sg_cmd_set_bytes(&cmd.cdb[2], &conv_sz, 7);
-    zbc_sg_cmd_set_bytes(&cmd.cdb[9], &seq_sz, 7);
+    zbc_sg_cmd_set_bytes(&cmd.cdb[9], &zone_sz, 7);
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -770,7 +770,7 @@ zbc_scsi_set_zones(zbc_device_t *dev,
 static int
 zbc_scsi_set_write_pointer(zbc_device_t *dev,
                            uint64_t start_lba,
-                           uint64_t write_pointer)
+                           uint64_t wp_lba)
 {
     zbc_sg_cmd_t cmd;
     int ret;
@@ -803,7 +803,7 @@ zbc_scsi_set_write_pointer(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_SET_WRITE_POINTER_CDB_SA;
     zbc_sg_cmd_set_bytes(&cmd.cdb[2], &start_lba, 7);
-    zbc_sg_cmd_set_bytes(&cmd.cdb[9], &write_pointer, 7);
+    zbc_sg_cmd_set_bytes(&cmd.cdb[9], &wp_lba, 7);
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);

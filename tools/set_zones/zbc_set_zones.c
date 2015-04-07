@@ -24,32 +24,15 @@
 
 #include <zbc_private.h>
 
-/***** Private function *****/
-
-static int
-zbc_set_zones_align(unsigned long long sectors,
-                    unsigned long long sector_size,
-                    unsigned long long align,
-                    unsigned long long *cz_size,
-                    unsigned long long *sz_size);
-
-static void
-zbc_display_zones_sizes(unsigned long long sectors,
-                        unsigned long long sector_size,
-                        unsigned long long cz_size,
-                        unsigned long long sz_size);
-
 /***** Main *****/
 
 int main(int argc,
          char **argv)
 {
-    unsigned long long conv_sz, seq_sz = 0;
-    long long align = 0;
-    double conv_p;
-    int seq_num;
     struct zbc_device_info info;
     struct zbc_device *dev;
+    long long conv_num, conv_sz, zone_sz;
+    double conv_p;
     int i, ret = -1;
     char *path;
 
@@ -59,16 +42,11 @@ usage:
         printf("Usage: %s [options] <dev> <command> <command arguments>\n"
                "Options:\n"
                "    -v     : Verbose mode\n"
-               "    -a <x> : Force alignment of zone sizes on a multiple of x kB\n"
                "Commands:\n"
-               "    set_sz <conv zone size> <seq zone size>             : Specify the size of the conventional zone and sequential\n"
-               "                                                          write required zones in number of logical sectors\n"
-               "    set_pn <conv zone percentage> <number of seq zones> : Specify the percentage of the disk capacity to allocate\n"
-               "                                                          to the conventional zone and the number of sequential\n"
-               "                                                          write required zones\n"
-               "    set_ps <conv zone percentage> <seq zone size (MB)>  : Specify the percentage of the disk capacity to allocate\n"
-               "                                                          to the conventional zone and the size in MiB of sequential\n"
-               "                                                          write required zones\n",
+               "    set_sz <conv zone size (MB)> <zone size (MiB)>  : Specify the total size in MiB of all conventional zones\n"
+               "                                                      and the size in MiB of zones\n"
+               "    set_ps <conv zone size (%%)> <zone size (MiB)>  : Specify the percentage of the capacity to use for\n"
+               "                                                      conventional zones and the size in MiB of zones\n",
                argv[0]);
         return( 1 );
     }
@@ -80,21 +58,6 @@ usage:
 
             zbc_set_log_level("debug");
 
-        } else if ( strcmp(argv[i], "-a") == 0 ) {
-            
-            i++;
-            if ( i >= (argc - 2) ) {
-                goto usage;
-            }
-            
-            align = (atoi(argv[i])) * 1024;
-            if ( align <= 0 ) {
-                fprintf(stderr,
-                        "Invalid align value %s\n",
-                        argv[i]);
-                return( 1 );
-            }
-            
         } else if ( argv[i][0] == '-' ) {
             
             fprintf(stderr,
@@ -144,7 +107,7 @@ usage:
            (unsigned long long) info.zbd_physical_blocks,
            (unsigned int) info.zbd_physical_block_size);
     printf("    %.03F GiB capacity\n",
-           (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
+           (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000.0);
 
     /* Process command */
     printf("Setting zones:\n");
@@ -158,41 +121,21 @@ usage:
         }
 
         /* Get arguments */
-        conv_sz = strtoll(argv[i + 1], NULL, 10);
-        seq_sz = strtoll(argv[i + 2], NULL, 10);
-        if ( seq_sz == 0 ) {
-            fprintf(stderr, "Invalid size %s for sequential write required zones\n",
-                    argv[i + 2]);
-            ret = 1;
-            goto out;
-        }
-
-    } else if ( strcmp(argv[i], "set_pn") == 0 ) {
-
-        /* Set perc + num */
-        if ( i != (argc - 3) ) {
-            goto usage;
-        }
-
-        /* Get arguments */
-        conv_p = strtof(argv[i + 1], NULL);
-        if ( conv_p >= 100.0 ) {
-            fprintf(stderr, "Invalid capacity percentage %s for conventional zone\n",
+        conv_sz = (strtoll(argv[i + 1], NULL, 10) * 1024 * 1024) / info.zbd_logical_block_size;;
+        if ( conv_sz < 0 ) {
+            fprintf(stderr, "Invalid conventional zones size %s\n",
                     argv[i + 1]);
             ret = 1;
             goto out;
         }
 
-        seq_num = atoi(argv[i + 2]);
-        if ( seq_num <= 0 ) {
-            fprintf(stderr, "Invalid number of sequential write required zones %s\n",
+        zone_sz = (strtoll(argv[i + 2], NULL, 10) * 1024 * 1024) / info.zbd_logical_block_size;;
+        if ( zone_sz <= 0 ) {
+            fprintf(stderr, "Invalid zone size %s\n",
                     argv[i + 2]);
             ret = 1;
             goto out;
         }
-
-        conv_sz = (unsigned long long)((double) info.zbd_logical_blocks * (double) conv_p) / 100;
-        seq_sz = (info.zbd_logical_blocks - conv_sz) / seq_num;
 
     } else if ( strcmp(argv[i], "set_ps") == 0 ) {
 
@@ -203,23 +146,23 @@ usage:
 
         /* Get arguments */
         conv_p = strtof(argv[i + 1], NULL);
-        if ( conv_p >= 100.0 ) {
-            fprintf(stderr, "Invalid capacity percentage %s for conventional zone\n",
+        if ( (conv_p < 0) || (conv_p >= 100.0) ) {
+            fprintf(stderr, "Invalid capacity percentage %s for conventional zones\n",
                     argv[i + 1]);
             ret = 1;
             goto out;
         }
 
-        seq_sz = (strtoll(argv[i + 2], NULL, 10) * 1024ULL * 1024ULL) / info.zbd_logical_block_size;
-        if ( seq_sz == 0 ) {
-            fprintf(stderr, "Invalid size %s for sequential write required zones\n",
+        conv_sz = (long long)((double) info.zbd_logical_blocks * (double) conv_p) / 100;
+
+        zone_sz = (strtoll(argv[i + 2], NULL, 10) * 1024ULL * 1024ULL) / info.zbd_logical_block_size;
+        if ( zone_sz == 0 ) {
+            fprintf(stderr, "Invalid zone size %s\n",
                     argv[i + 2]);
             ret = 1;
             goto out;
         }
 
-        conv_sz = (unsigned long long)((double) info.zbd_logical_blocks * (double) conv_p) / 100;
-        seq_num = (info.zbd_logical_blocks - conv_sz) / seq_sz;
 
     } else {
         
@@ -230,20 +173,30 @@ usage:
 
     }
 
-    if ( align ) {
-        ret = zbc_set_zones_align(info.zbd_logical_blocks,
-                                  info.zbd_logical_block_size,
-                                  align,
-                                  &conv_sz,
-                                  &seq_sz);
-        if ( ret ) {
-            goto out;
+    if ( conv_sz ) {
+        conv_num = conv_sz / zone_sz;
+        if ( (! conv_num) || (conv_sz % zone_sz) ) {
+            conv_num++;
         }
+    } else {
+        conv_num = 0;
     }
+    conv_sz = zone_sz * conv_num;
 
-    zbc_display_zones_sizes(info.zbd_physical_blocks, info.zbd_physical_block_size, conv_sz, seq_sz);
+    printf("    Zone size: %lld MiB (%lld sectors)\n",
+           (zone_sz * info.zbd_logical_block_size) / (1024 * 1024),
+           zone_sz);
 
-    ret = zbc_set_zones(dev, conv_sz, seq_sz);
+    printf("    Conventional zones: %lld MiB (%lld sectors), %.02F %% of total capacity), %lld zones\n",
+           (conv_sz * info.zbd_logical_block_size) / (1024 * 1024),
+           conv_sz,
+           100.0 * (double)conv_sz / (double)info.zbd_logical_blocks,
+           conv_num);
+
+    printf("    Sequential zones: %llu zones\n",
+           (info.zbd_logical_blocks - conv_sz) / zone_sz);
+
+    ret = zbc_set_zones(dev, conv_sz, zone_sz);
     if ( ret != 0 ) {
         fprintf(stderr,
                 "zbc_set_zones failed\n");
@@ -258,76 +211,3 @@ out:
     
 }
 
-/***** Private function *****/
-
-static int
-zbc_set_zones_align(unsigned long long sectors,
-                    unsigned long long sector_size,
-                    unsigned long long align,
-                    unsigned long long *cz_size,
-                    unsigned long long *sz_size)
-{
-    unsigned long long r = 0;
-    unsigned long long rem_phy_blocks = 0;
-    unsigned long long abs = 0;
-
-    /* Align the zone sizes */
-    if ( sector_size % align ) {
-
-        r = ((unsigned long long)((double)(*cz_size) * (double)sector_size)) % align;
-        abs = (align < sector_size) ? (r - align) : (align - r);
-
-        if ( r ) {
-            *cz_size +=  abs / sector_size;
-        }
-        rem_phy_blocks = sectors - *cz_size;
-
-        if ( rem_phy_blocks < *sz_size ) {
-            printf("    Request alignment cannot be fullfil (1)\n");
-            return( 1 );
-        }
-
-        if ( *sz_size > 0) {
-
-            r = ((unsigned long long)((double)(*sz_size) * (double)sector_size)) % align;
-            abs = (align < sector_size) ? (r - align) : (align - r);
-
-            if ( r ) {
-                *sz_size += abs / sector_size;
-            }
-
-            if ( rem_phy_blocks < *sz_size ) {
-                printf("    Request alignment cannot be fullfil (2)\n");
-                return( 1 );
-            }
-
-        }
-
-    }
-
-    return( 0 );
-
-}
-
-static void
-zbc_display_zones_sizes(unsigned long long sectors,
-                        unsigned long long sector_size,
-                        unsigned long long cz_size,
-                        unsigned long long sz_size)
-{
-    unsigned long long seq_zones = (sectors - cz_size) / sz_size;
-
-    if ( ((sectors - cz_size) - (seq_zones * sz_size)) > (sz_size / 2) ) {
-        seq_zones++;
-    }
-
-    printf("    Conventional zone size : %llu sectors (%.02f %% of total capacity)\n"
-           "    Sequential zone size   : %llu sectors => %llu zones\n",
-           cz_size,
-           100 * ((double)cz_size / (double)sectors),
-           sz_size,
-           seq_zones);
-
-    return;
-
-}

@@ -1088,8 +1088,8 @@ zbc_fake_flush(struct zbc_device *dev,
  */
 static int
 zbc_fake_set_zones(struct zbc_device *dev,
-                   uint64_t conv_zone_size,
-                   uint64_t seq_zone_size)
+                   uint64_t conv_sz,
+                   uint64_t zone_sz)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     uint64_t lba = 0, device_size = dev->zbd_info.zbd_logical_blocks;
@@ -1106,19 +1106,19 @@ zbc_fake_set_zones(struct zbc_device *dev,
     fmeta.zbd_capacity = device_size * dev->zbd_info.zbd_logical_block_size;
 
     /* Convert device size into # of physical blocks */
-    if ( (conv_zone_size + seq_zone_size) > device_size ) {
+    if ( (conv_sz + zone_sz) > device_size ) {
         zbc_error("%s: invalid zone sizes (too large)\n",
                   fdev->dev.zbd_filename);
         ret = -EINVAL;
         goto out_unlock;
     }
 
-    fmeta.zbd_nr_conv_zones = conv_zone_size / seq_zone_size;
-    if ( conv_zone_size && (! fmeta.zbd_nr_conv_zones) ) {
+    fmeta.zbd_nr_conv_zones = conv_sz / zone_sz;
+    if ( conv_sz && (! fmeta.zbd_nr_conv_zones) ) {
         fmeta.zbd_nr_conv_zones = 1;
     }
 
-    fmeta.zbd_nr_seq_zones = (device_size - (fmeta.zbd_nr_conv_zones * seq_zone_size)) / seq_zone_size;
+    fmeta.zbd_nr_seq_zones = (device_size - (fmeta.zbd_nr_conv_zones * zone_sz)) / zone_sz;
     if ( ! fmeta.zbd_nr_seq_zones ) {
         zbc_error("%s: invalid zone sizes (too large)\n",
                   fdev->dev.zbd_filename);
@@ -1178,11 +1178,11 @@ zbc_fake_set_zones(struct zbc_device *dev,
         zone->zbz_type = ZBC_ZT_CONVENTIONAL;
         zone->zbz_condition = ZBC_ZC_NOT_WP;
         zone->zbz_start = lba;
-        zone->zbz_length = seq_zone_size;
+        zone->zbz_length = zone_sz;
         zone->zbz_write_pointer = (uint64_t)-1;
         memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-        lba += seq_zone_size;
+        lba += zone_sz;
 
     }
 
@@ -1195,11 +1195,11 @@ zbc_fake_set_zones(struct zbc_device *dev,
 
         zone->zbz_start = lba;
         zone->zbz_write_pointer = zone->zbz_start;
-        zone->zbz_length = seq_zone_size;
+        zone->zbz_length = zone_sz;
 
         memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-        lba += seq_zone_size;
+        lba += zone_sz;
 
     }
 
@@ -1225,7 +1225,7 @@ out_close:
 static int
 zbc_fake_set_write_pointer(struct zbc_device *dev,
                            uint64_t start_lba,
-                           uint64_t write_pointer)
+                           uint64_t wp_lba)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     struct zbc_zone *zone;
@@ -1242,8 +1242,10 @@ zbc_fake_set_write_pointer(struct zbc_device *dev,
 
         /* Do nothing for conventional zones */
         if ( zbc_zone_sequential_req(zone) ) {
-            zone->zbz_write_pointer = write_pointer;
-            if ( zbc_zone_wp_within_zone(zone) ) {
+            zone->zbz_write_pointer = wp_lba;
+            if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
+                zone->zbz_condition = ZBC_ZC_EMPTY;
+            } else if ( zbc_zone_wp_within_zone(zone) ) {
                 zone->zbz_condition = ZBC_ZC_CLOSED;
             } else {
                 zone->zbz_condition = ZBC_ZC_FULL;
