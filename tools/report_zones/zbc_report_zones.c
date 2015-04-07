@@ -187,9 +187,7 @@ usage:
 	goto out;
     }
 
-    if ( ! nz ) {
-	nz = nr_zones;
-    } else if ( nz > nr_zones ) {
+    if ( (! nz) || (nz > nr_zones) ) {
 	nz = nr_zones;
     }
 
