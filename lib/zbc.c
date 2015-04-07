@@ -319,8 +319,7 @@ zbc_report_zones(struct zbc_device *dev,
             z += n;
             start_lba = zones[z - 1].zbz_start + zones[z - 1].zbz_length;
 
-            if ( (n < (*nr_zones - nz))
-                 || (start_lba >= dev->zbd_info.zbd_logical_blocks) ) {
+            if ( start_lba >= dev->zbd_info.zbd_logical_blocks ) {
                 break;
             }
 
