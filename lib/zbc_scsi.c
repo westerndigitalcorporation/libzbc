@@ -366,7 +366,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     }
 
     if ( cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET ) {
-        zbc_error("Not enough data received (need at least %d B, got %zu B\n",
+        zbc_error("Not enough data received (need at least %d B, got %zu B)\n",
                   ZBC_ZONE_DESCRIPTOR_OFFSET,
                   cmd.out_bufsz);
         ret = -EIO;
