@@ -171,7 +171,6 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
 {
     char meta_path[512];
     struct stat st;
-    unsigned int i;
     int ret;
 
     sprintf(meta_path, "/tmp/zbc-%s.meta",
