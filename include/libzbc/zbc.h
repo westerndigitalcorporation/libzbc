@@ -281,14 +281,11 @@ zbc_report_zones(struct zbc_device *dev,
  * @ro:                 (IN) Reporting options (filter)
  * @nr_zones:           (OUT) Address where to return the number of matching zones
  */
-static inline int
+extern int
 zbc_report_nr_zones(struct zbc_device *dev,
                     uint64_t start_lba,
                     enum zbc_reporting_options ro,
-                    unsigned int *nr_zones)
-{
-    return( zbc_report_zones(dev, start_lba, ro, NULL, nr_zones) );
-}
+                    unsigned int *nr_zones);
 
 /**
  * zbc_list_zones - report zones for a ZBC device

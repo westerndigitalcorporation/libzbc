@@ -267,6 +267,24 @@ zbc_get_device_info(zbc_device_t *dev,
 }
 
 /**
+ * zbc_report_nr_zones - Get number of zones of a ZBC device
+ * @dev:                (IN) ZBC device handle to report on
+ * @start_lba:          (IN) Start LBA of the first zone looked at
+ * @ro:                 (IN) Reporting options (filter)
+ * @nr_zones:           (OUT) Address where to return the number of matching zones
+ */
+int
+zbc_report_nr_zones(struct zbc_device *dev,
+                    uint64_t start_lba,
+                    enum zbc_reporting_options ro,
+                    unsigned int *nr_zones)
+{
+
+    return( zbc_report_zones(dev, start_lba, ro, NULL, nr_zones) );
+
+}
+
+/**
  * zbc_report_zones - Update a list of zone information
  * @dev:                (IN) ZBC device handle to report on
  * @start_lba:          (IN) Start LBA for the first zone to reported
