@@ -142,7 +142,7 @@ zbc_scsi_classify(zbc_device_t *dev)
 	     && (cmd.out_buf[2] == 0x00)
 	     && (cmd.out_buf[3] == 0x3C) ) {
 
-            switch ((cmd.out_buf[8] & 0x30) >> 4 ) {
+            switch( (cmd.out_buf[8] & 0x30) >> 4 ) {
                 case 0x01:
                     /* Host aware device */
                     zbc_debug("Host aware ZBC disk detected\n");
@@ -312,14 +312,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     int ret;
 
     if ( *nr_zones ) {
-        zbc_debug("Report at most %d zones\n",
-                 *nr_zones);
         out_bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
         if ( out_bufsz > ZBC_SCSI_REPORT_ZONES_BUFSZ ) {
             out_bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
-            zbc_debug("Limit zone report to %d / %d zones\n",
-                      (int)((out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH),
-                      *nr_zones);
             *nr_zones = (out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
         }
     }
