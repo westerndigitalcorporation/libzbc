@@ -351,6 +351,26 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
               (unsigned int)cmd->io_hdr.driver_status);
 
     /* Check status */
+    if ( ((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16))
+         && (cmd->cdb[2] & (1 << 5)) ) {
+
+       /* ATA command status */
+       if ( cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION ) {
+           ret = -EIO;
+           goto out;
+       }
+
+       if ( (cmd->io_hdr.driver_status == ZBC_SG_DRIVER_SENSE)
+            && (cmd->io_hdr.sb_len_wr > 21)
+            && (cmd->sense_buf[21] != 0x50) ) {
+           ret = -EIO;
+           goto out;
+       }
+
+       cmd->io_hdr.status = 0;
+
+    }
+
     if ( cmd->io_hdr.status
          || cmd->io_hdr.host_status
 	 || (cmd->io_hdr.driver_status && (cmd->io_hdr.driver_status != ZBC_SG_DRIVER_SENSE)) ) {
