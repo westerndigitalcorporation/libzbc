@@ -300,13 +300,11 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
     if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
 
-        zbc_debug("*****************************************\n");
-
-        zbc_debug("* Sending cmd 0x%02x:0x%02x (%s) to device %s\n",
+        zbc_debug("%s: Sending command 0x%02x:0x%02x (%s)\n",
+                  dev->zbd_filename,
                   cmd->cdb_opcode,
                   cmd->cdb_sa,
-                  zbc_sg_cmd_name(cmd),
-                  dev->zbd_filename);
+                  zbc_sg_cmd_name(cmd));
         
         zbc_debug("* +==================================\n");
         zbc_debug("* |Byte |   0  |  1   |  2   |  3   |\n");
@@ -332,8 +330,6 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
             }
         }
 
-        zbc_debug("*****************************************\n");
-
     }
 
     /* Send the SG_IO command */
@@ -347,42 +343,45 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
         goto out;
     }
 
+    zbc_debug("%s: Command %s done: status 0x%02x, host status 0x%04x, driver status 0x%04x\n",
+              dev->zbd_filename,
+              zbc_sg_cmd_name(cmd),
+              (unsigned int)cmd->io_hdr.status,
+              (unsigned int)cmd->io_hdr.host_status,
+              (unsigned int)cmd->io_hdr.driver_status);
+
     /* Check status */
-    if ( cmd->io_hdr.host_status
-	 || (cmd->io_hdr.driver_status && (cmd->io_hdr.driver_status != ZBC_SG_DRIVER_SENSE))
-	 || (cmd->io_hdr.status && (cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION)) ) {
+    if ( cmd->io_hdr.status
+         || cmd->io_hdr.host_status
+	 || (cmd->io_hdr.driver_status && (cmd->io_hdr.driver_status != ZBC_SG_DRIVER_SENSE)) ) {
 
-        zbc_error("%s: Command %s failed with host status 0x%02x, driver status 0x%02x, status 0x%02x\n",
-                  dev->zbd_filename,
-                  zbc_sg_cmd_name(cmd),
-                  (unsigned int)cmd->io_hdr.host_status,
-                  (unsigned int)cmd->io_hdr.driver_status,
-                  (unsigned int)cmd->io_hdr.status);
+	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
 
-	if ( zbc_log_level > ZBC_LOG_INFO ) {
-            zbc_debug("Sense buffer:\n");
-            for(i = 0; i < cmd->io_hdr.sb_len_wr; i += 4) {
-                zbc_debug("[%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
-                          i,
-                          (unsigned int)cmd->sense_buf[i],
-                          (unsigned int)cmd->sense_buf[i + 1],
-                          (unsigned int)cmd->sense_buf[i + 2],
-                          (unsigned int)cmd->sense_buf[i + 3]);
+            zbc_debug("%s: Command %s failed with status 0x%02x, host status 0x%04x, driver status 0x%04x\n",
+                      dev->zbd_filename,
+                      zbc_sg_cmd_name(cmd),
+                      (unsigned int)cmd->io_hdr.status,
+                      (unsigned int)cmd->io_hdr.host_status,
+                      (unsigned int)cmd->io_hdr.driver_status);
+
+            if ( cmd->io_hdr.sb_len_wr ) {
+                zbc_debug("Sense data (%d B):\n", cmd->io_hdr.sb_len_wr);
+                for(i = 0; i < cmd->io_hdr.sb_len_wr; i += 4) {
+                    zbc_debug("[%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+                              i,
+                              (unsigned int)cmd->sense_buf[i],
+                              ((i + 1) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 1] : 0,
+                              ((i + 2) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 2] : 0,
+                              ((i + 3) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 3] : 0);
+                }
+            } else {
+                zbc_debug("No sense data\n");
             }
 	}
 
         ret = -EIO;
 
         goto out;
-
-    } else if( (cmd->io_hdr.driver_status == ZBC_SG_DRIVER_SENSE)
-	       && ((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16)) ) {
-	
-	/* ATA command status */
-	if ( cmd->sense_buf[21] != 0x50 ) {
-	    ret = -EIO;
-	    goto out;
-	}
 
     }
 
