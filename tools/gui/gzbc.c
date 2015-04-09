@@ -188,11 +188,6 @@ dz_get_zones(void )
         dz.zone_ro = ZBC_RO_ALL;
 	ret = zbc_list_zones(dz.dev, 0, dz.zone_ro, &dz.zones, &dz.nr_zones);
 	if ( ret == 0 ) {
-	    printf("Device \"%s\": %llu sectors of %u B, %d zones\n",
-		   dz.path,
-		   (unsigned long long) dz.info.zbd_physical_blocks,
-		   (unsigned int) dz.info.zbd_physical_block_size,
-		   dz.nr_zones);
             dz.max_nr_zones = dz.nr_zones;
 	}
 
