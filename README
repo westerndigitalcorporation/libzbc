@@ -6,17 +6,19 @@ I. Introduction
 I.1. Overview
 -------------
 
-libzbc is a simple library providing functions for manipulating Zoned
-Block Command (ZBC) and Zoned-device ATA command set (ZAC) disks.
-Its implemented is compliant with the current version of the ZBC and
-ZAC standard drafts defined by INCITS technical committee T10 and T13.
-At the time of this writing, the current version of the ZBC standard
-draft is Rev 01c (released on 2014/10/17) and Rev 00 of the ZAC
-standard draft (released on 2014/06/23).
+libzbc is a simple library providing functions for manipulating disks
+supporting the Zoned Block Command (ZBC) and Zoned-device ATA command set
+(ZAC) disks.  libzbc implemention is compliant with the latest drafts of
+the ZBC and ZAC standards defined by INCITS technical committee T10 and
+T13 (respectively).  At the time of this writing, the current version of
+the ZBC standard draft is Rev 02 (released on 2014/11/11) and Rev 00 of
+the ZAC standard draft (released on 2014/06/23) completed with the "ZAC
+Zone State Machine et aliae" document f14183r5 published on 2015/04/03.
 
-In addition to supporting ZBC and ZAC disks, libzbc also implements
-an emulation mode allowing emulating the behavior of a zoned disks
-using a regular file or a raw standard block device.
+In addition to supporting ZBC and ZAC disks, libzbc also implements an
+emulation mode allowing emulating the behavior of a host-managed zoned
+disks using a regular file or a raw standard block device as backing
+storage.
 
 Several example applications using libzbc are available under the tools
 directory.
@@ -40,7 +42,7 @@ this license can be found in the COPYING.GPL file.
 libzbc and all its example applications are distributed "as is,"
 without technical support, and WITHOUT ANY WARRANTY, without even the
 implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-Along with libzbc, you should have received a copy of the BSD 2-clause 
+Along with libzbc, you should have received a copy of the BSD 2-clause
 license, GNU General Public License and og the GNU Lesser General Public
 License. If not, please see <http://opensource.org/licenses/BSD-2-Clause>
 and <http://www.gnu.org/licenses/>.
@@ -54,7 +56,16 @@ Adam Manzanares (adam.manzanares@hgst.com) to report problems.
 II. Compilation and installation
 ================================
 
-II.1. Compilation
+II.1. Requiremensts
+-------------------
+
+The compilation of libzbc requires that the autoconf, GTK3 and GTK3
+development packages be installed on the target host. The GTK3 packages
+are only necessary for the gzbc GUI example application.  If this
+application is not compiled, installing the GTK3 and GTK3 developemnt
+packages is not necessary.
+
+II.2. Compilation
 -----------------
 
 To compile the library and all example applications, execute the
@@ -64,7 +75,7 @@ following commands.
 > ./configure
 > make
 
-II.2. Installation
+II.3. Installation
 ------------------
 
 To install the library and all example applications, as root, execute
@@ -83,28 +94,26 @@ III. Usage
 III.1 Kernel Version
 --------------------
 
-libzbc functions operate using device handles which are obtained by executing
-the zbc_open function. This function argument can be a regular file or a
-legacy raw block device file for operating in emulation mode, or the SG node
-device file (/dev/sg<x>) of the target ZBC or ZAC disk. Kernel support is
-required for these SG nodes to exist.
+libzbc functions operate using device handles which are obtained by
+executing the zbc_open function. This function argument can be a regular
+file or a legacy raw block device file for operating in emulation mode, or
+the SG node device file (/dev/sg<x>) of a ZBC disk or a ZAC disk. Kernel
+support is required for these SG nodes to exist.
 
 Linux kernel introduced support for ZBC device type with version 3.17. Any
-kernel with version 3.17 and above will thus recognize SAS ZBC devices and
-create an SG node for these disks, but will not create a regular block
-device (such as /dev/sd<y>).
+kernel with version 3.17 and above will thus recognize SAS ZBC devices
+and create an SG node for these disks, but will not create a regular
+block device (such as /dev/sd<y>).
 
-As of kernel version 3.17.4, ZAC device types are not yet recognized and
-no SG device node is created for those devices. To allow using ZAC disks,
-the following patches must be used.
+The device signature of SATA ZAC disks is not recognized by kernels
+before 3.19. For these kernels, no SG device node is created, resulting
+in the impossibility to access ZAC disks.  To enable ZAC device signature
+handling for kernels between version 3.17 and 3.19, the following patches
+must be used.
 
 https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v2&id=ec07b9a8b168499c6009bf5bfe925a0a10b49729
 https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v2&id=02582e1667f05b0c64f2998877216e395e7fda52
 https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v2&id=70eb02d6eca2c0706b388a3971f9e156bac092d7
-
-These patches are included in kernel 3.19 development tree.
-
-https://git.kernel.org/cgit/linux/kernel/git/tj/libata.git/log/?h=for-3.19
 
 
 III.2 Library Functions
@@ -121,61 +130,75 @@ libzbc exports the following functions.
 +------------------------------+------------------------------------+
 | zbc_get_device_info          | Get sector and size information    |
 +------------------------------+------------------------------------+
-| zbc_report_zones             | Get device zone information        |
+| zbc_report_zones             | Get zone information               |
 +------------------------------+------------------------------------+
 | zbc_report_nr_zones          | Get the number of zones            |
 +------------------------------+------------------------------------+
 | zbc_list_zones               | Get device zone information        |
 +------------------------------+------------------------------------+
-| zbc_open_zones               | Open a zone                        |
+| zbc_open_zones               | Explicitely open a zone            |
 +------------------------------+------------------------------------+
-| zbc_close_zones              | Close a zone                       |
+| zbc_close_zones              | Close an open zone                 |
 +------------------------------+------------------------------------+
 | zbc_finish_zones             | Finish a zone                      |
 +------------------------------+------------------------------------+
 | zbc_reset_write_pointer      | Reset a zone write pointer         |
 +------------------------------+------------------------------------+
-| zbc_reset_all_write_pointers | Reset all zones write pointer      |
-+------------------------------+------------------------------------+
 | zbc_pread                    | Read data from a zone              |
 +------------------------------+------------------------------------+
 | zbc_pwrite                   | Write data to a zone               |
 +------------------------------+------------------------------------+
-| zbc_set_log_level            | Set the library log level          |
+| zbc_write                    | Write data to a sequential zone    |
 +------------------------------+------------------------------------+
 | zbc_flush                    | Flush data to disk                 |
 +------------------------------+------------------------------------+
 
-More detailed information on these functions is available through the
-comments in the file include/libzbc/zbc.h
-
 The current implementation of these functions is NOT thread safe. In
-particular, iconcurrent write operations by multiple threads to the
+particular, concurrent write operations by multiple threads to the
 same zone may result in write errors without write ordering control
 by the application.
 
-III.3 Native Mode
------------------
+Additionally, the following functions are also provided to facilitate
+application development and tests.
 
-As of version 3.16.x, the standard Linux kernel does not support ZBC
-host-managed device type 14h. As a result, such device will not be
-avalaible as a regular block device (with a device file name /dev/sdx).
-However, ZBC host-managed disks will be accessible through the SG
-driver using the device SG node (/dev/sgx device file).
++------------------------+------------------------------------------+
+| Function               | Description                              |
++==============================+====================================+
+| zbc_set_log_level      | Set log level of the library functions   |
++------------------------+------------------------------------------+
+| zbc_disk_type_str      | Get a string description of a disk type  |
++------------------------+------------------------------------------+
+| zbc_disk_model_str     | Get a string description of a disk model |
++------------------------+------------------------------------------+
+| zbc_zone_type_str      | Get a string description of a zone type  |
++------------------------+------------------------------------------+
+| zbc_zone_condition_str | Get a string description of a zone state |
++------------------------+------------------------------------------+
 
-Opening a native ZBC disk with libzbc thus needs to be done by
+More detailed information on these functions is available through the
+comments in the file include/libzbc/zbc.h.
+
+
+III.3 Native Mode Operation
+---------------------------
+
+The standard Linux kernel does not create a blocks device file for
+host-managed ZBC and ZAC disks.  As a result, these devices are only
+accessible through their associated SG node (/dev/sgx device file).
+
+Opening a native ZBC or ZAC disk with libzbc thus needs to be done by
 specifying the device SG node. Further accesses (report zones,
 reset zone write pointer, etc) can then proceed using the device
 handle provided by the zbc_open function.
 
-III.4 Emulation Mode
---------------------
+III.4 Emulation Mode Operation
+------------------------------
 
-libzbc can emulate host-managed ZBC disks operation using a regular
+libzbc can emulate host-managed disks operation using a regular
 file or a raw standard block device (regular disk or loopback device).
 The use of the library in such case is identical to the native mode
 case, assuming that the emulated device is first configured by executing
-teh zbc_set_zones tool (see next section).
+the zbc_set_zones tool (see next section).
 
 
 IV. Example Applications
@@ -187,10 +210,12 @@ as examples.  These appliations are as follows.
 IV.1. gzbc (tools/gui)
 ----------------------
 
-A simple graphical interface showing zone information of a zoned device.
-It alos displays the write status (write pointer position) of zones
-graphically using color coding (red for written space and green for
-unwritten space). 
+gzbc provides a graphical user interface showing zone information of a
+zoned device.  It also displays the write status (write pointer position)
+of zones graphically using color coding (red for written space and green
+for unwritten space). Some operations on zones can also be executed
+directly from the interface (reset zone write pointer, open zone, close
+zone, etc).
 
 IV.2. zbc_report_zones (tools/report_zones/)
 --------------------------------------------
