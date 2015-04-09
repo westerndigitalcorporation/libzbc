@@ -175,13 +175,14 @@ zbc_fake_close_metadata(zbc_fake_device_t *fdev)
         if ( fdev->zbd_meta ) {
             msync(fdev->zbd_meta, fdev->zbd_meta_size, MS_SYNC);
             munmap(fdev->zbd_meta, fdev->zbd_meta_size);
+            fdev->zbd_meta = NULL;
+            fdev->zbd_meta_size = 0;
         }
 
         close(fdev->zbd_meta_fd);
+        fdev->zbd_meta_fd = -1;
 
         pthread_mutexattr_destroy(&fdev->zbd_mutex_attr);
-        memset(fdev, 0, sizeof(zbc_fake_device_t));
-        fdev->zbd_meta_fd = -1;
 
     }
 
@@ -263,17 +264,6 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
         goto out;
     }
 
-#if 0
-    /* Make sure all open zones are closed */
-    for(i = 0; i < fdev->zbd_nr_zones; i++) {
-        if ( zbc_zone_is_open(&fdev->zbd_zones[i]) ) {
-            fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
-        }
-    }
-    fdev->zbd_meta->zbd_nr_exp_open_zones = 0;
-    fdev->zbd_meta->zbd_nr_imp_open_zones = 0;
-#endif
-    
     ret = 0;
     
 out:
@@ -477,7 +467,7 @@ zbc_fake_close(zbc_device_t *dev)
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     int ret = 0;
 
-    /* CLose metadata */
+    /* Close metadata */
     zbc_fake_close_metadata(fdev);
 
     /* Close device */
@@ -589,6 +579,30 @@ zbc_fake_report_zones(struct zbc_device *dev,
 }
 
 /**
+ * Close a zone.
+ */
+static void
+zbc_zone_do_close(zbc_fake_device_t *fdev,
+                  struct zbc_zone *zone)
+{
+
+    if ( zbc_zone_imp_open(zone) ) {
+        fdev->zbd_meta->zbd_nr_imp_open_zones--;;
+    } else {
+        fdev->zbd_meta->zbd_nr_exp_open_zones--;
+    }
+
+    if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
+        zone->zbz_condition = ZBC_ZC_EMPTY;
+    } else {
+        zone->zbz_condition = ZBC_ZC_CLOSED;
+    }
+
+    return;
+
+}
+
+/**
  * Open zone(s).
  */
 static int
@@ -596,7 +610,7 @@ zbc_fake_open_zone(zbc_device_t *dev,
                    uint64_t start_lba)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
-    unsigned int i, open_count, need_close;
+    unsigned int i;
     int ret = 0;
 
     if ( ! fdev->zbd_meta ) {
@@ -609,15 +623,13 @@ zbc_fake_open_zone(zbc_device_t *dev,
 
         unsigned int need_open = 0;
 
-        /* Count how many zones can be open */
+        /* Check if all closed zones can be open */
         for(i = 0; i < fdev->zbd_nr_zones; i++) {
             if ( zbc_zone_closed(&fdev->zbd_zones[i]) ) {
                 need_open++;
             }
         }
-
-        /* Check that all closed zones can be open */
-        if ( (need_open + fdev->zbd_meta->zbd_nr_exp_open_zones) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+        if ( (fdev->zbd_meta->zbd_nr_exp_open_zones + need_open) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
             ret = -EBUSY;
             goto out;
         }
@@ -634,45 +646,41 @@ zbc_fake_open_zone(zbc_device_t *dev,
         
         struct zbc_zone *zone;
 
-        /* Check limit */
-        if ( (fdev->zbd_meta->zbd_nr_exp_open_zones + 1) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
-            ret = -EBUSY;
+        /* Check target zone */
+        zone = zbc_fake_find_zone(fdev, start_lba);
+        if ( ! (zbc_zone_closed(zone)
+                || zbc_zone_imp_open(zone)
+                || zbc_zone_empty(zone)) ) {
+            ret = -EIO;
             goto out;
+        }
+
+        if ( zbc_zone_imp_open(zone) ) {
+            zbc_zone_do_close(fdev, zone);
+        }
+
+        /* Check limit */
+        if ( (fdev->zbd_meta->zbd_nr_exp_open_zones + fdev->zbd_meta->zbd_nr_imp_open_zones + 1)
+             > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
+
+            if ( ! fdev->zbd_meta->zbd_nr_imp_open_zones ) {
+                ret = -EBUSY;
+                goto out;
+            }
+
+            /* Close an implicitely open zone */
+            for(i = 0; i < fdev->zbd_nr_zones; i++) {
+                if ( zbc_zone_imp_open(&fdev->zbd_zones[i]) ) {
+                    zbc_zone_do_close(fdev, &fdev->zbd_zones[i]);
+                    break;
+                }
+            }
+
         }
 
         /* Open the specified zone */
-        zone = zbc_fake_find_zone(fdev, start_lba);
-        if ( zbc_zone_closed(zone)
-             || zbc_zone_imp_open(zone)
-             || zbc_zone_empty(zone) ) {
-            zone->zbz_condition = ZBC_ZC_EXP_OPEN;
-            fdev->zbd_meta->zbd_nr_exp_open_zones++;
-        } else {
-            ret = -EIO;
-        }
-
-    }
-
-    /* Close implicitely open zones */
-    open_count = fdev->zbd_meta->zbd_nr_imp_open_zones + fdev->zbd_meta->zbd_nr_exp_open_zones;
-    if ( open_count > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
-
-        need_close = open_count - fdev->dev.zbd_info.zbd_max_nr_open_seq_req;
-        for(i = 0; (i < fdev->zbd_nr_zones) && need_close; i++) {
-            if ( zbc_zone_imp_open(&fdev->zbd_zones[i]) ) {
-                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
-                need_close--;
-            }
-        }
-
-        if ( need_close ) {
-            zbc_error("%s: invalid implicit open zone count\n",
-                      fdev->dev.zbd_filename);
-            ret = -EINVAL;
-            goto out;
-        }
-        
-        fdev->zbd_meta->zbd_nr_imp_open_zones -= need_close;
+        zone->zbz_condition = ZBC_ZC_EXP_OPEN;
+        fdev->zbd_meta->zbd_nr_exp_open_zones++;
 
     }
 
@@ -723,7 +731,7 @@ zbc_fake_close_zone(zbc_device_t *dev,
         /* Close all open zones */
         for(i = 0; i < fdev->zbd_nr_zones; i++) {
             if ( zbc_zone_close_allowed(&fdev->zbd_zones[i]) ) {
-                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
+                zbc_zone_do_close(fdev, &fdev->zbd_zones[i]);
             }
         }
 
@@ -734,11 +742,7 @@ zbc_fake_close_zone(zbc_device_t *dev,
         /* Close the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( zbc_zone_close_allowed(zone) ) {
-            if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
-                zone->zbz_condition = ZBC_ZC_EMPTY;
-            } else {
-                zone->zbz_condition = ZBC_ZC_CLOSED;
-            }
+            zbc_zone_do_close(fdev, zone);
         } else {
             ret = -EIO;
         }
@@ -1029,8 +1033,7 @@ zbc_fake_pwrite(struct zbc_device *dev,
                 unsigned int i;
                 for(i = 0; i < fdev->zbd_nr_zones; i++) {
                     if ( zbc_zone_imp_open(&fdev->zbd_zones[i]) ) {
-                        fdev->zbd_zones[i].zbz_condition = ZBC_ZC_CLOSED;
-                        fdev->zbd_meta->zbd_nr_imp_open_zones--;
+                        zbc_zone_do_close(fdev, &fdev->zbd_zones[i]);
                         break;
                     }
                 }
@@ -1127,7 +1130,10 @@ zbc_fake_set_zones(struct zbc_device *dev,
     int ret;
 
     /* Initialize metadata */
-    zbc_fake_close_metadata(fdev);
+    if ( fdev->zbd_meta ) {
+        zbc_fake_close_metadata(fdev);
+    }
+
     memset(&fmeta, 0, sizeof(zbc_fake_meta_t));
     fmeta.zbd_capacity = device_size * dev->zbd_info.zbd_logical_block_size;
 
@@ -1277,6 +1283,11 @@ zbc_fake_set_write_pointer(struct zbc_device *dev,
 
         /* Do nothing for conventional zones */
         if ( zbc_zone_sequential_req(zone) ) {
+
+            if ( zbc_zone_is_open(zone) ) {
+                zbc_zone_do_close(fdev, zone);
+            }
+                
             zone->zbz_write_pointer = wp_lba;
             if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
                 zone->zbz_condition = ZBC_ZC_EMPTY;
@@ -1286,6 +1297,7 @@ zbc_fake_set_write_pointer(struct zbc_device *dev,
                 zone->zbz_condition = ZBC_ZC_FULL;
                 zone->zbz_write_pointer = (uint64_t)-1;
             }
+
         }
 
         ret = 0;
