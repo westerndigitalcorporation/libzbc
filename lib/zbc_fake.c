@@ -773,6 +773,25 @@ zbc_zone_finish_allowed(struct zbc_zone *zone)
 }
 
 /**
+ * Finish a zone.
+ */
+static void
+zbc_zone_do_finish(zbc_fake_device_t *fdev,
+                   struct zbc_zone *zone)
+{
+
+    if ( zbc_zone_is_open(zone) ) {
+        zbc_zone_do_close(fdev, zone);
+    }
+
+    zone->zbz_write_pointer = (uint64_t)-1;
+    zone->zbz_condition = ZBC_ZC_FULL;
+
+    return;
+
+}
+
+/**
  * Finish zone(s).
  */
 static int
@@ -795,8 +814,7 @@ zbc_fake_finish_zone(zbc_device_t *dev,
         /* Finish all open and closed zones */
         for(i = 0; i < fdev->zbd_nr_zones; i++) {
             if ( zbc_zone_finish_allowed(&fdev->zbd_zones[i]) ) {
-                fdev->zbd_zones[i].zbz_write_pointer = (uint64_t)-1;
-                fdev->zbd_zones[i].zbz_condition = ZBC_ZC_FULL;
+                zbc_zone_do_finish(fdev, &fdev->zbd_zones[i]);
             }
         }
 
@@ -807,8 +825,7 @@ zbc_fake_finish_zone(zbc_device_t *dev,
         /* Finish the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( zbc_zone_finish_allowed(zone) ) {
-            zone->zbz_write_pointer = (uint64_t)-1;
-            zone->zbz_condition = ZBC_ZC_FULL;
+            zbc_zone_do_finish(fdev, zone);
         } else {
             ret = -EIO;
         }
@@ -840,6 +857,25 @@ zbc_zone_reset_allowed(struct zbc_zone *zone)
 }
 
 /**
+ * Reset a zone write pointer.
+ */
+static void
+zbc_zone_do_reset(zbc_fake_device_t *fdev,
+                  struct zbc_zone *zone)
+{
+
+    if ( zbc_zone_is_open(zone) ) {
+        zbc_zone_do_close(fdev, zone);
+    }
+
+    zone->zbz_write_pointer = zbc_zone_start_lba(zone);
+    zone->zbz_condition = ZBC_ZC_EMPTY;
+
+    return;
+
+}
+
+/**
  * Reset zone(s) write pointer.
  */
 static int
@@ -862,7 +898,7 @@ zbc_fake_reset_wp(struct zbc_device *dev,
         /* Reset all open, closed and full zones */
         for(i = 0; i < fdev->zbd_nr_zones; i++) {
             if ( zbc_zone_reset_allowed(&fdev->zbd_zones[i]) ) {
-                zbc_zone_wp_lba_reset(&fdev->zbd_zones[i]);
+                zbc_zone_do_reset(fdev, &fdev->zbd_zones[i]);
             }
         }
 
@@ -873,7 +909,7 @@ zbc_fake_reset_wp(struct zbc_device *dev,
         /* Reset the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( zbc_zone_reset_allowed(zone) ) {
-            zbc_zone_wp_lba_reset(zone);
+            zbc_zone_do_reset(fdev, zone);
         } else {
             ret = -EIO;
         }
