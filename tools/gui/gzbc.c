@@ -226,12 +226,15 @@ dz_open_zone(int zno)
 
     if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
         ret = zbc_open_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
-        if ( ret != 0 ) {
-            ret = errno;
-            fprintf(stderr, "zbc_open_zone failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-        }
+    } else if ( zno == -1 ) {
+        ret = zbc_open_zone(dz.dev, -1);
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_open_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
     }
 
     return( ret );
@@ -245,12 +248,15 @@ dz_close_zone(int zno)
 
     if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
         ret = zbc_close_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
-        if ( ret != 0 ) {
-            ret = errno;
-            fprintf(stderr, "zbc_close_zone failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-        }
+    } else if ( zno == -1 ) {
+        ret = zbc_close_zone(dz.dev, -1);
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_close_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
     }
 
     return( ret );
@@ -264,12 +270,15 @@ dz_finish_zone(int zno)
 
     if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
         ret = zbc_finish_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
-        if ( ret != 0 ) {
-            ret = errno;
-            fprintf(stderr, "zbc_finish_zone failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-        }
+    } else if ( zno == -1 ) {
+        ret = zbc_finish_zone(dz.dev, -1);
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_finish_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
     }
 
     return( ret );
@@ -283,12 +292,15 @@ dz_reset_zone(int zno)
 
     if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
         ret = zbc_reset_write_pointer(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
-        if ( ret != 0 ) {
-            ret = errno;
-            fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-        }
+    } else if ( zno == -1 ) {
+        ret = zbc_reset_write_pointer(dz.dev, -1);
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",
+                errno,
+                strerror(errno));
     }
 
     return( ret );

@@ -78,6 +78,7 @@ typedef struct dz {
     GdkRGBA			seqnw_color;
     GdkRGBA			seqw_color;
 
+    GtkWidget                   *zinfo_spinbutton;
     GtkWidget                   *zinfo_frame_label;
     GtkWidget                   *zinfo_treeview;
     GtkTreeModel                *zinfo_model;

@@ -378,11 +378,12 @@ dz_if_create(void)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
 
-    spinbutton = gtk_spin_button_new_with_range(0, dz.nr_zones - 1, 1);
+    spinbutton = gtk_spin_button_new_with_range(-1, dz.nr_zones - 1, 1);
     gtk_widget_show(spinbutton);
     gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
     gtk_spin_button_set_digits(GTK_SPIN_BUTTON(spinbutton), 0);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
+    dz.zinfo_spinbutton = spinbutton;
 
     /* Zone control button Box */
     hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
@@ -839,14 +840,18 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
     if ( ! path_currently_selected ) {
 
         if ( ! dz.nr_zones ) {
+
             gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), 0.0);
+
         } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
+
             gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &i, -1);
             gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
             zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
             if ( zno != i ) {
                 gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) i);
             }
+
         }
 
     }
@@ -916,6 +921,9 @@ dz_if_update_zinfo(void)
         for(i = 0; i < dz.nr_zones; i++) {
             gtk_list_store_append(dz.zinfo_store, &iter);
         }
+
+        gtk_spin_button_set_range(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), -1, dz.nr_zones);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), 0.0);
 
     }
 
