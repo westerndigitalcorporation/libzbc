@@ -45,6 +45,10 @@ dz_if_zinfo_scroll_cb(GtkWidget *widget,
 		      GdkEvent *event,
 		      gpointer user_data);
 
+static void
+dz_if_zinfo_spinselect_cb(GtkSpinButton *spin_button,
+                          gpointer user_data);
+
 static gboolean
 dz_if_zinfo_select_cb(GtkTreeSelection *selection,
                       GtkTreeModel *model,
@@ -386,6 +390,10 @@ dz_if_create(void)
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
     dz.zinfo_spinbutton = spinbutton;
 
+    g_signal_connect((gpointer) spinbutton, "value-changed",
+                     G_CALLBACK(dz_if_zinfo_spinselect_cb),
+                     spinbutton);
+    
     /* Zone control button Box */
     hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_widget_show(hbuttonbox);
@@ -547,6 +555,9 @@ dz_if_create(void)
 
     /* Done */
     gtk_widget_show_all(dz.window);
+
+    dz.zinfo_selection = -1;
+    dz_if_zinfo_spinselect_cb(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), NULL);
 
     return( 0 );
 
@@ -737,8 +748,6 @@ dz_if_zinfo_fill(void)
 
     }
 
-    //gtk_tree_view_columns_autosize(GTK_TREE_VIEW(dz.zinfo_treeview));
-
     return;
 
 }
@@ -756,41 +765,26 @@ dz_if_zinfo_update_range(void)
     }
 
     gtk_tree_view_get_visible_range(GTK_TREE_VIEW(dz.zinfo_treeview), &start, &end);
-
     if ( start ) {
-
         if ( gtk_tree_model_get_iter(dz.zinfo_model, &iter, start) == TRUE ) {
-            gtk_tree_model_get(dz.zinfo_model, &iter, 
-                               DZ_ZONE_NUM, &dz.zinfo_start_no,
-                               -1);
+            gtk_tree_model_get(dz.zinfo_model, &iter, DZ_ZONE_NUM, &dz.zinfo_start_no, -1);
         } else {
             dz.zinfo_start_no = 0;
         }
-
         gtk_tree_path_free(start);
-
     } else {
-
         dz.zinfo_start_no = 0;
-
     }
     
     if ( end ) {
-
         if ( gtk_tree_model_get_iter(dz.zinfo_model, &iter, end) == TRUE ) {
-            gtk_tree_model_get(dz.zinfo_model, &iter, 
-                               DZ_ZONE_NUM, &dz.zinfo_end_no,
-                               -1);
+            gtk_tree_model_get(dz.zinfo_model, &iter, DZ_ZONE_NUM, &dz.zinfo_end_no, -1);
         } else {
             dz.zinfo_end_no = dz.nr_zones - 1;
         }
-
         gtk_tree_path_free(end);
-
     } else {
-
         dz.zinfo_end_no = dz.nr_zones - 1;
-
     }
 
     if ( dz.zinfo_end_no >= dz.nr_zones ) {
@@ -836,7 +830,7 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
 {
     GtkWidget *spinbutton = (GtkWidget *) user_data;
     GtkTreeIter iter;
-    int i, zno;
+    int zno;
 
     if ( ! path_currently_selected ) {
 
@@ -846,11 +840,10 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
 
         } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
 
-            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &i, -1);
-            gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &dz.zinfo_selection, -1);
             zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-            if ( zno != i ) {
-                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) i);
+            if ( zno != dz.zinfo_selection ) {
+                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) dz.zinfo_selection);
             }
 
         }
@@ -858,6 +851,69 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
     }
 
     return TRUE;
+
+}
+
+static void
+dz_if_zinfo_do_unselect(void)
+{
+    GtkTreeSelection *sel;
+    GtkTreePath *path;
+
+    if ( dz.zinfo_selection >= 0 ) {
+
+        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dz.zinfo_treeview));
+        path = gtk_tree_path_new_from_indices(dz.zinfo_selection, -1);
+        if ( path ) {
+            gtk_tree_selection_unselect_path(sel, path);
+            gtk_tree_path_free(path);
+        }
+
+        dz.zinfo_selection = -1;
+
+    }
+    
+    return;
+
+}
+
+static void
+dz_if_zinfo_do_select(int zno)
+{
+    GtkTreeSelection *sel;
+    GtkTreePath *path;
+
+    if ( zno != dz.zinfo_selection ) {
+
+        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dz.zinfo_treeview));
+        path = gtk_tree_path_new_from_indices(zno, -1);
+        if ( path ) {
+            gtk_tree_selection_select_path(sel, path);
+            gtk_tree_path_free(path);
+        }
+
+        dz.zinfo_selection = zno;
+
+    }
+    
+    return;
+
+}
+
+static void
+dz_if_zinfo_spinselect_cb(GtkSpinButton *spinbutton,
+                          gpointer user_data)
+{
+    int zno;
+
+    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    if ( (zno < 0) || (zno >= (gint)dz.nr_zones) ) {
+        dz_if_zinfo_do_unselect();
+    } else {
+        dz_if_zinfo_do_select(zno);
+    }
+    
+    return;
 
 }
 
@@ -923,8 +979,10 @@ dz_if_update_zinfo(void)
             gtk_list_store_append(dz.zinfo_store, &iter);
         }
 
+        dz.zinfo_selection = -1;
         gtk_spin_button_set_range(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), -1, dz.nr_zones);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), 0.0);
+        gtk_spin_button_update(GTK_SPIN_BUTTON(dz.zinfo_spinbutton));
 
     }
 
@@ -1063,7 +1121,6 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
     }
 
     /* Get total viewed capacity */
-    dz.zinfo_end_no = dz.zinfo_start_no + dz.zinfo_lines - 1;
     if ( dz.zinfo_end_no >= dz.nr_zones ) {
         dz.zinfo_end_no = dz.nr_zones - 1;
     }
@@ -1210,7 +1267,7 @@ dz_if_open_cb(GtkWidget *widget,
     GtkWidget *dialog;
     int zno, ret;
 
-    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
     zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
 
     ret = dz_open_zone(zno);
@@ -1249,7 +1306,7 @@ dz_if_close_cb(GtkWidget *widget,
     GtkWidget *dialog;
     int zno, ret;
 
-    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
     zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
 
     ret = dz_close_zone(zno);
@@ -1288,7 +1345,7 @@ dz_if_finish_cb(GtkWidget *widget,
     GtkWidget *dialog;
     int zno, ret;
 
-    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
     zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
 
     ret = dz_finish_zone(zno);
@@ -1327,7 +1384,7 @@ dz_if_reset_cb(GtkWidget *widget,
     GtkWidget *dialog;
     int zno, ret;
 
-    gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
+    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
     zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
 
     ret = dz_reset_zone(zno);

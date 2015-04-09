@@ -86,6 +86,7 @@ typedef struct dz {
     unsigned int		zinfo_start_no;
     unsigned int		zinfo_end_no;
     unsigned int		zinfo_lines;
+    int		                zinfo_selection;
 
     GtkWidget                   *zstate_da;
 
