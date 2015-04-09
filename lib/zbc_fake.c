@@ -586,16 +586,20 @@ zbc_zone_do_close(zbc_fake_device_t *fdev,
                   struct zbc_zone *zone)
 {
 
-    if ( zbc_zone_imp_open(zone) ) {
-        fdev->zbd_meta->zbd_nr_imp_open_zones--;;
-    } else {
-        fdev->zbd_meta->zbd_nr_exp_open_zones--;
-    }
+    if ( zbc_zone_is_open(zone) ) {
 
-    if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
-        zone->zbz_condition = ZBC_ZC_EMPTY;
-    } else {
-        zone->zbz_condition = ZBC_ZC_CLOSED;
+        if ( zbc_zone_imp_open(zone) ) {
+            fdev->zbd_meta->zbd_nr_imp_open_zones--;;
+        } else if ( zbc_zone_exp_open(zone) ) {
+            fdev->zbd_meta->zbd_nr_exp_open_zones--;
+        }
+
+        if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
+            zone->zbz_condition = ZBC_ZC_EMPTY;
+        } else {
+            zone->zbz_condition = ZBC_ZC_CLOSED;
+        }
+
     }
 
     return;
@@ -648,6 +652,16 @@ zbc_fake_open_zone(zbc_device_t *dev,
 
         /* Check target zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
+        if ( ! zone ) {
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_exp_open(zone) ) {
+            /* Already open: nothing to do */
+            goto out;
+        }
+
         if ( ! (zbc_zone_closed(zone)
                 || zbc_zone_imp_open(zone)
                 || zbc_zone_empty(zone)) ) {
@@ -698,14 +712,11 @@ out:
 static bool
 zbc_zone_close_allowed(struct zbc_zone *zone)
 {
-
-    if ( zone && zbc_zone_sequential(zone) ) {
-        return zbc_zone_imp_open(zone)
-               || zbc_zone_exp_open(zone);
-    }
-
-    return false;
-
+    return zbc_zone_sequential(zone)
+        && (zbc_zone_empty(zone)
+            || zbc_zone_full(zone)
+            || zbc_zone_imp_open(zone)
+            || zbc_zone_exp_open(zone));
 }
 
 /**
@@ -741,13 +752,20 @@ zbc_fake_close_zone(zbc_device_t *dev,
 
         /* Close the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
+        if ( ! zone ) {
+            ret = -EIO;
+            goto out;
+        }
+
         if ( zbc_zone_close_allowed(zone) ) {
             zbc_zone_do_close(fdev, zone);
-        } else {
+        } else if ( ! zbc_zone_closed(zone) ) {
             ret = -EIO;
         }
 
     }
+
+out:
 
     zbc_fake_unlock(fdev);
 
@@ -761,15 +779,10 @@ zbc_fake_close_zone(zbc_device_t *dev,
 static bool
 zbc_zone_finish_allowed(struct zbc_zone *zone)
 {
-
-    if ( zone && zbc_zone_sequential(zone) ) {
-        return zbc_zone_imp_open(zone)
-               || zbc_zone_exp_open(zone)
-               || zbc_zone_closed(zone);
-    }
-
-    return false;
-
+    return zbc_zone_sequential(zone)
+        && (zbc_zone_imp_open(zone)
+            || zbc_zone_exp_open(zone)
+            || zbc_zone_closed(zone));
 }
 
 /**
@@ -824,13 +837,20 @@ zbc_fake_finish_zone(zbc_device_t *dev,
 
         /* Finish the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
-        if ( zbc_zone_finish_allowed(zone) ) {
+        if ( ! zone ) {
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_finish_allowed(zone) || zbc_zone_empty(zone) ) {
             zbc_zone_do_finish(fdev, zone);
-        } else {
+        } else if ( ! zbc_zone_full(zone) ) {
             ret = -EIO;
         }
 
     }
+
+out:
 
     zbc_fake_unlock(fdev);
 
@@ -844,16 +864,12 @@ zbc_fake_finish_zone(zbc_device_t *dev,
 static bool
 zbc_zone_reset_allowed(struct zbc_zone *zone)
 {
-
-    if ( zone && zbc_zone_sequential(zone) ) {
-        return zbc_zone_imp_open(zone)
-               || zbc_zone_exp_open(zone)
-               || zbc_zone_closed(zone)
-               || zbc_zone_full(zone);
-    }
-
-    return false;
-
+    return zbc_zone_sequential(zone)
+        && (zbc_zone_imp_open(zone)
+            || zbc_zone_exp_open(zone)
+            || zbc_zone_closed(zone)
+            || zbc_zone_empty(zone)
+            || zbc_zone_full(zone));
 }
 
 /**
@@ -864,12 +880,16 @@ zbc_zone_do_reset(zbc_fake_device_t *fdev,
                   struct zbc_zone *zone)
 {
 
-    if ( zbc_zone_is_open(zone) ) {
-        zbc_zone_do_close(fdev, zone);
-    }
+    if ( ! zbc_zone_empty(zone) ) {
 
-    zone->zbz_write_pointer = zbc_zone_start_lba(zone);
-    zone->zbz_condition = ZBC_ZC_EMPTY;
+        if ( zbc_zone_is_open(zone) ) {
+            zbc_zone_do_close(fdev, zone);
+        }
+
+        zone->zbz_write_pointer = zbc_zone_start_lba(zone);
+        zone->zbz_condition = ZBC_ZC_EMPTY;
+
+    }
 
     return;
 
@@ -908,13 +928,20 @@ zbc_fake_reset_wp(struct zbc_device *dev,
 
         /* Reset the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
+        if ( ! zone ) {
+            ret = -EIO;
+            goto out;
+        }
+
         if ( zbc_zone_reset_allowed(zone) ) {
             zbc_zone_do_reset(fdev, zone);
-        } else {
+        } else if ( ! zbc_zone_empty(zone) ) {
             ret = -EIO;
         }
 
     }
+
+out:
 
     zbc_fake_unlock(fdev);
 
@@ -1306,7 +1333,7 @@ zbc_fake_set_write_pointer(struct zbc_device *dev,
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     struct zbc_zone *zone;
-    int ret = -EINVAL;
+    int ret = -EIO;
 
     if ( ! fdev->zbd_meta ) {
         return -ENXIO;
