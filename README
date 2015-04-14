@@ -13,7 +13,7 @@ the ZBC and ZAC standards defined by INCITS technical committee T10 and
 T13 (respectively).  At the time of this writing, the current version of
 the ZBC standard draft is Rev 02 (released on 2014/11/11) and Rev 00 of
 the ZAC standard draft (released on 2014/06/23) completed with the "ZAC
-Zone State Machine et aliae" document f14183r5 published on 2015/04/03.
+Zone State Machine et aliae" document f14183r0 published on 2014/12/23.
 
 In addition to supporting ZBC and ZAC disks, libzbc also implements an
 emulation mode allowing emulating the behavior of a host-managed zoned
