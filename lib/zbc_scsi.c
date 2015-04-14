@@ -306,7 +306,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
                       unsigned int *nr_zones)
 {
     size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
-    unsigned int i, nz, reported_zones;
+    unsigned int i, nz, buf_nz;
     zbc_sg_cmd_t cmd;
     uint8_t *buf;
     int ret;
@@ -409,9 +409,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             nz = *nr_zones;
         }
 
-	reported_zones = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if ( nz > reported_zones ) {
-            nz = reported_zones;
+	buf_nz = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+        if ( nz > buf_nz ) {
+            nz = buf_nz;
         }
 
         /* Get zone descriptors:
