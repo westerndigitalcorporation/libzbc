@@ -172,7 +172,10 @@ usage:
     /* Get the number of zones */
     ret = zbc_report_nr_zones(dev, lba, ro, &nr_zones);
     if ( ret != 0 ) {
-	fprintf(stderr, "zbc_report_nr_zones failed\n");
+	fprintf(stderr, "zbc_report_nr_zones at lba %llu, ro 0x%02x failed %d\n",
+		(unsigned long long) lba,
+		(unsigned int) ro,
+		ret);
 	ret = 1;
 	goto out;
     }
@@ -182,7 +185,7 @@ usage:
 	   nr_zones,
 	   lba,
 	   ro);
-    
+
     if ( num ) {
 	goto out;
     }
@@ -199,11 +202,11 @@ usage:
 	goto out;
     }
     memset(zones, 0, sizeof(zbc_zone_t) * nz);
-	
+
     /* Get zone information */
     ret = zbc_report_zones(dev, lba, ro, zones, &nz);
     if ( ret != 0 ) {
-	fprintf(stderr, "zbc_list_zones failed\n");
+	fprintf(stderr, "zbc_list_zones failed %d\n", ret);
 	ret = 1;
 	goto out;
     }
