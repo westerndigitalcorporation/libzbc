@@ -100,13 +100,13 @@ zbc_scsi_classify(zbc_device_t *dev)
 
     /* Vendor identification */
     n = zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[0], (char *)&cmd.out_buf[8], 8);
-    
+
     /* Product identification */
     n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&cmd.out_buf[16], 16);
-    
+
     /* Product revision */
     n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n], (char *)&cmd.out_buf[32], 4);
-    
+
     /* Now check the device type */
     dev_type = (int)(cmd.out_buf[0] & 0x1f);
 
@@ -305,22 +305,21 @@ zbc_scsi_report_zones(zbc_device_t *dev,
                       zbc_zone_t *zones,
                       unsigned int *nr_zones)
 {
-    size_t out_bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+    size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
     unsigned int i, nz, reported_zones;
     zbc_sg_cmd_t cmd;
     uint8_t *buf;
     int ret;
 
     if ( *nr_zones ) {
-        out_bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if ( out_bufsz > ZBC_SCSI_REPORT_ZONES_BUFSZ ) {
-            out_bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
-            *nr_zones = (out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+        bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
+        if ( bufsz > ZBC_SCSI_REPORT_ZONES_BUFSZ ) {
+            bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
         }
     }
 
     /* Allocate and intialize report zones command */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, out_bufsz);
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
     if ( ret != 0 ) {
         zbc_error("zbc_sg_cmd_init failed\n");
         return( ret );
@@ -351,7 +350,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
     cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
-    zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int)out_bufsz);
+    zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
     cmd.cdb[14] = ro & 0x3f;
 
     /* Send the SG_IO command */
@@ -402,14 +401,15 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     /* Get number of zones in result */
     buf = (uint8_t *) cmd.out_buf;
     nz = zbc_sg_cmd_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
-    reported_zones = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 
-    if ( zones && reported_zones ) {
+    if ( zones && nz ) {
 
         /* Get zone info */
         if ( nz > *nr_zones ) {
             nz = *nr_zones;
         }
+
+	reported_zones = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET) / ZBC_ZONE_DESCRIPTOR_LENGTH;
         if ( nz > reported_zones ) {
             nz = reported_zones;
         }
@@ -873,13 +873,13 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
 
         /* Allocate zone array */
         zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nr_zones);
-        if ( ! zones ) { 
+        if ( ! zones ) {
             zbc_error("No memory\n");
             ret = -ENOMEM;
             goto out;
         }
         memset(zones, 0, sizeof(zbc_zone_t) * nr_zones);
-    
+
         /* Get all zone information */
         unsigned int n, z = 0, nz = 0;
 
@@ -887,7 +887,7 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
 
             n= nr_zones - nz;
             ret = zbc_scsi_report_zones(dev, slba, 0, &zones[z], &n);
-            if ( ret != 0 ) { 
+            if ( ret != 0 ) {
                 zbc_error("zbc_report_zones failed\n");
                 goto out;
             }
@@ -896,7 +896,7 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
                 ret = -EIO;
                 break;
             }
-            
+
             nz += n;
             z  += n;
             slba = zones[z - 1].zbz_start + zones[z - 1].zbz_length;
@@ -909,7 +909,7 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
         break;
 
     case 0x01:
-        
+
         /* The disk last LBA was reproted */
         dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
 
