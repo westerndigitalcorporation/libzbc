@@ -401,7 +401,7 @@ zbc_list_zones(struct zbc_device *dev,
     /* Get zones info */
     ret = zbc_report_zones(dev, start_lba, ro, zones, &nr_zones);
     if ( ret != 0 ) {
-        zbc_error("zbc_report_zones failed\n");
+        zbc_error("zbc_report_zones failed %d\n", ret);
         free(zones);
     } else {
         *pzones = zones;
