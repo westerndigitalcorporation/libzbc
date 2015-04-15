@@ -334,6 +334,9 @@ zbc_fake_set_info(struct zbc_device *dev)
             return ret;
         }
         
+        dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
+        dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
+        
     } else if ( S_ISREG(st.st_mode) ) {
 
         /* Default value for files */
@@ -356,7 +359,6 @@ zbc_fake_set_info(struct zbc_device *dev)
         return -EINVAL;
     }
     
-    dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
         zbc_error("%s: invalid capacity (logical blocks)\n",
                   dev->zbd_filename);
@@ -370,7 +372,6 @@ zbc_fake_set_info(struct zbc_device *dev)
         return -EINVAL;
     }
 
-    dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
     if ( ! dev->zbd_info.zbd_physical_blocks ) {
         zbc_error("%s: invalid capacity (physical blocks)\n",
                   dev->zbd_filename);
