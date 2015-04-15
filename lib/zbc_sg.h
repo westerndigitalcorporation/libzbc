@@ -175,7 +175,7 @@ typedef struct zbc_sg_cmd {
     int                 cdb_sa;
     size_t              cdb_sz;
     uint8_t             cdb[ZBC_SG_CDB_MAX_LENGTH];
-        
+
     size_t              sense_bufsz;
     uint8_t             sense_buf[ZBC_SG_SENSE_MAX_LENGTH];
 
@@ -273,9 +273,9 @@ zbc_sg_cmd_set_int32(uint8_t *buf,
 {
 
     zbc_sg_cmd_set_bytes(buf, &val, 4);
-    
+
     return;
-    
+
 }
 
 /**
@@ -287,9 +287,9 @@ zbc_sg_cmd_set_int16(uint8_t *buf,
 {
 
     zbc_sg_cmd_set_bytes(buf, &val, 2);
-    
+
     return;
-    
+
 }
 
 /**

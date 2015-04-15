@@ -8,7 +8,7 @@
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christoph Hellwig (hch@infradead.org)
  */
@@ -678,7 +678,7 @@ zbc_write(struct zbc_device *dev,
         }
 
     }
-    
+
     return( ret );
 
 }

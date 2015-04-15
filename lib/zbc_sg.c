@@ -305,7 +305,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                   cmd->cdb_opcode,
                   cmd->cdb_sa,
                   zbc_sg_cmd_name(cmd));
-        
+
         zbc_debug("* +==================================\n");
         zbc_debug("* |Byte |   0  |  1   |  2   |  3   |\n");
         zbc_debug("* |=====+======+======+======+======+\n");
@@ -468,11 +468,11 @@ zbc_sg_cmd_inquiry(zbc_device_t *dev,
     if ( ret == 0 ) {
 
         memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
-    
+
     }
 
     zbc_sg_cmd_destroy(&cmd);
-    
+
     return( ret );
 
 }
