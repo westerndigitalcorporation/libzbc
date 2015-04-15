@@ -99,7 +99,7 @@ typedef struct zbc_fake_device {
     zbc_fake_meta_t     *zbd_meta;
 
     pthread_mutexattr_t zbd_mutex_attr;
-    
+
     uint32_t            zbd_nr_zones;
     struct zbc_zone     *zbd_zones;
 
@@ -265,7 +265,7 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
     }
 
     ret = 0;
-    
+
 out:
 
     if ( ret != 0 ) {
@@ -333,10 +333,23 @@ zbc_fake_set_info(struct zbc_device *dev)
                       strerror(errno));
             return ret;
         }
-        
+
+        if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
+            zbc_error("%s: invalid logical sector size %d\n",
+                      dev->zbd_filename,
+                      size32);
+            return -EINVAL;
+        }
         dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
+
+        if ( dev->zbd_info.zbd_physical_block_size <= 0 ) {
+            zbc_error("%s: invalid physical sector size %d\n",
+                      dev->zbd_filename,
+                      size32);
+            return -EINVAL;
+        }
         dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
-        
+
     } else if ( S_ISREG(st.st_mode) ) {
 
         /* Default value for files */
@@ -352,23 +365,9 @@ zbc_fake_set_info(struct zbc_device *dev)
     }
 
     /* Check */
-    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
-        zbc_error("%s: invalid logical sector size %d\n",
-                  dev->zbd_filename,
-                  size32);
-        return -EINVAL;
-    }
-    
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
         zbc_error("%s: invalid capacity (logical blocks)\n",
                   dev->zbd_filename);
-        return -EINVAL;
-    }
-
-    if ( dev->zbd_info.zbd_physical_block_size <= 0 ) {
-        zbc_error("%s: invalid physical sector size %d\n",
-                  dev->zbd_filename,
-                  size32);
         return -EINVAL;
     }
 
@@ -648,7 +647,7 @@ zbc_fake_open_zone(zbc_device_t *dev,
         fdev->zbd_meta->zbd_nr_exp_open_zones += need_open;
 
     } else {
-        
+
         struct zbc_zone *zone;
 
         /* Check target zone */
@@ -748,7 +747,7 @@ zbc_fake_close_zone(zbc_device_t *dev,
         }
 
     } else {
-        
+
         struct zbc_zone *zone;
 
         /* Close the specified zone */
@@ -833,7 +832,7 @@ zbc_fake_finish_zone(zbc_device_t *dev,
         }
 
     } else {
-        
+
         struct zbc_zone *zone;
 
         /* Finish the specified zone */
@@ -924,7 +923,7 @@ zbc_fake_reset_wp(struct zbc_device *dev,
         }
 
     } else {
-        
+
         struct zbc_zone *zone;
 
         /* Reset the specified zone */
@@ -1167,7 +1166,7 @@ zbc_fake_flush(struct zbc_device *dev,
     if ( ! fdev->zbd_meta ) {
         return -ENXIO;
     }
-    
+
     ret = msync(fdev->zbd_meta, fdev->zbd_meta_size, MS_SYNC);
     if ( ret == 0 ) {
         ret = fsync(dev->zbd_fd);
@@ -1351,7 +1350,7 @@ zbc_fake_set_write_pointer(struct zbc_device *dev,
             if ( zbc_zone_is_open(zone) ) {
                 zbc_zone_do_close(fdev, zone);
             }
-                
+
             zone->zbz_write_pointer = wp_lba;
             if ( zbc_zone_wp_lba(zone) == zbc_zone_start_lba(zone) ) {
                 zone->zbz_condition = ZBC_ZC_EMPTY;
