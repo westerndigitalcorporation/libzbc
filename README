@@ -10,10 +10,7 @@ libzbc is a simple library providing functions for manipulating disks
 supporting the Zoned Block Command (ZBC) and Zoned-device ATA command set
 (ZAC) disks.  libzbc implemention is compliant with the latest drafts of
 the ZBC and ZAC standards defined by INCITS technical committee T10 and
-T13 (respectively).  At the time of this writing, the current version of
-the ZBC standard draft is Rev 02 (released on 2014/11/11) and Rev 00 of
-the ZAC standard draft (released on 2014/06/23) completed with the "ZAC
-Zone State Machine et aliae" document f14183r0 published on 2014/12/23.
+T13 (respectively).
 
 In addition to supporting ZBC and ZAC disks, libzbc also implements an
 emulation mode allowing emulating the behavior of a host-managed zoned
@@ -23,7 +20,20 @@ storage.
 Several example applications using libzbc are available under the tools
 directory.
 
-I.2. License
+I.2. Standards Versions Supported
+---------------------------------
+
+As of version 2.0.0, libzbc supports the ZBC standard draft Rev 02
+(released on 2014/11/11) and Rev 01 of the ZAC standard draft (released
+ on 2014/12/09) completed with the "ZAC Zone State Machine et aliae"
+document f14183r0 published on 2014/12/23.
+
+Both the ZBC and ZAC standards are still being developped. Changes to the
+command set and command interface can be expected before the final public
+release. Any change in the standards will be incorporated into libzbc as
+disks become available.
+
+I.3. License
 ------------
 
 libzbc is distributed under the terms of the of the BSD 2-clause license
@@ -47,7 +57,7 @@ license, GNU General Public License and og the GNU Lesser General Public
 License. If not, please see <http://opensource.org/licenses/BSD-2-Clause>
 and <http://www.gnu.org/licenses/>.
 
-I.3. Contact and Bug Reports
+I.4. Contact and Bug Reports
 ----------------------------
 
 Please contact Damine Le Moal (damien.lemoal@hgst.com) and
