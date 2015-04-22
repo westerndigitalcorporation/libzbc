@@ -624,7 +624,7 @@ zbc_pwrite(zbc_device_t *dev,
 			  lba_count,
 			  (unsigned long long) zbc_zone_start_lba(zone),
 			  (unsigned long long) lba_ofst,
-			  -ret,
+			  ret,
 			  strerror(-ret));
 	    }
 
