@@ -401,15 +401,18 @@ zbc_fake_open(const char *filename,
     zbc_fake_device_t *fdev;
     int fd, ret;
 
+    zbc_debug("%s: ########## Trying FAKE driver ##########\n",
+	      filename);
+
     /* Open emulation device/file */
     fd = open(filename, flags);
     if ( fd < 0 ) {
-        ret = -errno;
         zbc_error("%s: open failed %d (%s)\n",
                   filename,
                   errno,
                   strerror(errno));
-        return ret;
+        ret = -errno;
+	goto out;
     }
 
     /* ALlocate a handle */
@@ -440,6 +443,9 @@ zbc_fake_open(const char *filename,
 
     *pdev = &fdev->dev;
 
+    zbc_debug("%s: ########## FAKE driver succeeded ##########\n",
+	      filename);
+
     return 0;
 
 out_free_filename:
@@ -452,7 +458,13 @@ out_free_dev:
 
 out:
 
-    close(fd);
+    if ( fd >= 0 ) {
+	close(fd);
+    }
+
+    zbc_debug("%s: ########## FAKE driver failed %d ##########\n",
+	      filename,
+	      ret);
 
     return ret;
 
