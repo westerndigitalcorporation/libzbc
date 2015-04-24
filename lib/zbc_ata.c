@@ -484,9 +484,15 @@ zbc_ata_get_info(zbc_device_t *dev)
 {
     int ret;
 
+    /* Make sure the device is ready */
+    ret = zbc_sg_cmd_test_unit_ready(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
     /* Get device model */
     ret = zbc_ata_classify(dev);
-    if ( ret < 0 ) {
+    if ( ret != 0 ) {
         return( ret );
     }
 
@@ -505,7 +511,7 @@ zbc_ata_get_info(zbc_device_t *dev)
         return( ret );
     }
 
-    return( ret );
+    return( 0 );
 
 }
 
@@ -520,6 +526,7 @@ zbc_ata_pread_ata(zbc_device_t *dev,
                   uint64_t lba_ofst)
 {
     size_t sz = (size_t) lba_count * dev->zbd_info.zbd_logical_block_size;
+    uint32_t sector_count = sz / 512;
     uint64_t lba = zone->zbz_start + lba_ofst;
     zbc_sg_cmd_t cmd;
     int ret;
@@ -578,9 +585,9 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x1e;			/* off_line=0, ck_cond=0, t_type=1, t_dir=1, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (lba_count >> 8) & 0xff;
-    cmd.cdb[6] = lba_count & 0xff;
+    cmd.cdb[2] = 0x0e;			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
+    cmd.cdb[5] = (sector_count >> 8) & 0xff;
+    cmd.cdb[6] = sector_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
@@ -677,6 +684,7 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
                    uint64_t lba_ofst)
 {
     size_t sz = (size_t) lba_count * dev->zbd_info.zbd_logical_block_size;
+    uint32_t sector_count = sz / 512;
     uint64_t lba = zone->zbz_start + lba_ofst;
     zbc_sg_cmd_t cmd;
     int ret;
@@ -735,9 +743,9 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x16;			/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (lba_count >> 8) & 0xff;
-    cmd.cdb[6] = lba_count & 0xff;
+    cmd.cdb[2] = 0x06;			/* off_line=0, ck_cond=0, t_type=0, t_dir=0, byt_blk=1, t_length=10 */
+    cmd.cdb[5] = (sector_count >> 8) & 0xff;
+    cmd.cdb[6] = sector_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
@@ -881,6 +889,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
     }
 
     bufsz = (bufsz + 511) & ~511;
+    bufsz = (bufsz + 4095) & ~4095;
     if ( bufsz > ZBC_ATA_REPORT_ZONES_BUFSZ ) {
 	bufsz = ZBC_ATA_REPORT_ZONES_BUFSZ;
     }
@@ -1364,7 +1373,8 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
 
 /**
  * If the disk is connected to a SAS HBA, test if command translation is
- * working properly (as it is not defined for now for ZAC disks).
+ * working properly with HM disks (as those do not have a standard device
+ * signature, the HBA may fail command translation).
  * In the case of an AHCI connected disks, the kernel libata/SCSI layer
  * will handle the translation.
  * If testing does not complete properly, assume that native SCSI commands are OK.
@@ -1373,9 +1383,9 @@ static int
 zbc_ata_scsi_rw(zbc_device_t *dev)
 {
     unsigned int nr_zones = 1;
-    int ret;
     zbc_zone_t zone;
     void *buf;
+    int ret;
 
     if ( dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE ) {
         /* SCSI commands should work */
@@ -1406,7 +1416,7 @@ zbc_ata_scsi_rw(zbc_device_t *dev)
 	}
 
         if ( ! nr_zones ) {
-            zbc_debug("No suitable zone found for r/w tests: assuming SCSI r/w command are OK\n");
+            zbc_debug("No suitable zone found for r/w test: assuming SCSI r/w commands are OK\n");
             return( 1 );
         }
 
@@ -1451,6 +1461,9 @@ zbc_ata_open(const char *filename,
     struct stat st;
     int fd, ret;
 
+    zbc_debug("%s: ########## Trying ATA driver ##########\n",
+	      filename);
+
     /* Open the device file */
     fd = open(filename, flags);
     if ( fd < 0 ) {
@@ -1458,7 +1471,8 @@ zbc_ata_open(const char *filename,
                   filename,
                   errno,
                   strerror(errno));
-        return( -errno );
+        ret = -errno;
+	goto out;
     }
 
     /* Check device */
@@ -1498,14 +1512,19 @@ zbc_ata_open(const char *filename,
 
     /* Test if the disk accepts native SCSI read/write commands */
     if ( zbc_ata_scsi_rw(dev) ) {
-	zbc_debug("Using translated SCSI R/W commands\n");
+	zbc_debug("%s: Using SCSI R/W commands\n",
+		  filename);
 	dev->zbd_flags |= ZBC_ATA_SCSI_RW;
     } else {
+	zbc_debug("%s: Using ATA R/W commands\n",
+		  filename);
 	dev->zbd_flags &= ~ZBC_ATA_SCSI_RW;
-	zbc_debug("Using ATA R/W commands\n");
     }
 
     *pdev = dev;
+
+    zbc_debug("%s: ########## ATA driver succeeded ##########\n",
+	      filename);
 
     return( 0 );
 
@@ -1519,7 +1538,13 @@ out_free_dev:
 
 out:
 
-    close(fd);
+    if ( fd >= 0 ) {
+	close(fd);
+    }
+
+    zbc_debug("%s: ########## ATA driver failed %d ##########\n",
+	      filename,
+	      ret);
 
     return( ret );
 

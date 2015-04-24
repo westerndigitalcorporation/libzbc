@@ -1002,6 +1002,12 @@ zbc_scsi_get_info(zbc_device_t *dev)
 {
     int ret;
 
+    /* Make sure the device is ready */
+    ret = zbc_sg_cmd_test_unit_ready(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
     /* Get device model */
     ret = zbc_scsi_classify(dev);
     if ( ret != 0 ) {
@@ -1020,7 +1026,7 @@ zbc_scsi_get_info(zbc_device_t *dev)
         return( ret );
     }
 
-    return( ret );
+    return( 0 );
 
 }
 
@@ -1036,6 +1042,9 @@ zbc_scsi_open(const char *filename,
     struct stat st;
     int fd, ret;
 
+    zbc_debug("%s: ########## Trying SCSI driver ##########\n",
+	      filename);
+
     /* Open the device file */
     fd = open(filename, flags);
     if ( fd < 0 ) {
@@ -1043,7 +1052,8 @@ zbc_scsi_open(const char *filename,
                   filename,
                   errno,
                   strerror(errno));
-        return( -errno );
+        ret = -errno;
+	goto out;
     }
 
     /* Check device */
@@ -1083,6 +1093,9 @@ zbc_scsi_open(const char *filename,
 
     *pdev = dev;
 
+    zbc_debug("%s: ########## SCSI driver succeeded ##########\n",
+	      filename);
+
     return( 0 );
 
 out_free_filename:
@@ -1095,7 +1108,13 @@ out_free_dev:
 
 out:
 
-    close(fd);
+    if ( fd >= 0 ) {
+	close(fd);
+    }
+
+    zbc_debug("%s: ########## SCSI driver failed %d ##########\n",
+	      filename,
+	      ret);
 
     return( ret );
 
