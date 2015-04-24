@@ -449,7 +449,8 @@ int LkvsDev::Put(const char *key, void *buf, size_t size)
 		if( curWritten != curWritesz / zDevBlockSize)  break;
 		written += curWritten * zDevBlockSize;
 		cBuf += curWritten * zDevBlockSize;
-		curZone->zbz_write_pointer += curWritten;
+		// zbc_write now updates the zone write pointer
+		//curZone->zbz_write_pointer += curWritten;
 	}
 	xferEnd = getTime();
 
@@ -496,7 +497,8 @@ int LkvsDev::Put(const char *key, void *buf, size_t size)
 		zoneMeta[lastZoneAlloc - cZones].mdEntries--;
 		goto out;
 	}
-	curZone->zbz_write_pointer += written;
+	// zbc_write now updates the zone write pointer
+	//curZone->zbz_write_pointer += written;
 	// Update last offset 
 	if( zoneMeta[lastZoneAlloc - cZones ].mdEntries == MD_ENTRIES_PER_BLOCK ){
 		zoneMeta[lastZoneAlloc - cZones ].lastMDump = 
