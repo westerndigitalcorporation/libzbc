@@ -40,6 +40,15 @@ static struct zbc_sg_cmd_s
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
+    /* ZBC_SG_TEST_UNIT_READY */
+    {
+        "TEST UNIT READY",
+        ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
+        0,
+        ZBC_SG_TEST_UNIT_READY_CDB_LENGTH,
+	SG_DXFER_NONE
+    },
+
     /* ZBC_SG_INQUIRY */
     {
         "INQUIRY",
@@ -306,9 +315,9 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                   cmd->cdb_sa,
                   zbc_sg_cmd_name(cmd));
 
-        zbc_debug("* +==================================\n");
-        zbc_debug("* |Byte |   0  |  1   |  2   |  3   |\n");
-        zbc_debug("* |=====+======+======+======+======+\n");
+        zbc_debug("%s: * +==================================\n", dev->zbd_filename);
+        zbc_debug("%s: * |Byte |   0  |  1   |  2   |  3   |\n", dev->zbd_filename);
+        zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
         while( i < cmd->cdb_sz ) {
 
             n = 0;
@@ -322,11 +331,11 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                 i++;
             }
 
-            zbc_debug("* | %3d |%s\n", i, msg);
+            zbc_debug("%s: * | %3d |%s\n", dev->zbd_filename, i, msg);
             if ( i < (cmd->cdb_sz - 4) ) {
-                zbc_debug("* |=====+======+======+======+======+\n");
+                zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
             } else {
-                zbc_debug("* +==================================\n");
+                zbc_debug("%s: * +==================================\n", dev->zbd_filename);
             }
         }
 
@@ -343,12 +352,14 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
         goto out;
     }
 
-    zbc_debug("%s: Command %s done: status 0x%02x, host status 0x%04x, driver status 0x%04x\n",
+    zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
               dev->zbd_filename,
               zbc_sg_cmd_name(cmd),
               (unsigned int)cmd->io_hdr.status,
+              (unsigned int)cmd->io_hdr.masked_status,
               (unsigned int)cmd->io_hdr.host_status,
-              (unsigned int)cmd->io_hdr.driver_status);
+              (unsigned int)zbc_sg_cmd_driver_status(cmd),
+              (unsigned int)zbc_sg_cmd_driver_flags(cmd));
 
     /* Check status */
     if ( ((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16))
@@ -360,7 +371,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
            goto out;
        }
 
-       if ( (cmd->io_hdr.driver_status == ZBC_SG_DRIVER_SENSE)
+       if ( (zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE)
             && (cmd->io_hdr.sb_len_wr > 21)
             && (cmd->sense_buf[21] != 0x50) ) {
            ret = -EIO;
@@ -372,22 +383,27 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
     }
 
     if ( cmd->io_hdr.status
-         || cmd->io_hdr.host_status
-	 || (cmd->io_hdr.driver_status && (cmd->io_hdr.driver_status != ZBC_SG_DRIVER_SENSE)) ) {
+         || (cmd->io_hdr.host_status != ZBC_SG_DID_OK)
+	 || (zbc_sg_cmd_driver_status(cmd) && (zbc_sg_cmd_driver_status(cmd) != ZBC_SG_DRIVER_SENSE)) ) {
 
 	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
 
-            zbc_debug("%s: Command %s failed with status 0x%02x, host status 0x%04x, driver status 0x%04x\n",
-                      dev->zbd_filename,
-                      zbc_sg_cmd_name(cmd),
-                      (unsigned int)cmd->io_hdr.status,
-                      (unsigned int)cmd->io_hdr.host_status,
-                      (unsigned int)cmd->io_hdr.driver_status);
+	    zbc_error("%s: Command %s failed with status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
+		      dev->zbd_filename,
+		      zbc_sg_cmd_name(cmd),
+		      (unsigned int)cmd->io_hdr.status,
+		      (unsigned int)cmd->io_hdr.masked_status,
+		      (unsigned int)cmd->io_hdr.host_status,
+		      (unsigned int)zbc_sg_cmd_driver_status(cmd),
+		      (unsigned int)zbc_sg_cmd_driver_flags(cmd));
 
             if ( cmd->io_hdr.sb_len_wr ) {
-                zbc_debug("Sense data (%d B):\n", cmd->io_hdr.sb_len_wr);
+                zbc_debug("%s: Sense data (%d B):\n",
+			  dev->zbd_filename,
+			  cmd->io_hdr.sb_len_wr);
                 for(i = 0; i < cmd->io_hdr.sb_len_wr; i += 4) {
-                    zbc_debug("[%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+                    zbc_debug("%s: [%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+			      dev->zbd_filename,
                               i,
                               (unsigned int)cmd->sense_buf[i],
                               ((i + 1) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 1] : 0,
@@ -395,8 +411,9 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                               ((i + 3) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 3] : 0);
                 }
             } else {
-                zbc_debug("No sense data\n");
+                zbc_debug("%s: No sense data\n", dev->zbd_filename);
             }
+
 	}
 
         ret = -EIO;
@@ -425,6 +442,52 @@ out:
 }
 
 /**
+ * Test if unit is ready. This will retry 5 times if the command
+ * returns "UNIT ATTENTION".
+ */
+int
+zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
+{
+    zbc_sg_cmd_t cmd;
+    int ret = -EAGAIN, retries = 5;
+
+    while( retries && (ret == -EAGAIN) ) {
+
+	retries--;
+
+	/* Intialize command */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
+	if ( ret != 0 ) {
+	    zbc_error("%s: zbc_sg_cmd_init TEST UNIT READY failed\n",
+		      dev->zbd_filename);
+	    return( ret );
+	}
+	cmd.cdb[0] = ZBC_SG_TEST_UNIT_READY_CDB_OPCODE;
+
+	/* Execute the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if ( (ret != 0)
+	     && ((cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR)
+		 || (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) ) {
+	    zbc_debug("%s: Unit attention required, %d / 5 retries left\n",
+		      dev->zbd_filename,
+		      retries);
+	    ret = -EAGAIN;
+	}
+
+	zbc_sg_cmd_destroy(&cmd);
+
+    }
+
+    if ( ret != 0 ) {
+	ret = -ENXIO;
+    }
+
+    return( ret );
+
+}
+
+/**
  * Fill the buffer with the result of INQUIRY command.
  * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
@@ -438,7 +501,8 @@ zbc_sg_cmd_inquiry(zbc_device_t *dev,
     /* Allocate and intialize inquiry command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
     if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
+        zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
+		  dev->zbd_filename);
         return( ret );
     }
 

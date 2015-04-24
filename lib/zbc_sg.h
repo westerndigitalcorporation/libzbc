@@ -31,7 +31,8 @@
  */
 enum {
 
-    ZBC_SG_INQUIRY = 0,
+    ZBC_SG_TEST_UNIT_READY = 0,
+    ZBC_SG_INQUIRY,
     ZBC_SG_READ_CAPACITY,
     ZBC_SG_READ,
     ZBC_SG_WRITE,
@@ -49,6 +50,12 @@ enum {
     ZBC_SG_CMD_NUM,
 
 };
+
+/**
+ * Test unit ready command definition.
+ */
+#define ZBC_SG_TEST_UNIT_READY_CDB_OPCODE       0x00
+#define ZBC_SG_TEST_UNIT_READY_CDB_LENGTH       6
 
 /**
  * Inquiry command definition.
@@ -160,7 +167,46 @@ enum {
  * Status codes.
  */
 #define ZBC_SG_CHECK_CONDITION      		0x02
+
+/**
+ * Host status codes.
+ */
+#define ZBC_SG_DID_OK 				0x00 /* No error */
+#define ZBC_SG_DID_NO_CONNECT 			0x01 /* Couldn't connect before timeout period */
+#define ZBC_SG_DID_BUS_BUSY 			0x02 /* BUS stayed busy through time out period */
+#define ZBC_SG_DID_TIME_OUT 			0x03 /* Timed out for other reason */
+#define ZBC_SG_DID_BAD_TARGET 			0x04 /* Bad target, device not responding? */
+#define ZBC_SG_DID_ABORT 			0x05 /* Told to abort for some other reason. */
+#define ZBC_SG_DID_PARITY 			0x06 /* Parity error. */
+#define ZBC_SG_DID_ERROR 			0x07 /* Internal error detected in the host adapter. */
+#define ZBC_SG_DID_RESET 			0x08 /* The SCSI bus (or this device) has been reset. */
+#define ZBC_SG_DID_BAD_INTR 			0x09 /* Got an unexpected interrupt */
+#define ZBC_SG_DID_PASSTHROUGH 			0x0a /* Forced command past mid-layer. */
+#define ZBC_SG_DID_SOFT_ERROR 			0x0b /* The low level driver wants a retry. */
+
+/**
+ * Driver status codes.
+ */
+#define ZBC_SG_DRIVER_OK 			0x00
+#define ZBC_SG_DRIVER_BUSY 			0x01
+#define ZBC_SG_DRIVER_SOFT 			0x02
+#define ZBC_SG_DRIVER_MEDIA 			0x03
+#define ZBC_SG_DRIVER_ERROR 			0x04
+#define ZBC_SG_DRIVER_INVALID 			0x05
+#define ZBC_SG_DRIVER_TIMEOUT 			0x06
+#define ZBC_SG_DRIVER_HARD 			0x07
 #define ZBC_SG_DRIVER_SENSE         		0x08
+#define ZBC_SG_DRIVER_STATUS_MASK   		0x0f
+
+/**
+ * Driver status code flags ('or'ed with code)
+ */
+#define ZBC_SG_DRIVER_SUGGEST_RETRY 		0x10
+#define ZBC_SG_DRIVER_SUGGEST_ABORT 		0x20
+#define ZBC_SG_DRIVER_SUGGEST_REMAP 		0x30
+#define ZBC_SG_DRIVER_SUGGEST_DIE 		0x40
+#define ZBC_SG_DRIVER_SUGGEST_SENSE 		0x80
+#define ZBC_SG_DRIVER_FLAGS_MASK   		0xf0
 
 /***** Type definitions *****/
 
@@ -187,6 +233,9 @@ typedef struct zbc_sg_cmd {
 
 } zbc_sg_cmd_t;
 
+#define zbc_sg_cmd_driver_status(cmd)		((cmd)->io_hdr.driver_status & ZBC_SG_DRIVER_STATUS_MASK)
+#define zbc_sg_cmd_driver_flags(cmd)		((cmd)->io_hdr.driver_status & ZBC_SG_DRIVER_FLAGS_MASK)
+
 /***** Internal command functions *****/
 
 /**
@@ -210,6 +259,13 @@ zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd);
 extern int
 zbc_sg_cmd_exec(zbc_device_t *dev,
                 zbc_sg_cmd_t *cmd);
+
+/**
+ * Test if unit is ready. This will retry 5 times if the command
+ * returns "UNIT ATTENTION".
+ */
+extern int
+zbc_sg_cmd_test_unit_ready(zbc_device_t *dev);
 
 /**
  * Fill the buffer with the result of INQUIRY command.
