@@ -980,8 +980,9 @@ zbc_scsi_get_zbd_chars(zbc_device_t *dev)
     dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
     dev->zbd_info.zbd_max_nr_open_seq_req = zbc_sg_cmd_get_int32(&cmd.out_buf[16]);
 
-    if ( dev->zbd_info.zbd_max_nr_open_seq_req <= 0 ) {
-        zbc_error("%s: invalid maximum number of open sequential write required zones\n",
+    if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED)
+	 && (dev->zbd_info.zbd_max_nr_open_seq_req <= 0) ) {
+        zbc_error("%s: invalid maximum number of open sequential write required zones for host-managed device\n",
                   dev->zbd_filename);
         ret = -EINVAL;
     }
