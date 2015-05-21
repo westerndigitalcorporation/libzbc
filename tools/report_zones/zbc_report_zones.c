@@ -185,6 +185,15 @@ usage:
 	   nr_zones,
 	   lba,
 	   ro);
+    if ( info.zbd_model == ZBC_DM_HOST_MANAGED ) {
+	printf("    %u sequential write required zones open allowed\n",
+	       (unsigned int) info.zbd_max_nr_open_seq_req);
+    } else {
+	printf("    %u sequential write preferred zones open allowed\n",
+	       (unsigned int) info.zbd_opt_nr_open_seq_pref);
+	printf("    %u randomly writen sequential write preferred zones allowed\n",
+	       (unsigned int) info.zbd_opt_nr_open_non_seq_write_seq_pref);
+    }
 
     if ( num ) {
 	goto out;
