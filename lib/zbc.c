@@ -39,6 +39,95 @@ static struct zbc_ops *zbc_ops[] = {
     NULL
 };
 
+/** 
+ * Sense key, ASC/ASCQ
+ */
+static struct zbc_sg_sk_s
+{
+
+    enum zbc_sk         sk;
+    const char          *sk_name;
+
+} zbc_sg_sk_list[] = {
+    
+    /* ILLEGAL_REQUEST */
+    {
+        ZBC_E_ILLEGAL_REQUEST,
+        "Illegal-request"
+    },
+
+    /* ABORTED_COMMAND */
+    {
+        ZBC_E_ABORTED_COMMAND,
+        "Aborted-command",
+    },
+
+    /* Unknown */
+    {
+	0,
+	"Unknown-sense-key",
+    }
+
+};
+
+static struct zbc_sg_asc_ascq_s
+{
+
+    enum zbc_asc_ascq   asc_ascq;
+    const char          *ascq_name;
+
+} zbc_sg_asc_ascq_list[] = {
+
+    /* ZBC_E_INVALID_FIELD_IN_CDB */
+    {
+        ZBC_E_INVALID_FIELD_IN_CDB,
+        "Invalid-field-in-cdb"
+    },
+
+    /* ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE */
+    {
+        ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE,
+        "Logical-block-address-out-of-range"
+    },
+
+    /* ZBC_E_UNALIGNED_WRITE_COMMAND */
+    {
+        ZBC_E_UNALIGNED_WRITE_COMMAND,
+        "Unaligned-write-command"
+    },
+
+    /* ZBC_E_WRITE_BOUNDARY_VIOLATION */
+    {
+        ZBC_E_WRITE_BOUNDARY_VIOLATION,
+        "Write-boundary-violation"
+    },
+
+    /* ZBC_E_ATTEMPT_TO_READ_INVALID_DATA */
+    {
+        ZBC_E_ATTEMPT_TO_READ_INVALID_DATA,
+        "Attempt-to-read-invalid-data"
+    },
+    
+    /* ZBC_E_READ_BOUNDARY_VIOLATION */
+    {
+        ZBC_E_READ_BOUNDARY_VIOLATION,
+        "Read-boundary-violation"
+    },
+
+    /* ZBC_E_INSUFFICIENT_ZONE_RESOURCES */
+    {
+        ZBC_E_INSUFFICIENT_ZONE_RESOURCES,
+        "Insufficient-zone-resources"
+    },
+
+    /* Unknown */
+    {
+	0,
+	"Unknown-additional-sense-code-qualifier"
+    }
+
+};
+
 /***** Declaration of private funtions *****/
 
 static inline int
@@ -183,6 +272,85 @@ zbc_zone_condition_str(struct zbc_zone *zone)
     }
 
     return( "Unknown-cond" );
+
+}
+
+/**
+ * zbc_errno - returns detailed error report (sense key, sense code and sense code qualifier) of the last executed command.
+ * @dev: (IN) ZBC device handle
+ * @err: (OUT) Address where to return the error report
+ */
+void
+zbc_errno(struct zbc_device *dev,
+          struct zbc_errno  *err)
+{
+
+    if ( dev && err ) {
+        memcpy(err, &dev->zbd_errno, sizeof(zbc_errno_t));
+    }
+
+    return;
+}
+
+/**
+ * zbc_sk_str - returns a string describing a sense key.
+ * @sk:    (IN)  Sense key
+ */
+const char *
+zbc_sk_str(enum zbc_sk sk) {
+
+    const char *sk_name = NULL;
+    int i = 0;
+
+    do {
+
+        if ( sk == zbc_sg_sk_list[i].sk ) {
+
+            sk_name = zbc_sg_sk_list[i].sk_name;
+
+            break;
+        }
+
+        i++;
+
+    } while ( zbc_sg_sk_list[i].sk != 0 );
+
+    if ( !sk_name ) {
+        sk_name = zbc_sg_sk_list[i].sk_name;
+    }
+
+    return sk_name;
+
+}
+
+/**
+ * zbc_asc_ascq_str - returns a string describing a sense code and sense code qualifier.
+ * @asc_ascq:    (IN)  Sense code and sense code qualifier
+ */
+const char *
+zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq) {
+
+    const char *ascq_name = NULL;
+    int i = 0;
+
+    do {
+
+        if ( asc_ascq == zbc_sg_asc_ascq_list[i].asc_ascq ) {
+
+            ascq_name = zbc_sg_asc_ascq_list[i].ascq_name;
+
+            break;
+        }
+
+        i++;
+
+    } while ( zbc_sg_asc_ascq_list[i].asc_ascq  != 0 );
+
+    if ( !ascq_name ) {
+        ascq_name = zbc_sg_asc_ascq_list[i].ascq_name;
+    }
+
+    return ascq_name;
 
 }
 

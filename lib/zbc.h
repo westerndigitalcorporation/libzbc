@@ -156,6 +156,11 @@ typedef struct zbc_device {
      */
     unsigned int        zbd_flags;
 
+    /**
+     * Command execution error info.
+     */
+    zbc_errno_t         zbd_errno;
+
 } zbc_device_t;
 
 /***** Internal device functions *****/
@@ -178,4 +183,5 @@ extern struct zbc_ops zbc_fake_ops;
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
-#endif /* __LIBZBC_INTERNAL_H__ */
+#endif
+/* __LIBZBC_INTERNAL_H__ */

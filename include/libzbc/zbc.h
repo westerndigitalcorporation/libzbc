@@ -100,6 +100,27 @@ enum zbc_reporting_options {
     ZBC_RO_NOT_WP               = 0x3f,
 };
 
+/**
+ * Sense key.
+ */
+enum zbc_sk {
+    ZBC_E_ILLEGAL_REQUEST         = 0x5,
+    ZBC_E_ABORTED_COMMAND         = 0xB,
+};
+
+/**
+ * Additional sense code/Additional sense code qualifier.
+ */
+enum zbc_asc_ascq {
+    ZBC_E_INVALID_FIELD_IN_CDB                  = 0x2400,
+    ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE    = 0x2100,
+    ZBC_E_UNALIGNED_WRITE_COMMAND               = 0x2104,
+    ZBC_E_WRITE_BOUNDARY_VIOLATION              = 0x2105,
+    ZBC_E_ATTEMPT_TO_READ_INVALID_DATA          = 0x2106,
+    ZBC_E_READ_BOUNDARY_VIOLATION               = 0x2107,
+    ZBC_E_INSUFFICIENT_ZONE_RESOURCES           = 0x550E,
+};
+
 /***** Type definitions *****/
 
 /**
@@ -124,6 +145,17 @@ struct zbc_zone {
 
 };
 typedef struct zbc_zone zbc_zone_t;
+
+/**
+ * Scsi error descriptor.
+ */
+struct zbc_errno {
+
+    enum zbc_sk                 sk;
+    enum zbc_asc_ascq           asc_ascq;
+
+};
+typedef struct zbc_errno zbc_errno_t;
 
 /**
  * Some handy accessor macros.
@@ -504,5 +536,28 @@ zbc_zone_type_str(struct zbc_zone *zone);
  */
 extern const char *
 zbc_zone_condition_str(struct zbc_zone *zone);
+
+/**
+ * zbc_errno - returns detailed error report (sense key, sense code and sense code qualifier) of the last executed command.
+ * @dev: (IN) ZBC device handle
+ * @err: (OUT) Address where to return the error report
+ */
+extern void
+zbc_errno(struct zbc_device *dev,
+          struct zbc_errno  *err);
+
+/**
+ * zbc_sk_str - returns a string describing a sense key.
+ * @sk:    (IN)  Sense key
+ */
+extern const char *
+zbc_sk_str(enum zbc_sk sk);
+
+/**
+ * zbc_asc_ascq_str - returns a string describing a sense code and sense code qualifier.
+ * @asc_ascq:    (IN)  Sense code and sense code qualifier
+ */
+extern const char *
+zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
 
 #endif /* _LIBZBC_H_ */

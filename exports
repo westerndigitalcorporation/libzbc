@@ -27,6 +27,9 @@ global:
 	zbc_pwrite;
 	zbc_write;
 	zbc_flush;
+	zbc_errno;
+	zbc_sk_str;
+	zbc_asc_ascq_str;
 
 local:
 	*;

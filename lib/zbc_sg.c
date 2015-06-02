@@ -194,6 +194,42 @@ zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
 }
 
 /**
+ * Set ASC, ASCQ.
+ */
+static void
+zbc_sg_set_sense(zbc_device_t *dev,
+                 uint8_t *sense_buf)
+{
+
+    if ( sense_buf == NULL ) {
+
+        dev->zbd_errno.sk       = 0x00;
+        dev->zbd_errno.asc_ascq = 0x0000;
+        
+    } else {
+
+        if ( (sense_buf[0] & 0x7F) == 0x72
+             || (sense_buf[0] & 0x7F) == 0x73 ) {
+
+            /* store sense key, ASC/ASCQ */
+            dev->zbd_errno.sk       = sense_buf[1] & 0x0F;
+            dev->zbd_errno.asc_ascq = sense_buf[2] << 8 | sense_buf[3]; 
+
+        } else if ( (sense_buf[0] & 0x7F) == 0x70
+                    || (sense_buf[0] & 0x7F) == 0x71 ) {
+
+            /* store sense key, ASC/ASCQ */
+            dev->zbd_errno.sk       = sense_buf[2] & 0x0F;
+            dev->zbd_errno.asc_ascq = sense_buf[12] << 8 | sense_buf[13]; 
+            
+        }
+    }
+
+    return;
+
+}
+
+/**
  * Free a command.
  */
 void
@@ -343,7 +379,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
     /* Send the SG_IO command */
     ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
-    if( ret != 0 ) {
+    if ( ret != 0 ) {
         zbc_error("%s: SG_IO ioctl failed %d (%s)",
                   dev->zbd_filename,
                   errno,
@@ -351,6 +387,9 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
         ret = -errno;
         goto out;
     }
+
+    /* Reset errno */
+    zbc_sg_set_sense(dev, NULL);
 
     zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
               dev->zbd_filename,
@@ -367,6 +406,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
        /* ATA command status */
        if ( cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION ) {
+           zbc_sg_set_sense(dev, cmd->sense_buf);
            ret = -EIO;
            goto out;
        }
@@ -374,6 +414,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
        if ( (zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE)
             && (cmd->io_hdr.sb_len_wr > 21)
             && (cmd->sense_buf[21] != 0x50) ) {
+           zbc_sg_set_sense(dev, cmd->sense_buf);
            ret = -EIO;
            goto out;
        }
@@ -416,6 +457,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
 
 	}
 
+        zbc_sg_set_sense(dev, cmd->sense_buf);
         ret = -EIO;
 
         goto out;
