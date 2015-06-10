@@ -33,6 +33,11 @@
 #define ZBC_FORCED_ATA_RW       0x40000000 /* for fctl flags, bit 30 */
 
 /**
+ * ZBD flags.
+ */
+#define ZBC_UNRESTRICTED_READ   0x00000001
+
+/**
  * Device type: SCSI, ATA or fake (emulation).
  * Each type correspond to a different internal backend driver.
  */
@@ -238,6 +243,8 @@ struct zbc_device_info {
     uint32_t                    zbd_opt_nr_open_seq_pref;
     uint32_t                    zbd_opt_nr_open_non_seq_write_seq_pref;
     uint32_t                    zbd_max_nr_open_seq_req;
+
+    uint32_t                    zbd_flags;
 
 };
 typedef struct zbc_device_info zbc_device_info_t;

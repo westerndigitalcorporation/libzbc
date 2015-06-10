@@ -461,6 +461,9 @@ zbc_ata_get_zbd_info(zbc_device_t *dev)
         return( ret );
     }
 
+    /* URSWRZ(unrestricted read write sequential required zone) flag */
+    dev->zbd_info.zbd_flags |= (zbc_ata_get_qword(&buf[8]) & 0x01) ? ZBC_UNRESTRICTED_READ : 0;  
+
     /* Resource of handling zones */
     dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_ata_get_qword(&buf[24]) & 0xffffffff;
     dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
