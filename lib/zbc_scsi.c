@@ -975,6 +975,9 @@ zbc_scsi_get_zbd_chars(zbc_device_t *dev)
         goto out;
     }
 
+    /* URSWRZ(unrestricted read write sequential required zone) flag */
+    dev->zbd_info.zbd_flags |= (cmd.out_buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;  
+
     /* Resource of handling zones */
     dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
     dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
