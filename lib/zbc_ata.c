@@ -530,7 +530,6 @@ zbc_ata_pread_ata(zbc_device_t *dev,
                   uint64_t lba_ofst)
 {
     size_t sz = (size_t) lba_count * dev->zbd_info.zbd_logical_block_size;
-    uint32_t sector_count = sz / 512;
     uint64_t lba = zone->zbz_start + lba_ofst;
     zbc_sg_cmd_t cmd;
     int ret;
@@ -589,9 +588,9 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x0e;			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (sector_count >> 8) & 0xff;
-    cmd.cdb[6] = sector_count & 0xff;
+    cmd.cdb[2] = 0x1e;			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
+    cmd.cdb[5] = (lba_count >> 8) & 0xff;
+    cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
@@ -689,7 +688,6 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
                    uint64_t lba_ofst)
 {
     size_t sz = (size_t) lba_count * dev->zbd_info.zbd_logical_block_size;
-    uint32_t sector_count = sz / 512;
     uint64_t lba = zone->zbz_start + lba_ofst;
     zbc_sg_cmd_t cmd;
     int ret;
@@ -748,9 +746,9 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x06;			/* off_line=0, ck_cond=0, t_type=0, t_dir=0, byt_blk=1, t_length=10 */
-    cmd.cdb[5] = (sector_count >> 8) & 0xff;
-    cmd.cdb[6] = sector_count & 0xff;
+    cmd.cdb[2] = 0x16;			/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
+    cmd.cdb[5] = (lba_count >> 8) & 0xff;
+    cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
     cmd.cdb[8] = lba & 0xff;
     cmd.cdb[9] = (lba >> 32) & 0xff;
