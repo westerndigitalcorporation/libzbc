@@ -664,7 +664,8 @@ zbc_ata_pread(zbc_device_t *dev,
     int ret;
 
     /* ATA command or native SCSI command ? */
-    if ( dev->zbd_flags & ZBC_ATA_SCSI_RW ) {
+    if ( (dev->zbd_flags & ZBC_ATA_SCSI_RW)
+         && !(dev->zbd_flags & ZBC_ATA_FORCED_ATA_RW) ) {
         ret = zbc_ata_pread_scsi(dev, zone, buf, lba_count, lba_ofst);
     } else {
         ret = zbc_ata_pread_ata(dev, zone, buf, lba_count, lba_ofst);
@@ -822,7 +823,8 @@ zbc_ata_pwrite(zbc_device_t *dev,
     int ret;
 
     /* ATA command or native SCSI command ? */
-    if ( dev->zbd_flags & ZBC_ATA_SCSI_RW ) {
+    if ( (dev->zbd_flags & ZBC_ATA_SCSI_RW)
+         && !(dev->zbd_flags & ZBC_ATA_FORCED_ATA_RW) ) {
         ret = zbc_ata_pwrite_scsi(dev, zone, buf, lba_count, lba_ofst);
     } else {
         ret = zbc_ata_pwrite_ata(dev, zone, buf, lba_count, lba_ofst);

@@ -375,7 +375,7 @@ zbc_open(const char *filename,
 
     /* Test all backends until one accepts the drive */
     for(i = 0; zbc_ops[i] != NULL; i++) {
-        ret = zbc_ops[i]->zbd_open(filename, flags, &dev);
+        ret = zbc_ops[i]->zbd_open(filename, zbc_fctl_flags(flags), &dev);
 	if ( ret == 0 ) {
 	    /* This backend accepted the drive */
             dev->zbd_ops = zbc_ops[i];
@@ -389,6 +389,7 @@ zbc_open(const char *filename,
 		  ret,
 		  strerror(-ret));
     } else {
+        dev->zbd_flags |= zbc_forced_ata(flags) ? ZBC_ATA_FORCED_ATA_RW : 0;
 	*pdev = dev;
     }
 

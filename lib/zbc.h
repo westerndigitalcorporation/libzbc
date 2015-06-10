@@ -26,6 +26,12 @@
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
 
+/***** Macro definitions *****/
+/**
+ * Forced ata read/write flag.
+ */
+#define ZBC_ATA_FORCED_ATA_RW   0x00000002 /* for zbc_flags, bit 1 */
+
 /***** Type definitions *****/
 
 /**
@@ -182,6 +188,9 @@ extern struct zbc_ops zbc_fake_ops;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+
+#define zbc_fctl_flags(f)           ((f) & ~ZBC_FORCED_ATA_RW)
+#define zbc_forced_ata(f)           (((f) & ZBC_FORCED_ATA_RW) == ZBC_FORCED_ATA_RW)
 
 #endif
 /* __LIBZBC_INTERNAL_H__ */

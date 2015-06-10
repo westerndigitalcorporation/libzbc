@@ -28,6 +28,11 @@
 /***** Macro definitions *****/
 
 /**
+ * Forced ata read/write flag.
+ */
+#define ZBC_FORCED_ATA_RW       0x40000000 /* for fctl flags, bit 30 */
+
+/**
  * Device type: SCSI, ATA or fake (emulation).
  * Each type correspond to a different internal backend driver.
  */
