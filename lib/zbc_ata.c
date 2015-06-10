@@ -45,11 +45,18 @@
 #define ZBC_ATA_IDENTIFY             		0xEC
 #define ZBC_ATA_EXEC_DEV_DIAGNOSTIC		0x90
 #define ZBC_ATA_READ_LOG_DMA_EXT		0x47
+#define ZBC_ATA_SET_FEATURES                    0xEF
+#define ZBC_ATA_REQUEST_SENSE_DATA_EXT          0x0B
 #define ZBC_ATA_READ_DMA_EXT			0x25
 #define ZBC_ATA_WRITE_DMA_EXT			0x35
 #define ZBC_ATA_FLUSH_CACHE_EXT			0xEA
 #define ZBC_ATA_ZAC_MANAGEMENT_IN               0x4A
 #define ZBC_ATA_ZAC_MANAGEMENT_OUT              0x9F
+
+/**
+ * Set features feature fieald.
+ */
+#define ENABLE_SENSE_DATA_REPORTING             0xC3
 
 /**
  * ZAC management commands
@@ -287,7 +294,7 @@ zbc_ata_classify(zbc_device_t *dev)
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x1;	/* Non-Data protocol, ext=1 */
-    cmd.cdb[2] = 0x1 << 5;		/* off_line=0, ck_cond=0, t_type=0, t_dir=0, byt_blk=0, t_length=00 */
+    cmd.cdb[2] = 0x1 << 5;		/* off_line=0, ck_cond=1, t_type=0, t_dir=0, byt_blk=0, t_length=00 */
     cmd.cdb[14] = ZBC_ATA_EXEC_DEV_DIAGNOSTIC;
 
     /* Execute the command */
@@ -343,6 +350,220 @@ zbc_ata_classify(zbc_device_t *dev)
     }
 
 out:
+
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Set features
+ */
+static int
+zbc_ata_set_features(zbc_device_t *dev,
+                     uint8_t      feature,
+                     uint8_t      count)
+{
+    zbc_sg_cmd_t cmd;
+    int ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          n/a                                          |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                          n/a                                          |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                          count (7:0)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          n/a                                          |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          n/a                                          |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          n/a                                          |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |            DEVICE (7:4)           |          LBA(27:24)               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                          Command                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                          Control                                      |
+     * +=============================================================================+
+     */
+    /* Note: According to SAT-3r07, the protocol should be 0x8. */
+    /* But if it is used, the SG/SCSI driver returns an error.  */
+    /* So use non-data protocol... Also note that to get the    */
+    /* device signature, the "check condition" bit must be set. */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = 0x3 << 1;	/* Non-Data protocol */
+    cmd.cdb[4] = feature;
+    cmd.cdb[6] = count;
+    cmd.cdb[14] = ZBC_ATA_SET_FEATURES;
+
+    /* Execute the command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+
+}
+
+/**
+ * Set features
+ */
+static int
+zbc_ata_enable_sense_data(zbc_device_t *dev)
+{
+
+    return ( zbc_ata_set_features(dev, ENABLE_SENSE_DATA_REPORTING, 1) );
+
+}
+
+/**
+ * Sense data is enabled
+ */
+static inline int
+zbc_ata_sense_data_is_enabled(zbc_sg_cmd_t *cmd)
+{
+    int ret = 0;
+
+    if ( cmd->io_hdr.sb_len_wr > 8 ) {
+
+        if ( cmd->sense_buf[8] == 0x09          /* Descriptor code */
+             && cmd->sense_buf[21] & 0x02 ) {   /* Status including sense data flag */
+
+            ret = 1;
+        }
+
+    }
+            
+    return ret;
+}
+
+/**
+ * Request sense data ext
+ */
+static int
+zbc_ata_request_sense_data_ext(zbc_device_t *dev)
+{
+    zbc_sg_cmd_t cmd;
+    int i, ret;
+
+    /* Intialize command */
+    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+    if ( ret != 0 ) {
+        zbc_error("zbc_sg_cmd_init failed\n");
+        return( ret );
+    }
+
+    /* Fill command CDB:
+     * +=============================================================================+
+     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+     * |Byte |        |        |        |        |        |        |        |        |
+     * |=====+==========================+============================================|
+     * | 0   |                           Operation Code (85h)                        |
+     * |-----+-----------------------------------------------------------------------|
+     * | 1   |      Multiple count      |              Protocol             |  ext   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 3   |                          features (15:8)                              |
+     * |-----+-----------------------------------------------------------------------|
+     * | 4   |                          features (7:0)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 5   |                            count (15:8)                               |
+     * |-----+-----------------------------------------------------------------------|
+     * | 6   |                            count (7:0)                                |
+     * |-----+-----------------------------------------------------------------------|
+     * | 7   |                          LBA (31:24 15:8)                             |
+     * |-----+-----------------------------------------------------------------------|
+     * | 8   |                          LBA (7:0)                                    |
+     * |-----+-----------------------------------------------------------------------|
+     * | 9   |                          LBA (39:32)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 10  |                          LBA (15:8)                                   |
+     * |-----+-----------------------------------------------------------------------|
+     * | 11  |                          LBA (47:40)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 12  |                          LBA (23:16)                                  |
+     * |-----+-----------------------------------------------------------------------|
+     * | 13  |                           Device                                      |
+     * |-----+-----------------------------------------------------------------------|
+     * | 14  |                           Command                                     |
+     * |-----+-----------------------------------------------------------------------|
+     * | 15  |                           Control                                     |
+     * +=============================================================================+
+     */
+    /* Note: According to SAT-3r07, the protocol should be 0x8. */
+    /* But if it is used, the SG/SCSI driver returns an error.  */
+    /* So use non-data protocol... Also note that to get the    */
+    /* device signature, the "check condition" bit must be set. */
+    cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+    cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+    cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
+    cmd.cdb[2] = 0x1 << 5;		/* off_line=0, ck_cond=1, t_type=0, t_dir=0, byt_blk=0, t_length=00 */
+    cmd.cdb[14] = ZBC_ATA_REQUEST_SENSE_DATA_EXT;
+
+    /* Execute the command */
+    ret = zbc_sg_cmd_exec(dev, &cmd);
+
+    if ( !ret ) {
+        if ( cmd.io_hdr.sb_len_wr ) {
+            zbc_debug("%s: Sense data (%d B):\n",
+                    dev->zbd_filename,
+                    cmd.io_hdr.sb_len_wr);
+            for(i = 0; i < cmd.io_hdr.sb_len_wr; i += 4) {
+                zbc_debug("%s: [%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+                        dev->zbd_filename,
+                        i,
+                        (unsigned int)cmd.sense_buf[i],
+                        ((i + 1) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 1] : 0,
+                        ((i + 2) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 2] : 0,
+                        ((i + 3) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 3] : 0);
+            }
+        } else {
+            zbc_debug("%s: No sense data\n", dev->zbd_filename);
+        }
+
+        if ( cmd.io_hdr.sb_len_wr > 8 ) {
+            zbc_debug("Sense key is 0x%x\n", cmd.sense_buf[19] & 0xF);
+            zbc_debug("Additional sense code is 0x%02x\n", cmd.sense_buf[17]);
+            zbc_debug("Additional sense code qualifier is 0x%02x\n", cmd.sense_buf[15]);
+
+            dev->zbd_errno.sk = cmd.sense_buf[19] & 0xF;
+            dev->zbd_errno.asc_ascq = cmd.sense_buf[17] << 8 | cmd.sense_buf[15];
+        } else {
+            zbc_debug("Sense buffer is less than 8B, %d\n", cmd.io_hdr.sb_len_wr);
+        }
+    } else {
+        zbc_error("REQUEST SENSE DATA command is failed\n");
+    }
 
     zbc_sg_cmd_destroy(&cmd);
 
@@ -604,6 +825,13 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
+    } else {
+        /* Request sense data */
+        if ( ret == -EIO ) {
+            if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+                zbc_ata_request_sense_data_ext(dev);
+            }
+        }
     }
 
     /* Done */
@@ -762,6 +990,13 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret == 0 ) {
         ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_logical_block_size;
+    } else {
+        /* Request sense data */
+        if ( ret == -EIO ) {
+            if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+                zbc_ata_request_sense_data_ext(dev);
+            }
+        }
     }
 
     /* Done */
@@ -963,6 +1198,19 @@ zbc_ata_report_zones(zbc_device_t *dev,
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
+
+        /* Request sense data */
+        if ( ret == -EIO ) {
+            if ( dev->zbd_errno.sk != ZBC_E_ILLEGAL_REQUEST
+                 && dev->zbd_errno.asc_ascq != ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE ) {
+
+                /* If request sense data is enabled , try to get sense data */
+                if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+                    zbc_ata_request_sense_data_ext(dev);
+                }
+            }
+        }
+
         goto out;
     }
 
@@ -1116,6 +1364,13 @@ zbc_ata_open_zone(zbc_device_t *dev,
     /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
+    /* Request sense data */
+    if ( ret == -EIO ) {
+        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            zbc_ata_request_sense_data_ext(dev);
+        }
+    }
+
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1200,6 +1455,13 @@ zbc_ata_close_zone(zbc_device_t *dev,
     /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
+    /* Request sense data */
+    if ( ret == -EIO ) {
+        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            zbc_ata_request_sense_data_ext(dev);
+        }
+    }
+    
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1284,6 +1546,13 @@ zbc_ata_finish_zone(zbc_device_t *dev,
     /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
+    /* Request sense data */
+    if ( ret == -EIO ) {
+        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            zbc_ata_request_sense_data_ext(dev);
+        }
+    }
+    
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1368,6 +1637,13 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
     /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
 
+    /* Request sense data */
+    if ( ret == -EIO ) {
+        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            zbc_ata_request_sense_data_ext(dev);
+        }
+    }
+    
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1512,6 +1788,12 @@ zbc_ata_open(const char *filename,
     ret = zbc_ata_get_info(dev);
     if ( ret ) {
         goto out_free_filename;
+    }
+
+    /* Set sense data reporting */
+    ret = zbc_ata_enable_sense_data(dev);
+    if ( ret ) {
+        /* nothing to do */
     }
 
     /* Test if the disk accepts native SCSI read/write commands */
