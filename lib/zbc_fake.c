@@ -557,6 +557,24 @@ zbc_fake_report_zones(struct zbc_device *dev,
         return -ENXIO;
     }
 
+    /* Check reporting option */
+    if ( options != ZBC_RO_ALL && options != ZBC_RO_EMPTY
+         && options != ZBC_RO_IMP_OPEN && options != ZBC_RO_EXP_OPEN
+         && options != ZBC_RO_CLOSED && options != ZBC_RO_FULL
+         && options != ZBC_RO_RDONLY && options != ZBC_RO_OFFLINE
+         && options != ZBC_RO_RESET && options != ZBC_RO_NON_SEQ ) {
+        dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+        dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;                  
+        return -EIO;
+    }
+
+    /* Check start_lba */
+    if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+        dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+        dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+        return -EIO;
+    }
+
     zbc_fake_lock(fdev);
 
     if ( ! zones ) {
@@ -646,7 +664,9 @@ zbc_fake_open_zone(zbc_device_t *dev,
             }
         }
         if ( (fdev->zbd_meta->zbd_nr_exp_open_zones + need_open) > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
-            ret = -EBUSY;
+            dev->zbd_errno.sk = ZBC_E_ABORTED_COMMAND;
+            dev->zbd_errno.asc_ascq = ZBC_E_INSUFFICIENT_ZONE_RESOURCES;
+            ret = -EIO;
             goto out;
         }
 
@@ -662,9 +682,25 @@ zbc_fake_open_zone(zbc_device_t *dev,
 
         struct zbc_zone *zone;
 
+        /* Check start_lba */
+        if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            return -EIO;
+        }
+
         /* Check target zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( ! zone ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_conventional(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
             ret = -EIO;
             goto out;
         }
@@ -690,7 +726,9 @@ zbc_fake_open_zone(zbc_device_t *dev,
              > fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
 
             if ( ! fdev->zbd_meta->zbd_nr_imp_open_zones ) {
-                ret = -EBUSY;
+                dev->zbd_errno.sk = ZBC_E_ABORTED_COMMAND;
+                dev->zbd_errno.asc_ascq = ZBC_E_INSUFFICIENT_ZONE_RESOURCES;
+                ret = -EIO;
                 goto out;
             }
 
@@ -762,9 +800,25 @@ zbc_fake_close_zone(zbc_device_t *dev,
 
         struct zbc_zone *zone;
 
+        /* Check start_lba */
+        if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            return -EIO;
+        }
+
         /* Close the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( ! zone ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_conventional(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
             ret = -EIO;
             goto out;
         }
@@ -847,9 +901,25 @@ zbc_fake_finish_zone(zbc_device_t *dev,
 
         struct zbc_zone *zone;
 
+        /* Check start_lba */
+        if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            return -EIO;
+        }
+
         /* Finish the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( ! zone ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_conventional(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
             ret = -EIO;
             goto out;
         }
@@ -938,9 +1008,25 @@ zbc_fake_reset_wp(struct zbc_device *dev,
 
         struct zbc_zone *zone;
 
+        /* Check start_lba */
+        if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            return -EIO;
+        }
+
         /* Reset the specified zone */
         zone = zbc_fake_find_zone(fdev, start_lba);
         if ( ! zone ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
+            ret = -EIO;
+            goto out;
+        }
+
+        if ( zbc_zone_conventional(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
             ret = -EIO;
             goto out;
         }
@@ -1001,7 +1087,15 @@ zbc_fake_pread(struct zbc_device *dev,
     if ( zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ ) {
 
         /* Cannot read unwritten data */
+        if ( (start_lba + lba_count) > zbc_zone_next_lba(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_READ_BOUNDARY_VIOLATION;
+            goto out;
+        }
+
         if ( (start_lba + lba_count) > zbc_zone_wp_lba(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_ATTEMPT_TO_READ_INVALID_DATA;
             goto out;
         }
 
@@ -1084,6 +1178,8 @@ zbc_fake_pwrite(struct zbc_device *dev,
     start_lba += zone->zbz_start;
 
     if ( (start_lba + lba_count) > zbc_zone_next_lba(zone) ) {
+         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+         dev->zbd_errno.asc_ascq = ZBC_E_WRITE_BOUNDARY_VIOLATION;
         goto out;
     }
 
@@ -1091,6 +1187,8 @@ zbc_fake_pwrite(struct zbc_device *dev,
 
         /* Can only write at the write pointer */
         if ( start_lba != zbc_zone_wp_lba(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_UNALIGNED_WRITE_COMMAND;
             goto out;
         }
 
@@ -1099,7 +1197,9 @@ zbc_fake_pwrite(struct zbc_device *dev,
 
             if ( fdev->zbd_meta->zbd_nr_exp_open_zones >= fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
                 /* Too many explicit open on-going */
-                ret = -EBUSY;
+                dev->zbd_errno.sk = ZBC_E_ABORTED_COMMAND;
+                dev->zbd_errno.asc_ascq = ZBC_E_INSUFFICIENT_ZONE_RESOURCES;
+                ret = -EIO;
                 goto out;
             }
 
