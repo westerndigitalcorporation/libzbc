@@ -4,7 +4,7 @@ libdir=@libdir@
 includedir=@includedir@
 
 Name:           libzbc
-Description:    A library for to access ZBC devices
+Description:    A library for accessing and managing ZBC/ZAC devices
 Version:        @PACKAGE_VERSION@
 Cflags:         -I${includedir}
 Libs:           -L${libdir} -lzbc
