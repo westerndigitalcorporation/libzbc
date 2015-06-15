@@ -34,5 +34,8 @@ include tools/write_zone/Makemodule.am
 include tools/open_zone/Makemodule.am
 include tools/close_zone/Makemodule.am
 include tools/finish_zone/Makemodule.am
+
+if USE_GTK
 include tools/gui/Makemodule.am
+endif
 
