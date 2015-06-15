@@ -449,7 +449,7 @@ zbc_ata_enable_sense_data(zbc_device_t *dev)
  * Sense data is enabled
  */
 static inline int
-zbc_ata_sense_data_is_enabled(zbc_sg_cmd_t *cmd)
+zbc_ata_sense_data_enabled(zbc_sg_cmd_t *cmd)
 {
     int ret = 0;
 
@@ -462,7 +462,7 @@ zbc_ata_sense_data_is_enabled(zbc_sg_cmd_t *cmd)
         }
 
     }
-            
+
     return ret;
 }
 
@@ -682,10 +682,10 @@ zbc_ata_get_zbd_info(zbc_device_t *dev)
         return( ret );
     }
 
-    /* URSWRZ(unrestricted read write sequential required zone) flag */
-    dev->zbd_info.zbd_flags |= (zbc_ata_get_qword(&buf[8]) & 0x01) ? ZBC_UNRESTRICTED_READ : 0;  
+    /* URSWRZ (unrestricted read write sequential required zone) flag */
+    dev->zbd_info.zbd_flags |= (zbc_ata_get_qword(&buf[8]) & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 
-    /* Resource of handling zones */
+    /* Maximum number of zones for resource management */
     dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_ata_get_qword(&buf[24]) & 0xffffffff;
     dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
     dev->zbd_info.zbd_max_nr_open_seq_req = zbc_ata_get_qword(&buf[40]) & 0xffffffff;
@@ -809,7 +809,7 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x1e;			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
+    cmd.cdb[2] = 0x0e;			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
     cmd.cdb[5] = (lba_count >> 8) & 0xff;
     cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
@@ -828,7 +828,7 @@ zbc_ata_pread_ata(zbc_device_t *dev,
     } else {
         /* Request sense data */
         if ( ret == -EIO ) {
-            if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            if ( zbc_ata_sense_data_enabled(&cmd) ) {
                 zbc_ata_request_sense_data_ext(dev);
             }
         }
@@ -894,8 +894,7 @@ zbc_ata_pread(zbc_device_t *dev,
     int ret;
 
     /* ATA command or native SCSI command ? */
-    if ( (dev->zbd_flags & ZBC_ATA_SCSI_RW)
-         && !(dev->zbd_flags & ZBC_ATA_FORCED_ATA_RW) ) {
+    if ( dev->zbd_flags & ZBC_ATA_SCSI_RW ) {
         ret = zbc_ata_pread_scsi(dev, zone, buf, lba_count, lba_ofst);
     } else {
         ret = zbc_ata_pread_ata(dev, zone, buf, lba_count, lba_ofst);
@@ -974,7 +973,7 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x6 << 1) | 0x01;	/* DMA protocol, ext=1 */
-    cmd.cdb[2] = 0x16;			/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
+    cmd.cdb[2] = 0x06;			/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
     cmd.cdb[5] = (lba_count >> 8) & 0xff;
     cmd.cdb[6] = lba_count & 0xff;
     cmd.cdb[7] = (lba >> 24) & 0xff;
@@ -993,7 +992,7 @@ zbc_ata_pwrite_ata(zbc_device_t *dev,
     } else {
         /* Request sense data */
         if ( ret == -EIO ) {
-            if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+            if ( zbc_ata_sense_data_enabled(&cmd) ) {
                 zbc_ata_request_sense_data_ext(dev);
             }
         }
@@ -1059,8 +1058,7 @@ zbc_ata_pwrite(zbc_device_t *dev,
     int ret;
 
     /* ATA command or native SCSI command ? */
-    if ( (dev->zbd_flags & ZBC_ATA_SCSI_RW)
-         && !(dev->zbd_flags & ZBC_ATA_FORCED_ATA_RW) ) {
+    if ( dev->zbd_flags & ZBC_ATA_SCSI_RW ) {
         ret = zbc_ata_pwrite_scsi(dev, zone, buf, lba_count, lba_ofst);
     } else {
         ret = zbc_ata_pwrite_ata(dev, zone, buf, lba_count, lba_ofst);
@@ -1205,7 +1203,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
                  && dev->zbd_errno.asc_ascq != ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE ) {
 
                 /* If request sense data is enabled , try to get sense data */
-                if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+                if ( zbc_ata_sense_data_enabled(&cmd) ) {
                     zbc_ata_request_sense_data_ext(dev);
                 }
             }
@@ -1366,7 +1364,7 @@ zbc_ata_open_zone(zbc_device_t *dev,
 
     /* Request sense data */
     if ( ret == -EIO ) {
-        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+        if ( zbc_ata_sense_data_enabled(&cmd) ) {
             zbc_ata_request_sense_data_ext(dev);
         }
     }
@@ -1457,11 +1455,11 @@ zbc_ata_close_zone(zbc_device_t *dev,
 
     /* Request sense data */
     if ( ret == -EIO ) {
-        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+        if ( zbc_ata_sense_data_enabled(&cmd) ) {
             zbc_ata_request_sense_data_ext(dev);
         }
     }
-    
+
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1548,11 +1546,11 @@ zbc_ata_finish_zone(zbc_device_t *dev,
 
     /* Request sense data */
     if ( ret == -EIO ) {
-        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+        if ( zbc_ata_sense_data_enabled(&cmd) ) {
             zbc_ata_request_sense_data_ext(dev);
         }
     }
-    
+
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1639,11 +1637,11 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
 
     /* Request sense data */
     if ( ret == -EIO ) {
-        if ( zbc_ata_sense_data_is_enabled(&cmd) ) {
+        if ( zbc_ata_sense_data_enabled(&cmd) ) {
             zbc_ata_request_sense_data_ext(dev);
         }
     }
-    
+
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
 
@@ -1745,7 +1743,7 @@ zbc_ata_open(const char *filename,
 	      filename);
 
     /* Open the device file */
-    fd = open(filename, flags);
+    fd = open(filename, zbc_open_flags(flags));
     if ( fd < 0 ) {
         zbc_error("Open device file %s failed %d (%s)\n",
                   filename,
@@ -1797,7 +1795,8 @@ zbc_ata_open(const char *filename,
     }
 
     /* Test if the disk accepts native SCSI read/write commands */
-    if ( zbc_ata_scsi_rw(dev) ) {
+    if ( (! (flags & ZBC_FORCE_ATA_RW))
+	 && zbc_ata_scsi_rw(dev) ) {
 	zbc_debug("%s: Using SCSI R/W commands\n",
 		  filename);
 	dev->zbd_flags |= ZBC_ATA_SCSI_RW;

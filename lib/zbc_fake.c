@@ -405,7 +405,7 @@ zbc_fake_open(const char *filename,
 	      filename);
 
     /* Open emulation device/file */
-    fd = open(filename, flags);
+    fd = open(filename, zbc_open_flags(flags));
     if ( fd < 0 ) {
         zbc_error("%s: open failed %d (%s)\n",
                   filename,

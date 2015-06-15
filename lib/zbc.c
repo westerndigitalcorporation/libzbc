@@ -39,7 +39,7 @@ static struct zbc_ops *zbc_ops[] = {
     NULL
 };
 
-/** 
+/**
  * Sense key, ASC/ASCQ
  */
 static struct zbc_sg_sk_s
@@ -49,7 +49,7 @@ static struct zbc_sg_sk_s
     const char          *sk_name;
 
 } zbc_sg_sk_list[] = {
-    
+
     /* ILLEGAL_REQUEST */
     {
         ZBC_E_ILLEGAL_REQUEST,
@@ -65,7 +65,7 @@ static struct zbc_sg_sk_s
     /* Unknown */
     {
 	0,
-	"Unknown-sense-key",
+	NULL,
     }
 
 };
@@ -107,7 +107,7 @@ static struct zbc_sg_asc_ascq_s
         ZBC_E_ATTEMPT_TO_READ_INVALID_DATA,
         "Attempt-to-read-invalid-data"
     },
-    
+
     /* ZBC_E_READ_BOUNDARY_VIOLATION */
     {
         ZBC_E_READ_BOUNDARY_VIOLATION,
@@ -123,7 +123,7 @@ static struct zbc_sg_asc_ascq_s
     /* Unknown */
     {
 	0,
-	"Unknown-additional-sense-code-qualifier"
+	NULL,
     }
 
 };
@@ -226,10 +226,10 @@ zbc_disk_model_str(int model)
  * Returns a string describing a zone type.
  */
 const char *
-zbc_zone_type_str(struct zbc_zone *zone)
+zbc_zone_type_str(enum zbc_zone_type type)
 {
 
-    switch( zbc_zone_type(zone) ) {
+    switch( type ) {
     case ZBC_ZT_CONVENTIONAL:
         return( "Conventional" );
     case ZBC_ZT_SEQUENTIAL_REQ:
@@ -244,15 +244,15 @@ zbc_zone_type_str(struct zbc_zone *zone)
 
 /**
  * zbc_zone_cond_str - returns a string describing a zone condition.
- * @cond: (IN)  ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
+ * @zone: (IN)  ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
  *              ZBC_ZC_CLOSED, ZBC_ZC_RDONLY, ZBC_ZC_FULL or ZBC_ZC_OFFLINE
  *
  * Returns a string describing a zone condition.
  */
 const char *
-zbc_zone_condition_str(struct zbc_zone *zone)
+zbc_zone_condition_str(enum zbc_zone_condition cond)
 {
-    switch( zbc_zone_condition(zone) ) {
+    switch( cond ) {
     case ZBC_ZC_NOT_WP:
         return( "Not-write-pointer" );
     case ZBC_ZC_EMPTY:
@@ -276,13 +276,14 @@ zbc_zone_condition_str(struct zbc_zone *zone)
 }
 
 /**
- * zbc_errno - returns detailed error report (sense key, sense code and sense code qualifier) of the last executed command.
+ * zbc_errno - returns detailed error report (sense key, sense code and
+ *             sense code qualifier) of the last executed command.
  * @dev: (IN) ZBC device handle
  * @err: (OUT) Address where to return the error report
  */
 void
-zbc_errno(struct zbc_device *dev,
-          struct zbc_errno  *err)
+zbc_errno(zbc_device_t *dev,
+          zbc_errno_t *err)
 {
 
     if ( dev && err ) {
@@ -299,27 +300,16 @@ zbc_errno(struct zbc_device *dev,
 const char *
 zbc_sk_str(enum zbc_sk sk) {
 
-    const char *sk_name = NULL;
     int i = 0;
 
-    do {
-
+    while ( zbc_sg_sk_list[i].sk != 0 ) {
         if ( sk == zbc_sg_sk_list[i].sk ) {
-
-            sk_name = zbc_sg_sk_list[i].sk_name;
-
-            break;
+            return( zbc_sg_sk_list[i].sk_name );
         }
-
         i++;
-
-    } while ( zbc_sg_sk_list[i].sk != 0 );
-
-    if ( !sk_name ) {
-        sk_name = zbc_sg_sk_list[i].sk_name;
     }
 
-    return sk_name;
+    return( "Unknown-sense-key" );
 
 }
 
@@ -330,27 +320,16 @@ zbc_sk_str(enum zbc_sk sk) {
 const char *
 zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq) {
 
-    const char *ascq_name = NULL;
     int i = 0;
 
-    do {
-
+    while( zbc_sg_asc_ascq_list[i].asc_ascq  != 0 ) {
         if ( asc_ascq == zbc_sg_asc_ascq_list[i].asc_ascq ) {
-
-            ascq_name = zbc_sg_asc_ascq_list[i].ascq_name;
-
-            break;
+            return( zbc_sg_asc_ascq_list[i].ascq_name );
         }
-
         i++;
-
-    } while ( zbc_sg_asc_ascq_list[i].asc_ascq  != 0 );
-
-    if ( !ascq_name ) {
-        ascq_name = zbc_sg_asc_ascq_list[i].ascq_name;
     }
 
-    return ascq_name;
+    return( "Unknown-additional-sense-code-qualifier" );
 
 }
 
@@ -375,7 +354,7 @@ zbc_open(const char *filename,
 
     /* Test all backends until one accepts the drive */
     for(i = 0; zbc_ops[i] != NULL; i++) {
-        ret = zbc_ops[i]->zbd_open(filename, zbc_fctl_flags(flags), &dev);
+        ret = zbc_ops[i]->zbd_open(filename, flags, &dev);
 	if ( ret == 0 ) {
 	    /* This backend accepted the drive */
             dev->zbd_ops = zbc_ops[i];
@@ -389,7 +368,6 @@ zbc_open(const char *filename,
 		  ret,
 		  strerror(-ret));
     } else {
-        dev->zbd_flags |= zbc_forced_ata(flags) ? ZBC_ATA_FORCED_ATA_RW : 0;
 	*pdev = dev;
     }
 

@@ -28,12 +28,23 @@
 /***** Macro definitions *****/
 
 /**
- * Forced ata read/write flag.
+ * zbc_open flag to force the use of ATA read and write
+ * commands through ATA16 SCSI command (ATA PASSTHROUGH).
+ * Otherwise, for ATA drives, native SCSI read and write
+ * commands are used and either the kernel or the drive HBA
+ * translaet these command to ATA commands.
+ *
+ * This is defined as bit 30 of the standard fcntl flags.
  */
-#define ZBC_FORCED_ATA_RW       0x40000000 /* for fctl flags, bit 30 */
+#define ZBC_FORCE_ATA_RW       	0x40000000
 
 /**
- * ZBD flags.
+ * Device info flags.
+ *
+ * ZBC_UNRESTRICTED_READ: indicates that a device has unrestricted
+ *                        read operation, i.e. that read commands
+ *                        spanning a zone write pointer or 2 zones
+ *                        of the same type will not result in an error.
  */
 #define ZBC_UNRESTRICTED_READ   0x00000001
 
@@ -157,7 +168,9 @@ struct zbc_zone {
 typedef struct zbc_zone zbc_zone_t;
 
 /**
- * Scsi error descriptor.
+ * Detailed error descriptor.
+ * Standard and ZBC defined SCSI sense key and additional
+ * sense codes are used to describe the error.
  */
 struct zbc_errno {
 
@@ -530,24 +543,22 @@ zbc_disk_model_str(int model);
 
 /**
  * zbc_zone_type_str - returns a string describing a zone type.
- * @zone: (IN)  The zone for which to get the type string. The zone type
- *              must be ZBC_ZT_CONVENTIONAL, ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
+ * @type: (IN)  ZBC_ZT_CONVENTIONAL, ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
  *
  * Returns a string describing a zone type.
  */
 extern const char *
-zbc_zone_type_str(struct zbc_zone *zone);
+zbc_zone_type_str(enum zbc_zone_type type);
 
 /**
  * zbc_zone_cond_str - returns a string describing a zone condition.
- * @zone: (IN)  The zone for which to get the condition string. The zone condition
- *              must be ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
+ * @cond: (IN)  ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
  *              ZBC_ZC_CLOSED, ZBC_ZC_RDONLY, ZBC_ZC_FULL or ZBC_ZC_OFFLINE
  *
  * Returns a string describing a zone condition.
  */
 extern const char *
-zbc_zone_condition_str(struct zbc_zone *zone);
+zbc_zone_condition_str(enum zbc_zone_condition cond);
 
 /**
  * zbc_errno - returns detailed error report (sense key, sense code and sense code qualifier) of the last executed command.

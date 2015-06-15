@@ -1050,7 +1050,7 @@ zbc_scsi_open(const char *filename,
 	      filename);
 
     /* Open the device file */
-    fd = open(filename, flags);
+    fd = open(filename, zbc_open_flags(flags));
     if ( fd < 0 ) {
         zbc_error("Open device file %s failed %d (%s)\n",
                   filename,
