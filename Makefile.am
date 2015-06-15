@@ -39,14 +39,14 @@ if BUILD_GZBC
 include tools/gui/Makemodule.am
 endif
 
-if BUILD_TESTS
-include test/print_devinfo/Makemodule.am
-include test/report_zones/Makemodule.am
-include test/reset_write_ptr/Makemodule.am
-include test/open_zone/Makemodule.am
-include test/close_zone/Makemodule.am
-include test/finish_zone/Makemodule.am
-include test/read_zone/Makemodule.am
-include test/write_zone/Makemodule.am
+if BUILD_TEST
+include test/programs/print_devinfo/Makemodule.am
+include test/programs/report_zones/Makemodule.am
+include test/programs/reset_write_ptr/Makemodule.am
+include test/programs/open_zone/Makemodule.am
+include test/programs/close_zone/Makemodule.am
+include test/programs/finish_zone/Makemodule.am
+include test/programs/read_zone/Makemodule.am
+include test/programs/write_zone/Makemodule.am
 endif
 

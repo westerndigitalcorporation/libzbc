@@ -28,11 +28,11 @@ PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])
 AM_CONDITIONAL([BUILD_GZBC], [test "$HAVE_GTK3" -eq 1])
 
 # Build test suite
-AC_ARG_WITH([tests],
-            [AS_HELP_STRING([--with-tests], [Build compatibility test suite [default=no]])],
-            [WITH_TESTS=1],
-            [WITH_TESTS=0])
-AM_CONDITIONAL([BUILD_TESTS], [test "$WITH_TESTS" -eq 1])
+AC_ARG_WITH([test],
+            [AS_HELP_STRING([--with-test], [Build compatibility test suite [default=no]])],
+            [WITH_TEST=1],
+            [WITH_TEST=0])
+AM_CONDITIONAL([BUILD_TEST], [test "$WITH_TEST" -eq 1])
 
 AC_CONFIG_FILES([
 	libzbc.pc

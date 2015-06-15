@@ -1,0 +1,3 @@
+noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_report_zones
+__top_builddir__test_programs_zbc_test_report_zones_SOURCES = test/programs/report_zones/zbc_test_report_zones.c
+__top_builddir__test_programs_zbc_test_report_zones_LDADD = $(libzbc_ldadd)
