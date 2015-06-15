@@ -1,0 +1,3 @@
+noinst_PROGRAMS += zbc_test_close_zone
+zbc_test_close_zone_SOURCES = test/close_zone/zbc_test_close_zone.c
+zbc_test_close_zone_LDADD = $(libzbc_ldadd)

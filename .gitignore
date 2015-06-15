@@ -24,6 +24,7 @@
 *.i*86
 *.x86_64
 *.hex
+
 zbc_report_zones
 zbc_reset_write_ptr
 zbc_close_zone
@@ -34,6 +35,15 @@ zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
 gzbc
+
+zbc_test_print_devinfo
+zbc_test_report_zones
+zbc_test_reset_write_ptr
+zbc_test_close_zone
+zbc_test_finish_zone
+zbc_test_open_zone
+zbc_test_read_zone
+zbc_test_write_zone
 
 # Kernel compile files
 *.symvers

@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -44,17 +44,15 @@ int main(int argc,
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones;
     char *path;
-    long long lba = 0;
+    unsigned long long lba = 0;
 
     /* Check command line */
     if ( argc < 3 ) {
 usage:
-        printf("Usage: %s [options] <dev> <lba>\n"
-               "  Read a zone up to the current write pointer\n"
-               "  or the number of I/O specified is executed\n"
+        printf("Usage: %s [options] <dev> <lba> <num lba>\n"
+               "  Read <num LBA> LBAs from LBA <lba>\n"
                "Options:\n"
-               "    -v         : Verbose mode\n"
-               "    -lba       : lba offset from the starting lba of the zone <zone no>.\n",
+               "    -v         : Verbose mode\n",
                argv[0]);
         return( 1 );
     }
@@ -89,10 +87,11 @@ usage:
     lba = atoll(argv[i+1]);
 
     /* Open device */
-    ret = zbc_open(path, O_WRONLY|ZBC_FORCED_ATA_RW, &dev);
+    ret = zbc_open(path, O_RDONLY | ZBC_FORCE_ATA_RW, &dev);
     if ( ret != 0 ) {
         fprintf(stderr,
-                "[TEST][ERROR],can't open device\n");
+                "[TEST][ERROR],open device %s failed\n",
+		path);
         return( 1 );
     }
 
@@ -113,7 +112,7 @@ usage:
     }
 
     /* Search target zone */
-    for ( i = 0; i < nr_zones; i++ ) {
+    for ( i = 0; i < (int)nr_zones; i++ ) {
         if ( lba < (zones[i].zbz_start + zones[i].zbz_length) ) {
             iozone = &zones[i];
             break;
@@ -139,10 +138,10 @@ usage:
 
     lba_count = iosize / info.zbd_logical_block_size;
 
-    ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start );
+    ret = zbc_pread(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start);
     if ( ret <= 0 ) {
         fprintf(stderr,
-                "[TEST][ERROR],zbc_write_zone failed\n");
+                "[TEST][ERROR],zbc_read_zone failed\n");
 
         {
             zbc_errno_t zbc_err;

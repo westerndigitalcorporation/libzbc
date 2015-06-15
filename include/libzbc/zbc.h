@@ -33,6 +33,7 @@
  * Otherwise, for ATA drives, native SCSI read and write
  * commands are used and either the kernel or the drive HBA
  * translaet these command to ATA commands.
+ * This flag is ignored if the target device is not an ATA device.
  *
  * This is defined as bit 30 of the standard fcntl flags.
  */

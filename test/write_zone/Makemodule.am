@@ -1,0 +1,3 @@
+noinst_PROGRAMS += zbc_test_write_zone
+zbc_test_write_zone_SOURCES = test/write_zone/zbc_test_write_zone.c
+zbc_test_write_zone_LDADD = $(libzbc_ldadd)

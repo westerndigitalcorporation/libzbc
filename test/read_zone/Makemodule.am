@@ -1,0 +1,3 @@
+noinst_PROGRAMS += zbc_test_read_zone
+zbc_test_read_zone_SOURCES = test/read_zone/zbc_test_read_zone.c
+zbc_test_read_zone_LDADD = $(libzbc_ldadd)
