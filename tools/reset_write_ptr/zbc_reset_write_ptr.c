@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -58,11 +58,11 @@ usage:
             zbc_set_log_level("debug");
 
         } else if ( strcmp(argv[i], "-lba") == 0 ) {
-            
+
             lba = 1;
 
         } else if ( argv[i][0] == '-' ) {
-            
+
             printf("Unknown option \"%s\"\n",
                    argv[i]);
             goto usage;
@@ -153,7 +153,7 @@ usage:
         z = rzone->zbz_start;
 
     }
-        
+
     /* Reset WP */
     ret = zbc_reset_write_pointer(dev, z);
     if ( ret != 0 ) {
