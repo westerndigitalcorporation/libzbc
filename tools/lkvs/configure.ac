@@ -1,9 +1,3 @@
-# (C) Copyright 2014 HGST, a Western Digital Company, 
-# San Jose Research Center All Rights Reserved
-#
-# All information contained herein is proprietary and confidential to HGST. 
-# Any use, reproduction, or disclosure without written permission to HGST 
-# is prohibted. 
 
 AC_INIT(lkvs, 1.0, adam.manzanares@hgst.com)
 AC_CONFIG_AUX_DIR(config)
@@ -12,7 +6,6 @@ AM_INIT_AUTOMAKE
 LT_INIT
 AC_ENABLE_SHARED
 AC_DISABLE_STATIC
-
 
 # Conditionals
 
@@ -52,4 +45,5 @@ AC_CONFIG_FILES([Makefile
 	src/test/Makefile
 	src/pybind/Makefile
 	src/javabind/Makefile])
+
 AC_OUTPUT
