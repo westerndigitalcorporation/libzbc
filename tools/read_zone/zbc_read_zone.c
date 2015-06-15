@@ -80,10 +80,10 @@ int main(int argc,
     size_t iosize;
     void *iobuf = NULL;
     uint32_t lba_count;
-    unsigned int ionum = 0;
+    unsigned long long ionum = 0, iocount = 0;
     struct zbc_zone *zones = NULL;
     struct zbc_zone *iozone = NULL;
-    unsigned int nr_zones, iocount = 0;
+    unsigned int nr_zones;
     char *path, *file = NULL;
     long long lba_ofst = 0;
     long long lba_max = 0;
@@ -91,7 +91,7 @@ int main(int argc,
     /* Check command line */
     if ( argc < 4 ) {
 usage:
-        printf("Usage: %s [options] <dev> <zone no> <I/O size>\n"
+        printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
                "  Read a zone up to the current write pointer\n"
                "  or the number of I/O specified is executed\n"
                "Options:\n"
@@ -239,9 +239,9 @@ usage:
            zidx,
            nr_zones,
            zbc_zone_type(iozone),
-           zbc_zone_type_str(iozone),
+           zbc_zone_type_str(zbc_zone_type(iozone)),
            zbc_zone_condition(iozone),
-           zbc_zone_condition_str(iozone),
+           zbc_zone_condition_str(zbc_zone_condition(iozone)),
            zbc_zone_need_reset(iozone),
            zbc_zone_non_seq(iozone),
            zbc_zone_start_lba(iozone),
@@ -303,7 +303,7 @@ usage:
 
     } else {
 
-        printf("Reading target zone %d, %d I/Os of %zu B\n",
+        printf("Reading target zone %d, %llu I/Os of %zu B\n",
                zidx,
                ionum,
                iosize);
@@ -366,7 +366,7 @@ usage:
     elapsed = zbc_read_zone_usec() - elapsed;
 
     if ( elapsed ) {
-        printf("Read %llu B (%d I/Os) in %llu.%03llu sec\n",
+        printf("Read %llu B (%llu I/Os) in %llu.%03llu sec\n",
                bcount,
                iocount,
                elapsed / 1000000,
@@ -378,7 +378,7 @@ usage:
                brate / 1000000,
                (brate % 1000000) / 1000);
     } else {
-        printf("Read %llu B (%d I/Os)\n",
+        printf("Read %llu B (%llu I/Os)\n",
                bcount,
                iocount);
     }

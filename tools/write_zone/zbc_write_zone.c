@@ -82,7 +82,7 @@ main(int argc,
     size_t iosize, ioalign;
     void *iobuf = NULL;
     uint32_t lba_count = 0;
-    int iocount = 0, ionum = 0;
+    unsigned long long iocount = 0, ionum = 0;
     struct zbc_zone *zones = NULL;
     struct zbc_zone *iozone = NULL;
     unsigned int nr_zones;
@@ -93,7 +93,7 @@ main(int argc,
     /* Check command line */
     if ( argc < 4 ) {
 usage:
-        printf("Usage: %s [options] <dev> <zone no> <I/O size>\n"
+        printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
                "  Write into a zone from the current write pointer until\n"
                "  the zone is full or the number of I/O specified is executed\n"
                "Options:\n"
@@ -251,9 +251,9 @@ usage:
            zidx,
            nr_zones,
            zbc_zone_type(iozone),
-           zbc_zone_type_str(iozone),
+           zbc_zone_type_str(zbc_zone_type(iozone)),
            zbc_zone_condition(iozone),
-           zbc_zone_condition_str(iozone),
+           zbc_zone_condition_str(zbc_zone_condition(iozone)),
            zbc_zone_need_reset(iozone),
            zbc_zone_non_seq(iozone),
            zbc_zone_start_lba(iozone),
@@ -342,7 +342,7 @@ usage:
 
     } else {
 
-        printf("Writting to target zone %d, %d I/Os of %zu B\n",
+        printf("Writting to target zone %d, %llu I/Os of %zu B\n",
                zidx,
                ionum,
                iosize);
@@ -451,7 +451,7 @@ usage:
     elapsed = zbc_write_zone_usec() - elapsed;
 
     if ( elapsed ) {
-        printf("Wrote %llu B (%d I/Os) in %llu.%03llu sec\n",
+        printf("Wrote %llu B (%llu I/Os) in %llu.%03llu sec\n",
                bcount,
                iocount,
                elapsed / 1000000,
@@ -463,7 +463,7 @@ usage:
                brate / 1000000,
                (brate % 1000000) / 1000);
     } else {
-        printf("Wrote %llu B (%d I/Os)\n",
+        printf("Wrote %llu B (%llu I/Os)\n",
                bcount,
                iocount);
     }
