@@ -47,14 +47,12 @@ int main(int argc,
     unsigned long long lba = 0;
 
     /* Check command line */
-    if ( argc < 3 ) {
+    if ( argc < 4 ) {
 usage:
-        printf("Usage: %s [options] <dev> <lba>\n"
-               "  Read a zone up to the current write pointer\n"
-               "  or the number of I/O specified is executed\n"
+        printf("Usage: %s [options] <dev> <lba> <num lba>\n"
+               "  Write <num LBA> LBAs from LBA <lba>\n"
                "Options:\n"
-               "    -v         : Verbose mode\n"
-               "    -lba       : lba offset from the starting lba of the zone <zone no>.\n",
+               "    -v         : Verbose mode\n",
                argv[0]);
         return( 1 );
     }
@@ -80,13 +78,14 @@ usage:
 
     }
 
-    if ( i != (argc - 2) ) {
+    if ( i != (argc - 3) ) {
         goto usage;
     }
 
     /* Get parameters */
     path = argv[i];
     lba = atoll(argv[i+1]);
+    lba_count = (uint32_t)atoi(argv[i+2]);
 
     /* Open device */
     ret = zbc_open(path, O_WRONLY | ZBC_FORCE_ATA_RW, &dev);
@@ -127,7 +126,7 @@ usage:
         goto out;
     }
 
-    iosize = 2 * info.zbd_logical_block_size;
+    iosize = lba_count * info.zbd_logical_block_size;
     ret = posix_memalign((void **) &iobuf, info.zbd_logical_block_size, iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
@@ -136,8 +135,6 @@ usage:
         ret = 1;
         goto out;
     }
-
-    lba_count = iosize / info.zbd_logical_block_size;
 
     ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start );
     if ( ret <= 0 ) {
