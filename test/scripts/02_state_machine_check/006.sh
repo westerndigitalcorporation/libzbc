@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 . ../zbc_test_common_functions.sh
@@ -36,10 +37,10 @@ rm -f ${zone_info_file}
 # Set expected error code
 expected_sk=""
 expected_asc=""
-expected_cond="0x1"
+expected_cond="0x4"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][CLOSE_ZONE][ENPTY_TO_EMPTY][NO_ERROR] start"
+echo -n "    ${testname}: CLOSE_ZONE implicit open to closed test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -52,13 +53,14 @@ zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
 target_lba=${target_slba}
 
 # Start testing
-sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_slba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq
 
 # Get zone information
-zbc_test_get_zone_info "1"
+zbc_test_get_zone_info "4"
 
 # Get target zone condition
 zbc_test_search_vals_from_slba ${target_lba}

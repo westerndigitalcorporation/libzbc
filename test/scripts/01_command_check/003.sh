@@ -38,7 +38,7 @@ expected_sk="Aborted-command"
 expected_asc="Insufficient-zone-resources"
 
 # Test print
-echo "[TEST][${testname}][OPEN_ZONE][INSUFFICIENT_ZONE_RESOURCES],start"
+echo -n "    ${testname}: OPEN_ZONE insufficient zone resources test (open zones more than max number of SWRZ)... "
 
 # Get drive information
 zbc_test_get_drive_info

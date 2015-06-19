@@ -27,19 +27,18 @@ testname=${testbase%.*}
 
 # Set file names
 log_file="${log_path}/${testname}.log"
-zone_info_file="/tmp/${testname}_zone_info.log"
+zone_info_file="/tmp/{testname}_zone_info.log"
 
-# Delete old files
+# Delete old log file
 rm -f ${log_file}
 rm -f ${zone_info_file}
 
 # Set expected error code
-expected_sk="" 
-expected_asc=""
-expected_cond="0x1"
+expected_sk="Illegal-request"
+expected_asc="Read-boundary-violation"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][RESET_WRITE_PTR][ALL][FULL_TO_EMPTY][NO_ERROR],start"
+echo -n "    ${testname}: READ read boundary violation test (raeading two SWRZs at once)... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -48,30 +47,23 @@ zbc_test_get_drive_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
-target_lba=${target_slba}
+zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
+target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_finish_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
-sudo ${bin_path}/zbc_test_reset_write_ptr -v ${device} -1 >> ${log_file} 2>&1
-
-# Get SenseKey, ASC/ASCQ
-zbc_test_get_sk_ascq
-
-# Get zone information
-zbc_test_get_zone_info "1"
-
-# Get target zone condition
-zbc_test_search_vals_from_slba ${target_lba}
+sudo ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
 
 # Check result
-if [ ${target_cond} = ${expected_cond} ]; then
+zbc_test_get_sk_ascq
+
+if [ ${unrestricted_read} = "1" ]; then
     zbc_test_check_no_sk_ascq
 else
-    zbc_test_print_failed
+    zbc_test_check_sk_ascq
 fi
 
 # Post process
-sudo ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
+sudo ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_slba} >> ${log_file} 2>&1
 rm -f ${zone_info_file}
 

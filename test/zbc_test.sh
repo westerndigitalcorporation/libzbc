@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [ $# -ne 1 ]; then
-  echo "[usage] $0 <target_device>"
-  echo "    target_device          : device file. e.g. /dev/sg3"
+  echo "Usage: $0 <target device file>"
+  echo "    Ex: $0 /dev/sg3"
   exit 1
 fi
 
@@ -17,7 +17,7 @@ function zbc_run_test()
     ZBC_TEST_SUB_LOG_PATH=${ZBC_TEST_LOG_PATH}/${1}
 
     if [ ! -d ${ZBC_TEST_SUB_SCR_PATH} ]; then
-        echo "[TEST][ERROR],Target directory [${ZBC_TEST_SUB_SCR_PATH}] doesn't exist"
+        echo "Test script directory ${ZBC_TEST_SUB_SCR_PATH} does not exist"
         exit
     fi
    
@@ -43,12 +43,12 @@ cd ${ZBC_TEST_DIR}
 
 # Directory check
 if [ ! -d ${ZBC_TEST_BIN_PATH} ]; then
-    echo "[TEST][ERROR],Directory [${ZBC_TEST_BIN_PATH}] doesn't exist"
+    echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
     exit
 fi
 
 if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
-    echo "[TEST][ERROR],Directory [${ZBC_TEST_SCR_PATH}] doesn't exist"
+    echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
     exit
 fi
 
@@ -56,15 +56,15 @@ fi
 for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_test_print_devinfo zbc_test_read_zone zbc_test_report_zones zbc_test_reset_write_ptr zbc_test_write_zone; do
    bin_path=${ZBC_TEST_BIN_PATH}/${bin_name}
    if [ ! -e ${bin_path} ]; then
-       echo "[TEST][ERROR],[${bin_name}] is not found in directory [${ZBC_TEST_BIN_PATH}]"
+       echo "Test program ${bin_name} not found in directory ${ZBC_TEST_BIN_PATH}"
        exit
    fi
 done
 
 # Run test
-echo "[TEST] Start testing 01_command_check"
+echo "Executing command tests..."
 zbc_run_test 01_command_check
 
-echo "[TEST] Start testing 02_state_machine_check"
+echo "Executing zone state machine tests..."
 zbc_run_test 02_state_machine_check
 

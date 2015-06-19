@@ -38,7 +38,7 @@ expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 # Test print
-echo "[TEST][${testname}][REPORT_ZONES][INVALID_FIELD_IN_CDB],start"
+echo -n "    ${testname}: REPORT_ZONES invalid field in cdb test (illegal value in reporting option)... "
 
 # Get drive information
 zbc_test_get_drive_info

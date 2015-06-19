@@ -34,11 +34,12 @@ rm -f ${log_file}
 rm -f ${zone_info_file}
 
 # Set expected error code
-expected_sk="Illegal-request"
-expected_asc="Invalid-field-in-cdb"
+expected_sk=""
+expected_asc=""
+expected_cond="0x1"
 
 # Test print
-echo "[TEST][${testname}][CZ][RESET_WRITE_PTR][INVALID_FIELD_IN_CDB],start"
+echo -n "    ${testname}: RESET_WRITE_PTR empty to empty test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -47,16 +48,29 @@ zbc_test_get_drive_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type "0x1"
-target_lba=$(( ${target_slba} ))
+zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
+target_lba=${target_slba}
 
 # Start testing
-sudo ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba} >> ${log_file} 2>&1
+
+# Get SenseKey, ASC/ASCQ
+zbc_test_get_sk_ascq
+
+# Get zone information
+zbc_test_get_zone_info "1"
+
+# Get target zone condition
+zbc_test_search_vals_from_slba ${target_lba}
 
 # Check result
-zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [ ${target_cond} = ${expected_cond} ]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_print_failed
+fi
 
 # Post process
+sudo ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
 rm -f ${zone_info_file}
 

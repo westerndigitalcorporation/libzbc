@@ -39,7 +39,7 @@ expected_asc=""
 expected_cond="0x3"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][OPEN_ZONE][ALL][EXPLICIT_OPEN_TO_EXPLICIT_OPEN][NO_ERROR],start"
+echo -n "    ${testname}: OPEN_ZONE with all bit, closed to explicit open test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -53,7 +53,7 @@ target_lba=${target_slba}
 
 # Start testing
 sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
-sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 sudo ${bin_path}/zbc_test_open_zone -v ${device} -1 >> ${log_file} 2>&1
 
 # Get SenseKey, ASC/ASCQ
@@ -75,7 +75,5 @@ fi
 # Post process
 sudo ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
 rm -f ${zone_info_file}
-
-
 
 

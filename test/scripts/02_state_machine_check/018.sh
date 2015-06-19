@@ -39,7 +39,7 @@ expected_asc=""
 expected_cond="0x4"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][CLOSE_ZONE][EXPLICIT_OPEN_TO_CLOSE][NO_ERROR],start"
+echo -n "    ${testname}: CLOSE_ZONE closed to closed test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -53,7 +53,7 @@ target_lba=${target_slba}
 
 # Start testing
 sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
-sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 
 # Get SenseKey, ASC/ASCQ

@@ -1,4 +1,12 @@
 ###########################
+# Pretty printing...      #
+###########################
+
+red="\e[1;33m"
+green="\e[1;32m"
+end="\e[m"
+
+###########################
 # Get information functions
 ###########################
 
@@ -224,7 +232,7 @@ function zbc_test_get_sk_ascq() {
 #### zbc_test_print_failed
 function zbc_test_print_passed() {
 
-    echo "[TEST][${testname}],Passed"
+    echo -e "\r\e[120C[${green}Passed${end}]"
 
     return 0
 
@@ -232,9 +240,8 @@ function zbc_test_print_passed() {
 
 function zbc_test_print_failed() {
 
-    echo "[TEST][${testname}],Failed"
-    echo "[TEST][${testname}][SENSE_KEY],${sk} expected_sk is ${expected_sk}"
-    echo "[TEST][${testname}][ASC_ASCQ],${asc}, expected_asc is ${expected_asc}"
+    echo -e "\r\e[120C[${red}Failed${end}]"
+    echo "        => Expected sense key / code ${expected_sk} / ${expected_asc}, got ${sk} / ${asc}"
 
     return 0
 

@@ -27,18 +27,18 @@ testname=${testbase%.*}
 
 # Set file names
 log_file="${log_path}/${testname}.log"
-zone_info_file="/tmp/{testname}_zone_info.log"
+zone_info_file="/tmp/${testname}_zone_info.log"
 
-# Delete old log file
+# Delete old files
 rm -f ${log_file}
 rm -f ${zone_info_file}
 
 # Set expected error code
 expected_sk="Illegal-request"
-expected_asc="Write-boundary-violation"
+expected_asc="Invalid-field-in-cdb"
 
 # Test print
-echo "[TEST][${testname}][WRITE][WRITE_BOUNDARY_VIOLATION],start"
+echo -n "    ${testname}: RESET_WRITE_PTR invalid field in cdb test (conventional zone)... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -47,11 +47,11 @@ zbc_test_get_drive_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
-target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+zbc_test_search_vals_from_zone_type "0x1"
+target_lba=$(( ${target_slba} ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_lba} >> ${log_file} 2>&1
 
 # Check result
 zbc_test_get_sk_ascq

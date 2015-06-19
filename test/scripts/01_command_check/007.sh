@@ -37,7 +37,7 @@ expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 # Test print
-echo "[TEST][${testname}][FINISH_ZONE][INVALID_FIELD_IN_CDB],start"
+echo -n "    ${testname}: CLOSE_ZONE invalid field in cdb test (illegal zone start lba)... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -51,7 +51,7 @@ zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
 target_lba=$(( ${target_lba} + 1 ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_finish_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 
 # Check result
 zbc_test_get_sk_ascq

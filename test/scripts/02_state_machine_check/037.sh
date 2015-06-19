@@ -39,7 +39,7 @@ expected_asc=""
 expected_cond="0x3"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][OPEN_ZONE][ALL][EXPLICIT_OPEN_TO_EXPLICIT_OPEN][NO_ERROR],start"
+echo -n "    ${testname}: OPEN_ZONE with all bit, implicit open to explicit open to explicit_open test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -52,6 +52,7 @@ zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
 target_lba=${target_slba}
 
 # Start testing
+sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
 sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 sudo ${bin_path}/zbc_test_open_zone -v ${device} -1 >> ${log_file} 2>&1
 
@@ -74,4 +75,7 @@ fi
 # Post process
 sudo ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
 rm -f ${zone_info_file}
+
+
+
 

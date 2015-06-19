@@ -34,11 +34,11 @@ rm -f ${log_file}
 rm -f ${zone_info_file}
 
 # Set expected error code
-expected_sk="Aborted-command"
-expected_asc="Insufficient-zone-resources"
+expected_sk="Illegal-request"
+expected_asc="Attempt-to-read-invalid-data"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][WRITE_ZONE][INSUFFICIENT_ZONE_RESOURCES],start"
+echo -n "    ${testname}: READ attempt to read invalid data test (reading unwritten LBA)... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -46,25 +46,24 @@ zbc_test_get_drive_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Open zones
-zbc_test_open_nr_zones ${max_open}
-
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
-target_lba=${target_slba}
+target_ptr="0"
+zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
+target_lba=$(( ${target_ptr} ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1 >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+
+if [ ${unrestricted_read} = "1" ]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_sk_ascq
+fi
 
 # Post process
-sudo ${bin_path}/zbc_test_reset_write_ptr ${device} -1
-
 rm -f ${zone_info_file}
 

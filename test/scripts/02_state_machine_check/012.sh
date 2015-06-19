@@ -39,7 +39,7 @@ expected_asc=""
 expected_cond="0x1"
 
 # Test print
-echo "[TEST][${testname}][SWRZ][RESET_WRITE_PTR][IMPLICIT_OPEN_TO_EMPTY][NO_ERROR],start"
+echo -n "    ${testname}: RESET_WRITE_PTR empty to explicit open to empty test... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -52,7 +52,7 @@ zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
 target_lba=${target_slba}
 
 # Start testing
-sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
 sudo ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_lba} >> ${log_file} 2>&1
 
 # Get SenseKey, ASC/ASCQ
@@ -74,4 +74,6 @@ fi
 # Post process
 sudo ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
 rm -f ${zone_info_file}
+
+
 
