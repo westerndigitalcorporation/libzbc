@@ -253,6 +253,12 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
     }
     fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
     fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
+    fdev->dev.zbd_info.zbd_logical_blocks = fdev->zbd_meta->zbd_capacity / fdev->dev.zbd_info.zbd_logical_block_size;
+    fdev->dev.zbd_info.zbd_physical_blocks = fdev->dev.zbd_info.zbd_logical_blocks /
+                                             ( fdev->dev.zbd_info.zbd_physical_block_size / fdev->dev.zbd_info.zbd_logical_block_size);
+
+    printf("meta_capa = %lld\n", fdev->zbd_meta->zbd_capacity);
+    printf("log_blocks = %lld\n", fdev->dev.zbd_info.zbd_logical_blocks);
 
     /* Check */
     if ( (fdev->zbd_meta->zbd_capacity != (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
@@ -263,6 +269,7 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
         ret = -EINVAL;
         goto out;
     }
+
 
     ret = 0;
 
@@ -1312,7 +1319,6 @@ zbc_fake_set_zones(struct zbc_device *dev,
     }
 
     memset(&fmeta, 0, sizeof(zbc_fake_meta_t));
-    fmeta.zbd_capacity = device_size * dev->zbd_info.zbd_logical_block_size;
 
     pthread_mutexattr_init(&fdev->zbd_mutex_attr);
     pthread_mutexattr_setpshared(&fdev->zbd_mutex_attr, PTHREAD_PROCESS_SHARED);
@@ -1338,6 +1344,11 @@ zbc_fake_set_zones(struct zbc_device *dev,
 
     fmeta.zbd_nr_zones = fmeta.zbd_nr_conv_zones + fmeta.zbd_nr_seq_zones;
     fdev->zbd_nr_zones = fmeta.zbd_nr_zones;
+
+    dev->zbd_info.zbd_logical_blocks = fdev->zbd_nr_zones * zone_sz;
+    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks /
+                                        (dev->zbd_info.zbd_physical_block_size / dev->zbd_info.zbd_logical_block_size);
+    fmeta.zbd_capacity = dev->zbd_info.zbd_logical_blocks * dev->zbd_info.zbd_logical_block_size;
 
     /* Open metadata file */
     sprintf(meta_path, "/tmp/zbc-%s.meta",

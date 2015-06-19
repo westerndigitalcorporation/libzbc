@@ -108,6 +108,7 @@ usage:
            (unsigned int) info.zbd_physical_block_size);
     printf("    %.03F GiB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000.0);
+    printf("\n");
 
     /* Process command */
     printf("Setting zones:\n");
@@ -203,6 +204,22 @@ usage:
         ret = 1;
     }
     
+    /* Retry getting device info */
+    ret = zbc_get_device_info(dev, &info);
+    if ( ret < 0 ) {
+        fprintf(stderr,
+                "zbc_get_device_info failed\n");
+        return( 1 );
+    }
+    printf("    %llu logical blocks of %u B\n",
+           (unsigned long long) info.zbd_logical_blocks,
+           (unsigned int) info.zbd_logical_block_size);
+    printf("    %llu physical blocks of %u B\n",
+           (unsigned long long) info.zbd_physical_blocks,
+           (unsigned int) info.zbd_physical_block_size);
+    printf("    %.03F GiB capacity\n",
+           (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000.0);
+
 out:
     
     zbc_close(dev);
