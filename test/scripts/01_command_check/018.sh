@@ -34,11 +34,11 @@ rm -f ${log_file}
 rm -f ${zone_info_file}
 
 # Set expected error code
-expected_sk="Aborted-command"
-expected_asc="Insufficient-zone-resources"
+expected_sk="Illegal-request"
+expected_asc="Write-boundary-violation"
 
 # Test print
-echo -n "    ${testname}: WRITE insufficient zone resources test (write after opening zones as many as max number of SWRZ)... "
+echo -n "    ${testname}: WRITE write boundary violation test (writing two SWRZs at once)... "
 
 # Get drive information
 zbc_test_get_drive_info
@@ -46,25 +46,17 @@ zbc_test_get_drive_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Open zones
-zbc_test_open_nr_zones ${max_open}
-
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
-target_lba=${target_slba}
+zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
+target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_sk_ascq
 
 # Post process
-sudo ${bin_path}/zbc_test_reset_write_ptr ${device} -1
-
 rm -f ${zone_info_file}
 

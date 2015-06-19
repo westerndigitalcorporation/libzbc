@@ -35,23 +35,16 @@ rm -f ${zone_info_file}
 
 # Set expected error code
 expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"
+expected_asc="Logical-block-address-out-of-range"
 
 # Test print
-echo -n "    ${testname}: WRITE unaligned write command test (start LBA is not write_ptr LBA)... "
+echo -n "    ${testname}: READ attempt to read invalid data test (reading over the last LBA)... "
 
 # Get drive information
 zbc_test_get_drive_info
 
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
-target_lba=$(( ${target_ptr} + 1 ))
-
 # Start testing
-sudo ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2 >> ${log_file} 2>&1
+sudo ${bin_path}/zbc_test_write_zone -v ${device} ${max_lba} 2 >> ${log_file} 2>&1
 
 # Check result
 zbc_test_get_sk_ascq
