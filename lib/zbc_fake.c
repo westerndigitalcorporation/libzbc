@@ -257,9 +257,6 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
     fdev->dev.zbd_info.zbd_physical_blocks = fdev->dev.zbd_info.zbd_logical_blocks /
                                              ( fdev->dev.zbd_info.zbd_physical_block_size / fdev->dev.zbd_info.zbd_logical_block_size);
 
-    printf("meta_capa = %lld\n", fdev->zbd_meta->zbd_capacity);
-    printf("log_blocks = %lld\n", fdev->dev.zbd_info.zbd_logical_blocks);
-
     /* Check */
     if ( (fdev->zbd_meta->zbd_capacity != (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
          || (! fdev->zbd_meta->zbd_nr_zones) ) {
@@ -1065,7 +1062,8 @@ zbc_fake_pread(struct zbc_device *dev,
                uint64_t start_lba)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
-    struct zbc_zone *zone;
+    struct zbc_zone *zone, *next_zone;
+    uint64_t lba;
     ssize_t ret = -EIO;
     off_t offset;
     size_t count;
@@ -1086,6 +1084,8 @@ zbc_fake_pread(struct zbc_device *dev,
         goto out;
     }
 
+    lba = zbc_zone_next_lba(zone);
+    next_zone = zbc_fake_find_zone(fdev, lba);
     start_lba += zbc_zone_start_lba(zone);
 
     /* Note: unrestricted read will be added to the standard */
@@ -1094,9 +1094,14 @@ zbc_fake_pread(struct zbc_device *dev,
     if ( zone->zbz_type == ZBC_ZT_SEQUENTIAL_REQ ) {
 
         /* Cannot read unwritten data */
-        if ( (start_lba + lba_count) > zbc_zone_next_lba(zone) ) {
-            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
-            dev->zbd_errno.asc_ascq = ZBC_E_READ_BOUNDARY_VIOLATION;
+        if ( (start_lba + lba_count) > lba ) {
+            if ( next_zone ) {
+                dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+                dev->zbd_errno.asc_ascq = ZBC_E_READ_BOUNDARY_VIOLATION;
+            } else {
+                dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+                dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+            }
             goto out;
         }
 
@@ -1109,14 +1114,12 @@ zbc_fake_pread(struct zbc_device *dev,
     } else {
 
         /* Reads spanning other types of zones are OK. */
-        uint64_t lba = zbc_zone_next_lba(zone);
 
         if ( (start_lba + lba_count) > lba ) {
 
             uint64_t count = start_lba + lba_count - lba;
-            struct zbc_zone *next_zone = zone;
 
-            while( count && (next_zone = zbc_fake_find_zone(fdev, lba)) ) {
+            while( count && next_zone ) {
                 if ( zbc_zone_sequential_req(next_zone) ) {
                     dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
                     dev->zbd_errno.asc_ascq = ZBC_E_ATTEMPT_TO_READ_INVALID_DATA;
@@ -1162,7 +1165,8 @@ zbc_fake_pwrite(struct zbc_device *dev,
                 uint64_t start_lba)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
-    struct zbc_zone *zone;
+    struct zbc_zone *zone, *next_zone;
+    uint64_t lba;
     off_t offset;
     size_t count;
     ssize_t ret = -EIO;
@@ -1184,11 +1188,18 @@ zbc_fake_pwrite(struct zbc_device *dev,
         goto out;
     }
 
+    lba = zbc_zone_next_lba(zone);
+    next_zone = zbc_fake_find_zone(fdev, lba);
     start_lba += zone->zbz_start;
 
-    if ( (start_lba + lba_count) > zbc_zone_next_lba(zone) ) {
-         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
-         dev->zbd_errno.asc_ascq = ZBC_E_WRITE_BOUNDARY_VIOLATION;
+    if ( (start_lba + lba_count) > lba ) {
+        if ( next_zone ) {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_WRITE_BOUNDARY_VIOLATION;
+        } else {
+            dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+            dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+        }
         goto out;
     }
 
