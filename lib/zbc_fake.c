@@ -1111,6 +1111,8 @@ zbc_fake_pread(struct zbc_device *dev,
 
             while( count && (next_zone = zbc_fake_find_zone(fdev, lba)) ) {
                 if ( zbc_zone_sequential_req(next_zone) ) {
+                    dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
+                    dev->zbd_errno.asc_ascq = ZBC_E_ATTEMPT_TO_READ_INVALID_DATA;
                     goto out;
                 }
                 if ( count > zbc_zone_length(next_zone) ) {
