@@ -23,13 +23,41 @@
 
 #include <libzbc/zbc.h>
 
+/***** Get last zone information (start LBA and size) *****/
+
+static int
+zbc_get_last_zone(struct zbc_device *dev,
+		  zbc_zone_t *z)
+{
+    unsigned int nr_zones;
+    zbc_zone_t *zones;
+    int ret;
+
+    /* Get zone list */
+    ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
+    if ( ret != 0 ) {
+        fprintf(stderr,
+                "[TEST][ERROR],zbc_list_zones failed\n");
+	return( -1 );
+    }
+
+    memcpy(z, &zones[nr_zones - 1], sizeof(zbc_zone_t));
+
+    free(zones);
+
+    return( 0 );
+
+}
+
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
     struct zbc_device_info info;
     struct zbc_device *dev;
+    zbc_zone_t last_zone;
     int i, ret = 1;
     char *path;
 
@@ -49,7 +77,7 @@ usage:
             zbc_set_log_level("debug");
 
         } else if ( argv[i][0] == '-' ) {
-            
+
             printf("Unknown option \"%s\"\n",
                    argv[i]);
             goto usage;
@@ -82,12 +110,33 @@ usage:
         goto out;
     }
 
+    ret = zbc_get_last_zone(dev, &last_zone);
+    if ( ret < 0 ) {
+        fprintf(stderr,
+                "[TEST][ERROR],zbc_get_last_zone failed\n");
+        goto out;
+    }
+
     fprintf(stdout,
-            "[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n", info.zbd_max_nr_open_seq_req);
+            "[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",
+	    info.zbd_max_nr_open_seq_req);
+
     fprintf(stdout,
-            "[TEST][INFO][MAX_LBA],%llu\n", (unsigned long long)info.zbd_logical_blocks - 1);
+            "[TEST][INFO][MAX_LBA],%llu\n",
+	    (unsigned long long)info.zbd_logical_blocks - 1);
+
     fprintf(stdout,
-            "[TEST][INFO][URSWRZ],%x\n", info.zbd_flags);
+            "[TEST][INFO][URSWRZ],%x\n",
+	    info.zbd_flags);
+
+    fprintf(stdout,
+	    "[TEST][INFO][LAST_ZONE_LBA],%llu\n",
+	    (unsigned long long)zbc_zone_start_lba(&last_zone));
+
+    fprintf(stdout,
+	    "[TEST][INFO][LAST_ZONE_SIZE],%llu\n",
+	    (unsigned long long)zbc_zone_length(&last_zone));
+
 
 out:
 
