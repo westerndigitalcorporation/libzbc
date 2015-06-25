@@ -138,7 +138,7 @@ dz_if_set_margin(GtkWidget *widget,
 static struct dz_if_zinfo_filter {
     int ro;
     char *str;
-} zfilter[] = 
+} zfilter[] =
     {
         { ZBC_RO_ALL,      "All zones"                      },
         { ZBC_RO_NOT_WP,   "Conventional zones"             },
@@ -213,7 +213,7 @@ dz_if_create(void)
     gtk_widget_show(hbox);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
     dz_if_set_margin(hbox, 7, 7, 0, 0);
-    
+
     /* Zone list filter label */
     label = gtk_label_new(NULL);
     gtk_widget_show(label);
@@ -393,7 +393,7 @@ dz_if_create(void)
     g_signal_connect((gpointer) spinbutton, "value-changed",
                      G_CALLBACK(dz_if_zinfo_spinselect_cb),
                      spinbutton);
-    
+
     /* Zone control button Box */
     hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_widget_show(hbuttonbox);
@@ -499,19 +499,19 @@ dz_if_create(void)
     gtk_widget_show(button);
     gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
     gtk_widget_set_can_default(button, TRUE);
-    
+
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     gtk_widget_show(hbox);
     gtk_container_add(GTK_CONTAINER(button), hbox);
-    
+
     image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-    
+
     label = gtk_label_new_with_mnemonic("Refresh");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    
+
     g_signal_connect((gpointer) button, "button_press_event",
 		     G_CALLBACK(dz_if_refresh_cb),
 		     &dz);
@@ -708,7 +708,7 @@ dz_if_zinfo_print(GtkTreeViewColumn *col,
         break;
 
     }
-        
+
     g_object_set(renderer, "text", str, NULL);
 
     return;
@@ -775,7 +775,7 @@ dz_if_zinfo_update_range(void)
     } else {
         dz.zinfo_start_no = 0;
     }
-    
+
     if ( end ) {
         if ( gtk_tree_model_get_iter(dz.zinfo_model, &iter, end) == TRUE ) {
             gtk_tree_model_get(dz.zinfo_model, &iter, DZ_ZONE_NUM, &dz.zinfo_end_no, -1);
@@ -872,7 +872,7 @@ dz_if_zinfo_do_unselect(void)
         dz.zinfo_selection = -1;
 
     }
-    
+
     return;
 
 }
@@ -895,7 +895,7 @@ dz_if_zinfo_do_select(int zno)
         dz.zinfo_selection = zno;
 
     }
-    
+
     return;
 
 }
@@ -912,7 +912,7 @@ dz_if_zinfo_spinselect_cb(GtkSpinButton *spinbutton,
     } else {
         dz_if_zinfo_do_select(zno);
     }
-    
+
     return;
 
 }
@@ -1158,8 +1158,8 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 	cairo_fill(cr);
 
 	if ( (! zbc_zone_conventional(z))
-             && (zbc_zone_imp_open(z) 
-                 || zbc_zone_exp_open(z) 
+             && (zbc_zone_imp_open(z)
+                 || zbc_zone_exp_open(z)
                  || zbc_zone_closed(z)) ) {
 	    /* Written space in zone */
 	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);

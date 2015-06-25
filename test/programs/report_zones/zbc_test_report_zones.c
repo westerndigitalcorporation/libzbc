@@ -25,8 +25,9 @@
 
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
     struct zbc_device_info info;
     unsigned long long lba = 0;

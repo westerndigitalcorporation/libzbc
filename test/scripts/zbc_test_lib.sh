@@ -1,19 +1,83 @@
-###########################
-# Pretty printing...      #
-###########################
+#
+# This file is part of libzbc.
+#
+# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+#
+# This software is distributed under the terms of the BSD 2-clause license,
+# "as is," without technical support, and WITHOUT ANY WARRANTY, without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. You should have received a copy of the BSD 2-clause license along
+# with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+#
+
+# For pretty printing...
 
 red="\e[1;33m"
 green="\e[1;32m"
 end="\e[m"
 
-###########################
-# Get information functions
-###########################
+# For test script creation:
 
-#### zbc_test_get_drive_info
+function zbc_test_init() {
+
+
+    if [ $# -ne 3 -a $# -ne 4 ]; then
+        echo "Usage: $1 <target device> <test program path> [test log file path]"
+        echo "    target_device:      path to the target device file (e.g. /dev/sg3)"
+        echo "    test program path:  Path to the directory containing the compiled test programs"
+        echo "    test log file path: Path to the directory where to output the test log file"
+        echo "                        (the default is the current working directory)"
+        exit 1
+    fi
+
+    # Store argument
+    device=$2
+    bin_path=$3
+
+    # Test name
+    local _cmd_base=${1##*/}
+    test_name="${_cmd_base%.*}"
+
+    # Log file
+    if [ $# -eq 4 ]; then
+        log_path="$4"
+    else
+        log_path="`pwd`"
+    fi
+    log_file="${log_path}/${test_name}.log"
+    rm -f ${log_file}
+
+    # Zone info file
+    zone_info_file="/tmp/${test_name}_zone_info.log"
+    rm -f ${zone_info_file}
+
+}
+
+function zbc_test_info() {
+
+    echo -n "    ${test_name}: $1 "
+
+}
+
+function zbc_test_run() {
+
+    local _cmd="$*"
+
+    echo "" >> ${log_file} 2>&1
+    echo "## Executing: ${_cmd}" >> ${log_file} 2>&1
+    echo "" >> ${log_file} 2>&1
+
+    ${_cmd} >> ${log_file} 2>&1
+
+    return $?
+
+}
+
+# Get information functions
+
 function zbc_test_get_drive_info() {
 
-    sudo ${bin_path}/zbc_test_print_devinfo ${device} >> ${log_file} 2>&1
+    zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
 
     _IFS="${IFS}"
     IFS=','
@@ -30,13 +94,20 @@ function zbc_test_get_drive_info() {
     set -- ${unrestricted_read_line}
     unrestricted_read=${2}
 
+    last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
+    set -- ${last_zone_lba_line}
+    last_zone_lba=${2}
+
+    last_zone_size_line=`cat ${log_file} | grep -F "[LAST_ZONE_SIZE]"`
+    set -- ${last_zone_size_line}
+    last_zone_size=${2}
+
     IFS="$_IFS"
 
     return 0
 
 }
 
-#### zbc_test_get_zone_info [reporting option]
 function zbc_test_get_zone_info() {
 
     if [ $# -eq 1 ]; then
@@ -45,16 +116,19 @@ function zbc_test_get_zone_info() {
         ro="0"
     fi
 
-    sudo ${bin_path}/zbc_test_report_zones -ro ${ro} ${device} > ${zone_info_file} 2>&1
+    local _cmd="${bin_path}/zbc_test_report_zones -ro ${ro} ${device}"
+    echo "" >> ${log_file} 2>&1
+    echo "## Executing: ${_cmd} > ${zone_info_file} 2>&1" >> ${log_file} 2>&1
+    echo "" >> ${log_file} 2>&1
+
+    ${_cmd} > ${zone_info_file} 2>&1
 
     return 0
 
 }
 
-###########################
 # Preparation functions
-###########################
-#### zbc_test_open_zones <nr_zones>
+
 function zbc_test_open_nr_zones() {
 
     open_num=${1}
@@ -74,7 +148,7 @@ function zbc_test_open_nr_zones() {
 
         IFS="$_IFS"
 
-        sudo ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba} >> ${log_file} 2>&1
+        zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba}
         count=${count}+1
 
         if [ ${count} -eq $(( ${open_num} )) ]; then
@@ -87,7 +161,6 @@ function zbc_test_open_nr_zones() {
 
 }
 
-#### zbc_test_search_vals_from_zone_type <zone_type>
 function zbc_test_search_vals_from_zone_type() {
 
     zone_type=${1}
@@ -114,7 +187,6 @@ function zbc_test_search_vals_from_zone_type() {
 
 }
 
-#### zbc_test_search_vals_from_slba <slba>
 function zbc_test_search_vals_from_slba() {
 
     start_lba=${1}
@@ -142,7 +214,6 @@ function zbc_test_search_vals_from_slba() {
 
 }
 
-#### zbc_test_search_vals_from_zone_type_and_cond <zone_type> <zone_cond>
 function zbc_test_search_vals_from_zone_type_and_cond() {
 
     zone_type=${1}
@@ -172,7 +243,6 @@ function zbc_test_search_vals_from_zone_type_and_cond() {
 
 }
 
-#### zbc_test_search_vals_from_zone_type_and_ignored_cond <zone_type> <ignored_zone_cond>
 function zbc_test_search_vals_from_zone_type_and_ignored_cond() {
 
     zone_type=${1}
@@ -202,11 +272,8 @@ function zbc_test_search_vals_from_zone_type_and_ignored_cond() {
 
 }
 
-
-###########################
 # Check result functions
-###########################
-#### zbc_test_get_sk_ascq
+
 function zbc_test_get_sk_ascq() {
 
     sk=""
@@ -215,11 +282,11 @@ function zbc_test_get_sk_ascq() {
     _IFS="${IFS}"
     IFS=','
 
-    sk_line=`cat ${log_file} | grep -F "[SENSE_KEY]"`
+    sk_line=`cat ${log_file} | grep -m 1 -F "[SENSE_KEY]"`
     set -- ${sk_line}
     sk=${2}
 
-    asc_line=`cat ${log_file} | grep -F "[ASC_ASCQ]"`
+    asc_line=`cat ${log_file} | grep -m 1 -F "[ASC_ASCQ]"`
     set -- ${asc_line}
     asc=${2}
 
@@ -229,8 +296,10 @@ function zbc_test_get_sk_ascq() {
 
 }
 
-#### zbc_test_print_failed
 function zbc_test_print_passed() {
+
+    echo "" >> ${log_file} 2>&1
+    echo "Passed" >> ${log_file} 2>&1
 
     echo -e "\r\e[120C[${green}Passed${end}]"
 
@@ -238,38 +307,66 @@ function zbc_test_print_passed() {
 
 }
 
-function zbc_test_print_failed() {
+function zbc_test_print_failed_sk() {
+
+    echo "" >> ${log_file} 2>&1
+    echo "Failed" >> ${log_file} 2>&1
+    echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
 
     echo -e "\r\e[120C[${red}Failed${end}]"
-    echo "        => Expected sense key / code ${expected_sk} / ${expected_asc}, got ${sk} / ${asc}"
+    echo "        => Expected ${expected_sk} / ${expected_asc}"
+    echo "           Got ${sk} / ${asc}"
 
     return 0
 
 }
 
-#### zbc_test_check_asc_std
 function zbc_test_check_sk_ascq() {
 
     if [ ${sk} = ${expected_sk} -a ${asc} = ${expected_asc} ]; then
         zbc_test_print_passed
     else
-        zbc_test_print_failed
+        zbc_test_print_failed_sk
     fi
 
     return 0
 
 }
 
-#### zbc_test_check_no_asc
 function zbc_test_check_no_sk_ascq() {
 
     if [ -n ${sk} -a -n ${asc} ]; then
         zbc_test_print_passed
     else
-        zbc_test_print_failed
+        zbc_test_print_failed_sk
     fi
 
     return 0
 
 }
 
+function zbc_test_print_failed_zc() {
+
+    echo "" >> ${log_file} 2>&1
+    echo "Failed" >> ${log_file} 2>&1
+    echo "=> Expected zone_condition ${expected_cond}, Got ${target_cond}" >> ${log_file} 2>&1
+
+    echo -e "\r\e[120C[${red}Failed${end}]"
+    echo "        => Expected zone_condition ${expected_cond}"
+    echo "           Got ${target_cond}"
+
+    return 0
+
+}
+
+function zbc_test_check_zone_cond() {
+
+    if [ ${target_cond} == ${expected_cond} ]; then
+        zbc_test_check_no_sk_ascq
+    else
+        zbc_test_print_failed_zc
+    fi
+
+    return 0
+
+}

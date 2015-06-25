@@ -1,4 +1,15 @@
 #!/bin/bash
+#
+# This file is part of libzbc.
+#
+# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+#
+# This software is distributed under the terms of the BSD 2-clause license,
+# "as is," without technical support, and WITHOUT ANY WARRANTY, without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. You should have received a copy of the BSD 2-clause license along
+# with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+#
 
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <target device file>"
@@ -6,8 +17,16 @@ if [ $# -ne 1 ]; then
   exit 1
 fi
 
-# Store argument
 device_file=${1}
+
+# Check credentials
+if [ $(id -u) -ne 0 ]; then
+    echo "Only root can do this."
+    exit 1
+fi
+
+# Set file names
+log_file=${log_path}/${testname}.log
 
 # Test function
 function zbc_run_test()
@@ -20,7 +39,7 @@ function zbc_run_test()
         echo "Test script directory ${ZBC_TEST_SUB_SCR_PATH} does not exist"
         exit
     fi
-   
+
     mkdir -p ${ZBC_TEST_SUB_LOG_PATH}
     cd ${ZBC_TEST_SUB_SCR_PATH}
 
@@ -61,7 +80,7 @@ for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_
    fi
 done
 
-# Run test
+# Run tests
 echo "Executing command tests..."
 zbc_run_test 01_command_check
 

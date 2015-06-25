@@ -1,44 +1,24 @@
 #!/bin/bash
+#
+# This file is part of libzbc.
+#
+# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+#
+# This software is distributed under the terms of the BSD 2-clause license,
+# "as is," without technical support, and WITHOUT ANY WARRANTY, without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. You should have received a copy of the BSD 2-clause license along
+# with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+#
 
-. ../zbc_test_common_functions.sh
+. ../zbc_test_lib.sh
 
-if [ $# -ne 2 -a $# -ne 3 ]; then
-  echo "[usage] $0 <target_device> <test_bin_path> [test_log_path]"
-  echo "    target_device          : device file. e.g. /dev/sg3"
-  echo "    test_bin_path          : binary directory"
-  echo "    test_log_path          : [option] output log directory."
-  echo "                                      If this option isn't specified, use current directory."
-  exit 1
-fi
+zbc_test_init $0 $*
 
-# Store argument
-device=${1}
-bin_path=${2}
+zbc_test_info "OPEN_ZONE invalid zone start lba..."
 
-if [ $# -eq 3 ]; then
-    log_path=${3}
-else
-    log_path=`pwd`
-fi
-
-# Extract testname
-testbase=${0##*/}
-testname=${testbase%.*}
-
-# Set file names
-log_file="${log_path}/${testname}.log"
-zone_info_file="/tmp/${testname}_zone_info.log"
-
-# Delete old log file
-rm -f ${log_file}
-rm -f ${zone_info_file}
-
-# Set expected error code
-expected_sk="Aborted-command"
-expected_asc="Insufficient-zone-resources"
-
-# Test print
-echo -n "    ${testname}: OPEN_ZONE insufficient zone resources test (open zones more than max number of SWRZ)... "
+expected_sk="Illegal-request"
+expected_asc="Invalid-field-in-cdb"
 
 # Get drive information
 zbc_test_get_drive_info
@@ -46,24 +26,18 @@ zbc_test_get_drive_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Open zones
-zbc_test_open_nr_zones ${max_open}
-
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
+target_lba="0"
 zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
-target_lba=${target_slba}
+target_lba=$(( ${target_lba} + 1 ))
 
 # Start testing
-sudo ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba} >> ${log_file} 2>&1
+zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_sk_ascq
 
 # Post process
-sudo ${bin_path}/zbc_test_close_zone -v ${device} -1 >> ${log_file} 2>&1
 rm -f ${zone_info_file}
 
