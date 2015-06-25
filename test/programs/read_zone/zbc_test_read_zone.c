@@ -31,8 +31,9 @@
 
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
     struct zbc_device_info info;
     struct zbc_device *dev = NULL;
@@ -114,7 +115,8 @@ usage:
 
     /* Search target zone */
     for ( i = 0; i < (int)nr_zones; i++ ) {
-        if ( lba < (zones[i].zbz_start + zones[i].zbz_length) ) {
+        if ( (lba >= zones[i].zbz_start)
+	     && (lba < (zones[i].zbz_start + zones[i].zbz_length)) ) {
             iozone = &zones[i];
             break;
         }
