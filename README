@@ -97,6 +97,36 @@ The library files are installed in /usr/lib.  The library header files
 are installed in /usr/include/libzbc The executable files for the example
 applications are installed in /usr/bin.
 
+II.4. Compilation for device tests
+----------------------------------
+
+The test directory contains several test programs and scripts allowing 
+testing the compatibility of libzbc with a particular device. That is,
+testing if a device follows the same standard as currently supported by
+libzbc (see section I.2).
+
+The compilation of these test programs is disabled by default. To compile
+the test programs, libzbc must be configured as follows.
+
+> sh ./autogen.sh
+> ./configure --with-test
+> make
+
+And as root,
+
+> make install
+
+This last command does not copy the test programs and scripts anywhere.
+All defined tests can be executed directly form the test directory by
+executing the zbc_test.sh script.
+
+> cd test
+> sudo ./zbc_test.sh /dev/<SG node>
+
+Each test executed outputs a log file in the test/log directory. These
+files can be consulted in case of failed test to identify the reason
+for the test failure.
+
 
 III. Usage
 ==========
