@@ -45,6 +45,7 @@ int main(int argc,
     unsigned int nr_zones;
     char *path;
     unsigned long long lba = 0;
+    int nio = 1;
 
     /* Check command line */
     if ( argc < 4 ) {
@@ -52,7 +53,8 @@ usage:
         printf("Usage: %s [options] <dev> <lba> <num lba>\n"
                "  Write <num LBA> LBAs from LBA <lba>\n"
                "Options:\n"
-               "    -v         : Verbose mode\n",
+               "    -v         : Verbose mode\n"
+               "    -n <num>   : Repeat sequentially the write operation <num> times\n",
                argv[0]);
         return( 1 );
     }
@@ -63,6 +65,19 @@ usage:
         if ( strcmp(argv[i], "-v") == 0 ) {
 
             zbc_set_log_level("debug");
+
+	} else if ( strcmp(argv[i], "-n") == 0 ) {
+
+            i++;
+	    if ( i >= (argc - 1) ) {
+		goto usage;
+	    }
+
+	    nio = atoi(argv[i]);
+	    if ( nio <= 0 ) {
+		printf("Invalid number of operations\n");
+		return( 1 );
+	    }
 
         } else if ( argv[i][0] == '-' ) {
 
@@ -113,7 +128,8 @@ usage:
 
     /* Search target zone */
     for ( i = 0; i < (int)nr_zones; i++ ) {
-        if ( lba < (zones[i].zbz_start + zones[i].zbz_length) ) {
+        if ( (lba >= zones[i].zbz_start)
+	     && (lba < (zones[i].zbz_start + zones[i].zbz_length)) ) {
             iozone = &zones[i];
             break;
         }
@@ -136,25 +152,36 @@ usage:
         goto out;
     }
 
-    ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start );
-    if ( ret <= 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],zbc_write_zone failed\n");
+    while( nio ) {
 
-        {
-            zbc_errno_t zbc_err;
-            const char *sk_name;
-            const char *ascq_name;
+	ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start );
+	if ( ret <= 0 ) {
 
-            zbc_errno(dev, &zbc_err);
-            sk_name = zbc_sk_str(zbc_err.sk);
-            ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+	    fprintf(stderr,
+		    "[TEST][ERROR],zbc_write_zone failed\n");
 
-            printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-            printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-        }
+	    {
+		zbc_errno_t zbc_err;
+		const char *sk_name;
+		const char *ascq_name;
 
-        ret = 1;
+		zbc_errno(dev, &zbc_err);
+		sk_name = zbc_sk_str(zbc_err.sk);
+		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+
+		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+	    }
+
+	    ret = 1;
+	    break;
+
+	}
+
+	nio--;
+	lba += lba_count;
+	ret = 0;
+
     }
 
 out:
