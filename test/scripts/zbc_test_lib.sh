@@ -370,3 +370,15 @@ function zbc_test_check_zone_cond() {
     return 0
 
 }
+
+function zbc_test_check_zone_cond_sk_ascq() {
+
+    if [ ${target_cond} == ${expected_cond} ]; then
+        zbc_test_check_sk_ascq
+    else
+        zbc_test_print_failed_zc
+    fi
+
+    return 0
+
+}

@@ -18,8 +18,8 @@ zbc_test_init $0 $*
 zbc_test_info "OPEN_ZONE full to full..."
 
 # Set expected error code
-expected_sk=""
-expected_asc=""
+expected_sk="Data-protect"
+expected_asc="Zone-is-read-only"
 expected_cond="0xe"
 
 # Get drive information
@@ -46,7 +46,7 @@ zbc_test_get_zone_info "5"
 zbc_test_search_vals_from_slba ${target_lba}
 
 # Check result
-zbc_test_check_zone_cond
+zbc_test_check_zone_cond_sk_ascq
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
