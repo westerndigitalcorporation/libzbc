@@ -31,6 +31,7 @@ log_file=${log_path}/${testname}.log
 # Test function
 function zbc_run_test()
 {
+    declare -i run_test_ret=0
 
     ZBC_TEST_SUB_SCR_PATH=${ZBC_TEST_SCR_PATH}/${1}
     ZBC_TEST_SUB_LOG_PATH=${ZBC_TEST_LOG_PATH}/${1}
@@ -45,9 +46,17 @@ function zbc_run_test()
 
     for script in *.sh; do
         ./${script} ${device_file} ${ZBC_TEST_BIN_PATH} ${ZBC_TEST_SUB_LOG_PATH}
+        script_ret=$?
+
+        if [ ${terminate_mode} -eq 1 -a ${script_ret} -gt 0 ]; then
+            run_test_ret=1
+            break
+        fi
     done
 
     cd ${ZBC_TEST_DIR}
+
+    return ${run_test_ret}
 
 }
 
@@ -81,9 +90,21 @@ for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_
 done
 
 # Run tests
+echo "Executing command completion tests..."
+declare -i terminate_mode=1
+zbc_run_test 00_command_completion_check ${termination_mode}
+zbc_test_ret=$?
+
+if [ ${zbc_test_ret} -gt 0 ]; then
+    echo "Exit testing..."
+    exit 1
+fi
+
 echo "Executing sense key, sense code tests..."
-zbc_run_test 01_sk_ascq_check
+termination_mode=0
+zbc_run_test 01_sk_ascq_check ${termination_mode}
 
 echo "Executing zone state machine tests..."
-zbc_run_test 02_state_machine_check
+termination_mode=0
+zbc_run_test 02_state_machine_check ${termination_mode}
 

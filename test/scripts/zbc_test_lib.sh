@@ -51,6 +51,9 @@ function zbc_test_init() {
     zone_info_file="/tmp/${test_name}_zone_info.log"
     rm -f ${zone_info_file}
 
+    # Dump zone info file
+    dump_zone_info_file="${log_path}/${test_name}_zone_info.log"
+
 }
 
 function zbc_test_info() {
