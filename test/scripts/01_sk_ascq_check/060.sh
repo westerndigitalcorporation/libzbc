@@ -34,7 +34,7 @@ target_lba=$(( ${target_ptr} ))
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 9
 
 # Check result
 zbc_test_get_sk_ascq
