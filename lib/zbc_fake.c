@@ -709,6 +709,13 @@ zbc_fake_open_zone(zbc_device_t *dev,
             goto out;
         }
 
+        if ( zbc_zone_full(zone) ) {
+            dev->zbd_errno.sk = ZBC_E_DATA_PROTECT;
+            dev->zbd_errno.asc_ascq = ZBC_E_ZONE_IS_READ_ONLY;
+            ret = -EIO;
+            goto out;
+        }
+
         if ( zbc_zone_exp_open(zone) ) {
             /* Already open: nothing to do */
             goto out;
