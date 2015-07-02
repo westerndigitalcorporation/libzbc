@@ -81,8 +81,8 @@ for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_
 done
 
 # Run tests
-echo "Executing command tests..."
-zbc_run_test 01_command_check
+echo "Executing sense key, sense code tests..."
+zbc_run_test 01_sk_ascq_check
 
 echo "Executing zone state machine tests..."
 zbc_run_test 02_state_machine_check
