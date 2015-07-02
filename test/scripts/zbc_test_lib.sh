@@ -132,9 +132,10 @@ function zbc_test_get_zone_info() {
 function zbc_test_open_nr_zones() {
 
     open_num=${1}
+    local zone_type="0x2"
 
     declare -i count=0
-    for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,0x2,.*,.*,.*,.*"`; do
+    for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
 
         _IFS="${IFS}"
         IFS=','
@@ -165,6 +166,7 @@ function zbc_test_search_vals_from_zone_type() {
 
     zone_type=${1}
 
+    # [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
     for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
 
         _IFS="${IFS}"
@@ -191,7 +193,8 @@ function zbc_test_search_vals_from_slba() {
 
     start_lba=${1}
 
-    for _line in `cat ${zone_info_file} | grep -F "[ZONE_INFO]"`; do
+    # [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
+    for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,.*,.*,${start_lba},.*,.*"`; do
         _IFS="${IFS}"
         IFS=','
         set -- ${_line}
@@ -204,9 +207,7 @@ function zbc_test_search_vals_from_slba() {
 
         IFS="$_IFS"
 
-        if [ ${start_lba} = ${target_slba} ]; then
-            return 0
-        fi
+        return 0
 
     done
 
@@ -219,7 +220,8 @@ function zbc_test_search_vals_from_zone_type_and_cond() {
     zone_type=${1}
     zone_cond=${2}
 
-    for _line in `cat ${zone_info_file} | grep -F "[ZONE_INFO]"`; do
+    # [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
+    for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},${zone_cond},.*,.*,.*"`; do
 
         _IFS="${IFS}"
         IFS=','
@@ -233,9 +235,7 @@ function zbc_test_search_vals_from_zone_type_and_cond() {
 
         IFS="$_IFS"
 
-        if [ ${zone_type} = ${target_type} -a ${zone_cond} = ${target_cond} ]; then
-            return 0
-        fi
+        return 0
 
     done
 
@@ -262,7 +262,7 @@ function zbc_test_search_vals_from_zone_type_and_ignored_cond() {
 
         IFS="$_IFS"
 
-        if [ ${zone_type} = ${target_type} -a ${zone_cond} != ${target_cond} ]; then
+        if [ "${zone_type}" = "${target_type}" -a "${zone_cond}" != "${target_cond}" ]; then
             return 0
         fi
 
@@ -323,7 +323,7 @@ function zbc_test_print_failed_sk() {
 
 function zbc_test_check_sk_ascq() {
 
-    if [ ${sk} = ${expected_sk} -a ${asc} = ${expected_asc} ]; then
+    if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
         zbc_test_print_passed
     else
         zbc_test_print_failed_sk
@@ -335,7 +335,7 @@ function zbc_test_check_sk_ascq() {
 
 function zbc_test_check_no_sk_ascq() {
 
-    if [ -n ${sk} -a -n ${asc} ]; then
+    if [ -z "${sk}" -a -z "${asc}" ]; then
         zbc_test_print_passed
     else
         zbc_test_print_failed_sk
@@ -382,3 +382,24 @@ function zbc_test_check_zone_cond_sk_ascq() {
     return 0
 
 }
+
+function zbc_test_dump_zone_info() {
+
+    zbc_report_zones ${device} > ${dump_zone_info_file}
+
+    return 0
+}
+
+function zbc_test_check_failed() {
+
+    failed=`cat ${log_file} | grep -m 1 "^Failed"`
+
+    if [ "Failed" = "${failed}" ]; then
+        zbc_test_dump_zone_info
+        return 1
+    fi
+
+    return 0
+
+}
+
