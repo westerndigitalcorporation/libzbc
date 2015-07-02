@@ -127,6 +127,7 @@ enum zbc_reporting_options {
  */
 enum zbc_sk {
     ZBC_E_ILLEGAL_REQUEST         = 0x5,
+    ZBC_E_DATA_PROTECT            = 0x7,
     ZBC_E_ABORTED_COMMAND         = 0xB,
 };
 
@@ -140,6 +141,7 @@ enum zbc_asc_ascq {
     ZBC_E_WRITE_BOUNDARY_VIOLATION              = 0x2105,
     ZBC_E_ATTEMPT_TO_READ_INVALID_DATA          = 0x2106,
     ZBC_E_READ_BOUNDARY_VIOLATION               = 0x2107,
+    ZBC_E_ZONE_IS_READ_ONLY                     = 0x2708,
     ZBC_E_INSUFFICIENT_ZONE_RESOURCES           = 0x550E,
 };
 

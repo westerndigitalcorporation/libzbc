@@ -56,6 +56,12 @@ static struct zbc_sg_sk_s
         "Illegal-request"
     },
 
+    /* DATA_PROTECT */
+    {
+        ZBC_E_DATA_PROTECT,
+        "Data-protect",
+    },
+
     /* ABORTED_COMMAND */
     {
         ZBC_E_ABORTED_COMMAND,
@@ -112,6 +118,12 @@ static struct zbc_sg_asc_ascq_s
     {
         ZBC_E_READ_BOUNDARY_VIOLATION,
         "Read-boundary-violation"
+    },
+
+    /* ZBC_E_ZONE_IS_READ_ONLY */
+    {
+        ZBC_E_ZONE_IS_READ_ONLY,
+        "Zone-is-read-only"
     },
 
     /* ZBC_E_INSUFFICIENT_ZONE_RESOURCES */
