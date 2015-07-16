@@ -27,154 +27,65 @@
 /***** Declaration of private functions *****/
 
 static void
-dz_if_zinfo_print(GtkTreeViewColumn *col,
-                  GtkCellRenderer *renderer,
-                  GtkTreeModel *model,
-                  GtkTreeIter *iter,
-                  gpointer user_data);
-
-static gboolean
-dz_if_zinfo_filter_cb(GtkComboBox *button,
-                      gpointer user_data);
+dz_if_show_nodev(void);
 
 static void
-dz_if_zinfo_fill(void);
-
-static gboolean
-dz_if_zinfo_scroll_cb(GtkWidget *widget,
-		      GdkEvent *event,
-		      gpointer user_data);
-
-static void
-dz_if_zinfo_spinselect_cb(GtkSpinButton *spin_button,
-                          gpointer user_data);
-
-static gboolean
-dz_if_zinfo_select_cb(GtkTreeSelection *selection,
-                      GtkTreeModel *model,
-                      GtkTreePath *path,
-                      gboolean path_currently_selected,
-                      gpointer userdata);
+dz_if_hide_nodev(void);
 
 static gboolean
 dz_if_resize_cb(GtkWidget *widget,
                 GdkEvent *event,
                 gpointer user_data);
 
-static gboolean
-dz_if_zstate_draw_legend_cb(GtkWidget *widget,
-			    cairo_t *cr,
-			    gpointer user_data);
-
-static gboolean
-dz_if_zstate_draw_cb(GtkWidget *widget,
-		     cairo_t *cr,
-		     gpointer user_data);
-
 static void
 dz_if_delete_cb(GtkWidget *widget,
                 GdkEvent *event,
                 gpointer user_data);
 
-static gboolean
+static void
+dz_if_open_cb(GtkWidget *widget,
+              gpointer user_data);
+
+static void
+dz_if_close_cb(GtkWidget *widget,
+	       gpointer user_data);
+
+static void
+dz_if_close_page_cb(GtkWidget *widget,
+		    gpointer user_data);
+
+static void
+dz_if_switch_page_cb(GtkNotebook *notebook,
+		     GtkWidget *page,
+		     guint page_num,
+		     gpointer user_data);
+
+static void
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data);
+
+static void
+dz_if_set_block_size_cb(GtkWidget *widget,
+			gpointer user_data);
+
+static void
 dz_if_exit_cb(GtkWidget *widget,
-              GdkEvent *event,
               gpointer user_data);
 
 static gboolean
 dz_if_timer_cb(gpointer user_data);
-
-static gboolean
-dz_if_refresh_cb(GtkWidget *widget,
-                 GdkEvent *event,
-                 gpointer user_data);
-
-static gboolean
-dz_if_open_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data);
-
-static gboolean
-dz_if_close_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data);
-
-static gboolean
-dz_if_finish_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data);
-
-static gboolean
-dz_if_reset_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data);
-
-static inline void
-dz_if_set_margin(GtkWidget *widget,
-                 int left, int right,
-                 int top, int bottom)
-{
-
-#if GTK_CHECK_VERSION(3, 12, 0)
-    gtk_widget_set_margin_start(widget, left);
-    gtk_widget_set_margin_end(widget, right);
-#else
-    gtk_widget_set_margin_left(widget, left);
-    gtk_widget_set_margin_right(widget, right);
-#endif
-
-    if ( top ) {
-        gtk_widget_set_margin_top(widget, top);
-    }
-
-    if ( bottom ) {
-        gtk_widget_set_margin_bottom(widget, bottom);
-    }
-
-    return;
-
-}
-
-static struct dz_if_zinfo_filter {
-    int ro;
-    char *str;
-} zfilter[] =
-    {
-        { ZBC_RO_ALL,      "All zones"                      },
-        { ZBC_RO_NOT_WP,   "Conventional zones"             },
-        { ZBC_RO_EMPTY,    "Empty zones"                    },
-        { ZBC_RO_FULL,     "Full zones"                     },
-        { ZBC_RO_IMP_OPEN, "Implicitly open zones"          },
-        { ZBC_RO_EXP_OPEN, "Explicitly open zones"          },
-        { ZBC_RO_CLOSED,   "Closed zones"                   },
-        { ZBC_RO_RESET,    "Zones needing reset"            },
-        { ZBC_RO_NON_SEQ,  "Zones not sequentially written" },
-        { ZBC_RO_RDONLY,   "Read-only zones"                },
-        { ZBC_RO_OFFLINE,  "Offline zones"                  },
-        { 0, NULL }
-    };
 
 /***** Definition of public functions *****/
 
 int
 dz_if_create(void)
 {
-    GtkWidget *win_vbox, *hbox, *ctrl_hbox, *vbox;
-    GtkWidget *combo, *scrolledwindow;
-    GtkWidget *window;
-    GtkWidget *frame;
-    GtkWidget *button;
-    GtkWidget *image;
+    GtkWidget *toolbar;
     GtkWidget *label;
-    GtkWidget *spinbutton;
-    GtkWidget *hbuttonbox;
-    GtkWidget *treeview;
-    GtkTreeViewColumn *column;
-    GtkCellRenderer *renderer;
-    GtkTreeIter iter;
-    GtkWidget *da;
-    char str[128];
-    unsigned int i;
+    GtkWidget *hbox;
+    GtkWidget *sep;
+    GtkToolItem *ti;
+    char str[32];
 
     /* Get colors */
     gdk_rgba_parse(&dz.conv_color, "Magenta");
@@ -182,382 +93,90 @@ dz_if_create(void)
     gdk_rgba_parse(&dz.seqw_color, "Red");
 
     /* Window */
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window), "ZBC Device Zone State");
-    gtk_container_set_border_width(GTK_CONTAINER(window), 5);
-    gtk_window_resize(GTK_WINDOW(window), 720, 640);
-    dz.window = window;
+    dz.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(dz.window), "ZBC Device Zone State");
+    gtk_container_set_border_width(GTK_CONTAINER(dz.window), 10);
+    gtk_window_resize(GTK_WINDOW(dz.window), 1024, 768);
 
-    g_signal_connect((gpointer) window, "delete-event",
+    g_signal_connect((gpointer) dz.window, "delete-event",
                      G_CALLBACK(dz_if_delete_cb),
                      NULL);
 
     /* Top vbox */
-    win_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_show(win_vbox);
-    gtk_container_add(GTK_CONTAINER(window), win_vbox);
+    dz.vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_show(dz.vbox);
+    gtk_container_add(GTK_CONTAINER(dz.window), dz.vbox);
 
-    /* Zone list filter frame */
-    snprintf(str, sizeof(str) - 1,
-             "<b>%s: %.03F GB, %u B logical sectors</b>",
-             dz.path,
-             (double) (dz.info.zbd_logical_blocks * dz.info.zbd_logical_block_size) / 1000000000,
-             dz.info.zbd_logical_block_size);
-    frame = gtk_frame_new(str);
-    gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, FALSE, 0);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    dz.zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
-    gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(frame), hbox);
-    dz_if_set_margin(hbox, 7, 7, 0, 0);
+    /* Toolbar */
+    toolbar = gtk_toolbar_new();
+    gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_ICONS);
+    gtk_widget_show(toolbar);
+    gtk_box_pack_start(GTK_BOX(dz.vbox), toolbar, FALSE, FALSE, 0);
 
-    /* Zone list filter label */
-    label = gtk_label_new(NULL);
-    gtk_widget_show(label);
+    /* Toolbar open button */
+    ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-open", GTK_ICON_SIZE_LARGE_TOOLBAR), "Open");
+    gtk_tool_item_set_tooltip_text(ti, "Open a device");
+    gtk_tool_item_set_is_important(ti, TRUE);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
+    g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_open_cb), NULL);
+
+    /* Toolbar close button */
+    ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-close", GTK_ICON_SIZE_LARGE_TOOLBAR), "Close");
+    gtk_tool_item_set_tooltip_text(ti, "Close current device");
+    gtk_tool_item_set_is_important(ti, TRUE);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
+    g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_close_cb), NULL);
+
+    /* Toolbar refresh button */
+    ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_LARGE_TOOLBAR), "Refresh");
+    gtk_tool_item_set_tooltip_text(ti, "Refresh current device zone information");
+    gtk_tool_item_set_is_important(ti, TRUE);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
+    g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_refresh_cb), NULL);
+
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
+
+    /* Toolbar block size */
+    ti = gtk_tool_item_new();
+    gtk_tool_item_set_tooltip_text(ti, "Change block size unit (B)");
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_container_add(GTK_CONTAINER(ti), hbox);
+    label = gtk_label_new("Block size (B)");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_label_set_text(GTK_LABEL(label), "<b>Zone filter</b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    dz.block_size_entry = gtk_entry_new();
+    snprintf(str, sizeof(str) - 1, "%d", dz.block_size);
+    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
+    gtk_box_pack_start(GTK_BOX(hbox), dz.block_size_entry, FALSE, FALSE, 0);
+    g_signal_connect((gpointer)dz.block_size_entry, "activate", G_CALLBACK(dz_if_set_block_size_cb), NULL);
 
-    /* Zone list filter */
-    combo = gtk_combo_box_text_new();
-    gtk_widget_show(combo);
-    dz_if_set_margin(combo, 7, 7, 10, 5);
-    i = 0;
-    while( zfilter[i].str ) {
-        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), NULL, zfilter[i].str);
-        i++;
-    }
-    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
-    gtk_box_pack_start(GTK_BOX(hbox), combo, TRUE, TRUE, 0);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
 
-    g_signal_connect((gpointer) combo, "changed",
-		     G_CALLBACK(dz_if_zinfo_filter_cb),
-		     combo);
+    /* Toolbar block size */
+    ti = gtk_tool_button_new(gtk_image_new_from_icon_name("application-exit", GTK_ICON_SIZE_LARGE_TOOLBAR), "Quit");
+    gtk_tool_item_set_tooltip_text(ti, "Quit");
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
+    g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_exit_cb), NULL);
 
-    /* Zone list frame */
-    snprintf(str, sizeof(str) - 1, "<b>%d zones</b>", dz.nr_zones);
-    frame = gtk_frame_new(str);
-    gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(win_vbox), frame, TRUE, TRUE, 0);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    dz.zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
-    gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
+    /* Separator */
+    sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+    gtk_widget_show(sep);
+    gtk_box_pack_start(GTK_BOX(dz.vbox), sep, FALSE, FALSE, 0);
 
-    /* Create zone list */
-    scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
-    gtk_widget_show(scrolledwindow);
-    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_SHADOW_IN);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwindow), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-    dz_if_set_margin(scrolledwindow, 7, 7, 10, 10);
-    gtk_container_add(GTK_CONTAINER(frame), scrolledwindow);
+    /* Initially, no device open: show "no device" frame */
+    dz_if_show_nodev();
 
-    treeview = gtk_tree_view_new();
-    gtk_widget_show(treeview);
-    gtk_container_add(GTK_CONTAINER(scrolledwindow), treeview);
-    gtk_tree_view_set_enable_search(GTK_TREE_VIEW(treeview), FALSE);
-    gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)), GTK_SELECTION_SINGLE);
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(treeview), TRUE);
-    dz.zinfo_treeview = treeview;
-
-    g_signal_connect((gpointer) gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(treeview)), "value-changed",
-		     G_CALLBACK(dz_if_zinfo_scroll_cb),
-		     NULL);
-
-    /* Number column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Zone number", renderer, "text", DZ_ZONE_NUM, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_NUM, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Type column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Type", renderer, "text", DZ_ZONE_TYPE, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_TYPE, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Condition column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Condition", renderer, "text", DZ_ZONE_COND, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_COND, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Need reset column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Need Reset", renderer, "text", DZ_ZONE_NEED_RESET, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_NEED_RESET, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Non-seq column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Non Seq", renderer, "text", DZ_ZONE_NONSEQ, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_NONSEQ, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Start column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Start", renderer, "text", DZ_ZONE_START, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_START, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Length column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Length", renderer, "text", DZ_ZONE_LENGTH, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_LENGTH, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Write pointer column */
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Write Pointer", renderer, "text", DZ_ZONE_WP, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print, (gpointer) DZ_ZONE_WP, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
-
-    /* Create device list store */
-    dz.zinfo_store = gtk_list_store_new(DZ_ZONE_LIST_COLUMS,
-                                        G_TYPE_UINT,
-                                        G_TYPE_UINT,
-                                        G_TYPE_UINT,
-                                        G_TYPE_UINT,
-                                        G_TYPE_UINT,
-                                        G_TYPE_UINT64,
-                                        G_TYPE_UINT64,
-                                        G_TYPE_UINT64);
-    for(i = 0; i < dz.nr_zones; i++) {
-        gtk_list_store_append(dz.zinfo_store, &iter);
-    }
-    dz.zinfo_model = GTK_TREE_MODEL(dz.zinfo_store);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(dz.zinfo_treeview), dz.zinfo_model);
-    g_object_unref(dz.zinfo_model);
-
-    dz_if_zinfo_fill();
-
-    /* Zone use state drawing frame */
-    frame = gtk_frame_new("<b>Zone State</b>");
-    gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, TRUE, 0);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
-
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    gtk_widget_show(vbox);
-    gtk_container_add(GTK_CONTAINER(frame), vbox);
-
-    da = gtk_drawing_area_new();
-    gtk_widget_set_size_request(da, -1, 20);
-    gtk_widget_show(da);
-    gtk_container_add(GTK_CONTAINER(vbox), da);
-
-    g_signal_connect((gpointer) da, "draw",
-                     G_CALLBACK(dz_if_zstate_draw_legend_cb),
-                     NULL);
-
-    da = gtk_drawing_area_new();
-    gtk_widget_set_size_request(da, -1, 100);
-    gtk_widget_show(da);
-    gtk_container_add(GTK_CONTAINER(vbox), da);
-    dz.zstate_da = da;
-
-    g_signal_connect((gpointer) da, "draw",
-                     G_CALLBACK(dz_if_zstate_draw_cb),
-                     NULL);
-
-    /* Controls frame */
-    frame = gtk_frame_new(NULL);
-    gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(win_vbox), frame, FALSE, TRUE, 0);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    /* Hbox for controls */
-    ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(ctrl_hbox);
-    dz_if_set_margin(ctrl_hbox, 7, 7, 0, 0);
-    gtk_container_add(GTK_CONTAINER(frame), ctrl_hbox);
-
-    /* Reset zone control */
-    label = gtk_label_new("<b>Zone index</b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
-
-    spinbutton = gtk_spin_button_new_with_range(-1, dz.nr_zones - 1, 1);
-    gtk_widget_show(spinbutton);
-    gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
-    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(spinbutton), 0);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), 0.0);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
-    dz.zinfo_spinbutton = spinbutton;
-
-    g_signal_connect((gpointer) spinbutton, "value-changed",
-                     G_CALLBACK(dz_if_zinfo_spinselect_cb),
-                     spinbutton);
-
-    /* Zone control button Box */
-    hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_widget_show(hbuttonbox);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), hbuttonbox, FALSE, FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(hbuttonbox), 10);
-    gtk_button_box_set_layout(GTK_BUTTON_BOX(hbuttonbox), GTK_BUTTONBOX_START);
-    gtk_box_set_spacing(GTK_BOX(hbuttonbox), 10);
-
-    /* Open button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-connect", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Open Zone");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-                      G_CALLBACK(dz_if_open_cb),
-                      spinbutton);
-
-    /* Close button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-close", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Close Zone");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-                      G_CALLBACK(dz_if_close_cb),
-                      spinbutton);
-
-    /* Finish button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-goto-last", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Finish Zone");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-                      G_CALLBACK(dz_if_finish_cb),
-                      spinbutton);
-
-    /* Reset button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-clear", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Reset Write Pointer");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-                      G_CALLBACK(dz_if_reset_cb),
-                      spinbutton);
-
-    /* Exit, refresh, ... button Box */
-    hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_widget_show(hbuttonbox);
-    gtk_box_pack_end(GTK_BOX(ctrl_hbox), hbuttonbox, FALSE, FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(hbuttonbox), 10);
-    gtk_button_box_set_layout(GTK_BUTTON_BOX(hbuttonbox), GTK_BUTTONBOX_END);
-    gtk_box_set_spacing(GTK_BOX(hbuttonbox), 10);
-
-    /* Refresh button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-    gtk_widget_set_can_default(button, TRUE);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Refresh");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-		     G_CALLBACK(dz_if_refresh_cb),
-		     &dz);
-
-    /* Exit button */
-    button = gtk_button_new();
-    gtk_widget_show(button);
-    gtk_container_add(GTK_CONTAINER(hbuttonbox), button);
-    gtk_widget_set_can_default(button, TRUE);
-
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    image = gtk_image_new_from_icon_name("gtk-quit", GTK_ICON_SIZE_BUTTON);
-    gtk_widget_show(image);
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-
-    label = gtk_label_new_with_mnemonic("Exit");
-    gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    g_signal_connect((gpointer) button, "button_press_event",
-                      G_CALLBACK(dz_if_exit_cb),
-                      &dz);
-
+    /* Add timer for automatic refresh */
     if ( dz.interval >= DZ_INTERVAL ) {
-        /* Add timer for automatic refresh */
         dz.timer_id = g_timeout_add(dz.interval, dz_if_timer_cb, NULL);
     }
 
-    /* Link tree view selection and spinbutton value */
-    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
-                                           dz_if_zinfo_select_cb,
-                                           spinbutton,
-                                           NULL);
-
+    /* Finish setup */
     g_signal_connect((gpointer) dz.window, "configure-event",
 		     G_CALLBACK(dz_if_resize_cb),
 		     NULL);
 
-    /* Done */
     gtk_widget_show_all(dz.window);
-
-    dz.zinfo_selection = -1;
-    dz_if_zinfo_spinselect_cb(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), NULL);
 
     return( 0 );
 
@@ -581,171 +200,194 @@ dz_if_destroy(void)
 
 }
 
+void
+dz_if_add_device(char *dev_path)
+{
+    GtkWidget *dialog;
+    GtkWidget *label;
+    GtkWidget *hbox;
+    GtkWidget *button;
+    dz_dev_t *dzd;
+    int page_no;
+    char str[128];
+
+    /* Open device */
+    dzd = dz_if_dev_open(dev_path);
+    if ( ! dzd ) {
+	dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					GTK_MESSAGE_ERROR,
+					GTK_BUTTONS_OK,
+					"Open device %s failed", dev_path);
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+	return;
+    }
+
+    dz_if_hide_nodev();
+
+    /* Add page */
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+
+    snprintf(str, sizeof(str) - 1, "<b>%s</b>", dzd->path);
+    label = gtk_label_new(NULL);
+    gtk_label_set_text(GTK_LABEL(label), str);
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    button = gtk_button_new_from_icon_name("gtk-close", GTK_ICON_SIZE_BUTTON);
+    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_close_page_cb), dzd);
+
+    gtk_widget_show_all(hbox);
+
+    page_no = gtk_notebook_append_page(GTK_NOTEBOOK(dz.notebook),
+				       dzd->page_frame,
+				       hbox);
+    dzd->page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(dz.notebook), page_no);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(dz.notebook), page_no);
+
+    return;
+
+}
+
 /***** Definition of private functions *****/
 
-static unsigned long long
-dz_if_blocks(unsigned long long lba)
+static void
+dz_if_show_nodev(void)
 {
-    return( (lba * dz.info.zbd_logical_block_size) / dz.block_size );
+
+    if ( dz.notebook ) {
+	/* Remove notebook */
+	gtk_widget_destroy(dz.notebook);
+	dz.notebook = NULL;
+    }
+
+    if ( ! dz.no_dev_frame ) {
+
+	GtkWidget *frame;
+	GtkWidget *label;
+
+	frame = gtk_frame_new(NULL);
+	gtk_widget_show(frame);
+	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+	gtk_container_set_border_width(GTK_CONTAINER(frame), 10);
+	gtk_box_pack_start(GTK_BOX(dz.vbox), frame, TRUE, TRUE, 0);
+
+	label = gtk_label_new(NULL);
+	gtk_widget_show(label);
+	gtk_label_set_text(GTK_LABEL(label), "<b>No device open</b>");
+	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+	gtk_container_add(GTK_CONTAINER(frame), label);
+
+	dz.no_dev_frame = frame;
+
+    }
+
+    return;
+
 }
 
 static void
-dz_if_zinfo_print(GtkTreeViewColumn *col,
-                  GtkCellRenderer *renderer,
-                  GtkTreeModel *model,
-                  GtkTreeIter *iter,
-                  gpointer user_data)
+dz_if_hide_nodev(void)
 {
-    long c = (long) user_data;
-    struct zbc_zone *z;
-    char str[64];
+
+    if ( dz.no_dev_frame ) {
+	/* Remove "no device" frame */
+	gtk_widget_destroy(dz.no_dev_frame);
+	dz.no_dev_frame = NULL;
+    }
+
+    if ( ! dz.notebook ) {
+	/* Create the notebook */
+	dz.notebook = gtk_notebook_new();
+	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(dz.notebook), GTK_POS_TOP);
+	gtk_notebook_set_show_border(GTK_NOTEBOOK(dz.notebook), TRUE);
+	gtk_notebook_set_show_tabs(GTK_NOTEBOOK(dz.notebook), TRUE);
+	gtk_widget_show(dz.notebook);
+	gtk_box_pack_start(GTK_BOX(dz.vbox), dz.notebook, TRUE, TRUE, 0);
+	g_signal_connect((gpointer)dz.notebook, "switch_page", G_CALLBACK(dz_if_switch_page_cb), NULL);
+    }
+
+    return;
+
+}
+
+static void
+dz_if_remove_device(dz_dev_t *dzd)
+{
+    int page_no = gtk_notebook_page_num(GTK_NOTEBOOK(dz.notebook), dzd->page_frame);
+
+    /* Close the device */
+    dz_if_dev_close(dzd);
+
+    /* Remove the page */
+    gtk_notebook_remove_page(GTK_NOTEBOOK(dz.notebook), page_no);
+    dzd->page = NULL;
+
+    if ( dz.nr_devs == 0 ) {
+	/* Show "no device" */
+	dz_if_show_nodev();
+    }
+
+    return;
+
+}
+
+static dz_dev_t *
+dz_if_get_device(void)
+{
+    dz_dev_t *dzd = NULL;
+    GtkWidget *page = NULL;
     int i;
 
-    /* Normal black font by default */
-    gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dz.zones[i];
-    g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
-
-    switch( c ) {
-
-    case DZ_ZONE_NUM:
-
-        /* ZOne number */
-        g_object_set(renderer, "weight", PANGO_WEIGHT_BOLD, "weight-set", FALSE, NULL);
-        snprintf(str, sizeof(str), "%d", i);
-        break;
-
-    case DZ_ZONE_TYPE:
-
-        /* Zone type */
-	if ( zbc_zone_conventional(z) ) {
-	    strncpy(str, "Conventional", sizeof(str));
-	} else if ( zbc_zone_sequential_req(z) ) {
-	    strncpy(str, "Seq write req.", sizeof(str));
-	} else if ( zbc_zone_sequential_pref(z) ) {
-	    strncpy(str, "Seq write pref.", sizeof(str));
-	} else {
-	    snprintf(str, sizeof(str), "??? (0x%01x)", zbc_zone_type(z));
-	}
-        break;
-
-    case DZ_ZONE_COND:
-
-        /* Zone condition */
-	if ( zbc_zone_not_wp(z) ) {
-	    strncpy(str, "Not WP", sizeof(str));
-	} else if ( zbc_zone_empty(z) ) {
-            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
-	    strncpy(str, "Empty", sizeof(str));
-	} else if ( zbc_zone_full(z) ) {
-            g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
-	    strncpy(str, "Full", sizeof(str));
-        } else if ( zbc_zone_imp_open(z) ) {
-            g_object_set(renderer, "foreground", "Blue", "foreground-set", TRUE, NULL);
-            strncpy(str, "Implicit Open", sizeof(str));
-        } else if ( zbc_zone_exp_open(z) ) {
-            g_object_set(renderer, "foreground", "Blue", "foreground-set", TRUE, NULL);
-            strncpy(str, "Explicit Open", sizeof(str));
-        } else if ( zbc_zone_closed(z) ) {
-            strncpy(str, "Closed", sizeof(str));
-	} else if ( zbc_zone_rdonly(z) ) {
-	    strncpy(str, "Read-only", sizeof(str));
-	} else if ( zbc_zone_offline(z) ) {
-	    strncpy(str, "Offline", sizeof(str));
-	} else {
-	    snprintf(str, sizeof(str), "??? (0x%01x)", z->zbz_condition);
-	}
-        break;
-
-    case DZ_ZONE_NEED_RESET:
-
-        /* Zone need reset */
-        if ( zbc_zone_need_reset(z) ) {
-            g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
-	    strncpy(str, "Yes", sizeof(str));
-	} else {
-            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
-	    strncpy(str, "No", sizeof(str));
-        }
-        break;
-
-    case DZ_ZONE_NONSEQ:
-
-        /* Zone non seq */
-	if ( zbc_zone_non_seq(z) ) {
-            g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
-	    strncpy(str, "Yes", sizeof(str));
-	} else {
-            g_object_set(renderer, "foreground", "Green", "foreground-set", TRUE, NULL);
-	    strncpy(str, "No", sizeof(str));
-	}
-        break;
-
-    case DZ_ZONE_START:
-
-        /* Zone start LBA */
-        snprintf(str, sizeof(str), "%llu", dz_if_blocks(zbc_zone_start_lba(z)));
-        break;
-
-    case DZ_ZONE_LENGTH:
-
-	/* Zone length */
-        snprintf(str, sizeof(str), "%llu", dz_if_blocks(zbc_zone_length(z)));
-        break;
-
-    case DZ_ZONE_WP:
-
-	/* Zone wp LBA */
-	if ( zbc_zone_not_wp(z) ) {
-            g_object_set(renderer, "foreground", "Grey", "foreground-set", TRUE, NULL);
-	    strncpy(str, "N/A", sizeof(str));
-	} else if ( zbc_zone_full(z) ) {
-            g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
-	    strncpy(str, "Full", sizeof(str));
-	} else {
-	    snprintf(str, sizeof(str), "%llu", dz_if_blocks(zbc_zone_wp_lba(z)));
-	}
-        break;
-
+    if ( ! dz.notebook ) {
+	return( NULL );
     }
 
-    g_object_set(renderer, "text", str, NULL);
+    page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(dz.notebook),
+				     gtk_notebook_get_current_page(GTK_NOTEBOOK(dz.notebook)));
+    for(i = 0; i < DZ_MAX_DEV; i++) {
+	dzd = &dz.dev[i];
+	if ( dzd->dev && (dzd->page == page) ) {
+	    return( dzd );
+	}
+    }
 
-    return;
+    return( NULL );
 
 }
 
 static void
-dz_if_zinfo_fill(void)
+dz_if_open_cb(GtkWidget *widget,
+	      gpointer user_data)
 {
-    GtkTreeIter iter;
-    struct zbc_zone *z;
-    unsigned int i;
+    GtkWidget *dialog;
+    char *dev_path = NULL;
+    gint res;
 
-    /* Update device list */
-    if ( ! dz.nr_zones ) {
-        return;
+    /* File chooser */
+    dialog = gtk_file_chooser_dialog_new ("Open Device",
+					  GTK_WINDOW(dz.window),
+					  GTK_FILE_CHOOSER_ACTION_OPEN,
+					  "_Cancel",
+					  GTK_RESPONSE_CANCEL,
+					  "_Open",
+					  GTK_RESPONSE_ACCEPT,
+					  NULL);
+    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog), "/dev/sg*");
+
+    res = gtk_dialog_run(GTK_DIALOG(dialog));
+    if ( res == GTK_RESPONSE_ACCEPT ) {
+	GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+	dev_path = gtk_file_chooser_get_filename(chooser);
     }
 
-    gtk_tree_model_get_iter_first(dz.zinfo_model, &iter);
+    gtk_widget_destroy(dialog);
 
-    for(i = 0; i < dz.nr_zones; i++) {
-
-        z = &dz.zones[i];
-
-        gtk_list_store_set(dz.zinfo_store, &iter,
-                           DZ_ZONE_NUM, i,
-                           DZ_ZONE_TYPE, z->zbz_type,
-                           DZ_ZONE_COND, z->zbz_condition,
-                           DZ_ZONE_NEED_RESET, zbc_zone_need_reset(z),
-                           DZ_ZONE_NONSEQ, zbc_zone_non_seq(z),
-                           DZ_ZONE_START, dz_if_blocks(zbc_zone_start_lba(z)),
-                           DZ_ZONE_LENGTH, dz_if_blocks(zbc_zone_length(z)),
-                           DZ_ZONE_WP, dz_if_blocks(zbc_zone_wp_lba(z)),
-                           -1);
-
-        gtk_tree_model_iter_next(dz.zinfo_model, &iter);
-
+    if ( dev_path ) {
+	dz_if_add_device(dev_path);
+	g_free(dev_path);
     }
 
     return;
@@ -753,42 +395,13 @@ dz_if_zinfo_fill(void)
 }
 
 static void
-dz_if_zinfo_update_range(void)
+dz_if_close_cb(GtkWidget *widget,
+	       gpointer user_data)
 {
-    GtkTreePath *start = NULL, *end = NULL;
-    GtkTreeIter iter;
+    dz_dev_t *dzd = dz_if_get_device();
 
-    if ( ! dz.nr_zones ) {
-        dz.zinfo_start_no = 0;
-        dz.zinfo_end_no = 0;
-        return;
-    }
-
-    gtk_tree_view_get_visible_range(GTK_TREE_VIEW(dz.zinfo_treeview), &start, &end);
-    if ( start ) {
-        if ( gtk_tree_model_get_iter(dz.zinfo_model, &iter, start) == TRUE ) {
-            gtk_tree_model_get(dz.zinfo_model, &iter, DZ_ZONE_NUM, &dz.zinfo_start_no, -1);
-        } else {
-            dz.zinfo_start_no = 0;
-        }
-        gtk_tree_path_free(start);
-    } else {
-        dz.zinfo_start_no = 0;
-    }
-
-    if ( end ) {
-        if ( gtk_tree_model_get_iter(dz.zinfo_model, &iter, end) == TRUE ) {
-            gtk_tree_model_get(dz.zinfo_model, &iter, DZ_ZONE_NUM, &dz.zinfo_end_no, -1);
-        } else {
-            dz.zinfo_end_no = dz.nr_zones - 1;
-        }
-        gtk_tree_path_free(end);
-    } else {
-        dz.zinfo_end_no = dz.nr_zones - 1;
-    }
-
-    if ( dz.zinfo_end_no >= dz.nr_zones ) {
-        dz.zinfo_end_no = dz.nr_zones - 1;
+    if ( dzd ) {
+	dz_if_remove_device(dzd);
     }
 
     return;
@@ -796,124 +409,119 @@ dz_if_zinfo_update_range(void)
 }
 
 static void
-dz_if_redraw_zinfo(void)
+dz_if_close_page_cb(GtkWidget *widget,
+		    gpointer user_data)
 {
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
 
-    /* Re-draw zone state */
-    gtk_widget_queue_draw(dz.zstate_da);
+    if ( dzd ) {
+	dz_if_remove_device(dzd);
+    }
+
+    return;
+
+}
+
+static void
+dz_if_switch_page_cb(GtkNotebook *notebook,
+		     GtkWidget *page,
+		     guint page_num,
+		     gpointer user_data)
+{
+    dz_dev_t *dzd = NULL;
+    char str[32];
+    int i;
+
+    for(i = 0; i < DZ_MAX_DEV; i++) {
+	dzd = &dz.dev[i];
+	if ( dzd->dev && (dzd->page == page) ) {
+	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+	    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
+	    break;
+	}
+    }
+
+    return;
+
+}
+
+static void
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data)
+{
+    dz_dev_t *dzd = dz_if_get_device();
+
+    if ( dzd ) {
+	dz_if_dev_refresh(dzd, 1);
+    }
+
+    return;
+
+}
+
+static void
+dz_if_set_block_size_cb(GtkWidget *widget,
+			gpointer user_data)
+{
+    char *val_str = (char *) gtk_entry_get_text(GTK_ENTRY(dz.block_size_entry));
+    dz_dev_t *dzd = dz_if_get_device();
+
+    if ( val_str && dzd ) {
+
+	int block_size = atoi(val_str);
+
+	if ( block_size > 0 ) {
+	    dzd->block_size = block_size;
+	} else {
+	    char str[32];
+	    if ( dz.block_size ) {
+		dzd->block_size = dz.block_size;
+	    } else {
+		dzd->block_size = dzd->info.zbd_logical_block_size;
+	    }
+	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+	    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
+	}
+	dz_if_dev_refresh(dzd, 1);
+
+    }
+
+    return;
+
+}
+
+static void
+dz_if_exit_cb(GtkWidget *widget,
+              gpointer user_data)
+{
+    dz_dev_t *dzd;
+    int i;
+
+    if ( dz.notebook ) {
+	for(i = 0; i < DZ_MAX_DEV; i++) {
+	    dzd = &dz.dev[i];
+	    if ( dzd->dev ) {
+		dz_if_remove_device(dzd);
+	    }
+	}
+    }
+
+    gtk_main_quit();
 
     return;
 
 }
 
 static gboolean
-dz_if_zinfo_scroll_cb(GtkWidget *widget,
-		      GdkEvent *event,
-		      gpointer user_data)
+dz_if_timer_cb(gpointer user_data)
 {
+    dz_dev_t *dzd = dz_if_get_device();
 
-    /* Update viewd range in list */
-    dz_if_zinfo_update_range();
-
-    dz_if_redraw_zinfo();
+    if ( dzd ) {
+	dz_if_dev_refresh(dzd, 1);
+    }
 
     return( TRUE );
-
-}
-
-static gboolean
-dz_if_zinfo_select_cb(GtkTreeSelection *selection,
-                      GtkTreeModel *model,
-                      GtkTreePath *path,
-                      gboolean path_currently_selected,
-                      gpointer user_data)
-{
-    GtkWidget *spinbutton = (GtkWidget *) user_data;
-    GtkTreeIter iter;
-    int zno;
-
-    if ( ! path_currently_selected ) {
-
-        if ( ! dz.nr_zones ) {
-
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), 0.0);
-
-        } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
-
-            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &dz.zinfo_selection, -1);
-            zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-            if ( zno != dz.zinfo_selection ) {
-                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) dz.zinfo_selection);
-            }
-
-        }
-
-    }
-
-    return TRUE;
-
-}
-
-static void
-dz_if_zinfo_do_unselect(void)
-{
-    GtkTreeSelection *sel;
-    GtkTreePath *path;
-
-    if ( dz.zinfo_selection >= 0 ) {
-
-        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dz.zinfo_treeview));
-        path = gtk_tree_path_new_from_indices(dz.zinfo_selection, -1);
-        if ( path ) {
-            gtk_tree_selection_unselect_path(sel, path);
-            gtk_tree_path_free(path);
-        }
-
-        dz.zinfo_selection = -1;
-
-    }
-
-    return;
-
-}
-
-static void
-dz_if_zinfo_do_select(int zno)
-{
-    GtkTreeSelection *sel;
-    GtkTreePath *path;
-
-    if ( zno != dz.zinfo_selection ) {
-
-        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dz.zinfo_treeview));
-        path = gtk_tree_path_new_from_indices(zno, -1);
-        if ( path ) {
-            gtk_tree_selection_select_path(sel, path);
-            gtk_tree_path_free(path);
-        }
-
-        dz.zinfo_selection = zno;
-
-    }
-
-    return;
-
-}
-
-static void
-dz_if_zinfo_spinselect_cb(GtkSpinButton *spinbutton,
-                          gpointer user_data)
-{
-    int zno;
-
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-    if ( (zno < 0) || (zno >= (gint)dz.nr_zones) ) {
-        dz_if_zinfo_do_unselect();
-    } else {
-        dz_if_zinfo_do_select(zno);
-    }
-
-    return;
 
 }
 
@@ -922,280 +530,10 @@ dz_if_resize_cb(GtkWidget *widget,
                 GdkEvent *event,
                 gpointer user_data)
 {
+    dz_dev_t *dzd = dz_if_get_device();
 
-    /* Update viewd range in list */
-    dz_if_zinfo_update_range();
-
-    if ( dz.nr_zones ) {
-        dz.zinfo_lines = dz.zinfo_end_no + 1 - dz.zinfo_start_no;
-        dz.zinfo_lines = (dz.zinfo_lines / 2) * 2;
-    } else {
-        dz.zinfo_lines = 0;
-    }
-
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-
-static void
-dz_if_update_zinfo(void)
-{
-    GtkWidget *dialog;
-    unsigned int i, nr_zones = dz.nr_zones;
-    GtkTreeIter iter;
-    char str[128];
-    int ret;
-
-    /* Refresh zone list */
-    ret = dz_get_zones();
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Get zone list failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Get zone list failed %d (%s)",
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
-	return;
-
-    }
-
-    if ( dz.nr_zones != nr_zones ) {
-
-	/* Number of zones changed... */
-	snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dz.path, dz.nr_zones);
-	gtk_label_set_text(GTK_LABEL(dz.zinfo_frame_label), str);
-	gtk_label_set_use_markup(GTK_LABEL(dz.zinfo_frame_label), TRUE);
-
-        gtk_list_store_clear(dz.zinfo_store);
-        for(i = 0; i < dz.nr_zones; i++) {
-            gtk_list_store_append(dz.zinfo_store, &iter);
-        }
-
-        dz.zinfo_selection = -1;
-        gtk_spin_button_set_range(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), -1, dz.nr_zones);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(dz.zinfo_spinbutton), 0.0);
-        gtk_spin_button_update(GTK_SPIN_BUTTON(dz.zinfo_spinbutton));
-
-    }
-
-    /* Update list */
-    dz_if_zinfo_fill();
-
-    return;
-
-}
-
-static gboolean
-dz_if_zinfo_filter_cb(GtkComboBox *button,
-                      gpointer user_data)
-{
-    GtkWidget *combo = (GtkWidget *) user_data;
-    gchar *text;
-    int zone_ro = ZBC_RO_ALL;
-    int i = 0;
-
-    text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo));
-    if ( text ) {
-
-        while( zfilter[i].str ) {
-            if ( strcmp(zfilter[i].str, text) == 0 ) {
-                zone_ro = zfilter[i].ro;
-                break;
-            }
-            i++;
-        }
-
-        g_free(text);
-
-        if ( dz.zone_ro != zone_ro ) {
-            dz.zone_ro = zone_ro;
-            dz_if_update_zinfo();
-            dz_if_redraw_zinfo();
-        }
-
-    }
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_zstate_draw_legend_cb(GtkWidget *widget,
-			    cairo_t *cr,
-			    gpointer data)
-{
-    GtkAllocation allocation;
-    cairo_text_extents_t te;
-    GdkRGBA color;
-    gint w, h, x = 10;
-
-    /* Current size */
-    gtk_widget_get_allocation(widget, &allocation);
-    h = allocation.height;
-    w = h / 2;
-
-    /* Set font */
-    cairo_select_font_face(cr, "Monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(cr, 10);
-
-    /* Conventional zone legend */
-    gdk_rgba_parse(&color, "Black");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_set_line_width(cr, 2);
-    cairo_rectangle(cr, x, (h - w) / 2, w, w);
-    cairo_stroke_preserve(cr);
-    gdk_cairo_set_source_rgba(cr, &dz.conv_color);
-    cairo_fill(cr);
-    x += w;
-
-    cairo_text_extents(cr, "Conventional zone", &te);
-    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Conventional zone");
-    x += te.x_advance + 20;
-
-    /* Seq unwritten zone legend */
-    gdk_rgba_parse(&color, "Black");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_set_line_width(cr, 2);
-    cairo_rectangle(cr, x, (h - w) / 2, w, w);
-    cairo_stroke_preserve(cr);
-    gdk_cairo_set_source_rgba(cr, &dz.seqnw_color);
-    cairo_fill(cr);
-    x += w;
-
-    cairo_text_extents(cr, "Sequential zone unwritten space", &te);
-    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Sequential zone unwritten space");
-    x += te.x_advance + 20;
-
-    /* Seq written zone legend */
-    gdk_rgba_parse(&color, "Black");
-    gdk_cairo_set_source_rgba(cr, &color);
-    cairo_set_line_width(cr, 2);
-    cairo_rectangle(cr, x, (h - w) / 2, w, w);
-    cairo_stroke_preserve(cr);
-    gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
-    cairo_fill(cr);
-    x += w;
-
-    cairo_text_extents(cr, "Sequential zone written space", &te);
-    cairo_move_to(cr, x + 5 - te.x_bearing, h / 2 - te.height / 2 - te.y_bearing);
-    cairo_show_text(cr, "Sequential zone written space");
-
-    return( FALSE );
-
-}
-
-#define DZ_DRAW_WOFST	5
-#define DZ_DRAW_HOFST	20
-
-static gboolean
-dz_if_zstate_draw_cb(GtkWidget *widget,
-		     cairo_t *cr,
-		     gpointer data)
-{
-    GtkAllocation allocation;
-    cairo_text_extents_t te;
-    unsigned long long cap = 0, sz;
-    struct zbc_zone *z;
-    GdkRGBA color;
-    int w, h, x = 0, zw, ww;
-    char str[64];
-    unsigned int i;
-
-    /* Current size */
-    gtk_widget_get_allocation(dz.zstate_da, &allocation);
-    w = allocation.width - (DZ_DRAW_WOFST * 2);
-    h = allocation.height;
-
-    if ( ! dz.nr_zones ) {
-        return( FALSE );
-    }
-
-    /* Get total viewed capacity */
-    if ( dz.zinfo_end_no >= dz.nr_zones ) {
-        dz.zinfo_end_no = dz.nr_zones - 1;
-    }
-    for(i = dz.zinfo_start_no; i <= dz.zinfo_end_no; i++) {
-	cap += zbc_zone_length(&dz.zones[i]);
-    }
-
-    /* Center overall drawing using x offset */
-    zw = 0;
-    for(i = dz.zinfo_start_no; i <= dz.zinfo_end_no; i++) {
-	zw += ((unsigned long long)w * zbc_zone_length(&dz.zones[i])) / cap;
-    }
-    x = DZ_DRAW_WOFST + (w - zw) / 2;
-
-    /* Draw zones */
-    for(i = dz.zinfo_start_no; i <= dz.zinfo_end_no; i++) {
-
-	z = &dz.zones[i];
-
-	/* Draw zone outline */
-	zw = (w * zbc_zone_length(z)) / cap;
-	gdk_rgba_parse(&color, "Black");
-	gdk_cairo_set_source_rgba(cr, &color);
-	cairo_set_line_width(cr, 1);
-	cairo_rectangle(cr, x, DZ_DRAW_HOFST, zw, h - (DZ_DRAW_HOFST * 2));
-	cairo_stroke_preserve(cr);
-
-	if ( zbc_zone_conventional(z) ) {
-            gdk_cairo_set_source_rgba(cr, &dz.conv_color);
-	} else if ( zbc_zone_full(z) ) {
-            gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
-	} else {
-            gdk_cairo_set_source_rgba(cr, &dz.seqnw_color);
-	}
-	cairo_fill(cr);
-
-	if ( (! zbc_zone_conventional(z))
-             && (zbc_zone_imp_open(z)
-                 || zbc_zone_exp_open(z)
-                 || zbc_zone_closed(z)) ) {
-	    /* Written space in zone */
-	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);
-	    if ( ww ) {
-		gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
-		cairo_rectangle(cr, x, DZ_DRAW_HOFST, ww, h - DZ_DRAW_HOFST * 2);
-		cairo_fill(cr);
-	    }
-	}
-
-	/* Set font */
-	gdk_rgba_parse(&color, "Black");
-	gdk_cairo_set_source_rgba(cr, &color);
-	cairo_select_font_face(cr, "Monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-	cairo_set_font_size(cr, 10);
-
-	/* Write zone number */
-	sprintf(str, "%05d", i);
-	cairo_text_extents(cr, str, &te);
-	cairo_move_to(cr, x + zw / 2 - te.width / 2 - te.x_bearing, DZ_DRAW_HOFST - te.height / 2);
-	cairo_show_text(cr, str);
-
-	/* Write zone size */
-	sz = zbc_zone_length(z) * dz.info.zbd_logical_block_size;
-	if ( sz > (1024 * 1024 *1024) ) {
-	    sprintf(str, "%llu GiB", sz / (1024 * 1024 *1024));
-	} else {
-	    sprintf(str, "%llu MiB", sz / (1024 * 1024));
-	}
-	cairo_set_font_size(cr, 8);
-	cairo_text_extents(cr, str, &te);
-	cairo_move_to(cr, x + zw / 2 - te.width / 2 - te.x_bearing, h - te.height / 2);
-	cairo_show_text(cr, str);
-
-	x += zw;
-
+    if ( dzd ) {
+	dz_if_dev_refresh(dzd, 0);
     }
 
     return( FALSE );
@@ -1207,210 +545,22 @@ dz_if_delete_cb(GtkWidget *widget,
                 GdkEvent *event,
                 gpointer user_data)
 {
+    dz_dev_t *dzd;
+    int i;
 
     dz.window = NULL;
+
+    if ( dz.notebook ) {
+	for(i = 0; i < DZ_MAX_DEV; i++) {
+	    dzd = &dz.dev[i];
+	    if ( dzd->dev ) {
+		dz_if_remove_device(dzd);
+	    }
+	}
+    }
 
     gtk_main_quit();
 
     return;
 
 }
-
-static gboolean
-dz_if_exit_cb(GtkWidget *widget,
-              GdkEvent *event,
-              gpointer user_data)
-{
-
-    gtk_main_quit();
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_timer_cb(gpointer user_data)
-{
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( TRUE );
-
-}
-
-static gboolean
-dz_if_refresh_cb(GtkWidget *widget,
-                 GdkEvent *event,
-                 gpointer user_data)
-{
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_open_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data)
-{
-    GtkWidget *spinbutton = (GtkWidget *) user_data;
-    GtkWidget *dialog;
-    int zno, ret;
-
-    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-
-    ret = dz_open_zone(zno);
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Open zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Open zone %d failed %d (%s)",
-                                                 zno,
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
-    }
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_close_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data)
-{
-    GtkWidget *spinbutton = (GtkWidget *) user_data;
-    GtkWidget *dialog;
-    int zno, ret;
-
-    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-
-    ret = dz_close_zone(zno);
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Close zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Close zone %d failed %d (%s)",
-                                                 zno,
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
-    }
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_finish_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data)
-{
-    GtkWidget *spinbutton = (GtkWidget *) user_data;
-    GtkWidget *dialog;
-    int zno, ret;
-
-    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-
-    ret = dz_finish_zone(zno);
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Finish zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Finish zone %d failed %d (%s)",
-                                                 zno,
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
-    }
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-
-static gboolean
-dz_if_reset_cb(GtkWidget *widget,
-               GdkEvent *event,
-               gpointer user_data)
-{
-    GtkWidget *spinbutton = (GtkWidget *) user_data;
-    GtkWidget *dialog;
-    int zno, ret;
-
-    //gtk_spin_button_update(GTK_SPIN_BUTTON(spinbutton));
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-
-    ret = dz_reset_zone(zno);
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Reset zone write pointer failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Reset zone %d failed %d (%s)",
-                                                 zno,
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
-    }
-
-    /* Update zinfo */
-    dz_if_update_zinfo();
-
-    /* Redraw zone info */
-    dz_if_redraw_zinfo();
-
-    return( FALSE );
-
-}
-

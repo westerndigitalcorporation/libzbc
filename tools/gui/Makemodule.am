@@ -3,6 +3,7 @@ bin_PROGRAMS += gzbc
 gzbc_SOURCES = \
 	tools/gui/gzbc.c \
 	tools/gui/gzbc_if.c \
+	tools/gui/gzbc_if_dev.c \
 	tools/gui/gzbc.h
 
 gzbc_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)

@@ -46,23 +46,62 @@ enum {
     DZ_ZONE_LIST_COLUMS
 };
 
+/**
+ * Maximum number of devices that can be open.
+ */
+#define DZ_MAX_DEV	32
 
 /***** Type definitions *****/
+
+/**
+ * GUI Tab data.
+ */
+typedef struct dz_dev {
+
+    char                        path[128];
+
+    struct zbc_device           *dev;
+    struct zbc_device_info      info;
+    int                         block_size;
+
+    int                         zone_ro;
+    unsigned int                max_nr_zones;
+    unsigned int                nr_zones;
+    struct zbc_zone             *zones;
+
+    /**
+     * Interface stuff.
+     */
+    GtkWidget                   *page;
+    GtkWidget                   *page_frame;
+
+    GtkWidget                   *zfilter_combo;
+    GtkWidget                   *zinfo_spinbutton;
+    GtkWidget                   *zinfo_frame_label;
+    GtkWidget                   *zinfo_treeview;
+    GtkTreeModel                *zinfo_model;
+    GtkListStore                *zinfo_store;
+    unsigned int		zinfo_start_no;
+    unsigned int		zinfo_end_no;
+    int		                zinfo_selection;
+
+    GtkWidget                   *zstate_da;
+
+    /**
+     * For handling timer and signals.
+     */
+    guint                       timer_id;
+    int                         sig_pipe[2];
+
+} dz_dev_t;
 
 /**
  * GUI data.
  */
 typedef struct dz {
 
-    char                        *path;
-
-    struct zbc_device           *dev;
-    struct zbc_device_info      info;
-
-    int                         zone_ro;
-    unsigned int                max_nr_zones;
-    unsigned int                nr_zones;
-    struct zbc_zone             *zones;
+    dz_dev_t			dev[DZ_MAX_DEV];
+    int				nr_devs;
 
     int                         interval;
     int                         block_size;
@@ -72,23 +111,14 @@ typedef struct dz {
      * Interface stuff.
      */
     GtkWidget                   *window;
+    GtkWidget                   *vbox;
     GtkWidget                   *notebook;
+    GtkWidget                   *no_dev_frame;
+    GtkWidget                   *block_size_entry;
 
     GdkRGBA			conv_color;
     GdkRGBA			seqnw_color;
     GdkRGBA			seqw_color;
-
-    GtkWidget                   *zinfo_spinbutton;
-    GtkWidget                   *zinfo_frame_label;
-    GtkWidget                   *zinfo_treeview;
-    GtkTreeModel                *zinfo_model;
-    GtkListStore                *zinfo_store;
-    unsigned int		zinfo_start_no;
-    unsigned int		zinfo_end_no;
-    unsigned int		zinfo_lines;
-    int		                zinfo_selection;
-
-    GtkWidget                   *zstate_da;
 
     /**
      * For handling timer and signals.
@@ -120,25 +150,48 @@ extern dz_t dz;
 
 /***** Declaration of public functions *****/
 
-extern int
-dz_get_zones(void);
+extern dz_dev_t *
+dz_open(char *path);
+
+extern void
+dz_close(dz_dev_t *dzd);
 
 extern int
-dz_open_zone(int zno);
+dz_get_zones(dz_dev_t *dzd);
 
 extern int
-dz_close_zone(int zno);
+dz_open_zone(dz_dev_t *dzd,
+	     int zno);
 
 extern int
-dz_finish_zone(int zno);
+dz_close_zone(dz_dev_t *dzd,
+	      int zno);
 
 extern int
-dz_reset_zone(int zno);
+dz_finish_zone(dz_dev_t *dzd,
+	       int zno);
+
+extern int
+dz_reset_zone(dz_dev_t *dzd,
+	      int zno);
 
 extern int
 dz_if_create(void);
 
 extern void
 dz_if_destroy(void);
+
+extern void
+dz_if_add_device(char *dev_path);
+
+extern dz_dev_t *
+dz_if_dev_open(char *path);
+
+extern void
+dz_if_dev_close(dz_dev_t *dzd);
+
+extern void
+dz_if_dev_refresh(dz_dev_t *dzd,
+		  int update_zones);
 
 #endif /* __GZBC_H__ */

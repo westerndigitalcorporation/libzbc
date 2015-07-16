@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  */
 
@@ -43,17 +43,11 @@ int
 main(int argc,
      char **argv)
 {
-    char *path = NULL;
     gboolean init_ret;
     gboolean verbose = FALSE;
     GError *error = NULL;
-    int ret;
+    int i;
     GOptionEntry options[] = {
-        {
-            "dev", 'd', 0,
-            G_OPTION_ARG_FILENAME, &path,
-            "ZBC device file", NULL
-        },
         {
             "interval", 'i', 0,
             G_OPTION_ARG_INT, &dz.interval,
@@ -62,7 +56,7 @@ main(int argc,
 	{
             "block", 'b', 0,
             G_OPTION_ARG_INT, &dz.block_size,
-            "Use block bytes as the unit for displaying zone LBA, length and writepointer position", NULL
+            "Use block bytes as the unit for displaying zone LBA, length and write pointer position", NULL
         },
         {
             "verbose", 'v', 0,
@@ -88,13 +82,14 @@ main(int argc,
         return( 1 );
     }
 
-    if ( ! path ) {
-        path = argv[1];
-    }
-
     if ( dz.interval < 0 ) {
         fprintf(stderr, "Invalid update interval\n");
         return( 1 );
+    }
+
+    if ( dz.block_size < 0 ) {
+	fprintf(stderr, "Invalid block size\n");
+	return( 1 );
     }
 
     if ( verbose ) {
@@ -103,108 +98,139 @@ main(int argc,
 
     dz_set_signal_handlers();
 
-    /* Open device file */
-    ret = zbc_open(path, O_RDONLY, &dz.dev);
-    if ( ret != 0 ) {
-        fprintf(stderr, "Open device %s failed\n",
-                path);
-        return( 1 );
-    }
-
-    ret = zbc_get_device_info(dz.dev, &dz.info);
-    if ( ret != 0 ) {
-        fprintf(stderr,
-                "zbc_get_device_info failed\n");
-	ret = 1;
-        goto out;
-    }
-
-    if ( dz.block_size ) {
-
-	if ( dz.block_size < 0 ) {
-	    fprintf(stderr, "Invalid block size\n");
-	    ret = 1;
-	    goto out;
-	}
-
-	if ( ((unsigned int) dz.block_size < dz.info.zbd_logical_block_size)
-	     && (dz.info.zbd_logical_block_size % dz.block_size) ) {
-	    fprintf(stderr,
-		    "Block size %d is not a divisor of the disk logical sector size %u\n",
-		    dz.block_size,
-		    (unsigned int) dz.info.zbd_logical_block_size);
-	    ret = 1;
-	    goto out;
-	}
-
-	if ( ((unsigned int) dz.block_size >= dz.info.zbd_logical_block_size)
-	     && (dz.block_size % dz.info.zbd_logical_block_size) ) {
-	    fprintf(stderr,
-		    "Block size %d is not a multiple of the disk logical sector size %u\n",
-		    dz.block_size,
-		    (unsigned int) dz.info.zbd_logical_block_size);
-	    ret = 1;
-	    goto out;
-	}
-
-    } else {
-
-	dz.block_size = dz.info.zbd_logical_block_size;
-
-    }
-
-    /* Get zone information */
-    dz.path = path;
-    ret = dz_get_zones();
-    if ( ret != 0 ) {
-        goto out;
-    }
-
     /* Create GUI */
     dz_if_create();
 
+    /* Add devices listed on command line */
+    for(i = 1; i < argc; i++ ) {
+	dz_if_add_device(argv[i]);
+    }
+
     /* Main event loop */
     gtk_main();
-        
+
     /* Cleanup GUI */
     dz_if_destroy();
 
-out:
-    
-    zbc_close(dz.dev);
+    return( 0 );
 
-    return( ret );
+}
+
+dz_dev_t *
+dz_open(char *path)
+{
+    dz_dev_t *dzd = NULL;
+    int i, ret;
+
+    /* Get an unused device */
+    for(i = 0; i < DZ_MAX_DEV; i++) {
+	if ( ! dz.dev[i].dev ) {
+	    dzd = &dz.dev[i];
+	    break;
+	}
+    }
+
+    if ( ! dzd ) {
+	return( NULL );
+    }
+
+    /* Open device file */
+    strncpy(dzd->path, path, sizeof(dzd->path) - 1);
+    ret = zbc_open(dzd->path, O_RDONLY, &dzd->dev);
+    if ( ret != 0 ) {
+        return( NULL );
+    }
+
+    ret = zbc_get_device_info(dzd->dev, &dzd->info);
+    if ( ret != 0 ) {
+        fprintf(stderr,
+                "zbc_get_device_info failed\n");
+        goto out;
+    }
+
+    dzd->block_size = dz.block_size;
+    if ( dzd->block_size ) {
+	if ( ((unsigned int) dzd->block_size < dzd->info.zbd_logical_block_size)
+	     && (dzd->info.zbd_logical_block_size % dzd->block_size) ) {
+	    dzd->block_size = 0;
+	} else if ( ((unsigned int) dzd->block_size >= dzd->info.zbd_logical_block_size)
+		    && (dzd->block_size % dzd->info.zbd_logical_block_size) ) {
+	    dzd->block_size = 0;
+	}
+    }
+
+    if ( ! dzd->block_size ) {
+	dzd->block_size = dzd->info.zbd_logical_block_size;
+    }
+
+    /* Get zone information */
+    ret = dz_get_zones(dzd);
+    if ( ret != 0 ) {
+	goto out;
+    }
+
+    dz.nr_devs++;
+
+out:
+
+    if ( ret != 0 ) {
+	dz_close(dzd);
+	dzd = NULL;
+    }
+
+    return( dzd );
+
+}
+
+void
+dz_close(dz_dev_t *dzd)
+{
+
+    if ( dzd->dev ) {
+
+	if ( dzd->zones ) {
+	    free(dzd->zones);
+	}
+
+	zbc_close(dzd->dev);
+
+	memset(dzd, 0, sizeof(dz_dev_t));
+	dz.nr_devs--;
+
+    }
+
+    return;
 
 }
 
 int
-dz_get_zones(void )
+dz_get_zones(dz_dev_t *dzd)
 {
     int ret;
 
-    if ( ! dz.zones ) {
+    if ( ! dzd->zones ) {
 
 	/* Get zone list */
-        dz.zone_ro = ZBC_RO_ALL;
-	ret = zbc_list_zones(dz.dev, 0, dz.zone_ro, &dz.zones, &dz.nr_zones);
+        dzd->zone_ro = ZBC_RO_ALL;
+	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zones, &dzd->nr_zones);
 	if ( ret == 0 ) {
-            dz.max_nr_zones = dz.nr_zones;
+            dzd->max_nr_zones = dzd->nr_zones;
 	}
 
     } else {
 
         /* Refresh zone list */
-        dz.nr_zones = dz.max_nr_zones;
-        ret = zbc_report_zones(dz.dev, 0, dz.zone_ro, dz.zones, &dz.nr_zones);
+        dzd->nr_zones = dzd->max_nr_zones;
+        ret = zbc_report_zones(dzd->dev, 0, dzd->zone_ro, dzd->zones, &dzd->nr_zones);
         if ( ret != 0 ) {
             fprintf(stderr, "Get zone information failed %d (%s)\n",
                     errno,
                     strerror(errno));
-            if ( dz.zones ) {
-                free(dz.zones);
-                dz.zones = NULL;
-                dz.nr_zones = 0;
-                dz.max_nr_zones = 0;
+            if ( dzd->zones ) {
+                free(dzd->zones);
+                dzd->zones = NULL;
+                dzd->nr_zones = 0;
+                dzd->max_nr_zones = 0;
             }
         }
 
@@ -215,14 +241,15 @@ dz_get_zones(void )
 }
 
 int
-dz_open_zone(int zno)
+dz_open_zone(dz_dev_t *dzd,
+	     int zno)
 {
     int ret = 0;
 
-    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
-        ret = zbc_open_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
     } else if ( zno == -1 ) {
-        ret = zbc_open_zone(dz.dev, -1);
+        ret = zbc_open_zone(dzd->dev, -1);
     }
 
     if ( ret != 0 ) {
@@ -237,14 +264,15 @@ dz_open_zone(int zno)
 }
 
 int
-dz_close_zone(int zno)
+dz_close_zone(dz_dev_t *dzd,
+	      int zno)
 {
     int ret = 0;
 
-    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
-        ret = zbc_close_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
     } else if ( zno == -1 ) {
-        ret = zbc_close_zone(dz.dev, -1);
+        ret = zbc_close_zone(dzd->dev, -1);
     }
 
     if ( ret != 0 ) {
@@ -259,14 +287,15 @@ dz_close_zone(int zno)
 }
 
 int
-dz_finish_zone(int zno)
+dz_finish_zone(dz_dev_t *dzd,
+	      int zno)
 {
     int ret = 0;
 
-    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
-        ret = zbc_finish_zone(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
     } else if ( zno == -1 ) {
-        ret = zbc_finish_zone(dz.dev, -1);
+        ret = zbc_finish_zone(dzd->dev, -1);
     }
 
     if ( ret != 0 ) {
@@ -281,14 +310,15 @@ dz_finish_zone(int zno)
 }
 
 int
-dz_reset_zone(int zno)
+dz_reset_zone(dz_dev_t *dzd,
+	      int zno)
 {
     int ret = 0;
 
-    if ( (zno >= 0) && (zno < (int)dz.nr_zones) ) {
-        ret = zbc_reset_write_pointer(dz.dev, zbc_zone_start_lba(&dz.zones[zno]));
+    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
     } else if ( zno == -1 ) {
-        ret = zbc_reset_write_pointer(dz.dev, -1);
+        ret = zbc_reset_write_pointer(dzd->dev, -1);
     }
 
     if ( ret != 0 ) {
@@ -330,8 +360,7 @@ static void
 dz_sig_handler(int sig)
 {
 
-    /* Send signal */
-    printf("\nSignal %d caught\n", sig);
+    /* Propagate signal through the pipe */
     if ( write(dz.sig_pipe[1], &sig, sizeof(int)) < 0 ) {
         printf("Signal %d processing failed\n", sig);
     }
@@ -343,7 +372,7 @@ dz_sig_handler(int sig)
 static void
 dz_set_signal_handlers(void)
 {
-    GIOChannel *sig_channel; 
+    GIOChannel *sig_channel;
     long fd_flags;
     int ret;
 
