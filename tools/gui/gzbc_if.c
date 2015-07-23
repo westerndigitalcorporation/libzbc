@@ -375,7 +375,7 @@ dz_if_open_cb(GtkWidget *widget,
 					  "_Open",
 					  GTK_RESPONSE_ACCEPT,
 					  NULL);
-    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog), "/dev/sg*");
+    /* gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog), "/dev/sg*"); */
 
     res = gtk_dialog_run(GTK_DIALOG(dialog));
     if ( res == GTK_RESPONSE_ACCEPT ) {
