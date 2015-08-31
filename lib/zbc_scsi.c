@@ -948,7 +948,8 @@ out:
 }
 
 /**
- * Get zoned block device characteristics(Maximum or optimul number of opening zones).
+ * Get zoned block device characteristics
+ * (Maximum or optimum number of open zones).
  */
 static int
 zbc_scsi_get_zbd_chars(zbc_device_t *dev)
@@ -975,7 +976,7 @@ zbc_scsi_get_zbd_chars(zbc_device_t *dev)
         goto out;
     }
 
-    /* URSWRZ(unrestricted read write sequential required zone) flag */
+    /* URSWRZ (unrestricted read in sequential write required zone) flag */
     dev->zbd_info.zbd_flags |= (cmd.out_buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 
     /* Resource of handling zones */
