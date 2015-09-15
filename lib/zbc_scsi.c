@@ -981,7 +981,7 @@ zbc_scsi_get_zbd_chars(zbc_device_t *dev)
 
     /* Resource of handling zones */
     dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
+    dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
     dev->zbd_info.zbd_max_nr_open_seq_req = zbc_sg_cmd_get_int32(&cmd.out_buf[16]);
 
     if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED)

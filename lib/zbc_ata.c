@@ -687,7 +687,7 @@ zbc_ata_get_zbd_info(zbc_device_t *dev)
 
     /* Maximum number of zones for resource management */
     dev->zbd_info.zbd_opt_nr_open_seq_pref = zbc_ata_get_qword(&buf[24]) & 0xffffffff;
-    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
+    dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
     dev->zbd_info.zbd_max_nr_open_seq_req = zbc_ata_get_qword(&buf[40]) & 0xffffffff;
 
     if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED)

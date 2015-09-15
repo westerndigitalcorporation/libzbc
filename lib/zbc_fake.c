@@ -387,7 +387,7 @@ zbc_fake_set_info(struct zbc_device *dev)
     strncpy(dev->zbd_info.zbd_vendor_id, "FAKE HGST HM libzbc", ZBC_DEVICE_INFO_LENGTH - 1);
 
     dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
-    dev->zbd_info.zbd_opt_nr_open_non_seq_write_seq_pref = 0;
+    dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
     dev->zbd_info.zbd_max_nr_open_seq_req = ZBC_FAKE_MAX_OPEN_NR_ZONES;
 
     return 0;
