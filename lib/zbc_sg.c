@@ -8,7 +8,7 @@
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
- * 
+ *
  * Author: Damien Le Moal (damien.lemoal@hgst.com)
  *         Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -205,7 +205,7 @@ zbc_sg_set_sense(zbc_device_t *dev,
 
         dev->zbd_errno.sk       = 0x00;
         dev->zbd_errno.asc_ascq = 0x0000;
-        
+
     } else {
 
         if ( (sense_buf[0] & 0x7F) == 0x72
@@ -213,15 +213,15 @@ zbc_sg_set_sense(zbc_device_t *dev,
 
             /* store sense key, ASC/ASCQ */
             dev->zbd_errno.sk       = sense_buf[1] & 0x0F;
-            dev->zbd_errno.asc_ascq = sense_buf[2] << 8 | sense_buf[3]; 
+            dev->zbd_errno.asc_ascq = ((int)sense_buf[2] << 8) | (int)sense_buf[3];
 
         } else if ( (sense_buf[0] & 0x7F) == 0x70
                     || (sense_buf[0] & 0x7F) == 0x71 ) {
 
             /* store sense key, ASC/ASCQ */
             dev->zbd_errno.sk       = sense_buf[2] & 0x0F;
-            dev->zbd_errno.asc_ascq = sense_buf[12] << 8 | sense_buf[13]; 
-            
+            dev->zbd_errno.asc_ascq = ((int)sense_buf[12] << 8) | (int)sense_buf[13];
+
         }
     }
 
