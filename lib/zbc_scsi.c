@@ -143,24 +143,27 @@ zbc_scsi_classify(zbc_device_t *dev)
 	     && (cmd.out_buf[3] == 0x3C) ) {
 
             switch( (cmd.out_buf[8] & 0x30) >> 4 ) {
-                case 0x01:
-                    /* Host aware device */
-                    zbc_debug("Host aware ZBC disk detected\n");
-	            dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-                    break;
-                case 0x00:
-                case 0x10:
-                    /* Standard or drive-managed device */
-                    zbc_debug("Standard or drive managed SCSI disk detected\n");
-                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
-                    ret = -ENXIO;
-                    break;
 
-                default:
-                    zbc_debug("Unknown device type\n");
-                    dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
-                    ret = -ENXIO;
-                    break;
+	    case 0x01:
+		/* Host aware device */
+		zbc_debug("Host aware ZBC disk detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+		break;
+
+	    case 0x00:
+	    case 0x10:
+		/* Standard or drive-managed device */
+		zbc_debug("Standard or drive managed SCSI disk detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+		ret = -ENXIO;
+		break;
+
+	    default:
+		zbc_debug("Unknown device type\n");
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+		ret = -ENXIO;
+		break;
+
             }
 
 	}
