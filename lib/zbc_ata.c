@@ -227,6 +227,9 @@ zbc_ata_read_log(zbc_device_t *dev,
 
 }
 
+/**
+ * Forward declaration.
+ */
 static int
 zbc_ata_nr_zones(zbc_device_t *dev,
 		 uint64_t start_lba,
@@ -441,7 +444,7 @@ static int
 zbc_ata_enable_sense_data(zbc_device_t *dev)
 {
 
-    return ( zbc_ata_set_features(dev, ENABLE_SENSE_DATA_REPORTING, 1) );
+    return( zbc_ata_set_features(dev, ENABLE_SENSE_DATA_REPORTING, 1) );
 
 }
 
@@ -454,16 +457,13 @@ zbc_ata_sense_data_enabled(zbc_sg_cmd_t *cmd)
     int ret = 0;
 
     if ( cmd->io_hdr.sb_len_wr > 8 ) {
-
         if ( cmd->sense_buf[8] == 0x09          /* Descriptor code */
              && cmd->sense_buf[21] & 0x02 ) {   /* Status including sense data flag */
-
             ret = 1;
         }
-
     }
 
-    return ret;
+    return( ret );
 }
 
 /**
@@ -473,7 +473,7 @@ static int
 zbc_ata_request_sense_data_ext(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;
-    int i, ret;
+    int ret;
 
     /* Intialize command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
@@ -532,37 +532,39 @@ zbc_ata_request_sense_data_ext(zbc_device_t *dev)
 
     /* Execute the command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
+    if ( ret == 0 ) {
 
-    if ( !ret ) {
         if ( cmd.io_hdr.sb_len_wr ) {
             zbc_debug("%s: Sense data (%d B):\n",
                     dev->zbd_filename,
                     cmd.io_hdr.sb_len_wr);
-            for(i = 0; i < cmd.io_hdr.sb_len_wr; i += 4) {
-                zbc_debug("%s: [%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
-                        dev->zbd_filename,
-                        i,
-                        (unsigned int)cmd.sense_buf[i],
-                        ((i + 1) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 1] : 0,
-                        ((i + 2) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 2] : 0,
-                        ((i + 3) < cmd.io_hdr.sb_len_wr) ? (unsigned int)cmd.sense_buf[i + 3] : 0);
-            }
+	    zbc_sg_print_bytes(dev, cmd.sense_buf, cmd.io_hdr.sb_len_wr);
         } else {
             zbc_debug("%s: No sense data\n", dev->zbd_filename);
         }
 
         if ( cmd.io_hdr.sb_len_wr > 8 ) {
-            zbc_debug("Sense key is 0x%x\n", cmd.sense_buf[19] & 0xF);
-            zbc_debug("Additional sense code is 0x%02x\n", cmd.sense_buf[17]);
-            zbc_debug("Additional sense code qualifier is 0x%02x\n", cmd.sense_buf[15]);
-
+	    zbc_debug("%s: Sense key is 0x%x\n",
+		      dev->zbd_filename,
+		      cmd.sense_buf[19] & 0xF);
+	    zbc_debug("%s: Additional sense code is 0x%02x\n",
+		      dev->zbd_filename,
+		      cmd.sense_buf[17]);
+	    zbc_debug("%s: Additional sense code qualifier is 0x%02x\n",
+		      dev->zbd_filename,
+		      cmd.sense_buf[15]);
             dev->zbd_errno.sk = cmd.sense_buf[19] & 0xF;
-            dev->zbd_errno.asc_ascq = cmd.sense_buf[17] << 8 | cmd.sense_buf[15];
+            dev->zbd_errno.asc_ascq = ((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15];
         } else {
-            zbc_debug("Sense buffer is less than 8B, %d\n", cmd.io_hdr.sb_len_wr);
+            zbc_debug("%s: Sense buffer length is %d (less than 8B)\n",
+		      dev->zbd_filename,
+		      cmd.io_hdr.sb_len_wr);
         }
+
     } else {
-        zbc_error("REQUEST SENSE DATA command is failed\n");
+
+        zbc_error("REQUEST SENSE DATA command failed\n");
+
     }
 
     zbc_sg_cmd_destroy(&cmd);
@@ -1196,19 +1198,16 @@ zbc_ata_report_zones(zbc_device_t *dev,
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
-
-        /* Request sense data */
         if ( ret == -EIO ) {
-            if ( dev->zbd_errno.sk != ZBC_E_ILLEGAL_REQUEST
-                 && dev->zbd_errno.asc_ascq != ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE ) {
-
+	    /* Request sense data */
+            if ( (dev->zbd_errno.sk != ZBC_E_ILLEGAL_REQUEST)
+                 && (dev->zbd_errno.asc_ascq != ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE) ) {
                 /* If request sense data is enabled , try to get sense data */
                 if ( zbc_ata_sense_data_enabled(&cmd) ) {
                     zbc_ata_request_sense_data_ext(dev);
                 }
             }
         }
-
         goto out;
     }
 
