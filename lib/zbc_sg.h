@@ -408,4 +408,12 @@ zbc_sg_cmd_get_int16(uint8_t *buf)
 
 }
 
+/**
+ * Print an array of bytes.
+ */
+extern void
+zbc_sg_print_bytes(zbc_device_t *dev,
+		   uint8_t *buf,
+		   unsigned int len);
+
 #endif /* __LIBZBC_SG_H__ */

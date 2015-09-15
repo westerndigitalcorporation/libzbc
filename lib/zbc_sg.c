@@ -177,6 +177,9 @@ static struct zbc_sg_cmd_s
 
 };
 
+/**
+ * Get a command name from its operation code in a CDB.
+ */
 static char *
 zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
 {
@@ -339,42 +342,15 @@ int
 zbc_sg_cmd_exec(zbc_device_t *dev,
                 zbc_sg_cmd_t *cmd)
 {
-    char msg[512];
-    int n, ret;
-    unsigned i = 0, j;
+    int ret;
 
     if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-
-        zbc_debug("%s: Sending command 0x%02x:0x%02x (%s)\n",
+        zbc_debug("%s: Sending command 0x%02x:0x%02x (%s):\n",
                   dev->zbd_filename,
                   cmd->cdb_opcode,
                   cmd->cdb_sa,
                   zbc_sg_cmd_name(cmd));
-
-        zbc_debug("%s: * +==================================\n", dev->zbd_filename);
-        zbc_debug("%s: * |Byte |   0  |  1   |  2   |  3   |\n", dev->zbd_filename);
-        zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
-        while( i < cmd->cdb_sz ) {
-
-            n = 0;
-            for(j = 0; j < 4; j++) {
-                if ( i < cmd->cdb_sz ) {
-                    n += sprintf(msg + n, " 0x%02x |",
-                                 (int)cmd->cdb[i]);
-                } else {
-                    n += sprintf(msg + n, "      |");
-                }
-                i++;
-            }
-
-            zbc_debug("%s: * | %3d |%s\n", dev->zbd_filename, i, msg);
-            if ( i < (cmd->cdb_sz - 4) ) {
-                zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
-            } else {
-                zbc_debug("%s: * +==================================\n", dev->zbd_filename);
-            }
-        }
-
+	zbc_sg_print_bytes(dev, cmd->cdb, cmd->cdb_sz);
     }
 
     /* Send the SG_IO command */
@@ -442,15 +418,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
                 zbc_debug("%s: Sense data (%d B):\n",
 			  dev->zbd_filename,
 			  cmd->io_hdr.sb_len_wr);
-                for(i = 0; i < cmd->io_hdr.sb_len_wr; i += 4) {
-                    zbc_debug("%s: [%02d]: 0x%02x 0x%02x 0x%02x 0x%02x\n",
-			      dev->zbd_filename,
-                              i,
-                              (unsigned int)cmd->sense_buf[i],
-                              ((i + 1) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 1] : 0,
-                              ((i + 2) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 2] : 0,
-                              ((i + 3) < cmd->io_hdr.sb_len_wr) ? (unsigned int)cmd->sense_buf[i + 3] : 0);
-                }
+		zbc_sg_print_bytes(dev, cmd->sense_buf, cmd->io_hdr.sb_len_wr);
             } else {
                 zbc_debug("%s: No sense data\n", dev->zbd_filename);
             }
@@ -633,3 +601,43 @@ zbc_sg_cmd_get_bytes(uint8_t *val,
 
 }
 
+/**
+ * Print an array of bytes.
+ */
+void
+zbc_sg_print_bytes(zbc_device_t *dev,
+		   uint8_t *buf,
+		   unsigned int len)
+{
+    char msg[512];
+    unsigned i = 0, j;
+    int n;
+
+    zbc_debug("%s: * +==================================\n", dev->zbd_filename);
+    zbc_debug("%s: * |Byte |   0  |  1   |  2   |  3   |\n", dev->zbd_filename);
+    zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
+
+    while( i < len ) {
+
+	n = sprintf(msg, "%s: * | %3d |", dev->zbd_filename, i);
+	for(j = 0; j < 4; j++) {
+	    if ( i < len ) {
+		n += sprintf(msg + n, " 0x%02x |",
+			     (unsigned int)buf[i]);
+	    } else {
+		n += sprintf(msg + n, "      |");
+	    }
+	    i++;
+	}
+
+	zbc_debug("%s\n", msg);
+	if ( i < (len - 4) ) {
+	    zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
+	} else {
+	    zbc_debug("%s: * +==================================\n", dev->zbd_filename);
+	}
+    }
+
+    return;
+
+}
