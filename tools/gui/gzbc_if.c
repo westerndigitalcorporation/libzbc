@@ -138,7 +138,7 @@ dz_if_create(void)
 
     /* Toolbar block size */
     ti = gtk_tool_item_new();
-    gtk_tool_item_set_tooltip_text(ti, "Change block size unit (B)");
+    gtk_tool_item_set_tooltip_text(ti, "Block size unit (B)");
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_container_add(GTK_CONTAINER(ti), hbox);
@@ -246,6 +246,8 @@ dz_if_add_device(char *dev_path)
 				       hbox);
     dzd->page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(dz.notebook), page_no);
     gtk_notebook_set_current_page(GTK_NOTEBOOK(dz.notebook), page_no);
+    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
 
     return;
 
