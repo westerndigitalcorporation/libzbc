@@ -55,18 +55,8 @@ dz_if_close_page_cb(GtkWidget *widget,
 		    gpointer user_data);
 
 static void
-dz_if_switch_page_cb(GtkNotebook *notebook,
-		     GtkWidget *page,
-		     guint page_num,
-		     gpointer user_data);
-
-static void
 dz_if_refresh_cb(GtkWidget *widget,
 		 gpointer user_data);
-
-static void
-dz_if_set_block_size_cb(GtkWidget *widget,
-			gpointer user_data);
 
 static void
 dz_if_exit_cb(GtkWidget *widget,
@@ -81,11 +71,8 @@ int
 dz_if_create(void)
 {
     GtkWidget *toolbar;
-    GtkWidget *label;
-    GtkWidget *hbox;
     GtkWidget *sep;
     GtkToolItem *ti;
-    char str[32];
 
     /* Get colors */
     gdk_rgba_parse(&dz.conv_color, "Magenta");
@@ -136,23 +123,7 @@ dz_if_create(void)
 
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
 
-    /* Toolbar block size */
-    ti = gtk_tool_item_new();
-    gtk_tool_item_set_tooltip_text(ti, "Block size unit (B)");
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
-    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_container_add(GTK_CONTAINER(ti), hbox);
-    label = gtk_label_new("Block size (B)");
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    dz.block_size_entry = gtk_entry_new();
-    snprintf(str, sizeof(str) - 1, "%d", dz.block_size);
-    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
-    gtk_box_pack_start(GTK_BOX(hbox), dz.block_size_entry, FALSE, FALSE, 0);
-    g_signal_connect((gpointer)dz.block_size_entry, "activate", G_CALLBACK(dz_if_set_block_size_cb), NULL);
-
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
-
-    /* Toolbar block size */
+    /* Toolbar exit button */
     ti = gtk_tool_button_new(gtk_image_new_from_icon_name("application-exit", GTK_ICON_SIZE_LARGE_TOOLBAR), "Quit");
     gtk_tool_item_set_tooltip_text(ti, "Quit");
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
@@ -246,8 +217,6 @@ dz_if_add_device(char *dev_path)
 				       hbox);
     dzd->page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(dz.notebook), page_no);
     gtk_notebook_set_current_page(GTK_NOTEBOOK(dz.notebook), page_no);
-    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
-    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
 
     return;
 
@@ -308,7 +277,6 @@ dz_if_hide_nodev(void)
 	gtk_notebook_set_show_tabs(GTK_NOTEBOOK(dz.notebook), TRUE);
 	gtk_widget_show(dz.notebook);
 	gtk_box_pack_start(GTK_BOX(dz.vbox), dz.notebook, TRUE, TRUE, 0);
-	g_signal_connect((gpointer)dz.notebook, "switch_page", G_CALLBACK(dz_if_switch_page_cb), NULL);
     }
 
     return;
@@ -425,29 +393,6 @@ dz_if_close_page_cb(GtkWidget *widget,
 }
 
 static void
-dz_if_switch_page_cb(GtkNotebook *notebook,
-		     GtkWidget *page,
-		     guint page_num,
-		     gpointer user_data)
-{
-    dz_dev_t *dzd = NULL;
-    char str[32];
-    int i;
-
-    for(i = 0; i < DZ_MAX_DEV; i++) {
-	dzd = &dz.dev[i];
-	if ( dzd->dev && (dzd->page == page) ) {
-	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
-	    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
-	    break;
-	}
-    }
-
-    return;
-
-}
-
-static void
 dz_if_refresh_cb(GtkWidget *widget,
 		 gpointer user_data)
 {
@@ -455,37 +400,6 @@ dz_if_refresh_cb(GtkWidget *widget,
 
     if ( dzd ) {
 	dz_if_dev_refresh(dzd, 1);
-    }
-
-    return;
-
-}
-
-static void
-dz_if_set_block_size_cb(GtkWidget *widget,
-			gpointer user_data)
-{
-    char *val_str = (char *) gtk_entry_get_text(GTK_ENTRY(dz.block_size_entry));
-    dz_dev_t *dzd = dz_if_get_device();
-
-    if ( val_str && dzd ) {
-
-	int block_size = atoi(val_str);
-
-	if ( block_size > 0 ) {
-	    dzd->block_size = block_size;
-	} else {
-	    char str[32];
-	    if ( dz.block_size ) {
-		dzd->block_size = dz.block_size;
-	    } else {
-		dzd->block_size = dzd->info.zbd_logical_block_size;
-	    }
-	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
-	    gtk_entry_set_text(GTK_ENTRY(dz.block_size_entry), str);
-	}
-	dz_if_dev_refresh(dzd, 1);
-
     }
 
     return;

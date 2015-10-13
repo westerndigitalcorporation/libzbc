@@ -114,7 +114,6 @@ typedef struct dz {
     GtkWidget                   *vbox;
     GtkWidget                   *notebook;
     GtkWidget                   *no_dev_frame;
-    GtkWidget                   *block_size_entry;
 
     GdkRGBA			conv_color;
     GdkRGBA			seqnw_color;

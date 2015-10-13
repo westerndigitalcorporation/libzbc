@@ -139,6 +139,10 @@ static gboolean
 dz_if_reset_cb(GtkWidget *widget,
                gpointer user_data);
 
+static void
+dz_if_set_block_size_cb(GtkWidget *widget,
+			gpointer user_data);
+
 static inline void
 dz_if_set_margin(GtkWidget *widget,
                  int left, int right,
@@ -195,6 +199,7 @@ dz_if_dev_open(char *path)
     GtkWidget *button;
     GtkWidget *image;
     GtkWidget *label;
+    GtkWidget *entry;
     GtkWidget *spinbutton;
     GtkWidget *hbuttonbox;
     GtkWidget *treeview;
@@ -407,14 +412,14 @@ dz_if_dev_open(char *path)
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
     gtk_widget_show(label);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 5);
 
     spinbutton = gtk_spin_button_new_with_range(-1, dzd->nr_zones - 1, 1);
     gtk_widget_show(spinbutton);
     gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
     gtk_spin_button_set_digits(GTK_SPIN_BUTTON(spinbutton), 0);
     gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(spinbutton), TRUE);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 5);
     dzd->zinfo_spinbutton = spinbutton;
 
     g_signal_connect((gpointer) spinbutton, "value-changed",
@@ -504,6 +509,21 @@ dz_if_dev_open(char *path)
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_reset_cb), dzd);
+
+    /* Block size */
+    entry = gtk_entry_new();
+    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+    gtk_entry_set_text(GTK_ENTRY(entry), str);
+    gtk_widget_show(entry);
+    gtk_box_pack_end(GTK_BOX(ctrl_hbox), entry, FALSE, FALSE, 5);
+
+    g_signal_connect((gpointer)entry, "activate", G_CALLBACK(dz_if_set_block_size_cb), dzd);
+
+    label = gtk_label_new("<b>Block size (B)</b>");
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_widget_show(label);
+    gtk_box_pack_end(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 5);
 
     /* Link tree view selection and spinbutton value */
     gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
@@ -1401,6 +1421,37 @@ dz_if_reset_cb(GtkWidget *widget,
     dz_if_update_zinfo(dzd);
 
     return( FALSE );
+
+}
+
+static void
+dz_if_set_block_size_cb(GtkWidget *widget,
+			gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+    char *val_str = (char *) gtk_entry_get_text(GTK_ENTRY(widget));
+
+    if ( val_str && dzd ) {
+
+	int block_size = atoi(val_str);
+
+	if ( block_size > 0 ) {
+	    dzd->block_size = block_size;
+	} else {
+	    char str[32];
+	    if ( dz.block_size ) {
+		dzd->block_size = dz.block_size;
+	    } else {
+		dzd->block_size = dzd->info.zbd_logical_block_size;
+	    }
+	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+	    gtk_entry_set_text(GTK_ENTRY(widget), str);
+	}
+	dz_if_dev_refresh(dzd, 1);
+
+    }
+
+    return;
 
 }
 
