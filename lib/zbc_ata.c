@@ -1114,6 +1114,7 @@ static int
 zbc_ata_report_zones(zbc_device_t *dev,
 		     uint64_t start_lba,
 		     enum zbc_reporting_options ro,
+		     uint64_t *max_lba,
 		     zbc_zone_t *zones,
 		     unsigned int *nr_zones)
 {
@@ -1182,8 +1183,8 @@ zbc_ata_report_zones(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x06 << 1) | 0x01;	/* DMA protocol, ext=1 */
     cmd.cdb[2] = 0x0e; 			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
-    cmd.cdb[3] = ZBC_ATA_REPORT_ZONES_EXT_AF;
-    cmd.cdb[4] = ro & 0x3f;
+    cmd.cdb[3] = ro;
+    cmd.cdb[4] = ZBC_ATA_REPORT_ZONES_EXT_AF;
     cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
     cmd.cdb[6] = (bufsz / 512) & 0xff;
     cmd.cdb[8]  = start_lba & 0xff;
@@ -1221,7 +1222,11 @@ zbc_ata_report_zones(zbc_device_t *dev,
 
     /* Get number of zones in result */
     buf = (uint8_t *) cmd.out_buf;
-    nz = zbc_ata_get_dword(buf);
+    nz = zbc_ata_get_dword(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+    if ( max_lba ) {
+	*max_lba = zbc_ata_get_qword(&buf[8]);
+    }
+
     if ( zones && nz ) {
 
         /* Get zone info */
@@ -1275,7 +1280,7 @@ zbc_ata_nr_zones(zbc_device_t *dev,
     int ret;
 
     /* Get general purpose log */
-    ret = zbc_ata_report_zones(dev, start_lba, ro, NULL, &nr_zones);
+    ret = zbc_ata_report_zones(dev, start_lba, ro, NULL, NULL, &nr_zones);
     if ( ret == 0 ) {
 	ret = nr_zones;
     }
@@ -1342,10 +1347,10 @@ zbc_ata_open_zone(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
-    cmd.cdb[3] = ZBC_ATA_OPEN_ZONE_EXT_AF;
+    cmd.cdb[4] = ZBC_ATA_OPEN_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
         /* Open all zones */
-        cmd.cdb[4] = 0x01;
+        cmd.cdb[3] = 0x01;
     } else {
         /* Open only the zone at start_lba */
 	cmd.cdb[8] = start_lba & 0xff;
@@ -1433,10 +1438,10 @@ zbc_ata_close_zone(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
-    cmd.cdb[3] = ZBC_ATA_CLOSE_ZONE_EXT_AF;
+    cmd.cdb[4] = ZBC_ATA_CLOSE_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
         /* Close all zones */
-        cmd.cdb[4] = 0x01;
+        cmd.cdb[3] = 0x01;
     } else {
         /* Close only the zone at start_lba */
 	cmd.cdb[8] = start_lba & 0xff;
@@ -1524,10 +1529,10 @@ zbc_ata_finish_zone(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
-    cmd.cdb[3] = ZBC_ATA_FINISH_ZONE_EXT_AF;
+    cmd.cdb[4] = ZBC_ATA_FINISH_ZONE_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
         /* Finish all zones */
-        cmd.cdb[4] = 0x01;
+        cmd.cdb[3] = 0x01;
     } else {
         /* Finish only the zone at start_lba */
 	cmd.cdb[8] = start_lba & 0xff;
@@ -1615,10 +1620,10 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
     cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x3 << 1) | 0x01;	/* Non-Data protocol, ext=1 */
-    cmd.cdb[3] = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
+    cmd.cdb[4] = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
     if ( start_lba == (uint64_t)-1 ) {
         /* Reset all zones */
-        cmd.cdb[4] = 0x01;
+        cmd.cdb[3] = 0x01;
     } else {
         /* Reset only the zone at start_lba */
 	cmd.cdb[8] = start_lba & 0xff;
@@ -1670,7 +1675,7 @@ zbc_ata_scsi_rw(zbc_device_t *dev)
     }
 
     /* Host managed: find a conventional zone */
-    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_NOT_WP, &zone, &nr_zones);
+    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_NOT_WP | ZBC_RO_PARTIAL, NULL, &zone, &nr_zones);
     if ( ret != 0 ) {
         return( 1 );
     }
@@ -1679,14 +1684,14 @@ zbc_ata_scsi_rw(zbc_device_t *dev)
 
         /* No conventional zones: try a closed or full sequential zones */
         nr_zones = 1;
-        ret = zbc_ata_report_zones(dev, 0, ZBC_RO_CLOSED, &zone, &nr_zones);
+        ret = zbc_ata_report_zones(dev, 0, ZBC_RO_CLOSED | ZBC_RO_PARTIAL, NULL, &zone, &nr_zones);
         if ( ret != 0 ) {
             return( 1 );
         }
 
         if ( ! nr_zones ) {
 	    nr_zones = 1;
-	    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_FULL, &zone, &nr_zones);
+	    ret = zbc_ata_report_zones(dev, 0, ZBC_RO_FULL | ZBC_RO_PARTIAL, NULL, &zone, &nr_zones);
 	    if ( ret != 0 ) {
 		return( 1 );
 	    }

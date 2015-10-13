@@ -77,6 +77,7 @@ typedef struct zbc_ops {
     int         (*zbd_report_zones)(struct zbc_device *,
                                     uint64_t,
                                     enum zbc_reporting_options,
+				    uint64_t *,
                                     zbc_zone_t *,
                                     unsigned int *);
 

@@ -106,7 +106,10 @@ enum zbc_zone_flags {
 /**
  * Report zone reporting options: filters zone information
  * returned by the REPORT ZONES command based on the condition
- * of zones.
+ * of zones. Note that ZBC_RO_PARTIAL is not a filter: this
+ * option can be combined (or'ed) with any other option to limit
+ * the number of reported zone information to the size of the
+ * REPORT ZONE command buffer.
  */
 enum zbc_reporting_options {
     ZBC_RO_ALL                  = 0x00,
@@ -120,6 +123,7 @@ enum zbc_reporting_options {
     ZBC_RO_RESET                = 0x10,
     ZBC_RO_NON_SEQ              = 0x11,
     ZBC_RO_NOT_WP               = 0x3f,
+    ZBC_RO_PARTIAL              = 0x80,
 };
 
 /**

@@ -1,6 +1,6 @@
 
 lib_LTLIBRARIES += libzbc.la
-LIBZBC_LTVERSION="2:0:0"
+LIBZBC_LTVERSION="4:0:0"
 
 CFILES = \
 	lib/zbc.c \

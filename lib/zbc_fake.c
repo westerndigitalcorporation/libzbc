@@ -506,8 +506,9 @@ zbc_fake_close(zbc_device_t *dev)
 static bool
 zbc_fake_must_report_zone(struct zbc_zone *zone,
                           uint64_t start_lba,
-                          enum zbc_reporting_options options)
+                          enum zbc_reporting_options ro)
 {
+    enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
 
     if ( (zbc_zone_length(zone) == 0)
          || (zbc_zone_start_lba(zone) < start_lba) ) {
@@ -537,6 +538,8 @@ zbc_fake_must_report_zone(struct zbc_zone *zone,
         return zbc_zone_non_seq(zone);
     case ZBC_RO_NOT_WP:
         return zbc_zone_not_wp(zone);
+    default:
+	break;
     }
 
     return false;
@@ -549,12 +552,14 @@ zbc_fake_must_report_zone(struct zbc_zone *zone,
 static int
 zbc_fake_report_zones(struct zbc_device *dev,
                       uint64_t start_lba,
-                      enum zbc_reporting_options options,
+                      enum zbc_reporting_options ro,
+		      uint64_t *max_lba,
                       struct zbc_zone *zones,
                       unsigned int *nr_zones)
 {
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     unsigned int max_nr_zones = *nr_zones;
+    enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
     unsigned int in, out = 0;
 
     if ( ! fdev->zbd_meta ) {
@@ -562,24 +567,33 @@ zbc_fake_report_zones(struct zbc_device *dev,
     }
 
     /* Check reporting option */
-    if ( options != ZBC_RO_ALL && options != ZBC_RO_EMPTY
-         && options != ZBC_RO_IMP_OPEN && options != ZBC_RO_EXP_OPEN
-         && options != ZBC_RO_CLOSED && options != ZBC_RO_FULL
-         && options != ZBC_RO_RDONLY && options != ZBC_RO_OFFLINE
-         && options != ZBC_RO_RESET && options != ZBC_RO_NON_SEQ ) {
+    if ( (options != ZBC_RO_ALL)
+	 && (options != ZBC_RO_EMPTY)
+         && (options != ZBC_RO_IMP_OPEN)
+	 && (options != ZBC_RO_EXP_OPEN)
+         && (options != ZBC_RO_CLOSED)
+	 && (options != ZBC_RO_FULL)
+         && (options != ZBC_RO_RDONLY)
+	 && (options != ZBC_RO_OFFLINE)
+         && (options != ZBC_RO_RESET)
+	 && (options != ZBC_RO_NON_SEQ) ) {
         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
-        dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;                  
+        dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
         return -EIO;
     }
 
     /* Check start_lba */
-    if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+    if ( start_lba >= dev->zbd_info.zbd_logical_blocks) {
         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
         dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
         return -EIO;
     }
 
     zbc_fake_lock(fdev);
+
+    if ( max_lba ) {
+	*max_lba = dev->zbd_info.zbd_logical_blocks - 1;
+    }
 
     if ( ! zones ) {
 
@@ -595,13 +609,20 @@ zbc_fake_report_zones(struct zbc_device *dev,
         /* Get matching zones */
         for(in = 0; in < fdev->zbd_nr_zones; in++) {
             if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
-                memcpy(&zones[out], &fdev->zbd_zones[in], sizeof(struct zbc_zone));
-                if ( ++out == max_nr_zones ) {
-                    break;
-                }
+		 if ( out < max_nr_zones ) {
+		     memcpy(&zones[out], &fdev->zbd_zones[in], sizeof(struct zbc_zone));
+		 }
+		 out++;
             }
+	    if ( (out >= max_nr_zones) && (ro & ZBC_RO_PARTIAL) ) {
+		break;
+	    }
         }
 
+    }
+
+    if ( out > max_nr_zones ) {
+	out = max_nr_zones;
     }
 
     *nr_zones = out;

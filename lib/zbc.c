@@ -146,12 +146,13 @@ static inline int
 zbc_do_report_zones(zbc_device_t *dev,
                     uint64_t start_lba,
                     enum zbc_reporting_options ro,
+		    uint64_t *max_lba,
                     zbc_zone_t *zones,
                     unsigned int *nr_zones)
 {
 
     /* Nothing much to do here: just call the device command operation */
-    return( (dev->zbd_ops->zbd_report_zones)(dev, start_lba, ro, zones, nr_zones) );
+    return( (dev->zbd_ops->zbd_report_zones)(dev, start_lba, ro, max_lba, zones, nr_zones) );
 
 }
 
@@ -471,7 +472,7 @@ zbc_report_zones(struct zbc_device *dev,
     if ( ! zones ) {
 
         /* Get number of zones */
-        ret = zbc_do_report_zones(dev, start_lba, ro, NULL, nr_zones);
+        ret = zbc_do_report_zones(dev, start_lba, ro &(~ZBC_RO_PARTIAL), NULL, NULL, nr_zones);
 
     } else {
 
@@ -481,7 +482,7 @@ zbc_report_zones(struct zbc_device *dev,
         while( nz < *nr_zones ) {
 
             n = *nr_zones - nz;
-            ret = zbc_do_report_zones(dev, start_lba, ro, &zones[z], &n);
+            ret = zbc_do_report_zones(dev, start_lba, ro | ZBC_RO_PARTIAL, NULL, &zones[z], &n);
             if ( ret != 0 ) {
                 zbc_error("Get zones from LBA %llu failed\n",
                           (unsigned long long) start_lba);
@@ -540,7 +541,7 @@ zbc_list_zones(struct zbc_device *dev,
     int ret;
 
     /* Get total number of zones */
-    ret = zbc_report_nr_zones(dev, start_lba, ro, &nr_zones);
+    ret = zbc_report_nr_zones(dev, start_lba, ro & (~ZBC_RO_PARTIAL), &nr_zones);
     if ( ret < 0 ) {
         return( ret );
     }
@@ -558,7 +559,7 @@ zbc_list_zones(struct zbc_device *dev,
     memset(zones, 0, sizeof(zbc_zone_t) * nr_zones);
 
     /* Get zones info */
-    ret = zbc_report_zones(dev, start_lba, ro, zones, &nr_zones);
+    ret = zbc_report_zones(dev, start_lba, ro & (~ZBC_RO_PARTIAL), zones, &nr_zones);
     if ( ret != 0 ) {
         zbc_error("zbc_report_zones failed %d\n", ret);
         free(zones);
