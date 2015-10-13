@@ -23,10 +23,13 @@ directory.
 I.2. Standards Versions Supported
 ---------------------------------
 
-As of version 2.0.0, libzbc supports the ZBC standard draft Rev 02
-(released on 2014/11/11) and Rev 01 of the ZAC standard draft (released
- on 2014/12/09) completed with the "ZAC Zone State Machine et aliae"
-document f14183r0 published on 2014/12/23.
+The "master" code branch provides libzbc v2.0.0 which currently supports
+the ZBC standard draft Rev 02 (released on 2014/11/11) and Rev 01 of the
+ZAC standard draft (released on 2014/12/09) completed with the "ZAC Zone
+State Machine et aliae" document f14183r0 published on 2014/12/23.
+
+The "r04" code branch implements libzbc v4.0.0 and provides support for
+the revision 4 of ZBC and ZAC standards.
 
 Both the ZBC and ZAC standards are still being developped. Changes to the
 command set and command interface can be expected before the final public
@@ -60,7 +63,7 @@ and <http://www.gnu.org/licenses/>.
 I.4. Contact and Bug Reports
 ----------------------------
 
-Please contact Damine Le Moal (damien.lemoal@hgst.com) and
+Please contact Damien Le Moal (damien.lemoal@hgst.com) and
 Adam Manzanares (adam.manzanares@hgst.com) to report problems.
 
 II. Compilation and installation
