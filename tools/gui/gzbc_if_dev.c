@@ -207,7 +207,7 @@ dz_if_dev_open(char *path)
     GtkCellRenderer *renderer;
     GtkTreeIter iter;
     GtkWidget *da;
-    char str[128];
+    char str[256];
     unsigned int i;
     dz_dev_t *dzd;
 
@@ -231,9 +231,10 @@ dz_if_dev_open(char *path)
 
     /* Zone list filter frame */
     snprintf(str, sizeof(str) - 1,
-             "<b>%.03F GB, %u B logical sectors</b>",
+             "<b>%.03F GB, %u B logical sectors, %u B physical sectors</b>",
              (double) (dzd->info.zbd_logical_blocks * dzd->info.zbd_logical_block_size) / 1000000000,
-             dzd->info.zbd_logical_block_size);
+             dzd->info.zbd_logical_block_size,
+             dzd->info.zbd_physical_block_size);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, FALSE, 0);
