@@ -13,6 +13,7 @@ AM_PROG_CC_C_O
 
 AC_SYS_LARGEFILE
 
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 +m4_pattern_allow([AM_PROG_AR])
 LT_INIT
 
