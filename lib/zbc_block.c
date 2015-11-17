@@ -437,9 +437,7 @@ zbc_block_report_zones(struct zbc_device *dev,
 		       unsigned int *nr_zones)
 {
 
-    if ( fsync(dev->zbd_fd) != 0 ) {
-	return -EIO;
-    }
+    fdatasync(dev->zbd_fd);
 
     return zbc_scsi_report_zones(dev, start_lba, ro,
 				 max_lba, zones, nr_zones);
