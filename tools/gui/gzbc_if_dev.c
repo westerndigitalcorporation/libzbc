@@ -824,7 +824,7 @@ dz_if_zinfo_fill(dz_dev_t *dzd)
     unsigned int i;
 
     /* Update device list */
-    if ( ! dzd->nr_zones ) {
+    if ( (! dzd->nr_zones) || (! dzd->zones) ) {
         return;
     }
 
@@ -859,7 +859,7 @@ dz_if_zinfo_update_range(dz_dev_t *dzd)
     GtkTreePath *start = NULL, *end = NULL;
     GtkTreeIter iter;
 
-    if ( ! dzd->nr_zones ) {
+    if ( (! dzd->nr_zones) || (! dzd->zones) ) {
         dzd->zinfo_start_no = 0;
         dzd->zinfo_end_no = 0;
 	return;
@@ -1047,6 +1047,10 @@ dz_if_update_zinfo(dz_dev_t *dzd)
 
     }
 
+    if ( ! dzd->zones || (! dzd->nr_zones) ) {
+	return;
+    }
+
     if ( dzd->nr_zones != nr_zones ) {
 
 	/* Number of zones changed... */
@@ -1198,14 +1202,14 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
     /* Current visible range */
     dz_if_zinfo_update_range(dzd);
 
+    if ( (! dzd->zones) || (! dzd->nr_zones) ) {
+        return( FALSE );
+    }
+
     /* Current size */
     gtk_widget_get_allocation(dzd->zstate_da, &allocation);
     w = allocation.width - (DZ_DRAW_WOFST * 2);
     h = allocation.height;
-
-    if ( ! dzd->nr_zones ) {
-        return( FALSE );
-    }
 
     /* Get total viewed capacity */
     if ( dzd->zinfo_end_no >= dzd->nr_zones ) {

@@ -59,6 +59,7 @@ enum {
 typedef struct dz_dev {
 
     char                        path[128];
+    int				opening;
 
     struct zbc_device           *dev;
     struct zbc_device_info      info;

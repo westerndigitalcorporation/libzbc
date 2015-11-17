@@ -164,7 +164,9 @@ dz_open(char *path)
     }
 
     /* Get zone information */
+    dzd->opening = 1;
     ret = dz_get_zones(dzd);
+    dzd->opening = 0;
     if ( ret != 0 ) {
 	goto out;
     }
