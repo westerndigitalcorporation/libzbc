@@ -411,7 +411,7 @@ dz_if_timer_cb(gpointer user_data)
     dz_dev_t *dzd = dz_if_get_device();
 
     if ( dzd ) {
-	dz_if_dev_refresh(dzd, 1);
+	dz_if_dev_update(dzd, 1);
     }
 
     return( TRUE );
@@ -426,7 +426,7 @@ dz_if_resize_cb(GtkWidget *widget,
     dz_dev_t *dzd = dz_if_get_device();
 
     if ( dzd ) {
-	dz_if_dev_refresh(dzd, 0);
+	dz_if_dev_update(dzd, 0);
     }
 
     return( FALSE );
