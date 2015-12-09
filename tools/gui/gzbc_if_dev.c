@@ -86,6 +86,10 @@ static gboolean
 dz_if_zinfo_filter_cb(GtkComboBox *button,
                       gpointer user_data);
 
+static gboolean
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data);
+
 static void
 dz_if_zinfo_fill(dz_dev_t *dzd);
 
@@ -224,7 +228,7 @@ dz_if_dev_open(char *path)
     gtk_container_set_border_width(GTK_CONTAINER(frame), 10);
     dzd->page_frame = frame;
 
-    /* top vbox */
+    /* Top vbox */
     top_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_show(top_vbox);
     gtk_container_add(GTK_CONTAINER(frame), top_vbox);
@@ -237,14 +241,14 @@ dz_if_dev_open(char *path)
              dzd->info.zbd_physical_block_size);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
     dzd->zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
     gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(frame), hbox);
     dz_if_set_margin(hbox, 7, 7, 0, 0);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
 
     /* Zone list filter label */
     label = gtk_label_new(NULL);
@@ -269,6 +273,26 @@ dz_if_dev_open(char *path)
     g_signal_connect((gpointer) combo, "changed",
 		     G_CALLBACK(dz_if_zinfo_filter_cb),
 		     dzd);
+
+    /* Refresh button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    dz_if_set_margin(button, 0, 7, 10, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
+
+    image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+
+    label = gtk_label_new("Refresh");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_refresh_cb), dzd);
 
     /* Zone list frame */
     snprintf(str, sizeof(str) - 1, "<b>%d zones</b>", dzd->nr_zones);
@@ -448,7 +472,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Open Zone");
+    label = gtk_label_new("Open Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -467,7 +491,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Close Zone");
+    label = gtk_label_new("Close Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -486,7 +510,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Finish Zone");
+    label = gtk_label_new("Finish Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -505,7 +529,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Reset Write Pointer");
+    label = gtk_label_new("Reset Write Ptr");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -1109,6 +1133,18 @@ dz_if_zinfo_filter_cb(GtkComboBox *button,
         }
 
     }
+
+    return( FALSE );
+
+}
+
+static gboolean
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+
+    dz_if_dev_refresh(dzd, 1);
 
     return( FALSE );
 
