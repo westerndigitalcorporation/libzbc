@@ -73,6 +73,7 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
     FILE *zoned;
     int ret = 1;
 
+    /* Check zoned attributes, if any */
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/queue/zoned",
 	     basename(dev->zbd_filename));
@@ -229,7 +230,7 @@ zbc_block_set_info(struct zbc_device *dev)
 
     /* Is this a zoned device ? And do we have kernel support ? */
     if ( ! zbc_block_device_is_zoned(dev) ) {
-	/* Not a block device: ignore */
+	/* Not a zoned block device: ignore */
 	return -ENXIO;
     }
 
@@ -485,7 +486,7 @@ zbc_block_reset_wp(struct zbc_device *dev,
     uint64_t range[2];
 
     if ( start_lba == (uint64_t)-1 ) {
-        /* Reset ALL zones */
+        /* Reset all zones */
 	range[0] = 0;
 	range[1] = dev->zbd_info.zbd_logical_blocks * dev->zbd_info.zbd_logical_block_size;
     } else {
