@@ -34,7 +34,7 @@ int main(int argc,
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
     zbc_zone_t *z, *zones = NULL;
-    unsigned int nr_zones, nz = 0;
+    unsigned int nr_zones, nz = 0, prtl = 0;
     int num = 0;
     char *path;
 
@@ -50,7 +50,8 @@ usage:
                "    -ro <opt>  : Specify reporting option: \"all\", \"empty\",\n"
                "                 \"imp_open\", \"exp_open\", \"closed\", \"full\",\n"
                "                 \"rdonly\", \"offline\", \"reset\", \"non_seq\" or \"not_wp\".\n"
-               "                 Default is \"all\"\n",
+               "                 Default is \"all\"\n"
+               "    -p         : Partial bit\n",
                argv[0]);
         return( 1 );
     }
@@ -122,6 +123,10 @@ usage:
                 goto usage;
             }
 
+        } else if ( strcmp(argv[i], "-p") == 0 ) {
+
+            prtl = ZBC_RO_PARTIAL;
+
         } else if ( argv[i][0] == '-' ) {
 
             printf("Unknown option \"%s\"\n",
@@ -139,6 +144,9 @@ usage:
     if ( i != (argc - 1) ) {
         goto usage;
     }
+
+    /* Merging ro */
+    ro |= prtl;
 
     /* Open device */
     path = argv[i];
