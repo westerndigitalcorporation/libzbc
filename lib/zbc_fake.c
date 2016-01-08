@@ -576,7 +576,8 @@ zbc_fake_report_zones(struct zbc_device *dev,
          && (options != ZBC_RO_RDONLY)
 	 && (options != ZBC_RO_OFFLINE)
          && (options != ZBC_RO_RESET)
-	 && (options != ZBC_RO_NON_SEQ) ) {
+	 && (options != ZBC_RO_NON_SEQ)
+	 && (options != ZBC_RO_NOT_WP) ) {
         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
         dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
         return -EIO;
