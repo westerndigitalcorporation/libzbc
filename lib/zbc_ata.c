@@ -1200,13 +1200,11 @@ zbc_ata_report_zones(zbc_device_t *dev,
     ret = zbc_sg_cmd_exec(dev, &cmd);
     if ( ret != 0 ) {
         if ( ret == -EIO ) {
-	    /* Request sense data */
-            if ( !(dev->zbd_errno.sk == ZBC_E_ILLEGAL_REQUEST
-                   && dev->zbd_errno.asc_ascq == ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE) ) {
-                /* If request sense data is enabled , try to get sense data */
-                if ( zbc_ata_sense_data_enabled(&cmd) ) {
-                    zbc_ata_request_sense_data_ext(dev);
-                }
+	    /* If request sense data is enabled , try to get sense data */
+            if ( zbc_ata_sense_data_enabled(&cmd)
+		 && ((dev->zbd_errno.sk != ZBC_E_ILLEGAL_REQUEST)
+		     || (dev->zbd_errno.asc_ascq != ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)) ) {
+		zbc_ata_request_sense_data_ext(dev);
             }
         }
         goto out;
