@@ -576,7 +576,8 @@ zbc_fake_report_zones(struct zbc_device *dev,
          && (options != ZBC_RO_RDONLY)
 	 && (options != ZBC_RO_OFFLINE)
          && (options != ZBC_RO_RESET)
-	 && (options != ZBC_RO_NON_SEQ) ) {
+	 && (options != ZBC_RO_NON_SEQ)
+	 && (options != ZBC_RO_NOT_WP) ) {
         dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
         dev->zbd_errno.asc_ascq = ZBC_E_INVALID_FIELD_IN_CDB;
         return -EIO;
@@ -731,9 +732,7 @@ zbc_fake_open_zone(zbc_device_t *dev,
         }
 
         if ( zbc_zone_full(zone) ) {
-            dev->zbd_errno.sk = ZBC_E_DATA_PROTECT;
-            dev->zbd_errno.asc_ascq = ZBC_E_ZONE_IS_READ_ONLY;
-            ret = -EIO;
+            /* Full zone open: do nothing (condition remains full) */
             goto out;
         }
 
