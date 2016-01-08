@@ -23,18 +23,17 @@ directory.
 I.2. Standards Versions Supported
 ---------------------------------
 
-The "master" code branch provides libzbc v2.0.0 which currently supports
-the ZBC standard draft Rev 02 (released on 2014/11/11) and Rev 01 of the
-ZAC standard draft (released on 2014/12/09) completed with the "ZAC Zone
-State Machine et aliae" document f14183r0 published on 2014/12/23.
+The "master" code branch provides libzbc v4.0.0 which supports the ZBC
+and ZAC standard draft Rev 04.
 
-The "r04" code branch implements libzbc v4.0.0 and provides support for
-the revision 4 of ZBC and ZAC standards.
+Support for the older draft standards revision 2 is available as a the
+pre-release v2.0.0 (see https://github.com/hgst/libzbc/releases).
 
-Both the ZBC and ZAC standards are still being developped. Changes to the
-command set and command interface can be expected before the final public
-release. Any change in the standards will be incorporated into libzbc as
-disks become available.
+Both the ZBC and ZAC standards are still on-going work. However, as this
+work is now nearing completion, changes to the command set and command
+interface are unlikely in the final public release of the standards.
+Nevertheless, any change being incorporated in the final standard
+release will be incorporated into libzbc as a new version.
 
 I.3. License
 ------------
@@ -139,9 +138,11 @@ III.1 Kernel Version
 
 libzbc functions operate using device handles which are obtained by
 executing the zbc_open function. This function argument can be a regular
-file or a legacy raw block device file for operating in emulation mode, or
-the SG node device file (/dev/sg<x>) of a ZBC disk or a ZAC disk. Kernel
-support is required for these SG nodes to exist.
+file, a block device file or an SG node device file (/dev/sg<x>).
+
+As of kernel version 4.3, a host-managed SMR device can only be accessed
+using its SG nodes. For SATA host-managed SMR devices, device signature
+support by the kernel is required for the device SG nodes to exist.
 
 Linux kernel introduced support for ZBC device type with version 3.17. Any
 kernel with version 3.17 and above will thus recognize SAS ZBC devices
@@ -158,6 +159,14 @@ https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v
 https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v2&id=02582e1667f05b0c64f2998877216e395e7fda52
 https://git.kernel.org/cgit/linux/kernel/git/hare/scsi-devel.git/commit/?h=zac.v2&id=70eb02d6eca2c0706b388a3971f9e156bac092d7
 
+For host-aware devices, the kernel will create both a block device file
+and an SG device node. Both can be used to access and control the device
+zones information.
+
+Regular files and legacy disk block device files can be used to operate
+libzbc in emulation mode. In the latter case, emulation mode will be
+enabled only and only if the device is recognized as a regular non-SMR
+block device.
 
 III.2 Library Functions
 -----------------------
@@ -225,23 +234,26 @@ comments in the file include/libzbc/zbc.h.
 III.3 Native Mode Operation
 ---------------------------
 
-The standard Linux kernel does not create a blocks device file for
+The standard Linux kernel does not create a block device file for
 host-managed ZBC and ZAC disks.  As a result, these devices are only
 accessible through their associated SG node (/dev/sgx device file).
 
-Opening a native ZBC or ZAC disk with libzbc thus needs to be done by
-specifying the device SG node. Further accesses (report zones,
-reset zone write pointer, etc) can then proceed using the device
+Opening a native ZBC or ZAC host managed disk with libzbc thus needs
+to be done by specifying the device SG node. Further accesses (report
+zones, reset zone write pointer, etc) can then proceed using the device
 handle provided by the zbc_open function.
+
+For host-aware devices, the device SG node file or block device file
+can both be used to obtain a device handle.
 
 III.4 Emulation Mode Operation
 ------------------------------
 
 libzbc can emulate host-managed disks operation using a regular
-file or a raw standard block device (regular disk or loopback device).
-The use of the library in such case is identical to the native mode
-case, assuming that the emulated device is first configured by executing
-the zbc_set_zones tool (see next section).
+file or a legacy non-SMR standard block device file (regular disk
+or loopback device). The use of the library in such case is identical
+to the native mode case, assuming that the emulated device is first
+configured by executing the zbc_set_zones tool (see next section).
 
 
 IV. Example Applications
