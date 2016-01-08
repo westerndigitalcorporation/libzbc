@@ -35,7 +35,7 @@ main(int argc,
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
     zbc_zone_t *z, *zones = NULL;
-    unsigned int nr_zones, nz = 0;
+    unsigned int nr_zones, nz = 0, prtl = 0;
     int num = 0;
     char *path;
 
@@ -46,7 +46,8 @@ usage:
                "Options:\n"
                "    -v         : Verbose mode\n"
                "    -lba <lba> : Specify zone start LBA (default is 0)\n"
-               "    -ro <opt>  : Reporting Option\n",
+               "    -ro <opt>  : Reporting Option\n"
+               "    -p         : Partial bit\n",
                argv[0]);
         return( 1 );
     }
@@ -80,6 +81,10 @@ usage:
                 goto usage;
             }
 
+        } else if ( strcmp(argv[i], "-p") == 0 ) {
+
+            prtl = ZBC_RO_PARTIAL; 
+
         } else if ( argv[i][0] == '-' ) {
 
             printf("Unknown option \"%s\"\n",
@@ -97,6 +102,9 @@ usage:
     if ( i != (argc - 1) ) {
         goto usage;
     }
+
+    /* Merging ro */
+    ro |= prtl;
 
     /* Open device */
     path = argv[i];

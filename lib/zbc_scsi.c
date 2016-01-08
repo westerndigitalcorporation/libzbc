@@ -299,12 +299,13 @@ zbc_scsi_flush(zbc_device_t *dev,
 #define ZBC_SCSI_REPORT_ZONES_BUFSZ     524288
 
 /**
- * Get device zone information.
+ * Get a SCSI device zone information.
  */
-static int
+int
 zbc_scsi_report_zones(zbc_device_t *dev,
                       uint64_t start_lba,
                       enum zbc_reporting_options ro,
+		      uint64_t *max_lba,
                       zbc_zone_t *zones,
                       unsigned int *nr_zones)
 {
@@ -320,6 +321,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
         }
     }
+
+    /* For in kernel ATA translation: align to 512 B */
+    bufsz = (bufsz + 511) & ~511;
 
     /* Allocate and intialize report zones command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
@@ -354,7 +358,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
     zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
-    cmd.cdb[14] = ro & 0x3f;
+    cmd.cdb[14] = ro;
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -379,9 +383,17 @@ zbc_scsi_report_zones(zbc_device_t *dev,
      * |- - -+---               Zone List Length (n - 64)                         ---|
      * |  3  |                                                                 (LSB) |
      * |-----+-----------------------------------------------------------------------|
-     * |  4  |                           Reserved                           | Same   |
+     * |  4  |              Reserved             |               Same                |
      * |-----+-----------------------------------------------------------------------|
-     * |  5  | (MSB)                                                                 |
+     * |  5  |                                                                       |
+     * |- - -+---                        Reserved                                 ---|
+     * |  7  |                                                                       |
+     * |-----+-----------------------------------------------------------------------|
+     * |  8  | (MSB)                                                                 |
+     * |- - -+---                      Maximum LBA                                ---|
+     * | 15  |                                                                 (LSB) |
+     * |-----+-----------------------------------------------------------------------|
+     * | 16  | (MSB)                                                                 |
      * |- - -+---                        Reserved                                 ---|
      * | 63  |                                                                 (LSB) |
      * |=====+=======================================================================|
@@ -404,6 +416,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     /* Get number of zones in result */
     buf = (uint8_t *) cmd.out_buf;
     nz = zbc_sg_cmd_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+    if ( max_lba ) {
+	*max_lba = zbc_sg_cmd_get_int64(&buf[8]);
+    }
 
     if ( zones && nz ) {
 
@@ -478,7 +493,7 @@ out:
 /**
  * Open zone(s).
  */
-static int
+int
 zbc_scsi_open_zone(zbc_device_t *dev,
                    uint64_t start_lba)
 {
@@ -537,7 +552,7 @@ zbc_scsi_open_zone(zbc_device_t *dev,
 /**
  * Close zone(s).
  */
-static int
+int
 zbc_scsi_close_zone(zbc_device_t *dev,
                     uint64_t start_lba)
 {
@@ -596,7 +611,7 @@ zbc_scsi_close_zone(zbc_device_t *dev,
 /**
  * Finish zone(s).
  */
-static int
+int
 zbc_scsi_finish_zone(zbc_device_t *dev,
                      uint64_t start_lba)
 {
@@ -823,7 +838,7 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
     zbc_zone_t *zones = NULL;
     int logical_per_physical;
     unsigned int nr_zones = 0;
-    uint64_t slba = 0;
+    uint64_t max_lba;
     int ret;
 
     /* READ CAPACITY 16 */
@@ -864,50 +879,14 @@ zbc_scsi_get_capacity(zbc_device_t *dev)
         /* conventional zones at the beginning of the disk. To get */
         /* the entire disk capacity, we need to get last LBA of    */
         /* the last zone of the disk.                              */
-        ret = zbc_scsi_report_zones(dev, 0, 0, NULL, &nr_zones);
+        ret = zbc_scsi_report_zones(dev, 0, ZBC_RO_ALL, &max_lba, NULL, &nr_zones);
         if ( ret != 0 ) {
             zbc_error("zbc_report_zones failed\n");
             goto out;
         }
-        if ( ! nr_zones ) {
-            ret = -EIO;
-            goto out;
-        }
 
-        /* Allocate zone array */
-        zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nr_zones);
-        if ( ! zones ) {
-            zbc_error("No memory\n");
-            ret = -ENOMEM;
-            goto out;
-        }
-        memset(zones, 0, sizeof(zbc_zone_t) * nr_zones);
-
-        /* Get all zone information */
-        unsigned int n, z = 0, nz = 0;
-
-        while ( nz < nr_zones ) {
-
-            n= nr_zones - nz;
-            ret = zbc_scsi_report_zones(dev, slba, 0, &zones[z], &n);
-            if ( ret != 0 ) {
-                zbc_error("zbc_report_zones failed\n");
-                goto out;
-            }
-
-            if ( n == 0 ) {
-                ret = -EIO;
-                break;
-            }
-
-            nz += n;
-            z  += n;
-            slba = zones[z - 1].zbz_start + zones[z - 1].zbz_length;
-
-        }
-
-        /* Get the drive capacity from the last zone last LBA */
-        dev->zbd_info.zbd_logical_blocks = zbc_zone_next_lba(&zones[nr_zones - 1]);
+        /* Set the drive capacity to the reported max LBA */
+        dev->zbd_info.zbd_logical_blocks = max_lba + 1;
 
         break;
 
@@ -954,7 +933,7 @@ out:
  * Get zoned block device characteristics
  * (Maximum or optimum number of open zones).
  */
-static int
+int
 zbc_scsi_get_zbd_chars(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;

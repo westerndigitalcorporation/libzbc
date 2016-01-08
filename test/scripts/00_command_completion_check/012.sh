@@ -15,40 +15,28 @@
 
 zbc_test_init $0 $*
 
-zbc_test_info "OPEN_ZONE full to full..."
+zbc_test_info "REPORT_ZONES (reporting option 0x10) command completion..."
 
 # Set expected error code
 expected_sk=""
 expected_asc=""
-expected_cond="0xe"
 
 # Get drive information
 zbc_test_get_drive_info
 
-# Get zone information
-zbc_test_get_zone_info
+# Set target LBA
+target_lba="0"
 
-# Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
-target_lba=${target_slba}
+# Set reporting option
+reporting_option="16"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_lba}
-zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
-
-# Get SenseKey, ASC/ASCQ
-zbc_test_get_sk_ascq
-
-# Get zone information
-zbc_test_get_zone_info "5"
-
-# Get target zone condition
-zbc_test_search_vals_from_slba ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${reporting_option} -lba ${target_lba} ${device}
 
 # Check result
-zbc_test_check_zone_cond_sk_ascq
+zbc_test_get_sk_ascq
+zbc_test_check_no_sk_ascq
 
-# Post process
-zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
-rm -f ${zone_info_file}
+# Check failed
+zbc_test_check_failed
 

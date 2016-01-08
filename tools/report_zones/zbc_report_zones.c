@@ -34,7 +34,7 @@ int main(int argc,
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
     zbc_zone_t *z, *zones = NULL;
-    unsigned int nr_zones, nz = 0;
+    unsigned int nr_zones, nz = 0, partial = 0;
     int num = 0;
     char *path;
 
@@ -50,7 +50,8 @@ usage:
                "    -ro <opt>  : Specify reporting option: \"all\", \"empty\",\n"
                "                 \"imp_open\", \"exp_open\", \"closed\", \"full\",\n"
                "                 \"rdonly\", \"offline\", \"reset\", \"non_seq\" or \"not_wp\".\n"
-               "                 Default is \"all\"\n",
+               "                 Default is \"all\"\n"
+               "    -p         : Partial bit\n",
                argv[0]);
         return( 1 );
     }
@@ -122,6 +123,10 @@ usage:
                 goto usage;
             }
 
+        } else if ( strcmp(argv[i], "-p") == 0 ) {
+
+            partial = ZBC_RO_PARTIAL;
+
         } else if ( argv[i][0] == '-' ) {
 
             printf("Unknown option \"%s\"\n",
@@ -170,6 +175,7 @@ usage:
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
     /* Get the number of zones */
+    ro |= partial;
     ret = zbc_report_nr_zones(dev, lba, ro, &nr_zones);
     if ( ret != 0 ) {
 	fprintf(stderr, "zbc_report_nr_zones at lba %llu, ro 0x%02x failed %d\n",
