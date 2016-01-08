@@ -299,9 +299,9 @@ zbc_scsi_flush(zbc_device_t *dev,
 #define ZBC_SCSI_REPORT_ZONES_BUFSZ     524288
 
 /**
- * Get device zone information.
+ * Get a SCSI device zone information.
  */
-static int
+int
 zbc_scsi_report_zones(zbc_device_t *dev,
                       uint64_t start_lba,
                       enum zbc_reporting_options ro,
@@ -321,6 +321,9 @@ zbc_scsi_report_zones(zbc_device_t *dev,
             bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
         }
     }
+
+    /* For in kernel ATA translation: align to 512 B */
+    bufsz = (bufsz + 511) & ~511;
 
     /* Allocate and intialize report zones command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
@@ -490,7 +493,7 @@ out:
 /**
  * Open zone(s).
  */
-static int
+int
 zbc_scsi_open_zone(zbc_device_t *dev,
                    uint64_t start_lba)
 {
@@ -549,7 +552,7 @@ zbc_scsi_open_zone(zbc_device_t *dev,
 /**
  * Close zone(s).
  */
-static int
+int
 zbc_scsi_close_zone(zbc_device_t *dev,
                     uint64_t start_lba)
 {
@@ -608,7 +611,7 @@ zbc_scsi_close_zone(zbc_device_t *dev,
 /**
  * Finish zone(s).
  */
-static int
+int
 zbc_scsi_finish_zone(zbc_device_t *dev,
                      uint64_t start_lba)
 {
@@ -930,7 +933,7 @@ out:
  * Get zoned block device characteristics
  * (Maximum or optimum number of open zones).
  */
-static int
+int
 zbc_scsi_get_zbd_chars(zbc_device_t *dev)
 {
     zbc_sg_cmd_t cmd;

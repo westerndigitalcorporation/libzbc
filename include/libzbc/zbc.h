@@ -50,13 +50,14 @@
 #define ZBC_UNRESTRICTED_READ   0x00000001
 
 /**
- * Device type: SCSI, ATA or fake (emulation).
+ * Device type: BLOCK, SCSI, ATA or fake (emulation).
  * Each type correspond to a different internal backend driver.
  */
 enum zbc_dev_type {
     ZBC_DT_SCSI                 = 0x01,
     ZBC_DT_ATA                  = 0x02,
     ZBC_DT_FAKE                 = 0x03,
+    ZBC_DT_BLOCK                = 0x04,
 };
 
 /**

@@ -8,7 +8,7 @@
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
- * 
+ *
  * Author: Damien Le Moal (damien.lemoal@hgst.com)
  *         Christophe Louargant (christophe.louargant@hgst.com)
  */

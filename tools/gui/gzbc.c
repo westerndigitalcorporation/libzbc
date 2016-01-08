@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "gzbc.h"
 
@@ -32,10 +33,82 @@
 dz_t dz;
 
 /**
- * Signal handling initialization.
+ * Signal handling.
  */
+
+static gboolean
+dz_process_signal(GIOChannel *source,
+                    GIOCondition condition,
+                    gpointer user_data)
+{
+    char buf[32];
+    ssize_t size;
+    gboolean ret = FALSE;
+
+    if ( condition & G_IO_IN ) {
+        size = read(g_io_channel_unix_get_fd(source), buf, sizeof(buf));
+        if ( size > 0 ) {
+            /* Got signal */
+            gtk_main_quit();
+            ret = TRUE;
+        }
+    }
+
+    return( ret );
+
+}
+
 static void
-dz_set_signal_handlers(void);
+dz_sig_handler(int sig)
+{
+
+    /* Propagate signal through the pipe */
+    if ( write(dz.sig_pipe[1], &sig, sizeof(int)) < 0 ) {
+        printf("Signal %d processing failed\n", sig);
+    }
+
+    return;
+
+}
+
+static void
+dz_set_signal_handlers(void)
+{
+    GIOChannel *sig_channel;
+    long fd_flags;
+    int ret;
+
+    ret = pipe(dz.sig_pipe);
+    if ( ret < 0 ) {
+        perror("pipe");
+        exit(1);
+    }
+
+    fd_flags = fcntl(dz.sig_pipe[1], F_GETFL);
+    if ( fd_flags < 0 ) {
+        perror("Read descriptor flags");
+        exit(1);
+    }
+    ret = fcntl(dz.sig_pipe[1], F_SETFL, fd_flags | O_NONBLOCK);
+    if ( ret < 0 ) {
+        perror("Write descriptor flags");
+        exit(1);
+    }
+
+    /* Install the unix signal handler */
+    signal(SIGINT, dz_sig_handler);
+    signal(SIGQUIT, dz_sig_handler);
+    signal(SIGTERM, dz_sig_handler);
+
+    /* Convert the reading end of the pipe into a GIOChannel */
+    sig_channel = g_io_channel_unix_new(dz.sig_pipe[0]);
+    g_io_channel_set_encoding(sig_channel, NULL, NULL);
+    g_io_channel_set_flags(sig_channel, g_io_channel_get_flags(sig_channel) | G_IO_FLAG_NONBLOCK, NULL);
+    g_io_add_watch(sig_channel, G_IO_IN | G_IO_PRI, dz_process_signal, NULL);
+
+    return;
+
+}
 
 /***** Main *****/
 
@@ -116,6 +189,247 @@ main(int argc,
 
 }
 
+/**
+ * Report zones.
+ */
+static int
+dz_report_zones(dz_dev_t *dzd)
+{
+    int ret;
+
+    if ( ! dzd->zones ) {
+
+	/* Get zone list */
+        dzd->zone_ro = ZBC_RO_ALL;
+	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zones, &dzd->nr_zones);
+	if ( ret == 0 ) {
+            dzd->max_nr_zones = dzd->nr_zones;
+	}
+
+    } else {
+
+        /* Refresh zone list */
+        dzd->nr_zones = dzd->max_nr_zones;
+        ret = zbc_report_zones(dzd->dev, 0, dzd->zone_ro, dzd->zones, &dzd->nr_zones);
+        if ( ret != 0 ) {
+            fprintf(stderr, "Get zone information failed %d (%s)\n",
+                    errno,
+                    strerror(errno));
+            if ( dzd->zones ) {
+                free(dzd->zones);
+                dzd->zones = NULL;
+                dzd->nr_zones = 0;
+                dzd->max_nr_zones = 0;
+            }
+        }
+
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Reset zone.
+ */
+static int
+dz_reset_zone(dz_dev_t *dzd)
+{
+    int zno = dzd->zone_no;
+    int ret;
+
+    if ( zno == -1 ) {
+        ret = zbc_reset_write_pointer(dzd->dev, -1);
+    } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+    } else {
+	fprintf(stderr, "Invalid zone number %d for reset\n",
+		zno);
+	ret = -1;
+	errno = EINVAL;
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",
+                errno,
+                strerror(errno));
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Open zone.
+ */
+static int
+dz_open_zone(dz_dev_t *dzd)
+{
+    int zno = dzd->zone_no;
+    int ret = 0;
+
+    if ( zno == -1 ) {
+        ret = zbc_open_zone(dzd->dev, -1);
+    } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+    } else {
+	fprintf(stderr, "Invalid zone number %d for open\n",
+		zno);
+	ret = -1;
+	errno = EINVAL;
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_open_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Close zone.
+ */
+static int
+dz_close_zone(dz_dev_t *dzd)
+{
+    int zno = dzd->zone_no;
+    int ret = 0;
+
+    if ( zno == -1 ) {
+        ret = zbc_close_zone(dzd->dev, -1);
+    } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+    } else {
+	fprintf(stderr, "Invalid zone number %d for close\n",
+		zno);
+	ret = -1;
+	errno = EINVAL;
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_close_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Finish zone.
+ */
+static int
+dz_finish_zone(dz_dev_t *dzd)
+{
+    int zno = dzd->zone_no;
+    int ret = 0;
+
+    if ( zno == -1 ) {
+        ret = zbc_finish_zone(dzd->dev, -1);
+    } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
+        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+    } else {
+	fprintf(stderr, "Invalid zone number %d for close\n",
+		zno);
+	ret = -1;
+	errno = EINVAL;
+    }
+
+    if ( ret != 0 ) {
+        ret = errno;
+        fprintf(stderr, "zbc_finish_zone failed %d (%s)\n",
+                errno,
+                strerror(errno));
+    }
+
+    return( ret );
+
+}
+
+/**
+ * Command thread routine.
+ */
+void *
+dz_cmd_run(void *data)
+{
+    dz_dev_t *dzd = data;
+    int ret;
+
+    switch( dzd->cmd_id ) {
+    case DZ_CMD_REPORT_ZONES:
+	dzd->cmd_do_report_zones = 0;
+	ret = dz_report_zones(dzd);
+	break;
+    case DZ_CMD_RESET_ZONE:
+	ret = dz_reset_zone(dzd);
+	break;
+    case DZ_CMD_OPEN_ZONE:
+	ret = dz_open_zone(dzd);
+	break;
+    case DZ_CMD_CLOSE_ZONE:
+	ret = dz_close_zone(dzd);
+	break;
+    case DZ_CMD_FINISH_ZONE:
+	ret = dz_finish_zone(dzd);
+	break;
+    default:
+	fprintf(stderr, "Invalid command ID %d\n", dzd->cmd_id);
+	ret = -1;
+	break;
+    }
+
+    if ( dzd->cmd_do_report_zones ) {
+	dz_report_zones(dzd);
+    }
+
+    if ( dzd->cmd_dialog ) {
+	int response_id;
+	if ( ret == 0 ) {
+	    response_id = GTK_RESPONSE_OK;
+	} else {
+	    response_id = GTK_RESPONSE_REJECT;
+	}
+	gtk_dialog_response(GTK_DIALOG(dzd->cmd_dialog), response_id);
+    }
+
+    return( (void *) ((unsigned long) ret) );
+
+}
+
+static GtkWidget *
+dz_cmd_dialog(char *msg)
+{
+    GtkWidget *dialog, *content_area;
+    GtkWidget *spinner;
+
+    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+				    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+				    GTK_MESSAGE_OTHER,
+				    GTK_BUTTONS_NONE,
+				    "%s", msg);
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+
+    spinner = gtk_spinner_new();
+    gtk_widget_show(spinner);
+    gtk_container_add(GTK_CONTAINER(content_area), spinner);
+    gtk_spinner_start(GTK_SPINNER(spinner));
+
+    gtk_widget_show_all(dialog);
+
+    return( dialog );
+
+}
+
+/**
+ * Open a device.
+ */
 dz_dev_t *
 dz_open(char *path)
 {
@@ -164,7 +478,7 @@ dz_open(char *path)
     }
 
     /* Get zone information */
-    ret = dz_get_zones(dzd);
+    ret = dz_report_zones(dzd);
     if ( ret != 0 ) {
 	goto out;
     }
@@ -182,6 +496,9 @@ out:
 
 }
 
+/**
+ * Close a device.
+ */
 void
 dz_close(dz_dev_t *dzd)
 {
@@ -203,207 +520,55 @@ dz_close(dz_dev_t *dzd)
 
 }
 
+/**
+ * Execute a command.
+ */
 int
-dz_get_zones(dz_dev_t *dzd)
+dz_cmd_exec(dz_dev_t *dzd,
+	    int cmd_id,
+	    int do_report_zones,
+	    char *msg)
 {
     int ret;
 
-    if ( ! dzd->zones ) {
-
-	/* Get zone list */
-        dzd->zone_ro = ZBC_RO_ALL;
-	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zones, &dzd->nr_zones);
-	if ( ret == 0 ) {
-            dzd->max_nr_zones = dzd->nr_zones;
-	}
-
+    /* Set command */
+    dzd->cmd_id = cmd_id;
+    dzd->cmd_do_report_zones = do_report_zones;
+    if ( msg ) {
+	/* Create a dialog */
+	dzd->cmd_dialog = dz_cmd_dialog(msg);
     } else {
-
-        /* Refresh zone list */
-        dzd->nr_zones = dzd->max_nr_zones;
-        ret = zbc_report_zones(dzd->dev, 0, dzd->zone_ro, dzd->zones, &dzd->nr_zones);
-        if ( ret != 0 ) {
-            fprintf(stderr, "Get zone information failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-            if ( dzd->zones ) {
-                free(dzd->zones);
-                dzd->zones = NULL;
-                dzd->nr_zones = 0;
-                dzd->max_nr_zones = 0;
-            }
-        }
-
+	dzd->cmd_dialog = NULL;
     }
 
-    return( ret );
-
-}
-
-int
-dz_open_zone(dz_dev_t *dzd,
-	     int zno)
-{
-    int ret = 0;
-
-    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
-    } else if ( zno == -1 ) {
-        ret = zbc_open_zone(dzd->dev, -1);
-    }
-
+    /* Create command thread */
+    ret = pthread_create(&dzd->cmd_thread, NULL, dz_cmd_run, dzd);
     if ( ret != 0 ) {
-        ret = errno;
-        fprintf(stderr, "zbc_open_zone failed %d (%s)\n",
-                errno,
-                strerror(errno));
+	goto out;
+    }
+
+    if ( dzd->cmd_dialog ) {
+	if ( gtk_dialog_run(GTK_DIALOG(dzd->cmd_dialog)) == GTK_RESPONSE_OK ) {
+	    ret = 0;
+	} else {
+	    ret = -1;
+	}
+    } else {
+	void *cmd_ret;
+	pthread_join(dzd->cmd_thread, &cmd_ret);
+	ret = (long) cmd_ret;
+    }
+
+    pthread_join(dzd->cmd_thread, NULL);
+
+out:
+
+    if ( dzd->cmd_dialog ) {
+	gtk_widget_destroy(dzd->cmd_dialog);
+	dzd->cmd_dialog = NULL;
     }
 
     return( ret );
 
 }
 
-int
-dz_close_zone(dz_dev_t *dzd,
-	      int zno)
-{
-    int ret = 0;
-
-    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
-    } else if ( zno == -1 ) {
-        ret = zbc_close_zone(dzd->dev, -1);
-    }
-
-    if ( ret != 0 ) {
-        ret = errno;
-        fprintf(stderr, "zbc_close_zone failed %d (%s)\n",
-                errno,
-                strerror(errno));
-    }
-
-    return( ret );
-
-}
-
-int
-dz_finish_zone(dz_dev_t *dzd,
-	      int zno)
-{
-    int ret = 0;
-
-    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
-    } else if ( zno == -1 ) {
-        ret = zbc_finish_zone(dzd->dev, -1);
-    }
-
-    if ( ret != 0 ) {
-        ret = errno;
-        fprintf(stderr, "zbc_finish_zone failed %d (%s)\n",
-                errno,
-                strerror(errno));
-    }
-
-    return( ret );
-
-}
-
-int
-dz_reset_zone(dz_dev_t *dzd,
-	      int zno)
-{
-    int ret = 0;
-
-    if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
-    } else if ( zno == -1 ) {
-        ret = zbc_reset_write_pointer(dzd->dev, -1);
-    }
-
-    if ( ret != 0 ) {
-        ret = errno;
-        fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",
-                errno,
-                strerror(errno));
-    }
-
-    return( ret );
-
-}
-
-/***** Private functions *****/
-
-static gboolean
-dz_process_signal(GIOChannel *source,
-                    GIOCondition condition,
-                    gpointer user_data)
-{
-    char buf[32];
-    ssize_t size;
-    gboolean ret = FALSE;
-
-    if ( condition & G_IO_IN ) {
-        size = read(g_io_channel_unix_get_fd(source), buf, sizeof(buf));
-        if ( size > 0 ) {
-            /* Got signal */
-            gtk_main_quit();
-            ret = TRUE;
-        }
-    }
-
-    return( ret );
-
-}
-
-static void
-dz_sig_handler(int sig)
-{
-
-    /* Propagate signal through the pipe */
-    if ( write(dz.sig_pipe[1], &sig, sizeof(int)) < 0 ) {
-        printf("Signal %d processing failed\n", sig);
-    }
-
-    return;
-
-}
-
-static void
-dz_set_signal_handlers(void)
-{
-    GIOChannel *sig_channel;
-    long fd_flags;
-    int ret;
-
-    ret = pipe(dz.sig_pipe);
-    if ( ret < 0 ) {
-        perror("pipe");
-        exit(1);
-    }
-
-    fd_flags = fcntl(dz.sig_pipe[1], F_GETFL);
-    if ( fd_flags < 0 ) {
-        perror("Read descriptor flags");
-        exit(1);
-    }
-    ret = fcntl(dz.sig_pipe[1], F_SETFL, fd_flags | O_NONBLOCK);
-    if ( ret < 0 ) {
-        perror("Write descriptor flags");
-        exit(1);
-    }
-
-    /* Install the unix signal handler */
-    signal(SIGINT, dz_sig_handler);
-    signal(SIGQUIT, dz_sig_handler);
-    signal(SIGTERM, dz_sig_handler);
-
-    /* Convert the reading end of the pipe into a GIOChannel */
-    sig_channel = g_io_channel_unix_new(dz.sig_pipe[0]);
-    g_io_channel_set_encoding(sig_channel, NULL, NULL);
-    g_io_channel_set_flags(sig_channel, g_io_channel_get_flags(sig_channel) | G_IO_FLAG_NONBLOCK, NULL);
-    g_io_add_watch(sig_channel, G_IO_IN | G_IO_PRI, dz_process_signal, NULL);
-
-    return;
-
-}

@@ -55,10 +55,6 @@ dz_if_close_page_cb(GtkWidget *widget,
 		    gpointer user_data);
 
 static void
-dz_if_refresh_cb(GtkWidget *widget,
-		 gpointer user_data);
-
-static void
 dz_if_exit_cb(GtkWidget *widget,
               gpointer user_data);
 
@@ -114,14 +110,9 @@ dz_if_create(void)
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
     g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_close_cb), NULL);
 
-    /* Toolbar refresh button */
-    ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_LARGE_TOOLBAR), "Refresh");
-    gtk_tool_item_set_tooltip_text(ti, "Refresh current device zone information");
-    gtk_tool_item_set_is_important(ti, TRUE);
+    /* Separator */
+    ti = gtk_separator_tool_item_new();
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), ti, -1);
-    g_signal_connect(G_OBJECT(ti), "clicked", G_CALLBACK(dz_if_refresh_cb), NULL);
-
-    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
 
     /* Toolbar exit button */
     ti = gtk_tool_button_new(gtk_image_new_from_icon_name("application-exit", GTK_ICON_SIZE_LARGE_TOOLBAR), "Quit");
@@ -393,20 +384,6 @@ dz_if_close_page_cb(GtkWidget *widget,
 }
 
 static void
-dz_if_refresh_cb(GtkWidget *widget,
-		 gpointer user_data)
-{
-    dz_dev_t *dzd = dz_if_get_device();
-
-    if ( dzd ) {
-	dz_if_dev_refresh(dzd, 1);
-    }
-
-    return;
-
-}
-
-static void
 dz_if_exit_cb(GtkWidget *widget,
               gpointer user_data)
 {
@@ -434,7 +411,7 @@ dz_if_timer_cb(gpointer user_data)
     dz_dev_t *dzd = dz_if_get_device();
 
     if ( dzd ) {
-	dz_if_dev_refresh(dzd, 1);
+	dz_if_dev_update(dzd, 1);
     }
 
     return( TRUE );
@@ -449,7 +426,7 @@ dz_if_resize_cb(GtkWidget *widget,
     dz_dev_t *dzd = dz_if_get_device();
 
     if ( dzd ) {
-	dz_if_dev_refresh(dzd, 0);
+	dz_if_dev_update(dzd, 0);
     }
 
     return( FALSE );

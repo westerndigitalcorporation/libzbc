@@ -8,7 +8,7 @@
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christoph Hellwig (hch@infradead.org)
  */
@@ -167,12 +167,17 @@ typedef struct zbc_device {
 /***** Internal device functions *****/
 
 /**
- * ZAC (ATA) device operations.
+ * Block device operations (requires kernel support).
+ */
+extern zbc_ops_t zbc_block_ops;
+
+/**
+ * ZAC (ATA) device operations (uses SG_IO).
  */
 extern zbc_ops_t zbc_ata_ops;
 
 /**
- * ZBC (SCSI) device operations.
+ * ZBC (SCSI) device operations (uses SG_IO).
  */
 extern zbc_ops_t zbc_scsi_ops;
 
@@ -185,6 +190,34 @@ extern struct zbc_ops zbc_fake_ops;
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
 #define zbc_open_flags(f)           ((f) & ~ZBC_FORCE_ATA_RW)
+
+
+/**
+ * SCSI backend driver operations are also used
+ * for block device control.
+ */
+extern int
+zbc_scsi_get_zbd_chars(zbc_device_t *dev);
+
+extern int
+zbc_scsi_report_zones(zbc_device_t *dev,
+                      uint64_t start_lba,
+                      enum zbc_reporting_options ro,
+		      uint64_t *max_lba,
+                      zbc_zone_t *zones,
+                      unsigned int *nr_zones);
+
+extern int
+zbc_scsi_open_zone(zbc_device_t *dev,
+                   uint64_t start_lba);
+
+extern int
+zbc_scsi_close_zone(zbc_device_t *dev,
+                    uint64_t start_lba);
+
+extern int
+zbc_scsi_finish_zone(zbc_device_t *dev,
+                     uint64_t start_lba);
 
 #endif
 

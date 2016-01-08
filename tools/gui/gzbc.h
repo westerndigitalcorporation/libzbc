@@ -19,6 +19,7 @@
 /***** Including files *****/
 
 #include <sys/time.h>
+#include <pthread.h>
 
 #include <libzbc/zbc.h>
 
@@ -47,6 +48,17 @@ enum {
 };
 
 /**
+ * Device command IDs.
+ */
+enum {
+    DZ_CMD_REPORT_ZONES,
+    DZ_CMD_RESET_ZONE,
+    DZ_CMD_OPEN_ZONE,
+    DZ_CMD_CLOSE_ZONE,
+    DZ_CMD_FINISH_ZONE,
+};
+
+/**
  * Maximum number of devices that can be open.
  */
 #define DZ_MAX_DEV	32
@@ -59,15 +71,25 @@ enum {
 typedef struct dz_dev {
 
     char                        path[128];
+    int				opening;
 
     struct zbc_device           *dev;
     struct zbc_device_info      info;
     int                         block_size;
 
     int                         zone_ro;
+    int                         zone_no;
     unsigned int                max_nr_zones;
     unsigned int                nr_zones;
     struct zbc_zone             *zones;
+
+    /**
+     * Command execution.
+     */
+    int				cmd_id;
+    int				cmd_do_report_zones;
+    pthread_t			cmd_thread;
+    GtkWidget                   *cmd_dialog;
 
     /**
      * Interface stuff.
@@ -86,12 +108,6 @@ typedef struct dz_dev {
     int		                zinfo_selection;
 
     GtkWidget                   *zstate_da;
-
-    /**
-     * For handling timer and signals.
-     */
-    guint                       timer_id;
-    int                         sig_pipe[2];
 
 } dz_dev_t;
 
@@ -156,23 +172,10 @@ extern void
 dz_close(dz_dev_t *dzd);
 
 extern int
-dz_get_zones(dz_dev_t *dzd);
-
-extern int
-dz_open_zone(dz_dev_t *dzd,
-	     int zno);
-
-extern int
-dz_close_zone(dz_dev_t *dzd,
-	      int zno);
-
-extern int
-dz_finish_zone(dz_dev_t *dzd,
-	       int zno);
-
-extern int
-dz_reset_zone(dz_dev_t *dzd,
-	      int zno);
+dz_cmd_exec(dz_dev_t *dzd,
+	    int cmd_id,
+	    int do_report_zones,
+	    char *msg);
 
 extern int
 dz_if_create(void);
@@ -190,7 +193,7 @@ extern void
 dz_if_dev_close(dz_dev_t *dzd);
 
 extern void
-dz_if_dev_refresh(dz_dev_t *dzd,
-		  int update_zones);
+dz_if_dev_update(dz_dev_t *dzd,
+		 int do_report_zones);
 
 #endif /* __GZBC_H__ */

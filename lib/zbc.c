@@ -33,6 +33,7 @@ int zbc_log_level = ZBC_LOG_ERROR;
  * Backend drivers.
  */
 static struct zbc_ops *zbc_ops[] = {
+    &zbc_block_ops,
     &zbc_ata_ops,
     &zbc_scsi_ops,
     &zbc_fake_ops,
@@ -203,6 +204,8 @@ zbc_disk_type_str(int type)
         return( "ATA ZAC" );
     case ZBC_DT_FAKE:
         return( "Emulated zoned device" );
+    case ZBC_DT_BLOCK:
+        return( "Zoned block device" );
     }
 
     return( "Unknown-disk-type" );
@@ -472,7 +475,7 @@ zbc_report_zones(struct zbc_device *dev,
     if ( ! zones ) {
 
         /* Get number of zones */
-        ret = zbc_do_report_zones(dev, start_lba, ro &(~ZBC_RO_PARTIAL), NULL, NULL, nr_zones);
+        ret = zbc_do_report_zones(dev, start_lba, ro & (~ZBC_RO_PARTIAL), NULL, NULL, nr_zones);
 
     } else {
 
@@ -484,8 +487,9 @@ zbc_report_zones(struct zbc_device *dev,
             n = *nr_zones - nz;
             ret = zbc_do_report_zones(dev, start_lba, ro | ZBC_RO_PARTIAL, NULL, &zones[z], &n);
             if ( ret != 0 ) {
-                zbc_error("Get zones from LBA %llu failed\n",
-                          (unsigned long long) start_lba);
+                zbc_error("Get zones from LBA %llu failed %d (%s) %d %d %d\n",
+                          (unsigned long long) start_lba,
+			  ret, strerror(-ret), n, *nr_zones, nz);
                 break;
             }
 
@@ -496,7 +500,6 @@ zbc_report_zones(struct zbc_device *dev,
             nz += n;
             z += n;
             start_lba = zones[z - 1].zbz_start + zones[z - 1].zbz_length;
-
             if ( start_lba >= dev->zbd_info.zbd_logical_blocks ) {
                 break;
             }

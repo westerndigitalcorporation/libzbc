@@ -4,6 +4,7 @@ LIBZBC_LTVERSION="4:0:0"
 
 CFILES = \
 	lib/zbc.c \
+	lib/zbc_block.c \
 	lib/zbc_sg.c \
 	lib/zbc_scsi.c \
 	lib/zbc_ata.c \
@@ -11,8 +12,7 @@ CFILES = \
 
 HFILES = \
 	lib/zbc.h \
-	lib/zbc_sg.h \
-	lib/zbc_scsi.h
+	lib/zbc_sg.h
 
 libzbc_la_DEPENDENCIES = exports
 libzbc_la_SOURCES = $(CFILES) $(HFILES)

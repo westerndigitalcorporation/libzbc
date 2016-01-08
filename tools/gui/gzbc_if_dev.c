@@ -86,6 +86,10 @@ static gboolean
 dz_if_zinfo_filter_cb(GtkComboBox *button,
                       gpointer user_data);
 
+static gboolean
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data);
+
 static void
 dz_if_zinfo_fill(dz_dev_t *dzd);
 
@@ -224,7 +228,7 @@ dz_if_dev_open(char *path)
     gtk_container_set_border_width(GTK_CONTAINER(frame), 10);
     dzd->page_frame = frame;
 
-    /* top vbox */
+    /* Top vbox */
     top_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_show(top_vbox);
     gtk_container_add(GTK_CONTAINER(frame), top_vbox);
@@ -237,14 +241,14 @@ dz_if_dev_open(char *path)
              dzd->info.zbd_physical_block_size);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
-    gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
     dzd->zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
     gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_show(hbox);
-    gtk_container_add(GTK_CONTAINER(frame), hbox);
     dz_if_set_margin(hbox, 7, 7, 0, 0);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
 
     /* Zone list filter label */
     label = gtk_label_new(NULL);
@@ -269,6 +273,26 @@ dz_if_dev_open(char *path)
     g_signal_connect((gpointer) combo, "changed",
 		     G_CALLBACK(dz_if_zinfo_filter_cb),
 		     dzd);
+
+    /* Refresh button */
+    button = gtk_button_new();
+    gtk_widget_show(button);
+    dz_if_set_margin(button, 0, 7, 10, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_show(hbox);
+    gtk_container_add(GTK_CONTAINER(button), hbox);
+
+    image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_show(image);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+
+    label = gtk_label_new("Refresh");
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_refresh_cb), dzd);
 
     /* Zone list frame */
     snprintf(str, sizeof(str) - 1, "<b>%d zones</b>", dzd->nr_zones);
@@ -448,7 +472,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Open Zone");
+    label = gtk_label_new("Open Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -467,7 +491,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Close Zone");
+    label = gtk_label_new("Close Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -486,7 +510,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Finish Zone");
+    label = gtk_label_new("Finish Zone");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -505,7 +529,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(image);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
-    label = gtk_label_new_with_mnemonic("Reset Write Pointer");
+    label = gtk_label_new("Reset Write Ptr");
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -553,11 +577,11 @@ dz_if_dev_close(dz_dev_t *dzd)
 }
 
 void
-dz_if_dev_refresh(dz_dev_t *dzd,
-		  int update_zones)
+dz_if_dev_update(dz_dev_t *dzd,
+		 int do_report_zones)
 {
 
-    if ( update_zones ) {
+    if ( do_report_zones ) {
 	/* Update zinfo */
 	dz_if_update_zinfo(dzd);
     } else {
@@ -824,7 +848,7 @@ dz_if_zinfo_fill(dz_dev_t *dzd)
     unsigned int i;
 
     /* Update device list */
-    if ( ! dzd->nr_zones ) {
+    if ( (! dzd->nr_zones) || (! dzd->zones) ) {
         return;
     }
 
@@ -859,7 +883,7 @@ dz_if_zinfo_update_range(dz_dev_t *dzd)
     GtkTreePath *start = NULL, *end = NULL;
     GtkTreeIter iter;
 
-    if ( ! dzd->nr_zones ) {
+    if ( (! dzd->nr_zones) || (! dzd->zones) ) {
         dzd->zinfo_start_no = 0;
         dzd->zinfo_end_no = 0;
 	return;
@@ -1020,31 +1044,14 @@ dz_if_zinfo_spinchanged_cb(GtkSpinButton *spinbutton,
 }
 
 static void
-dz_if_update_zinfo(dz_dev_t *dzd)
+dz_if_refresh_zinfo(dz_dev_t *dzd)
 {
-    GtkWidget *dialog;
     unsigned int i, nr_zones = dzd->nr_zones;
     GtkTreeIter iter;
     char str[128];
-    int ret;
 
-    /* Refresh zone list */
-    ret = dz_get_zones(dzd);
-    if ( ret != 0 ) {
-
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Get zone list failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Get zone list failed %d (%s)",
-                                                 ret,
-                                                 strerror(ret));
-        gtk_dialog_run(GTK_DIALOG(dialog));
-        gtk_widget_destroy(dialog);
-
+    if ( ! dzd->zones || (! dzd->nr_zones) ) {
 	return;
-
     }
 
     if ( dzd->nr_zones != nr_zones ) {
@@ -1071,6 +1078,38 @@ dz_if_update_zinfo(dz_dev_t *dzd)
 
     /* Redraw visible range */
     dz_if_redraw_zinfo(dzd);
+
+    return;
+
+}
+
+static void
+dz_if_update_zinfo(dz_dev_t *dzd)
+{
+    GtkWidget *dialog;
+    int ret;
+
+    /* Update zone information */
+    ret = dz_cmd_exec(dzd, DZ_CMD_REPORT_ZONES, 0, "Getting zone information...");
+    if ( ret != 0 ) {
+
+        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR,
+                                        GTK_BUTTONS_OK,
+                                        "Get zone information failed\n");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Error %d (%s)",
+                                                 ret,
+                                                 strerror(ret));
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+
+	return;
+
+    }
+
+    /* Update list */
+    dz_if_refresh_zinfo(dzd);
 
     return;
 
@@ -1105,6 +1144,17 @@ dz_if_zinfo_filter_cb(GtkComboBox *button,
         }
 
     }
+
+    return( FALSE );
+
+}
+
+static gboolean
+dz_if_refresh_cb(GtkWidget *widget,
+		 gpointer user_data)
+{
+
+    dz_if_update_zinfo((dz_dev_t *) user_data);
 
     return( FALSE );
 
@@ -1198,14 +1248,14 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
     /* Current visible range */
     dz_if_zinfo_update_range(dzd);
 
+    if ( (! dzd->zones) || (! dzd->nr_zones) ) {
+        return( FALSE );
+    }
+
     /* Current size */
     gtk_widget_get_allocation(dzd->zstate_da, &allocation);
     w = allocation.width - (DZ_DRAW_WOFST * 2);
     h = allocation.height;
-
-    if ( ! dzd->nr_zones ) {
-        return( FALSE );
-    }
 
     /* Get total viewed capacity */
     if ( dzd->zinfo_end_no >= dzd->nr_zones ) {
@@ -1296,19 +1346,27 @@ dz_if_open_cb(GtkWidget *widget,
     dz_dev_t *dzd = (dz_dev_t *) user_data;
     GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
-    int zno, ret;
+    int ret;
 
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-    ret = dz_open_zone(dzd, zno);
+    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    ret = dz_cmd_exec(dzd, DZ_CMD_OPEN_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Open zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Open zone %d failed %d (%s)",
-                                                 zno,
+	if ( dzd->zone_no == -1 ) {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Open all zones failed\n");
+	} else {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Open zone %d failed\n",
+					    dzd->zone_no);
+	}
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Error %d (%s)",
                                                  ret,
                                                  strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1317,7 +1375,7 @@ dz_if_open_cb(GtkWidget *widget,
     }
 
     /* Update zinfo */
-    dz_if_update_zinfo(dzd);
+    dz_if_refresh_zinfo(dzd);
 
     return( FALSE );
 
@@ -1330,19 +1388,27 @@ dz_if_close_cb(GtkWidget *widget,
     dz_dev_t *dzd = (dz_dev_t *) user_data;
     GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
-    int zno, ret;
+    int ret;
 
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-    ret = dz_close_zone(dzd, zno);
+    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    ret = dz_cmd_exec(dzd, DZ_CMD_CLOSE_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Close zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Close zone %d failed %d (%s)",
-                                                 zno,
+	if ( dzd->zone_no == -1 ) {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Close all zones failed\n");
+	} else {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Close zone %d failed\n",
+					    dzd->zone_no);
+	}
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Error %d (%s)",
                                                  ret,
                                                  strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1351,7 +1417,7 @@ dz_if_close_cb(GtkWidget *widget,
     }
 
     /* Update zinfo */
-    dz_if_update_zinfo(dzd);
+    dz_if_refresh_zinfo(dzd);
 
     return( FALSE );
 
@@ -1364,19 +1430,27 @@ dz_if_finish_cb(GtkWidget *widget,
     dz_dev_t *dzd = (dz_dev_t *) user_data;
     GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
-    int zno, ret;
+    int ret;
 
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-    ret = dz_finish_zone(dzd, zno);
+    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    ret = dz_cmd_exec(dzd, DZ_CMD_FINISH_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Finish zone failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Finish zone %d failed %d (%s)",
-                                                 zno,
+        if ( dzd->zone_no == -1 ) {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Finish all zones failed\n");
+	} else {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Finish zone %d failed\n",
+					    dzd->zone_no);
+	}
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Error %d (%s)",
                                                  ret,
                                                  strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1385,7 +1459,7 @@ dz_if_finish_cb(GtkWidget *widget,
     }
 
     /* Update zinfo */
-    dz_if_update_zinfo(dzd);
+    dz_if_refresh_zinfo(dzd);
 
     return( FALSE );
 
@@ -1398,19 +1472,33 @@ dz_if_reset_cb(GtkWidget *widget,
     dz_dev_t *dzd = (dz_dev_t *) user_data;
     GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
-    int zno, ret;
+    char msg[128];
+    int ret;
 
-    zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-    ret = dz_reset_zone(dzd, zno);
+    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    if ( dzd->zone_no == -1 ) {
+	strcpy(msg, "Resetting zones...");
+    } else {
+	sprintf(msg, "Resetting zone %d...", dzd->zone_no);
+    }
+    ret = dz_cmd_exec(dzd, DZ_CMD_RESET_ZONE, 1, msg);
     if ( ret != 0 ) {
 
-        dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-                                        GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                        GTK_MESSAGE_ERROR,
-                                        GTK_BUTTONS_OK,
-                                        "Reset zone write pointer failed\n");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Reset zone %d failed %d (%s)",
-                                                 zno,
+        if ( dzd->zone_no == -1 ) {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Reset all zones write pointer failed\n");
+	} else {
+	    dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					    GTK_MESSAGE_ERROR,
+					    GTK_BUTTONS_OK,
+					    "Reset zone %d write pointer failed\n",
+					    dzd->zone_no);
+	}
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog), "Error %d (%s)",
                                                  ret,
                                                  strerror(ret));
         gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1419,7 +1507,7 @@ dz_if_reset_cb(GtkWidget *widget,
     }
 
     /* Update zinfo */
-    dz_if_update_zinfo(dzd);
+    dz_if_refresh_zinfo(dzd);
 
     return( FALSE );
 
@@ -1448,7 +1536,7 @@ dz_if_set_block_size_cb(GtkWidget *widget,
 	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
 	    gtk_entry_set_text(GTK_ENTRY(widget), str);
 	}
-	dz_if_dev_refresh(dzd, 1);
+	dz_if_update_zinfo(dzd);
 
     }
 
