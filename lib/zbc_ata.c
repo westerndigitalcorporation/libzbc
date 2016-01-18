@@ -1128,7 +1128,6 @@ zbc_ata_report_zones(zbc_device_t *dev,
         bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
     }
 
-    bufsz = (bufsz + 511) & ~511;
     bufsz = (bufsz + 4095) & ~4095;
     if ( bufsz > ZBC_ATA_REPORT_ZONES_BUFSZ ) {
 	bufsz = ZBC_ATA_REPORT_ZONES_BUFSZ;
@@ -1183,7 +1182,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
     cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
     cmd.cdb[1] = (0x06 << 1) | 0x01;	/* DMA protocol, ext=1 */
     cmd.cdb[2] = 0x0e; 			/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
-    cmd.cdb[3] = ro;
+    cmd.cdb[3] = ro & 0xbf;		/* Partial bit and reporting options */
     cmd.cdb[4] = ZBC_ATA_REPORT_ZONES_EXT_AF;
     cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
     cmd.cdb[6] = (bufsz / 512) & 0xff;
