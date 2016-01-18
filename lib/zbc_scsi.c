@@ -358,7 +358,7 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
     zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
     zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
-    cmd.cdb[14] = ro;
+    cmd.cdb[14] = ro & 0xbf;
 
     /* Send the SG_IO command */
     ret = zbc_sg_cmd_exec(dev, &cmd);
