@@ -1046,32 +1046,25 @@ dz_if_zinfo_spinchanged_cb(GtkSpinButton *spinbutton,
 static void
 dz_if_refresh_zinfo(dz_dev_t *dzd)
 {
-    unsigned int i, nr_zones = dzd->nr_zones;
+    unsigned int i;
     GtkTreeIter iter;
     char str[128];
 
-    if ( ! dzd->zones || (! dzd->nr_zones) ) {
-	return;
+    /* Update number of zones */
+    snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
+    gtk_label_set_text(GTK_LABEL(dzd->zinfo_frame_label), str);
+    gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
+
+    gtk_list_store_clear(dzd->zinfo_store);
+    for(i = 0; i < dzd->nr_zones; i++) {
+	gtk_list_store_append(dzd->zinfo_store, &iter);
     }
 
-    if ( dzd->nr_zones != nr_zones ) {
-
-	/* Number of zones changed... */
-	snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
-	gtk_label_set_text(GTK_LABEL(dzd->zinfo_frame_label), str);
-	gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
-
-        gtk_list_store_clear(dzd->zinfo_store);
-        for(i = 0; i < dzd->nr_zones; i++) {
-            gtk_list_store_append(dzd->zinfo_store, &iter);
-        }
-
-        dzd->zinfo_selection = -1;
-        gtk_spin_button_set_range(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), -1, dzd->nr_zones);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), 0.0);
-        gtk_spin_button_update(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton));
-
-    }
+    /* Clear selection */
+    dzd->zinfo_selection = -1;
+    gtk_spin_button_set_range(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), -1, dzd->nr_zones);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), 0.0);
+    gtk_spin_button_update(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton));
 
     /* Update list */
     dz_if_zinfo_fill(dzd);
