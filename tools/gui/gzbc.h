@@ -76,6 +76,7 @@ typedef struct dz_dev {
     struct zbc_device           *dev;
     struct zbc_device_info      info;
     int                         block_size;
+    int 			use_hexa;
 
     int                         zone_ro;
     int                         zone_no;
@@ -98,16 +99,17 @@ typedef struct dz_dev {
     GtkWidget                   *page_frame;
 
     GtkWidget                   *zfilter_combo;
-    GtkWidget                   *zinfo_spinbutton;
-    GtkWidget                   *zinfo_frame_label;
-    GtkWidget                   *zinfo_treeview;
-    GtkTreeModel                *zinfo_model;
-    GtkListStore                *zinfo_store;
-    unsigned int		zinfo_start_no;
-    unsigned int		zinfo_end_no;
-    int		                zinfo_selection;
+    GtkWidget                   *zlist_frame_label;
+    GtkWidget                   *zlist_treeview;
+    GtkTreeModel                *zlist_model;
+    GtkListStore                *zlist_store;
+    unsigned int		zlist_start_no;
+    unsigned int		zlist_end_no;
+    int		                zlist_selection;
+    GtkWidget                   *znum_entry;
+    GtkWidget                   *zblock_entry;
 
-    GtkWidget                   *zstate_da;
+    GtkWidget                   *zones_da;
 
 } dz_dev_t;
 

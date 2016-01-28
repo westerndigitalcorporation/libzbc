@@ -27,125 +27,136 @@
 /***** Declaration of private functions *****/
 
 static void
-dz_if_zinfo_print_zone_number(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_number(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
 			      gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_type(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_type(GtkTreeViewColumn *col,
 			    GtkCellRenderer *renderer,
 			    GtkTreeModel *model,
 			    GtkTreeIter *iter,
 			    gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_cond(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
 			    GtkCellRenderer *renderer,
 			    GtkTreeModel *model,
 			    GtkTreeIter *iter,
 			    gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_need_reset(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
 				  GtkCellRenderer *renderer,
 				  GtkTreeModel *model,
 				  GtkTreeIter *iter,
 				  gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_nonseq(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_nonseq(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
 			      gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_start(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_start(GtkTreeViewColumn *col,
 			     GtkCellRenderer *renderer,
 			     GtkTreeModel *model,
 			     GtkTreeIter *iter,
 			     gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_length(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_length(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
 			      gpointer user_data);
 
 static void
-dz_if_zinfo_print_zone_wp(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_wp(GtkTreeViewColumn *col,
 			  GtkCellRenderer *renderer,
 			  GtkTreeModel *model,
 			  GtkTreeIter *iter,
 			  gpointer user_data);
 
 static gboolean
-dz_if_zinfo_filter_cb(GtkComboBox *button,
+dz_if_zlist_filter_cb(GtkComboBox *button,
                       gpointer user_data);
 
+static void
+dz_if_zlist_set_block_size_cb(GtkEntry *entry,
+			      gpointer user_data);
+
+static void
+dz_if_zlist_set_use_hexa_cb(GtkToggleButton *togglebutton,
+			    gpointer user_data);
+
+static void
+dz_if_zlist_fill(dz_dev_t *dzd);
+
 static gboolean
-dz_if_refresh_cb(GtkWidget *widget,
-		 gpointer user_data);
+dz_if_zlist_refresh_cb(GtkWidget *widget,
+		       gpointer user_data);
 
 static void
-dz_if_zinfo_fill(dz_dev_t *dzd);
-
-static void
-dz_if_zinfo_scroll_cb(GtkWidget *widget,
+dz_if_zlist_scroll_cb(GtkWidget *widget,
 		      gpointer user_data);
 
-static void
-dz_if_zinfo_spinchanged_cb(GtkSpinButton *spin_button,
-			   gpointer user_data);
-
 static gboolean
-dz_if_zinfo_select_cb(GtkTreeSelection *selection,
+dz_if_zlist_select_cb(GtkTreeSelection *selection,
                       GtkTreeModel *model,
                       GtkTreePath *path,
                       gboolean path_currently_selected,
                       gpointer userdata);
 
 static void
-dz_if_update_zinfo(dz_dev_t *dzd);
+dz_if_znum_set(dz_dev_t *dzd);
 
 static void
-dz_if_redraw_zinfo(dz_dev_t *dzd);
+dz_if_znum_set_cb(GtkEntry *entry,
+		  gpointer user_data);
+
+static void
+dz_if_zblock_set(dz_dev_t *dzd);
+
+static void
+dz_if_zblock_set_cb(GtkEntry *entry,
+		    gpointer user_data);
+
+static void
+dz_if_update_zones(dz_dev_t *dzd);
+
+static void
+dz_if_redraw_zones(dz_dev_t *dzd);
 
 static gboolean
-dz_if_zstate_draw_legend_cb(GtkWidget *widget,
-			    cairo_t *cr,
-			    gpointer user_data);
+dz_if_zones_draw_legend_cb(GtkWidget *widget,
+			   cairo_t *cr,
+			   gpointer user_data);
 
 static gboolean
-dz_if_zstate_draw_cb(GtkWidget *widget,
-		     cairo_t *cr,
+dz_if_zones_draw_cb(GtkWidget *widget,
+		    cairo_t *cr,
+		    gpointer user_data);
+
+static gboolean
+dz_if_zone_open_cb(GtkWidget *widget,
+		   gpointer user_data);
+
+static gboolean
+dz_if_zone_close_cb(GtkWidget *widget,
+		    gpointer user_data);
+
+static gboolean
+dz_if_zone_finish_cb(GtkWidget *widget,
 		     gpointer user_data);
 
-static void
-dz_if_zinfo_update_range(dz_dev_t *dzd);
-
 static gboolean
-dz_if_open_cb(GtkWidget *widget,
-               gpointer user_data);
-
-static gboolean
-dz_if_close_cb(GtkWidget *widget,
-               gpointer user_data);
-
-static gboolean
-dz_if_finish_cb(GtkWidget *widget,
-               gpointer user_data);
-
-static gboolean
-dz_if_reset_cb(GtkWidget *widget,
-               gpointer user_data);
-
-static void
-dz_if_set_block_size_cb(GtkWidget *widget,
-			gpointer user_data);
+dz_if_zone_reset_cb(GtkWidget *widget,
+		    gpointer user_data);
 
 static inline void
 dz_if_set_margin(GtkWidget *widget,
@@ -199,12 +210,11 @@ dz_if_dev_open(char *path)
 {
     GtkWidget *top_vbox, *hbox, *ctrl_hbox, *vbox;
     GtkWidget *combo, *scrolledwindow;
+    GtkWidget *button, *checkbutton;
     GtkWidget *frame;
-    GtkWidget *button;
     GtkWidget *image;
     GtkWidget *label;
     GtkWidget *entry;
-    GtkWidget *spinbutton;
     GtkWidget *hbuttonbox;
     GtkWidget *treeview;
     GtkTreeViewColumn *column;
@@ -243,8 +253,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    dzd->zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
-    gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
+    gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     gtk_widget_show(hbox);
     dz_if_set_margin(hbox, 7, 7, 0, 0);
@@ -271,7 +280,39 @@ dz_if_dev_open(char *path)
     dzd->zfilter_combo = combo;
 
     g_signal_connect((gpointer) combo, "changed",
-		     G_CALLBACK(dz_if_zinfo_filter_cb),
+		     G_CALLBACK(dz_if_zlist_filter_cb),
+		     dzd);
+
+    /* Block size entry */
+    label = gtk_label_new("<b>Block size (B)</b>");
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    entry = gtk_entry_new();
+    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+    gtk_entry_set_text(GTK_ENTRY(entry), str);
+    gtk_widget_show(entry);
+    gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer)entry, "activate",
+		     G_CALLBACK(dz_if_zlist_set_block_size_cb),
+		     dzd);
+
+    /* Hexadecimal values */
+    label = gtk_label_new("<b>Hexadecimal</b>");
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    checkbutton = gtk_check_button_new();
+    gtk_widget_show(checkbutton);
+    gtk_box_pack_start(GTK_BOX(hbox), checkbutton, FALSE, FALSE, 0);
+
+    g_signal_connect((gpointer)checkbutton, "toggled",
+		     G_CALLBACK(dz_if_zlist_set_use_hexa_cb),
 		     dzd);
 
     /* Refresh button */
@@ -292,16 +333,18 @@ dz_if_dev_open(char *path)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_refresh_cb), dzd);
+    g_signal_connect((gpointer) button, "clicked",
+		     G_CALLBACK(dz_if_zlist_refresh_cb),
+		     dzd);
 
     /* Zone list frame */
-    snprintf(str, sizeof(str) - 1, "<b>%d zones</b>", dzd->nr_zones);
+    snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, TRUE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    dzd->zinfo_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
-    gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
+    dzd->zlist_frame_label = gtk_frame_get_label_widget(GTK_FRAME(frame));
+    gtk_label_set_use_markup(GTK_LABEL(dzd->zlist_frame_label), TRUE);
 
     /* Create zone list */
     scrolledwindow = gtk_scrolled_window_new(NULL, NULL);
@@ -317,62 +360,62 @@ dz_if_dev_open(char *path)
     gtk_tree_view_set_enable_search(GTK_TREE_VIEW(treeview), FALSE);
     gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)), GTK_SELECTION_SINGLE);
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(treeview), TRUE);
-    dzd->zinfo_treeview = treeview;
+    dzd->zlist_treeview = treeview;
 
     g_signal_connect((gpointer) gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(treeview)), "value-changed",
-		     G_CALLBACK(dz_if_zinfo_scroll_cb),
+		     G_CALLBACK(dz_if_zlist_scroll_cb),
 		     dzd);
 
     /* Number column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Zone number", renderer, "text", DZ_ZONE_NUM, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_number, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_number, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Type column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Type", renderer, "text", DZ_ZONE_TYPE, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_type, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_type, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Condition column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Condition", renderer, "text", DZ_ZONE_COND, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_cond, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_cond, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Need reset column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Need Reset", renderer, "text", DZ_ZONE_NEED_RESET, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_need_reset, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_need_reset, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Non-seq column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Non Seq", renderer, "text", DZ_ZONE_NONSEQ, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_nonseq, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_nonseq, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Start column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Start", renderer, "text", DZ_ZONE_START, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_start, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_start, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Length column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Length", renderer, "text", DZ_ZONE_LENGTH, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_length, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_length, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Write pointer column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Write Pointer", renderer, "text", DZ_ZONE_WP, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zinfo_print_zone_wp, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_wp, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
-    /* Create device list store */
-    dzd->zinfo_store = gtk_list_store_new(DZ_ZONE_LIST_COLUMS,
+    /* Create zone list store and fill the list */
+    dzd->zlist_store = gtk_list_store_new(DZ_ZONE_LIST_COLUMS,
 					  G_TYPE_UINT,
 					  G_TYPE_UINT,
 					  G_TYPE_UINT,
@@ -382,16 +425,22 @@ dz_if_dev_open(char *path)
 					  G_TYPE_UINT64,
 					  G_TYPE_UINT64);
     for(i = 0; i < dzd->nr_zones; i++) {
-        gtk_list_store_append(dzd->zinfo_store, &iter);
+        gtk_list_store_append(dzd->zlist_store, &iter);
     }
-    dzd->zinfo_model = GTK_TREE_MODEL(dzd->zinfo_store);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(dzd->zinfo_treeview), dzd->zinfo_model);
-    g_object_unref(dzd->zinfo_model);
+    dzd->zlist_model = GTK_TREE_MODEL(dzd->zlist_store);
+    gtk_tree_view_set_model(GTK_TREE_VIEW(dzd->zlist_treeview), dzd->zlist_model);
+    g_object_unref(dzd->zlist_model);
 
-    dz_if_zinfo_fill(dzd);
+    dz_if_zlist_fill(dzd);
 
-    /* Zone use state drawing frame */
-    frame = gtk_frame_new("<b>Zone State</b>");
+    dzd->zlist_selection = -1;
+    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
+                                           dz_if_zlist_select_cb,
+                                           dzd,
+                                           NULL);
+
+    /* Zone state drawing frame */
+    frame = gtk_frame_new("<b>Zone Write State</b>");
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
@@ -407,24 +456,25 @@ dz_if_dev_open(char *path)
     gtk_container_add(GTK_CONTAINER(vbox), da);
 
     g_signal_connect((gpointer) da, "draw",
-                     G_CALLBACK(dz_if_zstate_draw_legend_cb),
+                     G_CALLBACK(dz_if_zones_draw_legend_cb),
                      dzd);
 
     da = gtk_drawing_area_new();
     gtk_widget_set_size_request(da, -1, 100);
     gtk_widget_show(da);
     gtk_container_add(GTK_CONTAINER(vbox), da);
-    dzd->zstate_da = da;
+    dzd->zones_da = da;
 
     g_signal_connect((gpointer) da, "draw",
-                     G_CALLBACK(dz_if_zstate_draw_cb),
+                     G_CALLBACK(dz_if_zones_draw_cb),
                      dzd);
 
-    /* Controls frame */
-    frame = gtk_frame_new(NULL);
+    /* Zone control frame */
+    frame = gtk_frame_new("<b>Zone Control</b>");
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+    gtk_label_set_use_markup(GTK_LABEL(gtk_frame_get_label_widget(GTK_FRAME(frame))), TRUE);
 
     /* Hbox for controls */
     ctrl_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
@@ -432,24 +482,39 @@ dz_if_dev_open(char *path)
     dz_if_set_margin(ctrl_hbox, 7, 7, 0, 0);
     gtk_container_add(GTK_CONTAINER(frame), ctrl_hbox);
 
-    /* Reset zone control */
+    /* Zone number selection entry */
     label = gtk_label_new("<b>Zone number</b>");
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 5);
 
-    spinbutton = gtk_spin_button_new_with_range(-1, dzd->nr_zones - 1, 1);
-    gtk_widget_show(spinbutton);
-    gtk_spin_button_set_wrap(GTK_SPIN_BUTTON(spinbutton), TRUE);
-    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(spinbutton), 0);
-    gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(spinbutton), TRUE);
-    gtk_box_pack_start(GTK_BOX(ctrl_hbox), spinbutton, FALSE, FALSE, 5);
-    dzd->zinfo_spinbutton = spinbutton;
+    entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), "-1");
+    gtk_widget_show(entry);
+    gtk_box_pack_start(GTK_BOX(ctrl_hbox), entry, FALSE, FALSE, 0);
+    dzd->znum_entry = entry;
 
-    g_signal_connect((gpointer) spinbutton, "value-changed",
-                     G_CALLBACK(dz_if_zinfo_spinchanged_cb),
-                     dzd);
+    g_signal_connect((gpointer)entry, "activate",
+		     G_CALLBACK(dz_if_znum_set_cb),
+		     dzd);
+
+    /* Zone LBA selection entry */
+    label = gtk_label_new("<b>Block</b>");
+    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+    gtk_widget_show(label);
+    gtk_box_pack_start(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 5);
+
+    entry = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(entry), "-1");
+    gtk_widget_show(entry);
+    gtk_box_pack_start(GTK_BOX(ctrl_hbox), entry, FALSE, FALSE, 0);
+    dzd->zblock_entry = entry;
+
+    g_signal_connect((gpointer)entry, "activate",
+		     G_CALLBACK(dz_if_zblock_set_cb),
+		     dzd);
 
     /* Zone control button Box */
     hbuttonbox = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
@@ -476,7 +541,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_open_cb), dzd);
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_zone_open_cb), dzd);
 
     /* Close button */
     button = gtk_button_new();
@@ -495,7 +560,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_close_cb), dzd);
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_zone_close_cb), dzd);
 
     /* Finish button */
     button = gtk_button_new();
@@ -514,7 +579,7 @@ dz_if_dev_open(char *path)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_finish_cb), dzd);
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_zone_finish_cb), dzd);
 
     /* Reset button */
     button = gtk_button_new();
@@ -533,33 +598,10 @@ dz_if_dev_open(char *path)
     gtk_widget_show(label);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_reset_cb), dzd);
-
-    /* Block size */
-    entry = gtk_entry_new();
-    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
-    gtk_entry_set_text(GTK_ENTRY(entry), str);
-    gtk_widget_show(entry);
-    gtk_box_pack_end(GTK_BOX(ctrl_hbox), entry, FALSE, FALSE, 5);
-
-    g_signal_connect((gpointer)entry, "activate", G_CALLBACK(dz_if_set_block_size_cb), dzd);
-
-    label = gtk_label_new("<b>Block size (B)</b>");
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
-    gtk_widget_show(label);
-    gtk_box_pack_end(GTK_BOX(ctrl_hbox), label, FALSE, FALSE, 5);
-
-    /* Link tree view selection and spinbutton value */
-    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
-                                           dz_if_zinfo_select_cb,
-                                           dzd,
-                                           NULL);
+    g_signal_connect((gpointer) button, "clicked", G_CALLBACK(dz_if_zone_reset_cb), dzd);
 
     /* Done */
     gtk_widget_show_all(dz.window);
-    dzd->zinfo_selection = -1;
-    dz_if_zinfo_spinchanged_cb(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), dzd);
 
     return( dzd );
 
@@ -582,11 +624,11 @@ dz_if_dev_update(dz_dev_t *dzd,
 {
 
     if ( do_report_zones ) {
-	/* Update zinfo */
-	dz_if_update_zinfo(dzd);
+	/* Update zones info */
+	dz_if_update_zones(dzd);
     } else {
 	/* Update and redraw viewable zone range */
-	dz_if_redraw_zinfo(dzd);
+	dz_if_redraw_zones(dzd);
     }
 
     return;
@@ -595,15 +637,15 @@ dz_if_dev_update(dz_dev_t *dzd,
 
 /***** Definition of private functions *****/
 
-static unsigned long long
-dz_if_blocks(dz_dev_t *dzd,
-	     unsigned long long lba)
+static long long
+dz_if_lba2block(dz_dev_t *dzd,
+		unsigned long long lba)
 {
     return( (lba * dzd->info.zbd_logical_block_size) / dzd->block_size );
 }
 
 static void
-dz_if_zinfo_print_zone_number(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_number(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
@@ -625,7 +667,7 @@ dz_if_zinfo_print_zone_number(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_type(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_type(GtkTreeViewColumn *col,
 			    GtkCellRenderer *renderer,
 			    GtkTreeModel *model,
 			    GtkTreeIter *iter,
@@ -657,7 +699,7 @@ dz_if_zinfo_print_zone_type(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_cond(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
 			    GtkCellRenderer *renderer,
 			    GtkTreeModel *model,
 			    GtkTreeIter *iter,
@@ -703,7 +745,7 @@ dz_if_zinfo_print_zone_cond(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_need_reset(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
 				  GtkCellRenderer *renderer,
 				  GtkTreeModel *model,
 				  GtkTreeIter *iter,
@@ -732,7 +774,7 @@ dz_if_zinfo_print_zone_need_reset(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_nonseq(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_nonseq(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
@@ -761,7 +803,7 @@ dz_if_zinfo_print_zone_nonseq(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_start(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_start(GtkTreeViewColumn *col,
 			     GtkCellRenderer *renderer,
 			     GtkTreeModel *model,
 			     GtkTreeIter *iter,
@@ -777,7 +819,11 @@ dz_if_zinfo_print_zone_start(GtkTreeViewColumn *col,
 
     /* Zone start LBA */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
-    snprintf(str, sizeof(str), "%llu", dz_if_blocks(dzd, zbc_zone_start_lba(z)));
+    if ( dzd->use_hexa ) {
+	snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_start_lba(z)));
+    } else {
+	snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_start_lba(z)));
+    }
     g_object_set(renderer, "text", str, NULL);
 
     return;
@@ -785,7 +831,7 @@ dz_if_zinfo_print_zone_start(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_length(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_length(GtkTreeViewColumn *col,
 			      GtkCellRenderer *renderer,
 			      GtkTreeModel *model,
 			      GtkTreeIter *iter,
@@ -801,7 +847,11 @@ dz_if_zinfo_print_zone_length(GtkTreeViewColumn *col,
 
     /* Zone length */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
-    snprintf(str, sizeof(str), "%llu", dz_if_blocks(dzd, zbc_zone_length(z)));
+    if ( dzd->use_hexa ) {
+	snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_length(z)));
+    } else {
+	snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_length(z)));
+    }
     g_object_set(renderer, "text", str, NULL);
 
     return;
@@ -809,7 +859,7 @@ dz_if_zinfo_print_zone_length(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_print_zone_wp(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_wp(GtkTreeViewColumn *col,
 			  GtkCellRenderer *renderer,
 			  GtkTreeModel *model,
 			  GtkTreeIter *iter,
@@ -832,7 +882,11 @@ dz_if_zinfo_print_zone_wp(GtkTreeViewColumn *col,
 	strncpy(str, "Full", sizeof(str));
     } else {
 	g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
-	snprintf(str, sizeof(str), "%llu", dz_if_blocks(dzd, zbc_zone_wp_lba(z)));
+	if ( dzd->use_hexa ) {
+	    snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_wp_lba(z)));
+	} else {
+	    snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_wp_lba(z)));
+	}
     }
     g_object_set(renderer, "text", str, NULL);
 
@@ -841,7 +895,7 @@ dz_if_zinfo_print_zone_wp(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zinfo_fill(dz_dev_t *dzd)
+dz_if_zlist_fill(dz_dev_t *dzd)
 {
     GtkTreeIter iter;
     struct zbc_zone *z;
@@ -852,24 +906,24 @@ dz_if_zinfo_fill(dz_dev_t *dzd)
         return;
     }
 
-    gtk_tree_model_get_iter_first(dzd->zinfo_model, &iter);
+    gtk_tree_model_get_iter_first(dzd->zlist_model, &iter);
 
     for(i = 0; i < dzd->nr_zones; i++) {
 
         z = &dzd->zones[i];
 
-        gtk_list_store_set(dzd->zinfo_store, &iter,
+        gtk_list_store_set(dzd->zlist_store, &iter,
                            DZ_ZONE_NUM, i,
                            DZ_ZONE_TYPE, z->zbz_type,
                            DZ_ZONE_COND, z->zbz_condition,
                            DZ_ZONE_NEED_RESET, zbc_zone_need_reset(z),
                            DZ_ZONE_NONSEQ, zbc_zone_non_seq(z),
-                           DZ_ZONE_START, dz_if_blocks(dzd, zbc_zone_start_lba(z)),
-                           DZ_ZONE_LENGTH, dz_if_blocks(dzd, zbc_zone_length(z)),
-                           DZ_ZONE_WP, dz_if_blocks(dzd, zbc_zone_wp_lba(z)),
+                           DZ_ZONE_START, dz_if_lba2block(dzd, zbc_zone_start_lba(z)),
+                           DZ_ZONE_LENGTH, dz_if_lba2block(dzd, zbc_zone_length(z)),
+                           DZ_ZONE_WP, dz_if_lba2block(dzd, zbc_zone_wp_lba(z)),
                            -1);
 
-        gtk_tree_model_iter_next(dzd->zinfo_model, &iter);
+        gtk_tree_model_iter_next(dzd->zlist_model, &iter);
 
     }
 
@@ -878,42 +932,42 @@ dz_if_zinfo_fill(dz_dev_t *dzd)
 }
 
 static void
-dz_if_zinfo_update_range(dz_dev_t *dzd)
+dz_if_zlist_update_range(dz_dev_t *dzd)
 {
     GtkTreePath *start = NULL, *end = NULL;
     GtkTreeIter iter;
 
     if ( (! dzd->nr_zones) || (! dzd->zones) ) {
-        dzd->zinfo_start_no = 0;
-        dzd->zinfo_end_no = 0;
+        dzd->zlist_start_no = 0;
+        dzd->zlist_end_no = 0;
 	return;
     }
 
-    gtk_tree_view_get_visible_range(GTK_TREE_VIEW(dzd->zinfo_treeview), &start, &end);
+    gtk_tree_view_get_visible_range(GTK_TREE_VIEW(dzd->zlist_treeview), &start, &end);
     if ( start ) {
-        if ( gtk_tree_model_get_iter(dzd->zinfo_model, &iter, start) == TRUE ) {
-            gtk_tree_model_get(dzd->zinfo_model, &iter, DZ_ZONE_NUM, &dzd->zinfo_start_no, -1);
+        if ( gtk_tree_model_get_iter(dzd->zlist_model, &iter, start) == TRUE ) {
+            gtk_tree_model_get(dzd->zlist_model, &iter, DZ_ZONE_NUM, &dzd->zlist_start_no, -1);
         } else {
-            dzd->zinfo_start_no = 0;
+            dzd->zlist_start_no = 0;
         }
         gtk_tree_path_free(start);
     } else {
-        dzd->zinfo_start_no = 0;
+        dzd->zlist_start_no = 0;
     }
 
     if ( end ) {
-        if ( gtk_tree_model_get_iter(dzd->zinfo_model, &iter, end) == TRUE ) {
-            gtk_tree_model_get(dzd->zinfo_model, &iter, DZ_ZONE_NUM, &dzd->zinfo_end_no, -1);
+        if ( gtk_tree_model_get_iter(dzd->zlist_model, &iter, end) == TRUE ) {
+            gtk_tree_model_get(dzd->zlist_model, &iter, DZ_ZONE_NUM, &dzd->zlist_end_no, -1);
         } else {
-            dzd->zinfo_end_no = dzd->nr_zones - 1;
+            dzd->zlist_end_no = dzd->nr_zones - 1;
         }
         gtk_tree_path_free(end);
     } else {
-        dzd->zinfo_end_no = dzd->nr_zones - 1;
+        dzd->zlist_end_no = dzd->nr_zones - 1;
     }
 
-    if ( dzd->zinfo_end_no >= dzd->nr_zones ) {
-        dzd->zinfo_end_no = dzd->nr_zones - 1;
+    if ( dzd->zlist_end_no >= dzd->nr_zones ) {
+        dzd->zlist_end_no = dzd->nr_zones - 1;
     }
 
     return;
@@ -921,38 +975,102 @@ dz_if_zinfo_update_range(dz_dev_t *dzd)
 }
 
 static void
-dz_if_redraw_zinfo(dz_dev_t *dzd)
+dz_if_zlist_center_range(dz_dev_t *dzd)
+{
+    GtkTreePath *path;
+    int zno;
+
+    /* Update current range */
+    dz_if_zlist_update_range(dzd);
+
+    /* Go to zno (center) */
+    zno = dzd->zlist_selection;
+    if ( zno >= 0 ) {
+	path = gtk_tree_path_new_from_indices(zno, -1);
+	if ( path ) {
+	    gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(dzd->zlist_treeview),
+					 path,
+					 NULL,
+					 TRUE,
+					 0.5,
+					 0.0);
+	    gtk_tree_path_free(path);
+	    dz_if_zlist_update_range(dzd);
+	}
+    }
+
+    return;
+
+}
+
+static void
+dz_if_redraw_zones(dz_dev_t *dzd)
 {
 
     /* Re-draw zone state */
-    gtk_widget_queue_draw(dzd->zstate_da);
+    gtk_widget_queue_draw(dzd->zones_da);
 
     return;
 
 }
 
 static void
-dz_if_zinfo_scroll_cb(GtkWidget *widget,
+dz_if_zlist_scroll_cb(GtkWidget *widget,
 		      gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
 
-    /* Update viewd range in list */
-    dz_if_redraw_zinfo(dzd);
+    /* Update visible zone range in list */
+    dz_if_redraw_zones(dzd);
+
+    return;
+
+}
+
+static void
+dz_if_znum_set(dz_dev_t *dzd)
+{
+    char str[64];
+
+    snprintf(str, sizeof(str) - 1, "%d", dzd->zlist_selection);
+    gtk_entry_set_text(GTK_ENTRY(dzd->znum_entry), str);
+
+    return;
+
+}
+
+static void
+dz_if_zblock_set(dz_dev_t *dzd)
+{
+    long long block;
+    char str[64];
+
+    if ( dzd->zlist_selection < 0 ) {
+	block = -1;
+    } else {
+	block = dz_if_lba2block(dzd, zbc_zone_start_lba(&dzd->zones[dzd->zlist_selection]));
+    }
+
+    if ( dzd->use_hexa ) {
+	snprintf(str, sizeof(str) - 1, "0x%llX", block);
+    } else {
+	snprintf(str, sizeof(str) - 1, "%lld", block);
+    }
+
+    gtk_entry_set_text(GTK_ENTRY(dzd->zblock_entry), str);
 
     return;
 
 }
 
 static gboolean
-dz_if_zinfo_select_cb(GtkTreeSelection *selection,
+dz_if_zlist_select_cb(GtkTreeSelection *selection,
                       GtkTreeModel *model,
                       GtkTreePath *path,
                       gboolean path_currently_selected,
                       gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkTreeIter iter;
     int zno;
 
@@ -960,14 +1078,17 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
 
         if ( ! dzd->nr_zones ) {
 
-            gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), 0.0);
+	    dzd->zlist_selection = -1;
+	    dz_if_znum_set(dzd);
+	    dz_if_zblock_set(dzd);
 
         } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
 
-            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &dzd->zinfo_selection, -1);
-            zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
-            if ( zno != dzd->zinfo_selection ) {
-                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), (gdouble) dzd->zinfo_selection);
+            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &zno, -1);
+            if ( zno != dzd->zlist_selection ) {
+		dzd->zlist_selection = zno;
+		dz_if_znum_set(dzd);
+		dz_if_zblock_set(dzd);
             }
 
         }
@@ -979,21 +1100,23 @@ dz_if_zinfo_select_cb(GtkTreeSelection *selection,
 }
 
 static void
-dz_if_zinfo_do_unselect(dz_dev_t *dzd)
+dz_if_zlist_do_unselect(dz_dev_t *dzd)
 {
     GtkTreeSelection *sel;
     GtkTreePath *path;
 
-    if ( dzd->zinfo_selection >= 0 ) {
+    if ( dzd->zlist_selection >= 0 ) {
 
-        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zinfo_treeview));
-        path = gtk_tree_path_new_from_indices(dzd->zinfo_selection, -1);
+        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zlist_treeview));
+        path = gtk_tree_path_new_from_indices(dzd->zlist_selection, -1);
         if ( path ) {
             gtk_tree_selection_unselect_path(sel, path);
             gtk_tree_path_free(path);
         }
 
-        dzd->zinfo_selection = -1;
+        dzd->zlist_selection = -1;
+	dz_if_znum_set(dzd);
+	dz_if_zblock_set(dzd);
 
     }
 
@@ -1002,22 +1125,24 @@ dz_if_zinfo_do_unselect(dz_dev_t *dzd)
 }
 
 static void
-dz_if_zinfo_do_select(dz_dev_t *dzd,
+dz_if_zlist_do_select(dz_dev_t *dzd,
 		      int zno)
 {
     GtkTreeSelection *sel;
     GtkTreePath *path;
 
-    if ( zno != dzd->zinfo_selection ) {
+    if ( zno != dzd->zlist_selection ) {
 
-        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zinfo_treeview));
+        dzd->zlist_selection = zno;
+        sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zlist_treeview));
         path = gtk_tree_path_new_from_indices(zno, -1);
         if ( path ) {
             gtk_tree_selection_select_path(sel, path);
             gtk_tree_path_free(path);
         }
 
-        dzd->zinfo_selection = zno;
+	dz_if_znum_set(dzd);
+	dz_if_zblock_set(dzd);
 
     }
 
@@ -1026,25 +1151,62 @@ dz_if_zinfo_do_select(dz_dev_t *dzd,
 }
 
 static void
-dz_if_zinfo_spinchanged_cb(GtkSpinButton *spinbutton,
-			   gpointer user_data)
+dz_if_znum_set_cb(GtkEntry *entry,
+		  gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    int zno = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    int zno;
 
-    if ( (zno >= 0) && (zno < (gint)dzd->nr_zones) ) {
-        dz_if_zinfo_do_select(dzd, zno);
+    zno = atoi(gtk_entry_get_text(entry));
+    if ( (zno < 0) || (zno >= (gint)dzd->nr_zones) ) {
+	dz_if_zlist_do_unselect(dzd);
 	return;
     }
 
-    dz_if_zinfo_do_unselect(dzd);
+    dz_if_zlist_do_select(dzd, zno);
+    dz_if_zlist_center_range(dzd);
 
     return;
 
 }
 
 static void
-dz_if_refresh_zinfo(dz_dev_t *dzd)
+dz_if_zblock_set_cb(GtkEntry *entry,
+		    gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+    long long block = strtoll(gtk_entry_get_text(entry), NULL, 0);
+    struct zbc_zone *z;
+    unsigned int i;
+    int zno = -1;
+
+    if ( (block >= 0)
+	 && (block < dz_if_lba2block(dzd, dzd->info.zbd_logical_blocks)) ) {
+	/* Search zone */
+	for(i = 0; i < dzd->nr_zones; i++) {
+	    z = &dzd->zones[i];
+	    if ( (block >= dz_if_lba2block(dzd, zbc_zone_start_lba(z)))
+		 && (block < dz_if_lba2block(dzd, zbc_zone_start_lba(z) + zbc_zone_length(z))) ) {
+		zno = i;
+		break;
+	    }
+	}
+    }
+
+    if ( zno < 0 ) {
+	dz_if_zlist_do_unselect(dzd);
+	return;
+    }
+
+    dz_if_zlist_do_select(dzd, zno);
+    dz_if_zlist_center_range(dzd);
+
+    return;
+
+}
+
+static void
+dz_if_refresh_zlist(dz_dev_t *dzd)
 {
     unsigned int i;
     GtkTreeIter iter;
@@ -1052,32 +1214,31 @@ dz_if_refresh_zinfo(dz_dev_t *dzd)
 
     /* Update number of zones */
     snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
-    gtk_label_set_text(GTK_LABEL(dzd->zinfo_frame_label), str);
-    gtk_label_set_use_markup(GTK_LABEL(dzd->zinfo_frame_label), TRUE);
+    gtk_label_set_text(GTK_LABEL(dzd->zlist_frame_label), str);
+    gtk_label_set_use_markup(GTK_LABEL(dzd->zlist_frame_label), TRUE);
 
-    gtk_list_store_clear(dzd->zinfo_store);
+    gtk_list_store_clear(dzd->zlist_store);
     for(i = 0; i < dzd->nr_zones; i++) {
-	gtk_list_store_append(dzd->zinfo_store, &iter);
+	gtk_list_store_append(dzd->zlist_store, &iter);
     }
 
     /* Clear selection */
-    dzd->zinfo_selection = -1;
-    gtk_spin_button_set_range(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), -1, dzd->nr_zones);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton), 0.0);
-    gtk_spin_button_update(GTK_SPIN_BUTTON(dzd->zinfo_spinbutton));
+    dzd->zlist_selection = -1;
+    dz_if_znum_set(dzd);
+    dz_if_zblock_set(dzd);
 
     /* Update list */
-    dz_if_zinfo_fill(dzd);
+    dz_if_zlist_fill(dzd);
 
-    /* Redraw visible range */
-    dz_if_redraw_zinfo(dzd);
+    /* Redraw visible zone range */
+    dz_if_redraw_zones(dzd);
 
     return;
 
 }
 
 static void
-dz_if_update_zinfo(dz_dev_t *dzd)
+dz_if_update_zones(dz_dev_t *dzd)
 {
     GtkWidget *dialog;
     int ret;
@@ -1102,14 +1263,14 @@ dz_if_update_zinfo(dz_dev_t *dzd)
     }
 
     /* Update list */
-    dz_if_refresh_zinfo(dzd);
+    dz_if_refresh_zlist(dzd);
 
     return;
 
 }
 
 static gboolean
-dz_if_zinfo_filter_cb(GtkComboBox *button,
+dz_if_zlist_filter_cb(GtkComboBox *button,
                       gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
@@ -1133,7 +1294,7 @@ dz_if_zinfo_filter_cb(GtkComboBox *button,
 
         if ( dzd->zone_ro != zone_ro ) {
             dzd->zone_ro = zone_ro;
-            dz_if_update_zinfo(dzd);
+            dz_if_update_zones(dzd);
         }
 
     }
@@ -1142,21 +1303,72 @@ dz_if_zinfo_filter_cb(GtkComboBox *button,
 
 }
 
+static void
+dz_if_zlist_set_block_size_cb(GtkEntry *entry,
+			      gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+    char *val_str = (char *) gtk_entry_get_text(entry);
+
+    if ( val_str && dzd ) {
+
+	int block_size = atoi(val_str);
+	char str[32];
+
+	if ( block_size > 0 ) {
+	    dzd->block_size = block_size;
+	} else if ( dz.block_size ) {
+	    dzd->block_size = dz.block_size;
+	} else {
+	    dzd->block_size = dzd->info.zbd_logical_block_size;
+	}
+
+	snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
+	gtk_entry_set_text(entry, str);
+
+	/* Update list */
+	dz_if_zlist_fill(dzd);
+	dz_if_zblock_set(dzd);
+
+    }
+
+    return;
+
+}
+
+static void
+dz_if_zlist_set_use_hexa_cb(GtkToggleButton *togglebutton,
+			    gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+    int use_hexa = gtk_toggle_button_get_active(togglebutton);
+
+    if ( dzd->use_hexa != use_hexa ) {
+	/* Update list */
+	dzd->use_hexa = use_hexa;
+	dz_if_zlist_fill(dzd);
+	dz_if_zblock_set(dzd);
+    }
+
+    return;
+
+}
+
 static gboolean
-dz_if_refresh_cb(GtkWidget *widget,
-		 gpointer user_data)
+dz_if_zlist_refresh_cb(GtkWidget *widget,
+		       gpointer user_data)
 {
 
-    dz_if_update_zinfo((dz_dev_t *) user_data);
+    dz_if_update_zones((dz_dev_t *) user_data);
 
     return( FALSE );
 
 }
 
 static gboolean
-dz_if_zstate_draw_legend_cb(GtkWidget *widget,
-			    cairo_t *cr,
-			    gpointer data)
+dz_if_zones_draw_legend_cb(GtkWidget *widget,
+			   cairo_t *cr,
+			   gpointer data)
 {
     GtkAllocation allocation;
     cairo_text_extents_t te;
@@ -1224,9 +1436,9 @@ dz_if_zstate_draw_legend_cb(GtkWidget *widget,
 #define DZ_DRAW_HOFST	20
 
 static gboolean
-dz_if_zstate_draw_cb(GtkWidget *widget,
-		     cairo_t *cr,
-		     gpointer user_data)
+dz_if_zones_draw_cb(GtkWidget *widget,
+		    cairo_t *cr,
+		    gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
     GtkAllocation allocation;
@@ -1239,34 +1451,34 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
     unsigned int i;
 
     /* Current visible range */
-    dz_if_zinfo_update_range(dzd);
+    dz_if_zlist_update_range(dzd);
 
     if ( (! dzd->zones) || (! dzd->nr_zones) ) {
         return( FALSE );
     }
 
     /* Current size */
-    gtk_widget_get_allocation(dzd->zstate_da, &allocation);
+    gtk_widget_get_allocation(dzd->zones_da, &allocation);
     w = allocation.width - (DZ_DRAW_WOFST * 2);
     h = allocation.height;
 
     /* Get total viewed capacity */
-    if ( dzd->zinfo_end_no >= dzd->nr_zones ) {
-        dzd->zinfo_end_no = dzd->nr_zones - 1;
+    if ( dzd->zlist_end_no >= dzd->nr_zones ) {
+        dzd->zlist_end_no = dzd->nr_zones - 1;
     }
-    for(i = dzd->zinfo_start_no; i <= dzd->zinfo_end_no; i++) {
+    for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
 	cap += zbc_zone_length(&dzd->zones[i]);
     }
 
     /* Center overall drawing using x offset */
     zw = 0;
-    for(i = dzd->zinfo_start_no; i <= dzd->zinfo_end_no; i++) {
+    for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
 	zw += ((unsigned long long)w * zbc_zone_length(&dzd->zones[i])) / cap;
     }
     x = DZ_DRAW_WOFST + (w - zw) / 2;
 
     /* Draw zones */
-    for(i = dzd->zinfo_start_no; i <= dzd->zinfo_end_no; i++) {
+    for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
 
 	z = &dzd->zones[i];
 
@@ -1333,15 +1545,14 @@ dz_if_zstate_draw_cb(GtkWidget *widget,
 }
 
 static gboolean
-dz_if_open_cb(GtkWidget *widget,
-	      gpointer user_data)
+dz_if_zone_open_cb(GtkWidget *widget,
+		   gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
     int ret;
 
-    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    dzd->zone_no = dzd->zlist_selection;
     ret = dz_cmd_exec(dzd, DZ_CMD_OPEN_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
@@ -1367,23 +1578,22 @@ dz_if_open_cb(GtkWidget *widget,
 
     }
 
-    /* Update zinfo */
-    dz_if_refresh_zinfo(dzd);
+    /* Update zone list */
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
 }
 
 static gboolean
-dz_if_close_cb(GtkWidget *widget,
-               gpointer user_data)
+dz_if_zone_close_cb(GtkWidget *widget,
+		    gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
     int ret;
 
-    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    dzd->zone_no = dzd->zlist_selection;
     ret = dz_cmd_exec(dzd, DZ_CMD_CLOSE_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
@@ -1409,23 +1619,22 @@ dz_if_close_cb(GtkWidget *widget,
 
     }
 
-    /* Update zinfo */
-    dz_if_refresh_zinfo(dzd);
+    /* Update zone list */
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
 }
 
 static gboolean
-dz_if_finish_cb(GtkWidget *widget,
-		gpointer user_data)
+dz_if_zone_finish_cb(GtkWidget *widget,
+		     gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
     int ret;
 
-    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    dzd->zone_no = dzd->zlist_selection;
     ret = dz_cmd_exec(dzd, DZ_CMD_FINISH_ZONE, 1, NULL);
     if ( ret != 0 ) {
 
@@ -1451,24 +1660,23 @@ dz_if_finish_cb(GtkWidget *widget,
 
     }
 
-    /* Update zinfo */
-    dz_if_refresh_zinfo(dzd);
+    /* Update zone list */
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
 }
 
 static gboolean
-dz_if_reset_cb(GtkWidget *widget,
-               gpointer user_data)
+dz_if_zone_reset_cb(GtkWidget *widget,
+		    gpointer user_data)
 {
     dz_dev_t *dzd = (dz_dev_t *) user_data;
-    GtkWidget *spinbutton = dzd->zinfo_spinbutton;
     GtkWidget *dialog;
     char msg[128];
     int ret;
 
-    dzd->zone_no = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spinbutton));
+    dzd->zone_no = dzd->zlist_selection;
     if ( dzd->zone_no == -1 ) {
 	strcpy(msg, "Resetting zones...");
     } else {
@@ -1499,41 +1707,10 @@ dz_if_reset_cb(GtkWidget *widget,
 
     }
 
-    /* Update zinfo */
-    dz_if_refresh_zinfo(dzd);
+    /* Update zone list */
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
-
-}
-
-static void
-dz_if_set_block_size_cb(GtkWidget *widget,
-			gpointer user_data)
-{
-    dz_dev_t *dzd = (dz_dev_t *) user_data;
-    char *val_str = (char *) gtk_entry_get_text(GTK_ENTRY(widget));
-
-    if ( val_str && dzd ) {
-
-	int block_size = atoi(val_str);
-
-	if ( block_size > 0 ) {
-	    dzd->block_size = block_size;
-	} else {
-	    char str[32];
-	    if ( dz.block_size ) {
-		dzd->block_size = dz.block_size;
-	    } else {
-		dzd->block_size = dzd->info.zbd_logical_block_size;
-	    }
-	    snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
-	    gtk_entry_set_text(GTK_ENTRY(widget), str);
-	}
-	dz_if_update_zinfo(dzd);
-
-    }
-
-    return;
 
 }
 
