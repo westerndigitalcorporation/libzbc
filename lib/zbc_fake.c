@@ -251,22 +251,22 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
         ret = -ENOMEM;
         goto out;
     }
-    fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
-    fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
-    fdev->dev.zbd_info.zbd_logical_blocks = fdev->zbd_meta->zbd_capacity / fdev->dev.zbd_info.zbd_logical_block_size;
-    fdev->dev.zbd_info.zbd_physical_blocks = fdev->dev.zbd_info.zbd_logical_blocks /
-                                             ( fdev->dev.zbd_info.zbd_physical_block_size / fdev->dev.zbd_info.zbd_logical_block_size);
 
     /* Check */
     if ( (fdev->zbd_meta->zbd_capacity != (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
          || (! fdev->zbd_meta->zbd_nr_zones) ) {
-        zbc_error("%s: invalid metadata file %s\n",
+	/* Do not report an error here to allow the execution of zbc_set_zones */
+        zbc_debug("%s: invalid metadata file %s\n",
                   fdev->dev.zbd_filename,
                   meta_path);
-        ret = -EINVAL;
+	zbc_fake_close_metadata(fdev);
+        ret = 0;
         goto out;
     }
 
+
+    fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
+    fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
 
     ret = 0;
 
@@ -419,7 +419,7 @@ zbc_fake_open(const char *filename,
 	goto out;
     }
 
-    /* ALlocate a handle */
+    /* Allocate a handle */
     ret = -ENOMEM;
     fdev = calloc(1, sizeof(*fdev));
     if ( ! fdev ) {
@@ -810,7 +810,7 @@ zbc_fake_close_zone(zbc_device_t *dev,
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     int ret = 0;
 
-    if ( ! fdev->zbd_zones ) {
+    if ( ! fdev->zbd_meta ) {
         return -ENXIO;
     }
 
@@ -911,7 +911,7 @@ zbc_fake_finish_zone(zbc_device_t *dev,
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     int ret = 0;
 
-    if ( ! fdev->zbd_zones ) {
+    if ( ! fdev->zbd_meta ) {
         return -ENXIO;
     }
 
@@ -1018,7 +1018,7 @@ zbc_fake_reset_wp(struct zbc_device *dev,
     zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
     int ret = 0;
 
-    if ( ! fdev->zbd_zones ) {
+    if ( ! fdev->zbd_meta ) {
         return -ENXIO;
     }
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,7 +8,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
@@ -26,8 +26,9 @@
 
 /***** Main *****/
 
-int main(int argc,
-         char **argv)
+int
+main(int argc,
+     char **argv)
 {
     struct zbc_device_info info;
     struct zbc_device *dev;
@@ -59,7 +60,7 @@ usage:
             zbc_set_log_level("debug");
 
         } else if ( argv[i][0] == '-' ) {
-            
+
             fprintf(stderr,
                     "Unknown option \"%s\"\n",
                     argv[i]);
@@ -166,7 +167,7 @@ usage:
 
 
     } else {
-        
+
         fprintf(stderr,
                 "Unknown command \"%s\"\n",
                 argv[i]);
@@ -203,7 +204,7 @@ usage:
                 "zbc_set_zones failed\n");
         ret = 1;
     }
-    
+
     /* Retry getting device info */
     ret = zbc_get_device_info(dev, &info);
     if ( ret < 0 ) {
@@ -221,10 +222,10 @@ usage:
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000.0);
 
 out:
-    
+
     zbc_close(dev);
-    
+
     return( ret );
-    
+
 }
 
