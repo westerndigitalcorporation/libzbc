@@ -45,6 +45,11 @@
  */
 #define ZBC_FAKE_MAX_OPEN_NR_ZONES      32
 
+/*
+ * Meta-data directory.
+ */
+#define ZBC_FAKE_META_DIR       	"/var/local"
+
 /**
  * Metadata header.
  */
@@ -106,6 +111,20 @@ typedef struct zbc_fake_device {
 } zbc_fake_device_t;
 
 /***** Definition of private functions *****/
+
+/**
+ * Build meta-data file path for a device.
+ */
+static inline void
+zbc_fake_dev_meta_path(zbc_fake_device_t *fdev,
+    		       char *buf)
+{
+    sprintf(buf, "%s/zbc-%s.meta",
+            ZBC_FAKE_META_DIR,
+            basename(fdev->dev.zbd_filename));
+
+    return;
+}
 
 /**
  * Convert device address to fake device address.
@@ -200,10 +219,9 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
     struct stat st;
     int ret;
 
-    sprintf(meta_path, "/tmp/zbc-%s.meta",
-            basename(fdev->dev.zbd_filename));
+    zbc_fake_dev_meta_path(fdev, meta_path);
 
-    zbc_debug("Device %s: using meta file %s\n",
+    zbc_debug("%s: using meta file %s\n",
               fdev->dev.zbd_filename,
               meta_path);
 
@@ -264,6 +282,11 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
         goto out;
     }
 
+    zbc_debug("%s: %llu sectors of %zuB, %u zones\n",
+              fdev->dev.zbd_filename,
+	      (unsigned long long)fdev->dev.zbd_info.zbd_logical_blocks,
+	      (size_t)fdev->dev.zbd_info.zbd_logical_block_size,
+              fdev->zbd_meta->zbd_nr_zones);
 
     fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
     fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
@@ -1389,8 +1412,7 @@ zbc_fake_set_zones(struct zbc_device *dev,
     fmeta.zbd_capacity = dev->zbd_info.zbd_logical_blocks * dev->zbd_info.zbd_logical_block_size;
 
     /* Open metadata file */
-    sprintf(meta_path, "/tmp/zbc-%s.meta",
-            basename(fdev->dev.zbd_filename));
+    zbc_fake_dev_meta_path(fdev, meta_path);
     fdev->zbd_meta_fd = open(meta_path, O_RDWR | O_CREAT, 0600);
     if ( fdev->zbd_meta_fd < 0 ) {
         ret = -errno;
