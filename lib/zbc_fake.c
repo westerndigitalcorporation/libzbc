@@ -619,30 +619,22 @@ zbc_fake_report_zones(struct zbc_device *dev,
 	*max_lba = dev->zbd_info.zbd_logical_blocks - 1;
     }
 
-    if ( ! zones ) {
+    if ( (! zones)
+	 && (! max_nr_zones) ) {
+	max_nr_zones = fdev->zbd_nr_zones;
+    }
 
-        /* Only get the number of matching zones */
-        for(in = 0; in < fdev->zbd_nr_zones; in++) {
-            if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
-                out++;
-            }
-        }
-
-    } else {
-
-        /* Get matching zones */
-        for(in = 0; in < fdev->zbd_nr_zones; in++) {
-            if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
-		 if ( out < max_nr_zones ) {
-		     memcpy(&zones[out], &fdev->zbd_zones[in], sizeof(struct zbc_zone));
-		 }
-		 out++;
-            }
-	    if ( (out >= max_nr_zones) && (ro & ZBC_RO_PARTIAL) ) {
-		break;
+    /* Get matching zones */
+    for(in = 0; in < fdev->zbd_nr_zones; in++) {
+        if ( zbc_fake_must_report_zone(&fdev->zbd_zones[in], start_lba, options) ) {
+	    if ( zones && (out < max_nr_zones) ) {
+	        memcpy(&zones[out], &fdev->zbd_zones[in], sizeof(struct zbc_zone));
 	    }
-        }
-
+	    out++;
+         }
+	 if ( (out >= max_nr_zones) && (ro & ZBC_RO_PARTIAL) ) {
+	     break;
+	 }
     }
 
     if ( out > max_nr_zones ) {
