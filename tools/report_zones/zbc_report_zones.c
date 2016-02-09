@@ -34,7 +34,7 @@ int main(int argc,
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
     zbc_zone_t *z, *zones = NULL;
-    unsigned int nr_zones, nz = 0, partial = 0;
+    unsigned int nr_zones = 0, nz = 0, partial = 0;
     int num = 0;
     char *path;
 
@@ -187,8 +187,9 @@ usage:
     }
 
     /* Print zone info */
-    printf("    %u zones from LBA %llu, reporting option 0x%02x\n",
+    printf("    %u zone%s from LBA %llu, reporting option 0x%02x\n",
 	   nr_zones,
+	   (nr_zones > 1) ? "s" : "",
 	   lba,
 	   ro);
     if ( info.zbd_model == ZBC_DM_HOST_MANAGED ) {
@@ -209,6 +210,10 @@ usage:
 	nz = nr_zones;
     }
 
+    if ( ! nz ) {
+	goto out;
+    }
+
     /* Allocate zone array */
     zones = (zbc_zone_t *) malloc(sizeof(zbc_zone_t) * nz);
     if ( ! zones ) {
@@ -226,7 +231,7 @@ usage:
 	goto out;
     }
 
-    printf("%u / %u zones:\n", nz, nr_zones);
+    printf("%u / %u zone%s:\n", nz, nr_zones, (nz > 1) ? "s" : "");
     for(i = 0; i < (int)nz; i++) {
         z = &zones[i];
         if ( zbc_zone_conventional(z) ) {
