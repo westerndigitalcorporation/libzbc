@@ -275,6 +275,46 @@ function zbc_test_search_vals_from_zone_type_and_ignored_cond() {
 
 }
 
+function zbc_test_search_last_zone_vals_from_zone_type() {
+
+    Found=False
+    zone_type=${1}
+
+    for _line in `cat ${zone_info_file} | grep -F "[ZONE_INFO]"`; do
+
+        _IFS="${IFS}"
+        IFS=','
+        set -- ${_line}
+
+        local_type=${3}
+        local_cond=${4}
+        local_slba=${5}
+        local_size=${6}
+        local_ptr=${7}
+
+        IFS="$_IFS"
+
+        if [ "${zone_type}" = "${local_type}" ]; then
+            Found=True
+            target_type=${local_type}
+            target_cond=${local_cond}
+            target_slba=${local_slba}
+            target_size=${local_size}
+            target_ptr=${local_ptr}
+        fi
+
+    done
+
+    if [ ${Found} = "False" ]; then
+
+        return 1
+
+    fi
+
+    return 0
+
+}
+
 # Check result functions
 
 function zbc_test_get_sk_ascq() {
@@ -357,6 +397,17 @@ function zbc_test_print_failed_zc() {
     echo -e "\r\e[120C[${red}Failed${end}]"
     echo "        => Expected zone_condition ${expected_cond}"
     echo "           Got ${target_cond}"
+
+    return 0
+
+}
+
+function zbc_test_print_not_applicable() {
+
+    echo "" >> ${log_file} 2>&1
+    echo "N/A" >> ${log_file} 2>&1
+
+    echo -e "\r\e[120C[${green} N/A  ${end}]"
 
     return 0
 

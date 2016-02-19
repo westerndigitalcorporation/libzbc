@@ -28,16 +28,42 @@ zbc_test_get_drive_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
-target_lba=$(( ${target_slba} - 1 ))
+# Search last conventional zone info
+zbc_test_search_last_zone_vals_from_zone_type "0x1"
 
-# Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
+func_ret=$?
 
-# Check result
-zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [ ${func_ret} -gt 0 ]; then
+
+    zbc_test_print_not_applicable
+
+else
+
+    next_zone_slba=$(( ${target_slba} + ${target_size} ))
+
+    # Search first sequential zone info
+    zbc_test_search_vals_from_zone_type "0x2"
+    func_ret=$?
+
+    if [ ${func_ret} -gt 0 -o ${next_zone_slba} != ${target_slba} ]; then
+
+        zbc_test_print_not_applicable
+
+    else
+
+        target_lba=$(( ${target_slba} - 1 ))
+
+        # Start testing
+        zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+        zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
+
+        # Check result
+        zbc_test_get_sk_ascq
+        zbc_test_check_sk_ascq
+
+    fi
+
+fi
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_slba}

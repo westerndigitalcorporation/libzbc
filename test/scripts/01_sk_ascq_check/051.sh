@@ -29,14 +29,25 @@ zbc_test_get_zone_info
 
 # Search target LBA
 zbc_test_search_vals_from_zone_type "0x1"
-target_lba=$(( ${target_slba} ))
 
-# Start testing
-zbc_test_run ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_lba}
+func_ret=$?
 
-# Check result
-zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [ ${func_ret} -gt 0 ]; then
+
+    zbc_test_print_not_applicable
+
+else
+
+    target_lba=$(( ${target_slba} ))
+
+    # Start testing
+    zbc_test_run ${bin_path}/zbc_test_reset_write_ptr -v ${device} ${target_lba}
+
+    # Check result
+    zbc_test_get_sk_ascq
+    zbc_test_check_sk_ascq
+
+fi
 
 # Post process
 rm -f ${zone_info_file}
