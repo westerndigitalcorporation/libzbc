@@ -271,7 +271,7 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
     }
 
     /* Check */
-    if ( (fdev->zbd_meta->zbd_capacity != (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
+    if ( (fdev->zbd_meta->zbd_capacity > (fdev->dev.zbd_info.zbd_logical_block_size * fdev->dev.zbd_info.zbd_logical_blocks))
          || (! fdev->zbd_meta->zbd_nr_zones) ) {
 	/* Do not report an error here to allow the execution of zbc_set_zones */
         zbc_debug("%s: invalid metadata file %s\n",
