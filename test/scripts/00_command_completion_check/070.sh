@@ -19,7 +19,7 @@ zbc_test_init $0 $*
 expected_sk=""
 expected_asc=""
 
-zbc_test_info "WRITE command completion..."
+zbc_test_info "READ command completion..."
 
 # Get drive information
 zbc_test_get_drive_info
@@ -28,17 +28,19 @@ zbc_test_get_drive_info
 zbc_test_get_zone_info
 
 # Search target LBA
-target_ptr="0"
+zbc_test_search_vals_from_zone_type "0x2"
 target_lba=$(( ${target_ptr} ))
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 8
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 # Post process
+zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_slba}
 rm -f ${zone_info_file}
 
 # Check failed
