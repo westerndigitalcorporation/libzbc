@@ -24,6 +24,12 @@ expected_asc="Invalid-field-in-cdb"
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
 # Start testing
 report_option=10
 zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${report_option} ${device}

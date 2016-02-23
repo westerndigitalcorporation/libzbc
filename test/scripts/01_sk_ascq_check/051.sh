@@ -24,6 +24,12 @@ zbc_test_info "RESET_WRITE_PTR conventional zone..."
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 

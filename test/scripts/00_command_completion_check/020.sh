@@ -26,9 +26,15 @@ zbc_test_get_drive_info
 # Get zone information
 zbc_test_get_zone_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
 # Search target LBA
 target_lba="0"
-zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
 target_lba=$(( ${target_slba} ))
 
 # Start testing

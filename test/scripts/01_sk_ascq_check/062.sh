@@ -24,6 +24,17 @@ zbc_test_info "READ conventional/sequential zones boundary violation..."
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
+if [ ${device_model} = "Host-aware" ]; then
+    zbc_test_print_not_applicable
+    exit
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
@@ -42,7 +53,7 @@ else
     next_zone_slba=$(( ${target_slba} + ${target_size} ))
 
     # Search first sequential zone info
-    zbc_test_search_vals_from_zone_type "0x2"
+    zbc_test_search_vals_from_zone_type ${zone_type}
     func_ret=$?
 
     if [ ${func_ret} -gt 0 -o ${next_zone_slba} != ${target_slba} ]; then

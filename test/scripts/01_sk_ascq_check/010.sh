@@ -24,6 +24,12 @@ expected_asc="Logical-block-address-out-of-range"
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
 # Set target LBA
 target_lba=$(( ${max_lba} + 1 ))
 

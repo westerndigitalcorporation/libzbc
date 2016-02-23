@@ -24,11 +24,17 @@ zbc_test_info "READ command completion..."
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type "0x2"
+zbc_test_search_vals_from_zone_type ${zone_type}
 target_lba=$(( ${target_ptr} ))
 
 # Start testing

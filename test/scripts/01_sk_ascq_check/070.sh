@@ -24,11 +24,22 @@ zbc_test_info "WRITE unaligned write in sequential zone..."
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
+if [ ${device_model} = "Host-aware" ]; then
+    zbc_test_print_not_applicable
+    exit
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x2" "0xe"
+zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe"
 target_lba=$(( ${target_ptr} + 1 ))
 
 # Start testing

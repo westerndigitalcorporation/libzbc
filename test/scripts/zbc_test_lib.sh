@@ -85,6 +85,10 @@ function zbc_test_get_drive_info() {
     _IFS="${IFS}"
     IFS=','
 
+    device_model_line=`cat ${log_file} | grep -F "[DEVICE_MODEL]"`
+    set -- ${device_model_line}
+    device_model=${2}
+
     max_open_line=`cat ${log_file} | grep -F "[MAX_NUM_OF_OPEN_SWRZ]"`
     set -- ${max_open_line}
     max_open=${2}

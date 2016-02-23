@@ -24,6 +24,17 @@ expected_asc="Insufficient-zone-resources"
 # Get drive information
 zbc_test_get_drive_info
 
+if [ ${device_model} = "Host-aware" ]; then
+    zone_type="0x3"
+else
+    zone_type="0x2"
+fi
+
+if [ ${device_model} = "Host-aware" ]; then
+    zbc_test_print_not_applicable
+    exit
+fi
+
 # Create closed zones
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do
@@ -32,7 +43,7 @@ for i in `seq $(( ${max_open} + 1 ))`; do
     zbc_test_get_zone_info
 
     # Search target LBA
-    zbc_test_search_vals_from_zone_type_and_cond "0x2" "0x1"
+    zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
     target_lba=${target_slba}
 
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
