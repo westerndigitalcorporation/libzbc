@@ -25,14 +25,10 @@ zbc_test_info "WRITE insufficient zone resources..."
 zbc_test_get_drive_info
 
 if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
-
-if [ ${device_model} = "Host-aware" ]; then
     zbc_test_print_not_applicable
     exit
+else
+    zone_type="0x2"
 fi
 
 # Get zone information
