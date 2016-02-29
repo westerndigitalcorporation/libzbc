@@ -25,8 +25,7 @@ zbc_test_info "WRITE sequential zone boundary violation..."
 zbc_test_get_drive_info
 
 if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_print_not_applicable
-    exit
+    zone_type="0x3"
 else
     zone_type="0x2"
 fi
@@ -47,7 +46,12 @@ fi
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+
+if [ ${device_model} = "Host-aware" ]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_sk_ascq
+fi
 
 # Post process
 rm -f ${zone_info_file}

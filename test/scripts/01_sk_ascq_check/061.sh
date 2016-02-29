@@ -25,8 +25,7 @@ zbc_test_info "READ sequential zones boundary violation..."
 zbc_test_get_drive_info
 
 if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_print_not_applicable
-    exit
+    zone_type="0x3"
 else
     zone_type="0x2"
 fi
@@ -45,7 +44,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} = "1" ]; then
+if [ "${unrestricted_read}" = "1" -o ${device_model} = "Host-aware" ]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq
