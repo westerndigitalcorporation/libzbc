@@ -11,6 +11,7 @@ global:
 	zbc_disk_model_str;
 	zbc_zone_type_str;
 	zbc_zone_condition_str;
+	zbc_device_is_smr;
 	zbc_open;
 	zbc_close;
 	zbc_get_device_info;

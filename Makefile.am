@@ -25,6 +25,7 @@ libzbc_ldadd = $(LDADD) libzbc.la
 
 include include/Makemodule.am
 include lib/Makemodule.am
+include tools/info/Makemodule.am
 include tools/report_zones/Makemodule.am
 include tools/reset_write_ptr/Makemodule.am
 include tools/read_zone/Makemodule.am

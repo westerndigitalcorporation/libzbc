@@ -350,6 +350,62 @@ zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq) {
 }
 
 /**
+ * zbc_device_is_smr - test if a device is physically an SMR device.
+ * @filename:        (IN) path to the device file
+ * @info:            (IN) Address where to store the device information
+ *
+ * Test if a device is physically SMR. This excludes libzbc emulation mode
+ * showing a regular block device or regular file as a ZBC host-managed
+ * block device. If @info is not NULL and the device is identified as
+ * physically being an SMR device, the device information is returned
+ * at the address specified by @info.
+ *
+ * Returns a negative error code if the device test failed. 1 is returned
+ * if the device is identified as being an SMR device. Otherwise, 0 is
+ * returned. In this case, the application can use stat/fstat to get more
+ * details about the device.
+ */
+int
+zbc_device_is_smr(const char *filename,
+		  zbc_device_info_t *info)
+{
+    zbc_device_t *dev;
+    int ret = -ENODEV, i;
+
+    if ( ! filename ) {
+	return( -EFAULT );
+    }
+
+    /* Test all backends until one accepts the drive. */
+    for(i = 0; zbc_ops[i]; i++) {
+        ret = zbc_ops[i]->zbd_open(filename, O_RDONLY, &dev);
+	if ( ret == 0 ) {
+	    /* This backend accepted the drive */
+            dev->zbd_ops = zbc_ops[i];
+	    break;
+	}
+    }
+
+    if ( dev->zbd_ops ) {
+	if ( dev->zbd_ops != &zbc_fake_ops ) {
+	    ret = 1;
+	    if ( info ) {
+		memcpy(info, &dev->zbd_info, sizeof(zbc_device_info_t));
+	    }
+	} else {
+	    ret = 0;
+	}
+	dev->zbd_ops->zbd_close(dev);
+    } else if ( (ret == -ENODEV)
+		|| (ret == -ENXIO) ) {
+	ret = 0;
+    }
+
+    return( ret );
+
+}
+
+/**
  * zbc_open - open a (device)file for ZBC access.
  * @filename:   path to the file to be opened
  * @flags:      open mode: O_RDONLY, O_WRONLY or O_RDWR

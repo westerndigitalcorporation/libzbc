@@ -176,6 +176,9 @@ libzbc exports the following functions.
 +------------------------------+------------------------------------+
 | Function                     | Description                        |
 +==============================+====================================+
+| zbc_device_is_smr            | Test if a device is a physical ZBC |
+|                              | or ZAC device (excludes emulation) |
++------------------------------+------------------------------------+
 | zbc_open                     | Open a ZBC device                  |
 +------------------------------+------------------------------------+
 | zbc_close                    | Close a ZBC device                 |
@@ -332,7 +335,16 @@ emulated ZBC device to any LBA value (within the range of the specified
 zone). It is intended for testing purposes only and is not valid for
 native ZBC devices.
 
-IV.11. lkvs (tools/lkvs/)
+IV.11. zbc_info (tools/info/)
+-----------------------------
+
+This application tests if a device file points to a physical SMR device
+supporting either ZBC or ZAC. This excludes the emulation mode implemented
+by libzbc on top of regular files or regular block devices.
+If the device is identified as SMR, some information about the device are
+displayed (device type, capacity, sector size, etc).
+
+IV.12. lkvs (tools/lkvs/)
 ------------------------
 
 ### Purpose

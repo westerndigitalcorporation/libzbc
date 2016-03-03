@@ -1,6 +1,5 @@
 
 lib_LTLIBRARIES += libzbc.la
-LIBZBC_LTVERSION="4:0:0"
 
 CFILES = \
 	lib/zbc.c \
@@ -19,6 +18,6 @@ libzbc_la_SOURCES = $(CFILES) $(HFILES)
 libzbc_la_CFLAGS = $(AM_CFLAGS)
 libzbc_la_LDFLAGS = \
         -Wl,--version-script,$(top_srcdir)/exports \
-	        -version-info $(LIBZBC_LTVERSION)
+	-release '$(PACKAGE_VERSION)'
 
 
