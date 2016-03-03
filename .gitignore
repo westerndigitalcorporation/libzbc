@@ -25,6 +25,7 @@
 *.x86_64
 *.hex
 
+zbc_info
 zbc_report_zones
 zbc_reset_write_ptr
 zbc_close_zone
