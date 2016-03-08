@@ -66,6 +66,17 @@ enum {
 /***** Type definitions *****/
 
 /**
+ * Device zone information.
+ */
+typedef struct dz_dev_zone {
+
+    int				no;
+    int				show;
+    struct zbc_zone 		info;
+
+} dz_dev_zone_t;
+
+/**
  * GUI Tab data.
  */
 typedef struct dz_dev {
@@ -82,7 +93,8 @@ typedef struct dz_dev {
     int                         zone_no;
     unsigned int                max_nr_zones;
     unsigned int                nr_zones;
-    struct zbc_zone             *zones;
+    struct zbc_zone 		*zbc_zones;
+    dz_dev_zone_t		*zones;
 
     /**
      * Command execution.

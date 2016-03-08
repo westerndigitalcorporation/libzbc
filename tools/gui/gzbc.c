@@ -195,34 +195,56 @@ main(int argc,
 static int
 dz_report_zones(dz_dev_t *dzd)
 {
+    unsigned int i, j = 0;
     int ret;
 
-    if ( ! dzd->zones ) {
+    if ( (! dzd->zones)
+	 || (! dzd->max_nr_zones) ) {
 
 	/* Get zone list */
         dzd->zone_ro = ZBC_RO_ALL;
-	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zones, &dzd->nr_zones);
-	if ( ret == 0 ) {
-            dzd->max_nr_zones = dzd->nr_zones;
+	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zbc_zones, &dzd->nr_zones);
+	if ( ret != 0 ) {
+	    return( ret );
 	}
 
-    } else {
+	/* Allocate zone array */
+	dzd->max_nr_zones = dzd->nr_zones;
+	dzd->zones = (dz_dev_zone_t *) malloc(sizeof(dz_dev_zone_t) * dzd->max_nr_zones);
+	if ( ! dzd->zones ) {
+	    return( -ENOMEM );
+	}
 
-        /* Refresh zone list */
-        dzd->nr_zones = dzd->max_nr_zones;
-        ret = zbc_report_zones(dzd->dev, 0, dzd->zone_ro, dzd->zones, &dzd->nr_zones);
-        if ( ret != 0 ) {
-            fprintf(stderr, "Get zone information failed %d (%s)\n",
-                    errno,
-                    strerror(errno));
-            if ( dzd->zones ) {
-                free(dzd->zones);
-                dzd->zones = NULL;
-                dzd->nr_zones = 0;
-                dzd->max_nr_zones = 0;
-            }
-        }
+	for(i = 0; i < dzd->max_nr_zones; i++) {
+	    dzd->zones[i].no = i;
+	    dzd->zones[i].show = 1;
+	    memcpy(&dzd->zones[i].info, &dzd->zbc_zones[i], sizeof(struct zbc_zone));
+	}
 
+	return( 0 );
+
+    }
+
+    /* Refresh zone list */
+    dzd->nr_zones = dzd->max_nr_zones;
+    ret = zbc_report_zones(dzd->dev, 0, dzd->zone_ro, dzd->zbc_zones, &dzd->nr_zones);
+    if ( ret != 0 ) {
+	fprintf(stderr, "Get zone information failed %d (%s)\n",
+		errno,
+		strerror(errno));
+	dzd->nr_zones = 0;
+    }
+
+    /* Apply filter */
+    for(i = 0; i < dzd->max_nr_zones; i++) {
+	if ( (j < dzd->nr_zones)
+	     && (zbc_zone_start_lba(&dzd->zones[i].info) == zbc_zone_start_lba(&dzd->zbc_zones[j])) ) {
+	    memcpy(&dzd->zones[i].info, &dzd->zbc_zones[j], sizeof(struct zbc_zone));
+	    dzd->zones[i].show = 1;
+	    j++;
+	} else {
+	    dzd->zones[i].show = 0;
+	}
     }
 
     return( ret );
@@ -241,7 +263,7 @@ dz_reset_zone(dz_dev_t *dzd)
     if ( zno == -1 ) {
         ret = zbc_reset_write_pointer(dzd->dev, -1);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
     } else {
 	fprintf(stderr, "Invalid zone number %d for reset\n",
 		zno);
@@ -272,7 +294,7 @@ dz_open_zone(dz_dev_t *dzd)
     if ( zno == -1 ) {
         ret = zbc_open_zone(dzd->dev, -1);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
     } else {
 	fprintf(stderr, "Invalid zone number %d for open\n",
 		zno);
@@ -303,7 +325,7 @@ dz_close_zone(dz_dev_t *dzd)
     if ( zno == -1 ) {
         ret = zbc_close_zone(dzd->dev, -1);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
     } else {
 	fprintf(stderr, "Invalid zone number %d for close\n",
 		zno);
@@ -334,7 +356,7 @@ dz_finish_zone(dz_dev_t *dzd)
     if ( zno == -1 ) {
         ret = zbc_finish_zone(dzd->dev, -1);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno]));
+        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
     } else {
 	fprintf(stderr, "Invalid zone number %d for close\n",
 		zno);
@@ -504,6 +526,10 @@ dz_close(dz_dev_t *dzd)
 {
 
     if ( dzd->dev ) {
+
+	if ( dzd->zbc_zones ) {
+	    free(dzd->zbc_zones);
+	}
 
 	if ( dzd->zones ) {
 	    free(dzd->zones);

@@ -424,7 +424,7 @@ dz_if_dev_open(char *path)
 					  G_TYPE_UINT64,
 					  G_TYPE_UINT64,
 					  G_TYPE_UINT64);
-    for(i = 0; i < dzd->nr_zones; i++) {
+    for(i = 0; i < dzd->max_nr_zones; i++) {
         gtk_list_store_append(dzd->zlist_store, &iter);
     }
     dzd->zlist_model = GTK_TREE_MODEL(dzd->zlist_store);
@@ -679,7 +679,7 @@ dz_if_zlist_print_zone_type(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Normal black font */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
@@ -711,7 +711,7 @@ dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Normal black font by default */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
@@ -757,7 +757,7 @@ dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Zone need reset */
     if ( zbc_zone_need_reset(z) ) {
@@ -786,7 +786,7 @@ dz_if_zlist_print_zone_nonseq(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Zone non seq */
     if ( zbc_zone_non_seq(z) ) {
@@ -815,7 +815,7 @@ dz_if_zlist_print_zone_start(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Zone start LBA */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
@@ -843,7 +843,7 @@ dz_if_zlist_print_zone_length(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Zone length */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
@@ -871,7 +871,7 @@ dz_if_zlist_print_zone_wp(GtkTreeViewColumn *col,
     int i;
 
     gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
-    z = &dzd->zones[i];
+    z = &dzd->zones[i].info;
 
     /* Zone wp LBA */
     if ( zbc_zone_not_wp(z) ) {
@@ -908,12 +908,16 @@ dz_if_zlist_fill(dz_dev_t *dzd)
 
     gtk_tree_model_get_iter_first(dzd->zlist_model, &iter);
 
-    for(i = 0; i < dzd->nr_zones; i++) {
+    for(i = 0; i < dzd->max_nr_zones; i++) {
 
-        z = &dzd->zones[i];
+        if ( ! dzd->zones[i].show ) {
+	    continue;
+	}
+
+        z = &dzd->zones[i].info;
 
         gtk_list_store_set(dzd->zlist_store, &iter,
-                           DZ_ZONE_NUM, i,
+                           DZ_ZONE_NUM, dzd->zones[i].no,
                            DZ_ZONE_TYPE, z->zbz_type,
                            DZ_ZONE_COND, z->zbz_condition,
                            DZ_ZONE_NEED_RESET, zbc_zone_need_reset(z),
@@ -959,15 +963,11 @@ dz_if_zlist_update_range(dz_dev_t *dzd)
         if ( gtk_tree_model_get_iter(dzd->zlist_model, &iter, end) == TRUE ) {
             gtk_tree_model_get(dzd->zlist_model, &iter, DZ_ZONE_NUM, &dzd->zlist_end_no, -1);
         } else {
-            dzd->zlist_end_no = dzd->nr_zones - 1;
+            dzd->zlist_end_no = dzd->max_nr_zones - 1;
         }
         gtk_tree_path_free(end);
     } else {
-        dzd->zlist_end_no = dzd->nr_zones - 1;
-    }
-
-    if ( dzd->zlist_end_no >= dzd->nr_zones ) {
-        dzd->zlist_end_no = dzd->nr_zones - 1;
+        dzd->zlist_end_no = dzd->max_nr_zones - 1;
     }
 
     return;
@@ -1048,7 +1048,7 @@ dz_if_zblock_set(dz_dev_t *dzd)
     if ( dzd->zlist_selection < 0 ) {
 	block = -1;
     } else {
-	block = dz_if_lba2block(dzd, zbc_zone_start_lba(&dzd->zones[dzd->zlist_selection]));
+	block = dz_if_lba2block(dzd, zbc_zone_start_lba(&dzd->zones[dzd->zlist_selection].info));
     }
 
     if ( dzd->use_hexa ) {
@@ -1158,7 +1158,7 @@ dz_if_znum_set_cb(GtkEntry *entry,
     int zno;
 
     zno = atoi(gtk_entry_get_text(entry));
-    if ( (zno < 0) || (zno >= (gint)dzd->nr_zones) ) {
+    if ( (zno < 0) || (zno >= (gint)dzd->max_nr_zones) ) {
 	dz_if_zlist_do_unselect(dzd);
 	return;
     }
@@ -1183,8 +1183,8 @@ dz_if_zblock_set_cb(GtkEntry *entry,
     if ( (block >= 0)
 	 && (block < dz_if_lba2block(dzd, dzd->info.zbd_logical_blocks)) ) {
 	/* Search zone */
-	for(i = 0; i < dzd->nr_zones; i++) {
-	    z = &dzd->zones[i];
+	for(i = 0; i < dzd->max_nr_zones; i++) {
+	    z = &dzd->zones[i].info;
 	    if ( (block >= dz_if_lba2block(dzd, zbc_zone_start_lba(z)))
 		 && (block < dz_if_lba2block(dzd, zbc_zone_start_lba(z) + zbc_zone_length(z))) ) {
 		zno = i;
@@ -1463,24 +1463,32 @@ dz_if_zones_draw_cb(GtkWidget *widget,
     h = allocation.height;
 
     /* Get total viewed capacity */
-    if ( dzd->zlist_end_no >= dzd->nr_zones ) {
-        dzd->zlist_end_no = dzd->nr_zones - 1;
+    if ( dzd->zlist_end_no >= dzd->max_nr_zones ) {
+        dzd->zlist_end_no = dzd->max_nr_zones - 1;
     }
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
-	cap += zbc_zone_length(&dzd->zones[i]);
+	if ( dzd->zones[i].show ) {
+	    cap += zbc_zone_length(&dzd->zones[i].info);
+	}
     }
 
     /* Center overall drawing using x offset */
     zw = 0;
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
-	zw += ((unsigned long long)w * zbc_zone_length(&dzd->zones[i])) / cap;
+	if ( dzd->zones[i].show ) {
+	    zw += ((unsigned long long)w * zbc_zone_length(&dzd->zones[i].info)) / cap;
+	}
     }
     x = DZ_DRAW_WOFST + (w - zw) / 2;
 
     /* Draw zones */
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
 
-	z = &dzd->zones[i];
+	if ( ! dzd->zones[i].show ) {
+	    continue;
+	}
+
+	z = &dzd->zones[i].info;
 
 	/* Draw zone outline */
 	zw = (w * zbc_zone_length(z)) / cap;
@@ -1519,7 +1527,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
 	cairo_set_font_size(cr, 10);
 
 	/* Write zone number */
-	sprintf(str, "%05d", i);
+	sprintf(str, "%05d", dzd->zones[i].no);
 	cairo_text_extents(cr, str, &te);
 	cairo_move_to(cr, x + zw / 2 - te.width / 2 - te.x_bearing, DZ_DRAW_HOFST - te.height / 2);
 	cairo_show_text(cr, str);
