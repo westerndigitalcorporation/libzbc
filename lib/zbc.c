@@ -60,19 +60,19 @@ static struct zbc_sg_sk_s
     /* DATA_PROTECT */
     {
         ZBC_E_DATA_PROTECT,
-        "Data-protect",
+        "Data-protect"
     },
 
     /* ABORTED_COMMAND */
     {
         ZBC_E_ABORTED_COMMAND,
-        "Aborted-command",
+        "Aborted-command"
     },
 
     /* Unknown */
     {
 	0,
-	NULL,
+	NULL
     }
 
 };
@@ -136,7 +136,7 @@ static struct zbc_sg_asc_ascq_s
     /* Unknown */
     {
 	0,
-	NULL,
+	NULL
     }
 
 };
@@ -430,17 +430,9 @@ zbc_open(const char *filename,
 	if ( ret == 0 ) {
 	    /* This backend accepted the drive */
             dev->zbd_ops = zbc_ops[i];
+	    *pdev = dev;
 	    break;
 	}
-    }
-
-    if ( ret != 0 ) {
-	zbc_error("Open device %s failed %d (%s)\n",
-		  filename,
-		  ret,
-		  strerror(-ret));
-    } else {
-	*pdev = dev;
     }
 
     return( ret );
