@@ -290,6 +290,9 @@ zbc_fake_open_metadata(zbc_fake_device_t *fdev)
 
     fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
     fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
+    if ( fdev->dev.zbd_info.zbd_max_nr_open_seq_req > fdev->zbd_meta->zbd_nr_seq_zones ) {
+	fdev->dev.zbd_info.zbd_max_nr_open_seq_req = fdev->zbd_meta->zbd_nr_seq_zones - 1;
+    }
 
     ret = 0;
 
