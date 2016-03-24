@@ -98,8 +98,9 @@ usage:
     path = argv[i];
     ret = zbc_open(path, O_RDONLY, &dev);
     if ( ret != 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],can't open device\n");
+	fprintf(stderr, "[TEST][ERROR],open device failed\n");
+	printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
+	printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
         return( 1 );
     }
 

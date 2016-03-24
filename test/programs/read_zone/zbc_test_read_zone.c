@@ -91,9 +91,9 @@ usage:
     /* Open device */
     ret = zbc_open(path, O_RDONLY | ZBC_FORCE_ATA_RW, &dev);
     if ( ret != 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],open device %s failed\n",
-		path);
+	fprintf(stderr, "[TEST][ERROR],open device failed\n");
+	printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
+	printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
         return( 1 );
     }
 
