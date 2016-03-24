@@ -82,17 +82,26 @@ usage:
     path = argv[i];
     ret = zbc_open(path, O_RDONLY, &dev);
     if ( ret < 0 ) {
-        fprintf(stderr,
-                "zbc_open failed\n");
+        if ( ret == -ENXIO ) {
+	    fprintf(stderr, "Unsupported device type\n");
+	} else {
+	    fprintf(stderr,
+		    "zbc_open failed %d (%s)\n",
+		    ret,
+		    strerror(-ret));
+	}
         return( 1 );
     }
 
     /* Get device info */
     ret = zbc_get_device_info(dev, &info);
     if ( ret < 0 ) {
-        fprintf(stderr,
-                "zbc_get_device_info failed\n");
-        return( 1 );
+	fprintf(stderr,
+		"zbc_get_device_info failed %d (%s)\n",
+		ret,
+		strerror(-ret));
+        ret = 1;
+	goto out;
     }
 
     printf("Device %s: %s\n",
@@ -201,25 +210,11 @@ usage:
     ret = zbc_set_zones(dev, conv_sz, zone_sz);
     if ( ret != 0 ) {
         fprintf(stderr,
-                "zbc_set_zones failed\n");
+                "zbc_set_zones failed %d (%s)\n",
+		ret,
+		strerror(-ret));
         ret = 1;
     }
-
-    /* Retry getting device info */
-    ret = zbc_get_device_info(dev, &info);
-    if ( ret < 0 ) {
-        fprintf(stderr,
-                "zbc_get_device_info failed\n");
-        return( 1 );
-    }
-    printf("    %llu logical blocks of %u B\n",
-           (unsigned long long) info.zbd_logical_blocks,
-           (unsigned int) info.zbd_logical_block_size);
-    printf("    %llu physical blocks of %u B\n",
-           (unsigned long long) info.zbd_physical_blocks,
-           (unsigned int) info.zbd_physical_block_size);
-    printf("    %.03F GiB capacity\n",
-           (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000.0);
 
 out:
 
