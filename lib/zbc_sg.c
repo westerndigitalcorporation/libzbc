@@ -356,7 +356,7 @@ zbc_sg_cmd_exec(zbc_device_t *dev,
     /* Send the SG_IO command */
     ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
     if ( ret != 0 ) {
-        zbc_error("%s: SG_IO ioctl failed %d (%s)",
+        zbc_error("%s: SG_IO ioctl failed %d (%s)\n",
                   dev->zbd_filename,
                   errno,
                   strerror(errno));
