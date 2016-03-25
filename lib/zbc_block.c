@@ -69,6 +69,7 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
     zbc_block_device_t *bdev = zbc_dev_to_block_dev(dev);
     unsigned long long start, len;
     unsigned int type, nr_zones;
+    int is_zoned = 0;
     char str[128];
     FILE *zoned;
     int ret = 1;
@@ -89,7 +90,7 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 	type = -1;
 	nr_zones = 0;
 	ret = fscanf(zoned, "%llu %llu %u %u", &start, &len, &type, &nr_zones);
-	if ( ret == EOF ) {
+	if ( (ret == EOF) || (ret != 4) ) {
 	    break;
 	}
 
@@ -99,19 +100,22 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 	    break;
 	}
 
-	if ( type == 2 ) {
-	    dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	if ( type >= 2 ) {
+	    if ( type == 2 ) {
+	        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	    } else {
+	        dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+	    }
 	    bdev->zone_sectors = len;
-	} else if ( type == 3 ) {
-	    dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-	    bdev->zone_sectors = len;
+	    is_zoned = 1;
+	    break;
 	}
 
     }
 
     fclose(zoned);
 
-    return ret;
+    return is_zoned;
 
 }
 
