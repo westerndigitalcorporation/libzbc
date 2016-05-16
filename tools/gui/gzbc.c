@@ -201,7 +201,7 @@ dz_report_zones(dz_dev_t *dzd)
     if ( (! dzd->zones)
 	 || (! dzd->max_nr_zones) ) {
 
-	/* Get zone list */
+	/* Get list of all zones */
         dzd->zone_ro = ZBC_RO_ALL;
 	ret = zbc_list_zones(dzd->dev, 0, dzd->zone_ro, &dzd->zbc_zones, &dzd->nr_zones);
 	if ( ret != 0 ) {
@@ -408,7 +408,7 @@ dz_cmd_run(void *data)
     }
 
     if ( dzd->cmd_do_report_zones ) {
-	dz_report_zones(dzd);
+	ret = dz_report_zones(dzd);
     }
 
     if ( dzd->cmd_dialog ) {

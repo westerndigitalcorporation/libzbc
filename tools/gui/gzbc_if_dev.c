@@ -627,8 +627,8 @@ dz_if_dev_update(dz_dev_t *dzd,
 	/* Update zones info */
 	dz_if_update_zones(dzd);
     } else {
-	/* Update and redraw viewable zone range */
-	dz_if_redraw_zones(dzd);
+        /* Redraw viewable zone range */
+        dz_if_redraw_zones(dzd);
     }
 
     return;
@@ -975,12 +975,14 @@ dz_if_zlist_update_range(dz_dev_t *dzd)
 }
 
 static void
-dz_if_zlist_center_range(dz_dev_t *dzd)
+dz_if_zlist_center_range(dz_dev_t *dzd,
+			 int center)
 {
     GtkTreePath *path;
+    float align;
     int zno;
 
-    /* Update current range */
+    /* Get current range */
     dz_if_zlist_update_range(dzd);
 
     /* Go to zno (center) */
@@ -988,14 +990,23 @@ dz_if_zlist_center_range(dz_dev_t *dzd)
     if ( zno >= 0 ) {
 	path = gtk_tree_path_new_from_indices(zno, -1);
 	if ( path ) {
+
+	    if ( center
+		 || (dzd->zlist_end_no == dzd->zlist_start_no) ) {
+		align = 0.5;
+	    } else {
+		align = (float)(zno - dzd->zlist_start_no) / (float)(dzd->zlist_end_no - dzd->zlist_start_no);
+	    }
 	    gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(dzd->zlist_treeview),
 					 path,
 					 NULL,
 					 TRUE,
-					 0.5,
+					 align,
 					 0.0);
 	    gtk_tree_path_free(path);
+
 	    dz_if_zlist_update_range(dzd);
+
 	}
     }
 
@@ -1063,6 +1074,21 @@ dz_if_zblock_set(dz_dev_t *dzd)
 
 }
 
+static void
+dz_if_set_selection(dz_dev_t *dzd,
+		    int zno)
+{
+
+    if ( zno != dzd->zlist_selection ) {
+	dzd->zlist_selection = zno;
+	dz_if_znum_set(dzd);
+	dz_if_zblock_set(dzd);
+    }
+
+    return;
+
+}
+
 static gboolean
 dz_if_zlist_select_cb(GtkTreeSelection *selection,
                       GtkTreeModel *model,
@@ -1077,21 +1103,12 @@ dz_if_zlist_select_cb(GtkTreeSelection *selection,
     if ( ! path_currently_selected ) {
 
         if ( ! dzd->nr_zones ) {
-
-	    dzd->zlist_selection = -1;
-	    dz_if_znum_set(dzd);
-	    dz_if_zblock_set(dzd);
-
+	    zno = -1;
         } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
-
             gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &zno, -1);
-            if ( zno != dzd->zlist_selection ) {
-		dzd->zlist_selection = zno;
-		dz_if_znum_set(dzd);
-		dz_if_zblock_set(dzd);
-            }
-
         }
+
+	dz_if_set_selection(dzd, zno);
 
     }
 
@@ -1114,9 +1131,7 @@ dz_if_zlist_do_unselect(dz_dev_t *dzd)
             gtk_tree_path_free(path);
         }
 
-        dzd->zlist_selection = -1;
-	dz_if_znum_set(dzd);
-	dz_if_zblock_set(dzd);
+	dz_if_set_selection(dzd, -1);
 
     }
 
@@ -1133,7 +1148,6 @@ dz_if_zlist_do_select(dz_dev_t *dzd,
 
     if ( zno != dzd->zlist_selection ) {
 
-        dzd->zlist_selection = zno;
         sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zlist_treeview));
         path = gtk_tree_path_new_from_indices(zno, -1);
         if ( path ) {
@@ -1141,8 +1155,7 @@ dz_if_zlist_do_select(dz_dev_t *dzd,
             gtk_tree_path_free(path);
         }
 
-	dz_if_znum_set(dzd);
-	dz_if_zblock_set(dzd);
+	dz_if_set_selection(dzd, zno);
 
     }
 
@@ -1164,7 +1177,7 @@ dz_if_znum_set_cb(GtkEntry *entry,
     }
 
     dz_if_zlist_do_select(dzd, zno);
-    dz_if_zlist_center_range(dzd);
+    dz_if_zlist_center_range(dzd, 1);
 
     return;
 
@@ -1199,7 +1212,7 @@ dz_if_zblock_set_cb(GtkEntry *entry,
     }
 
     dz_if_zlist_do_select(dzd, zno);
-    dz_if_zlist_center_range(dzd);
+    dz_if_zlist_center_range(dzd, 1);
 
     return;
 
@@ -1211,24 +1224,31 @@ dz_if_refresh_zlist(dz_dev_t *dzd)
     unsigned int i;
     GtkTreeIter iter;
     char str[128];
+    int zno;
 
     /* Update number of zones */
     snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
     gtk_label_set_text(GTK_LABEL(dzd->zlist_frame_label), str);
     gtk_label_set_use_markup(GTK_LABEL(dzd->zlist_frame_label), TRUE);
 
+    /* Remember and clear selection */
+    zno = dzd->zlist_selection;
+    dz_if_zlist_do_unselect(dzd);
+
+    /* Refresh list store */
     gtk_list_store_clear(dzd->zlist_store);
     for(i = 0; i < dzd->nr_zones; i++) {
 	gtk_list_store_append(dzd->zlist_store, &iter);
     }
 
-    /* Clear selection */
-    dzd->zlist_selection = -1;
-    dz_if_znum_set(dzd);
-    dz_if_zblock_set(dzd);
-
     /* Update list */
     dz_if_zlist_fill(dzd);
+
+    /* Restore selection if applicable */
+    if ( zno < (int)dzd->nr_zones ) {
+    	dz_if_zlist_do_select(dzd, zno);
+	dz_if_zlist_center_range(dzd, 0);
+    }
 
     /* Redraw visible zone range */
     dz_if_redraw_zones(dzd);
@@ -1294,6 +1314,7 @@ dz_if_zlist_filter_cb(GtkComboBox *button,
 
         if ( dzd->zone_ro != zone_ro ) {
             dzd->zone_ro = zone_ro;
+	    dz_if_set_selection(dzd, -1);
             dz_if_update_zones(dzd);
         }
 
@@ -1587,7 +1608,7 @@ dz_if_zone_open_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    dz_if_refresh_zlist(dzd);
+    //dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1628,7 +1649,7 @@ dz_if_zone_close_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    dz_if_refresh_zlist(dzd);
+    //dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1669,7 +1690,7 @@ dz_if_zone_finish_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    dz_if_refresh_zlist(dzd);
+    //dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1716,7 +1737,7 @@ dz_if_zone_reset_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    dz_if_refresh_zlist(dzd);
+    //dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
