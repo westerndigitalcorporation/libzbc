@@ -975,8 +975,8 @@ dz_if_zlist_update_range(dz_dev_t *dzd)
 }
 
 static void
-dz_if_zlist_center_range(dz_dev_t *dzd,
-			 int center)
+dz_if_zlist_set_view_range(dz_dev_t *dzd,
+			   int center)
 {
     GtkTreePath *path;
     float align;
@@ -988,15 +988,18 @@ dz_if_zlist_center_range(dz_dev_t *dzd,
     /* Go to zno (center) */
     zno = dzd->zlist_selection;
     if ( zno >= 0 ) {
+
+	if ( center
+	     && (dzd->zlist_end_no > dzd->zlist_start_no) ) {
+	    align = 0.5;
+	} else {
+	    zno = dzd->zlist_start_no;
+	    align = 0.0;
+	}
+
 	path = gtk_tree_path_new_from_indices(zno, -1);
 	if ( path ) {
 
-	    if ( center
-		 || (dzd->zlist_end_no == dzd->zlist_start_no) ) {
-		align = 0.5;
-	    } else {
-		align = (float)(zno - dzd->zlist_start_no) / (float)(dzd->zlist_end_no - dzd->zlist_start_no);
-	    }
 	    gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(dzd->zlist_treeview),
 					 path,
 					 NULL,
@@ -1177,7 +1180,7 @@ dz_if_znum_set_cb(GtkEntry *entry,
     }
 
     dz_if_zlist_do_select(dzd, zno);
-    dz_if_zlist_center_range(dzd, 1);
+    dz_if_zlist_set_view_range(dzd, 1);
 
     return;
 
@@ -1212,7 +1215,7 @@ dz_if_zblock_set_cb(GtkEntry *entry,
     }
 
     dz_if_zlist_do_select(dzd, zno);
-    dz_if_zlist_center_range(dzd, 1);
+    dz_if_zlist_set_view_range(dzd, 1);
 
     return;
 
@@ -1247,7 +1250,7 @@ dz_if_refresh_zlist(dz_dev_t *dzd)
     /* Restore selection if applicable */
     if ( zno < (int)dzd->nr_zones ) {
     	dz_if_zlist_do_select(dzd, zno);
-	dz_if_zlist_center_range(dzd, 0);
+	dz_if_zlist_set_view_range(dzd, 0);
     }
 
     /* Redraw visible zone range */
