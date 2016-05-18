@@ -217,7 +217,7 @@ dz_report_zones(dz_dev_t *dzd)
 
 	for(i = 0; i < dzd->max_nr_zones; i++) {
 	    dzd->zones[i].no = i;
-	    dzd->zones[i].show = 1;
+	    dzd->zones[i].visible = 1;
 	    memcpy(&dzd->zones[i].info, &dzd->zbc_zones[i], sizeof(struct zbc_zone));
 	}
 
@@ -240,10 +240,10 @@ dz_report_zones(dz_dev_t *dzd)
 	if ( (j < dzd->nr_zones)
 	     && (zbc_zone_start_lba(&dzd->zones[i].info) == zbc_zone_start_lba(&dzd->zbc_zones[j])) ) {
 	    memcpy(&dzd->zones[i].info, &dzd->zbc_zones[j], sizeof(struct zbc_zone));
-	    dzd->zones[i].show = 1;
+	    dzd->zones[i].visible = 1;
 	    j++;
 	} else {
-	    dzd->zones[i].show = 0;
+	    dzd->zones[i].visible = 0;
 	}
     }
 

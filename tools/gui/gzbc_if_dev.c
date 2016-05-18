@@ -94,6 +94,11 @@ static void
 dz_if_zlist_set_use_hexa_cb(GtkToggleButton *togglebutton,
 			    gpointer user_data);
 
+static gboolean
+dz_if_zlist_entry_visible(GtkTreeModel *model,
+			  GtkTreeIter *iter,
+			  gpointer data);
+
 static void
 dz_if_zlist_fill(dz_dev_t *dzd);
 
@@ -354,13 +359,39 @@ dz_if_dev_open(char *path)
     dz_if_set_margin(scrolledwindow, 7, 7, 10, 10);
     gtk_container_add(GTK_CONTAINER(frame), scrolledwindow);
 
-    treeview = gtk_tree_view_new();
+    /* Create zone list store and add rows */
+    dzd->zlist_store = gtk_list_store_new(DZ_ZONE_LIST_COLUMS,
+					  G_TYPE_UINT,
+					  G_TYPE_UINT,
+					  G_TYPE_UINT,
+					  G_TYPE_UINT,
+					  G_TYPE_UINT,
+					  G_TYPE_UINT64,
+					  G_TYPE_UINT64,
+					  G_TYPE_UINT64,
+					  G_TYPE_INT);
+    for(i = 0; i < dzd->max_nr_zones; i++) {
+        gtk_list_store_append(dzd->zlist_store, &iter);
+    }
+
+    dzd->zlist_model = gtk_tree_model_filter_new(GTK_TREE_MODEL(dzd->zlist_store), NULL);
+    gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(dzd->zlist_model),
+					   dz_if_zlist_entry_visible,
+					   dzd, NULL);
+
+    /* Initialize the tree view */
+    treeview = gtk_tree_view_new_with_model(dzd->zlist_model);
     gtk_widget_show(treeview);
     gtk_container_add(GTK_CONTAINER(scrolledwindow), treeview);
     gtk_tree_view_set_enable_search(GTK_TREE_VIEW(treeview), FALSE);
     gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)), GTK_SELECTION_SINGLE);
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(treeview), TRUE);
     dzd->zlist_treeview = treeview;
+    dzd->zlist_selection = -1;
+    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
+                                           dz_if_zlist_select_cb,
+                                           dzd,
+                                           NULL);
 
     g_signal_connect((gpointer) gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(treeview)), "value-changed",
 		     G_CALLBACK(dz_if_zlist_scroll_cb),
@@ -414,29 +445,7 @@ dz_if_dev_open(char *path)
     gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_wp, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
-    /* Create zone list store and fill the list */
-    dzd->zlist_store = gtk_list_store_new(DZ_ZONE_LIST_COLUMS,
-					  G_TYPE_UINT,
-					  G_TYPE_UINT,
-					  G_TYPE_UINT,
-					  G_TYPE_UINT,
-					  G_TYPE_UINT,
-					  G_TYPE_UINT64,
-					  G_TYPE_UINT64,
-					  G_TYPE_UINT64);
-    for(i = 0; i < dzd->max_nr_zones; i++) {
-        gtk_list_store_append(dzd->zlist_store, &iter);
-    }
-    dzd->zlist_model = GTK_TREE_MODEL(dzd->zlist_store);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(dzd->zlist_treeview), dzd->zlist_model);
-    g_object_unref(dzd->zlist_model);
-
-    dzd->zlist_selection = -1;
-    gtk_tree_selection_set_select_function(gtk_tree_view_get_selection(GTK_TREE_VIEW(treeview)),
-                                           dz_if_zlist_select_cb,
-                                           dzd,
-                                           NULL);
-
+    /* Fill the model with zone data */
     dz_if_zlist_fill(dzd);
 
     /* Zone state drawing frame */
@@ -894,28 +903,32 @@ dz_if_zlist_print_zone_wp(GtkTreeViewColumn *col,
 
 }
 
+static gboolean
+dz_if_zlist_entry_visible(GtkTreeModel *model,
+			  GtkTreeIter *iter,
+			  gpointer user_data)
+{
+    dz_dev_t *dzd = (dz_dev_t *) user_data;
+    int i;
+
+    gtk_tree_model_get(model, iter, DZ_ZONE_NUM, &i, -1);
+
+    return dzd->zones[i].visible ? TRUE : FALSE;
+
+}
+
 static void
 dz_if_zlist_fill(dz_dev_t *dzd)
 {
+    GtkTreeModel *model = GTK_TREE_MODEL(dzd->zlist_store);
     GtkTreeIter iter;
     struct zbc_zone *z;
     unsigned int i;
 
-    /* Update device list */
-    if ( (! dzd->nr_zones) || (! dzd->zones) ) {
-        return;
-    }
-
-    gtk_tree_model_get_iter_first(dzd->zlist_model, &iter);
+    gtk_tree_model_get_iter_first(model, &iter);
 
     for(i = 0; i < dzd->max_nr_zones; i++) {
-
-        if ( ! dzd->zones[i].show ) {
-	    continue;
-	}
-
         z = &dzd->zones[i].info;
-
         gtk_list_store_set(dzd->zlist_store, &iter,
                            DZ_ZONE_NUM, dzd->zones[i].no,
                            DZ_ZONE_TYPE, z->zbz_type,
@@ -925,11 +938,13 @@ dz_if_zlist_fill(dz_dev_t *dzd)
                            DZ_ZONE_START, dz_if_lba2block(dzd, zbc_zone_start_lba(z)),
                            DZ_ZONE_LENGTH, dz_if_lba2block(dzd, zbc_zone_length(z)),
                            DZ_ZONE_WP, dz_if_lba2block(dzd, zbc_zone_wp_lba(z)),
+                           DZ_ZONE_VISIBLE, dzd->zones[i].visible,
                            -1);
-
-        gtk_tree_model_iter_next(dzd->zlist_model, &iter);
+        gtk_tree_model_iter_next(model, &iter);
 
     }
+
+    gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(dzd->zlist_model));
 
     return;
 
@@ -981,6 +996,10 @@ dz_if_zlist_set_view_range(dz_dev_t *dzd,
     GtkTreePath *path;
     float align;
     int zno = -1;
+
+    if ( ! dzd->nr_zones ) {
+	return;
+    }
 
     /* Go to zno (center) */
     if ( center ) {
@@ -1093,37 +1112,31 @@ dz_if_zlist_select_cb(GtkTreeSelection *selection,
     GtkTreeIter iter;
     int zno;
 
-    if ( ! path_currently_selected ) {
-
-        if ( ! dzd->nr_zones ) {
-	    zno = -1;
-        } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
-            gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &zno, -1);
-        }
-
-	dz_if_set_selection(dzd, zno);
-
+    if ( path_currently_selected ) {
+	return TRUE;
     }
+
+    if ( ! dzd->nr_zones ) {
+	zno = -1;
+    } else if ( gtk_tree_model_get_iter(model, &iter, path) ) {
+	gtk_tree_model_get(model, &iter, DZ_ZONE_NUM, &zno, -1);
+    }
+
+    dz_if_set_selection(dzd, zno);
 
     return TRUE;
 
 }
 
 static void
-dz_if_zlist_do_unselect(dz_dev_t *dzd)
+dz_if_zlist_clear_selection(dz_dev_t *dzd)
 {
     GtkTreeSelection *sel;
-    GtkTreePath *path;
 
     if ( dzd->zlist_selection >= 0 ) {
 
         sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(dzd->zlist_treeview));
-        path = gtk_tree_path_new_from_indices(dzd->zlist_selection, -1);
-        if ( path ) {
-            gtk_tree_selection_unselect_path(sel, path);
-            gtk_tree_path_free(path);
-        }
-
+	gtk_tree_selection_unselect_all(sel);
 	dz_if_set_selection(dzd, -1);
 
     }
@@ -1133,8 +1146,8 @@ dz_if_zlist_do_unselect(dz_dev_t *dzd)
 }
 
 static void
-dz_if_zlist_do_select(dz_dev_t *dzd,
-		      int zno)
+dz_if_zlist_set_selection(dz_dev_t *dzd,
+			  int zno)
 {
     GtkTreeSelection *sel;
     GtkTreePath *path;
@@ -1165,11 +1178,11 @@ dz_if_znum_set_cb(GtkEntry *entry,
 
     zno = atoi(gtk_entry_get_text(entry));
     if ( (zno < 0) || (zno >= (gint)dzd->max_nr_zones) ) {
-	dz_if_zlist_do_unselect(dzd);
+	dz_if_zlist_clear_selection(dzd);
 	return;
     }
 
-    dz_if_zlist_do_select(dzd, zno);
+    dz_if_zlist_set_selection(dzd, zno);
     dz_if_zlist_set_view_range(dzd, 1);
 
     return;
@@ -1200,11 +1213,11 @@ dz_if_zblock_set_cb(GtkEntry *entry,
     }
 
     if ( zno < 0 ) {
-	dz_if_zlist_do_unselect(dzd);
+	dz_if_zlist_clear_selection(dzd);
 	return;
     }
 
-    dz_if_zlist_do_select(dzd, zno);
+    dz_if_zlist_set_selection(dzd, zno);
     dz_if_zlist_set_view_range(dzd, 1);
 
     return;
@@ -1214,44 +1227,18 @@ dz_if_zblock_set_cb(GtkEntry *entry,
 static void
 dz_if_refresh_zlist(dz_dev_t *dzd)
 {
-    unsigned int i;
-    GtkTreeIter iter;
     char str[128];
-    int zno, end_zno;
 
     /* Update number of zones */
     snprintf(str, sizeof(str) - 1, "<b>%s: %d zones</b>", dzd->path, dzd->nr_zones);
     gtk_label_set_text(GTK_LABEL(dzd->zlist_frame_label), str);
     gtk_label_set_use_markup(GTK_LABEL(dzd->zlist_frame_label), TRUE);
 
-    /* Remember and clear selection/range */
-    zno = dzd->zlist_selection;
-    end_zno = dzd->zlist_end_no;
-    dz_if_zlist_do_unselect(dzd);
-
-    /* Refresh list store */
-    gtk_list_store_clear(dzd->zlist_store);
-    for(i = 0; i < dzd->nr_zones; i++) {
-	gtk_list_store_append(dzd->zlist_store, &iter);
-    }
-
-    /* Update list */
+    /* Update list store and refilter the view */
     dz_if_zlist_fill(dzd);
-
-    /* Restore view range if applicable */
-    if ( end_zno < (int)dzd->nr_zones ) {
-	dz_if_zlist_set_view_range(dzd, 0);
-    }
-
-    /* Restore selection if applicable */
-    if ( zno < (int)dzd->nr_zones ) {
-    	dz_if_zlist_do_select(dzd, zno);
-    }
 
     /* Redraw visible zone range */
     dz_if_redraw_zones(dzd);
-
-    dz_if_zlist_update_range(dzd);
 
     return;
 
@@ -1314,8 +1301,11 @@ dz_if_zlist_filter_cb(GtkComboBox *button,
 
         if ( dzd->zone_ro != zone_ro ) {
             dzd->zone_ro = zone_ro;
-	    dz_if_set_selection(dzd, -1);
+	    dzd->zlist_start_no = 0;
+	    dzd->zlist_end_no = 0;
             dz_if_update_zones(dzd);
+	    dz_if_zlist_clear_selection(dzd);
+	    dz_if_zlist_set_view_range(dzd, 0);
         }
 
     }
@@ -1488,7 +1478,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
         dzd->zlist_end_no = dzd->max_nr_zones - 1;
     }
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
-	if ( dzd->zones[i].show ) {
+	if ( dzd->zones[i].visible ) {
 	    cap += zbc_zone_length(&dzd->zones[i].info);
 	}
     }
@@ -1496,7 +1486,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
     /* Center overall drawing using x offset */
     zw = 0;
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
-	if ( dzd->zones[i].show ) {
+	if ( dzd->zones[i].visible ) {
 	    zw += ((unsigned long long)w * zbc_zone_length(&dzd->zones[i].info)) / cap;
 	}
     }
@@ -1505,7 +1495,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
     /* Draw zones */
     for(i = dzd->zlist_start_no; i <= dzd->zlist_end_no; i++) {
 
-	if ( ! dzd->zones[i].show ) {
+	if ( ! dzd->zones[i].visible ) {
 	    continue;
 	}
 
@@ -1608,7 +1598,7 @@ dz_if_zone_open_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    //dz_if_refresh_zlist(dzd);
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1649,7 +1639,7 @@ dz_if_zone_close_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    //dz_if_refresh_zlist(dzd);
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1690,7 +1680,7 @@ dz_if_zone_finish_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    //dz_if_refresh_zlist(dzd);
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 
@@ -1737,7 +1727,7 @@ dz_if_zone_reset_cb(GtkWidget *widget,
     }
 
     /* Update zone list */
-    //dz_if_refresh_zlist(dzd);
+    dz_if_refresh_zlist(dzd);
 
     return( FALSE );
 

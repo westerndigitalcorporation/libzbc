@@ -44,6 +44,7 @@ enum {
     DZ_ZONE_START,
     DZ_ZONE_LENGTH,
     DZ_ZONE_WP,
+    DZ_ZONE_VISIBLE,
     DZ_ZONE_LIST_COLUMS
 };
 
@@ -71,7 +72,7 @@ enum {
 typedef struct dz_dev_zone {
 
     int				no;
-    int				show;
+    int				visible;
     struct zbc_zone 		info;
 
 } dz_dev_zone_t;
@@ -114,6 +115,7 @@ typedef struct dz_dev {
     GtkWidget                   *zlist_frame_label;
     GtkWidget                   *zlist_treeview;
     GtkTreeModel                *zlist_model;
+    GtkTreeModel                *zlist_model_filter;
     GtkListStore                *zlist_store;
     unsigned int		zlist_start_no;
     unsigned int		zlist_end_no;
