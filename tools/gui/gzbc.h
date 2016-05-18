@@ -115,7 +115,6 @@ typedef struct dz_dev {
     GtkWidget                   *zlist_frame_label;
     GtkWidget                   *zlist_treeview;
     GtkTreeModel                *zlist_model;
-    GtkTreeModel                *zlist_model_filter;
     GtkListStore                *zlist_store;
     unsigned int		zlist_start_no;
     unsigned int		zlist_end_no;
