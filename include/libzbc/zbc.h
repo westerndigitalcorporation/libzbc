@@ -261,6 +261,8 @@ struct zbc_device_info {
     uint32_t                    zbd_physical_block_size;
     uint64_t                    zbd_physical_blocks;
 
+    uint64_t                    zbd_max_rw_logical_blocks;
+
     uint32_t                    zbd_opt_nr_open_seq_pref;
     uint32_t                    zbd_opt_nr_non_seq_write_seq_pref;
     uint32_t                    zbd_max_nr_open_seq_req;

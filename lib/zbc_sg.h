@@ -254,6 +254,12 @@ extern void
 zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd);
 
 /**
+ * Get the maximum allowed command size for the device.
+ */
+extern void
+zbc_sg_get_max_cmd_blocks(struct zbc_device *dev);
+
+/**
  * Execute a command.
  */
 extern int

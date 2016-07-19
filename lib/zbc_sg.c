@@ -15,12 +15,16 @@
 
 /***** Including files *****/
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <libgen.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+
 #include "zbc.h"
 #include "zbc_sg.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
 
 /***** Private data *****/
 
@@ -332,6 +336,91 @@ out:
     }
 
     return( ret );
+
+}
+
+/**
+ * Default maximum number of SG segments (128KB for 4K pages).
+ */
+#define ZBC_SG_MAX_SGSZ		32
+
+/**
+ * Get the maximum allowed command size of a block device.
+ */
+static int
+zbc_sg_max_segments(struct zbc_device *dev)
+{
+    char str[128];
+    FILE *fmax_segs;
+    unsigned int max_segs = ZBC_SG_MAX_SGSZ;
+    int ret;
+
+    snprintf(str, sizeof(str),
+	     "/sys/block/%s/queue/max_segments",
+	     basename(dev->zbd_filename));
+    fmax_segs = fopen(str, "r");
+    if ( fmax_segs ) {
+	ret = fscanf(fmax_segs, "%u", &max_segs);
+	if ( ret != 1 )
+	    max_segs = ZBC_SG_MAX_SGSZ;
+	fclose(fmax_segs);
+    }
+
+    return max_segs;
+
+}
+
+/**
+ * Get the maximum allowed command blocks for the device.
+ */
+void
+zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
+{
+    struct stat st;
+    int ret, sgsz = ZBC_SG_MAX_SGSZ;
+
+    /* Get device stats */
+    if ( fstat(dev->zbd_fd, &st) < 0 ) {
+	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
+	    zbc_error("%s: stat failed %d (%s)\n",
+		      dev->zbd_filename,
+		      errno,
+		      strerror(errno));
+	}
+	goto out;
+    }
+
+    if ( S_ISCHR(st.st_mode) ) {
+	ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
+	if ( ret != 0 ) {
+	    if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
+		ret = -errno;
+		zbc_error("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno,
+			  strerror(errno));
+		sgsz = ZBC_SG_MAX_SGSZ;
+	    }
+	}
+	if (!sgsz)
+	    sgsz = 1;
+    } else if ( S_ISBLK(st.st_mode) ) {
+	sgsz = zbc_sg_max_segments(dev);
+    } else {
+	/* Files for fake backend */
+	sgsz = 128;
+    }
+
+out:
+
+    dev->zbd_info.zbd_max_rw_logical_blocks =
+	(uint32_t)sgsz * sysconf(_SC_PAGESIZE) / dev->zbd_info.zbd_logical_block_size;
+
+    zbc_debug("%s: Maximum command data transfer size is %llu logical blocks\n",
+	      dev->zbd_filename,
+	      (unsigned long long)dev->zbd_info.zbd_max_rw_logical_blocks);
+
+    return;
 
 }
 
