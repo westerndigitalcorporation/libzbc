@@ -22,9 +22,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #include <linux/fs.h>
 
 #include "zbc.h"
+#include "zbc_sg.h"
 
 /***** Macro and types definitions *****/
 
@@ -313,6 +316,9 @@ zbc_block_set_info(struct zbc_device *dev)
 	return -ENXIO;
     }
 
+    /* Get maximum command size */
+    zbc_sg_get_max_cmd_blocks(dev);
+
     return 0;
 
 }
@@ -513,10 +519,10 @@ zbc_block_reset_wp(struct zbc_device *dev,
  */
 static int32_t
 zbc_block_pread(struct zbc_device *dev,
-		struct zbc_zone *z,
+		zbc_zone_t *zone,
 		void *buf,
 		uint32_t lba_count,
-		uint64_t start_lba)
+		uint64_t lba_ofst)
 {
     ssize_t ret;
 
@@ -524,7 +530,7 @@ zbc_block_pread(struct zbc_device *dev,
     ret = pread(dev->zbd_fd,
 		buf,
 		lba_count * dev->zbd_info.zbd_logical_block_size,
-		start_lba * dev->zbd_info.zbd_logical_block_size);
+		(zone->zbz_start + lba_ofst) * dev->zbd_info.zbd_logical_block_size);
     if ( ret < 0 ) {
         ret = -errno;
     } else {
@@ -540,10 +546,10 @@ zbc_block_pread(struct zbc_device *dev,
  */
 static int32_t
 zbc_block_pwrite(struct zbc_device *dev,
-		 struct zbc_zone *z,
+		 zbc_zone_t *zone,
 		 const void *buf,
 		 uint32_t lba_count,
-		 uint64_t start_lba)
+		 uint64_t lba_ofst)
 {
     ssize_t ret;
 
@@ -551,7 +557,7 @@ zbc_block_pwrite(struct zbc_device *dev,
     ret = pwrite(dev->zbd_fd,
 		 buf,
 		 lba_count * dev->zbd_info.zbd_logical_block_size,
-		 start_lba * dev->zbd_info.zbd_logical_block_size);
+		 (zone->zbz_start + lba_ofst) * dev->zbd_info.zbd_logical_block_size);
     if ( ret < 0 ) {
         ret = -errno;
     } else {

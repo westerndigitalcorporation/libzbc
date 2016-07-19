@@ -30,6 +30,7 @@
 #include <pthread.h>
 
 #include "zbc.h"
+#include "zbc_sg.h"
 
 /***** Macro and types definitions *****/
 
@@ -415,6 +416,9 @@ zbc_fake_set_info(struct zbc_device *dev)
     dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
     dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
     dev->zbd_info.zbd_max_nr_open_seq_req = ZBC_FAKE_MAX_OPEN_NR_ZONES;
+
+    /* Get maximum command size */
+    zbc_sg_get_max_cmd_blocks(dev);
 
     return 0;
 

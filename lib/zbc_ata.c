@@ -732,6 +732,9 @@ zbc_ata_get_info(zbc_device_t *dev)
         return( ret );
     }
 
+    /* Get maximum command size */
+    zbc_sg_get_max_cmd_blocks(dev);
+
     /* Get zoned block device information */
     ret = zbc_ata_get_zbd_info(dev);
     if ( ret != 0 ) {
@@ -1105,8 +1108,6 @@ zbc_ata_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_ATA_REPORT_ZONES_BUFSZ	524288
-
 /**
  * Get device zone information.
  */
@@ -1120,6 +1121,7 @@ zbc_ata_report_zones(zbc_device_t *dev,
 {
     size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
     unsigned int i, nz, buf_nz;
+    size_t max_bufsz;
     zbc_sg_cmd_t cmd;
     uint8_t *buf;
     int ret;
@@ -1128,9 +1130,10 @@ zbc_ata_report_zones(zbc_device_t *dev,
         bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
     }
 
+    max_bufsz = dev->zbd_info.zbd_max_rw_logical_blocks * dev->zbd_info.zbd_logical_block_size;
     bufsz = (bufsz + 4095) & ~4095;
-    if ( bufsz > ZBC_ATA_REPORT_ZONES_BUFSZ ) {
-	bufsz = ZBC_ATA_REPORT_ZONES_BUFSZ;
+    if ( bufsz > max_bufsz ) {
+	bufsz = max_bufsz;
     }
 
     /* Allocate and intialize report zones command */

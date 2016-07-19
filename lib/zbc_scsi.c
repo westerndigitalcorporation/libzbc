@@ -296,8 +296,6 @@ zbc_scsi_flush(zbc_device_t *dev,
 
 }
 
-#define ZBC_SCSI_REPORT_ZONES_BUFSZ     524288
-
 /**
  * Get a SCSI device zone information.
  */
@@ -312,18 +310,20 @@ zbc_scsi_report_zones(zbc_device_t *dev,
     size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
     unsigned int i, nz, buf_nz;
     zbc_sg_cmd_t cmd;
+    size_t max_bufsz;
     uint8_t *buf;
     int ret;
 
     if ( *nr_zones ) {
         bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if ( bufsz > ZBC_SCSI_REPORT_ZONES_BUFSZ ) {
-            bufsz = ZBC_SCSI_REPORT_ZONES_BUFSZ;
-        }
     }
 
     /* For in kernel ATA translation: align to 512 B */
+    max_bufsz = dev->zbd_info.zbd_max_rw_logical_blocks * dev->zbd_info.zbd_logical_block_size;
     bufsz = (bufsz + 511) & ~511;
+    if ( bufsz > max_bufsz ) {
+	bufsz = max_bufsz;
+    }
 
     /* Allocate and intialize report zones command */
     ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
@@ -1006,6 +1006,9 @@ zbc_scsi_get_info(zbc_device_t *dev)
     if ( ret != 0 ) {
         return( ret );
     }
+
+    /* Get maximum command size */
+    zbc_sg_get_max_cmd_blocks(dev);
 
     /* Get zoned block device characteristics */
     ret = zbc_scsi_get_zbd_chars(dev);
