@@ -774,24 +774,25 @@ zbc_pread(zbc_device_t *dev,
           uint32_t lba_count,
           uint64_t lba_ofst)
 {
-    ssize_t ret = -EFAULT;
+    ssize_t ret;
 
-    if ( dev && zone && buf ) {
+    if ( !dev || !zone || !buf )
+	return( -EFAULT );
 
-	if ( lba_count ) {
-	    ret = (dev->zbd_ops->zbd_pread)(dev, zone, buf, lba_count, lba_ofst);
-	    if ( ret <= 0 ) {
-		zbc_error("Read %u blocks at block %llu + %llu failed %zd (%s)\n",
-			  lba_count,
-			  (unsigned long long) zbc_zone_start_lba(zone),
-			  (unsigned long long) lba_ofst,
-			  -ret,
-			  strerror(-ret));
-	    }
-	} else {
-	    ret = 0;
-	}
+    if ( !lba_count )
+	return( 0 );
 
+    if ( lba_count > dev->zbd_info.zbd_max_rw_logical_blocks )
+	return( -EINVAL );
+
+    ret = (dev->zbd_ops->zbd_pread)(dev, zone, buf, lba_count, lba_ofst);
+    if ( ret <= 0 ) {
+	zbc_error("Read %u blocks at block %llu + %llu failed %zd (%s)\n",
+		  lba_count,
+		  (unsigned long long) zbc_zone_start_lba(zone),
+		  (unsigned long long) lba_ofst,
+		  -ret,
+		  strerror(-ret));
     }
 
     return( ret );
@@ -822,29 +823,26 @@ zbc_pwrite(zbc_device_t *dev,
            uint32_t lba_count,
            uint64_t lba_ofst)
 {
-    ssize_t ret = -EFAULT;
+    ssize_t ret;
 
-    if ( dev && zone && buf ) {
+    if ( !dev || !zone || !buf )
+	return( -EFAULT );
 
-	if ( lba_count ) {
+    if ( !lba_count )
+	return( 0 );
 
-	    /* Execute write */
-	    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
-	    if ( ret <= 0 ) {
-		zbc_error("Write %u blocks at block %llu + %llu failed %zd (%s)\n",
-			  lba_count,
-			  (unsigned long long) zbc_zone_start_lba(zone),
-			  (unsigned long long) lba_ofst,
-			  ret,
-			  strerror(-ret));
-	    }
+    if ( lba_count > dev->zbd_info.zbd_max_rw_logical_blocks )
+	return( -EINVAL );
 
-	} else {
-
-	    ret = 0;
-
-	}
-
+    /* Execute write */
+    ret = (dev->zbd_ops->zbd_pwrite)(dev, zone, buf, lba_count, lba_ofst);
+    if ( ret <= 0 ) {
+	zbc_error("Write %u blocks at block %llu + %llu failed %zd (%s)\n",
+		  lba_count,
+		  (unsigned long long) zbc_zone_start_lba(zone),
+		  (unsigned long long) lba_ofst,
+		  ret,
+		  strerror(-ret));
     }
 
     return( ret );
