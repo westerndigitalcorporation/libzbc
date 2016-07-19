@@ -1,6 +1,6 @@
 /*
  * This file is part of libzbc.
- * 
+ *
  * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
  * under the terms of the GNU Lesser General Public License version 3,
  * or any later version, "as is," without technical support, and WITHOUT
@@ -8,14 +8,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
  * of the GNU Lesser General Public License along with libzbc.  If not,
  * see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Authors: Damien Le Moal (damien.lemoal@hgst.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
  */
 
 /***** Including files *****/
 
-#define _GNU_SOURCE     /* O_LARGEFILE */
+#define _GNU_SOURCE     /* O_LARGEFILE & O_DIRECT */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,6 +87,7 @@ int main(int argc,
     char *path, *file = NULL;
     long long lba_ofst = 0;
     long long lba_max = 0;
+    int flags = O_RDONLY;
 
     /* Check command line */
     if ( argc < 4 ) {
@@ -96,6 +97,7 @@ usage:
                "  or the number of I/O specified is executed\n"
                "Options:\n"
                "    -v         : Verbose mode\n"
+               "    -dio       : Use direct I/Os for accessing the device\n"
                "    -nio <num> : Limit the number of I/O executed to <num>\n"
                "    -f <file>  : Write the content of the zone to <file>\n"
                "                 If <file> is \"-\", the zone content is\n"
@@ -111,6 +113,10 @@ usage:
         if ( strcmp(argv[i], "-v") == 0 ) {
 
             zbc_set_log_level("debug");
+
+	} else if ( strcmp(argv[i], "-dio") == 0 ) {
+
+	    flags |= O_DIRECT;
 
         } else if ( strcmp(argv[i], "-nio") == 0 ) {
 
@@ -192,7 +198,7 @@ usage:
     signal(SIGTERM, zbc_read_zone_sigcatcher);
 
     /* Open device */
-    ret = zbc_open(path, O_RDONLY, &dev);
+    ret = zbc_open(path, flags, &dev);
     if ( ret != 0 ) {
         return( 1 );
     }
@@ -235,7 +241,8 @@ usage:
     printf("    %.03F GB capacity\n",
            (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
 
-    printf("Target zone: Zone %d / %d, type 0x%x (%s), cond 0x%x (%s), need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+    printf("Target zone: Zone %d / %d, type 0x%x (%s), cond 0x%x (%s), need_reset %d, "
+	   "non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
            zidx,
            nr_zones,
            zbc_zone_type(iozone),
@@ -331,6 +338,9 @@ usage:
 
         ret = zbc_pread(dev, iozone, iobuf, lba_count, lba_ofst);
         if ( ret <= 0 ) {
+	    fprintf(stderr, "zbc_pread failed %d (%s)\n",
+		    -ret,
+		    strerror(-ret));
             ret = 1;
             break;
         }
