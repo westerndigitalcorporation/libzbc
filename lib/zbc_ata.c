@@ -607,64 +607,6 @@ zbc_ata_vendor_id(zbc_device_t *dev)
 }
 
 /**
- * Get the disk capacity and sector size.
- */
-static int
-zbc_ata_get_capacity(zbc_device_t *dev)
-{
-    zbc_sg_cmd_t cmd;
-    int logical_per_physical;
-    int ret;
-
-    /* Initialize the command */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
-    if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
-        return( ret );
-    }
-
-    /* Fill command CDB */
-    cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
-    cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-    zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
-
-    /* Execute the command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
-    if ( ret != 0 ) {
-        goto out;
-    }
-
-    dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
-    dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-    logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
-
-    /* Check */
-    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
-        zbc_error("%s: invalid logical sector size\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    if ( ! dev->zbd_info.zbd_logical_blocks ) {
-        zbc_error("%s: invalid capacity (logical blocks)\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size * logical_per_physical;
-    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks / logical_per_physical;
-
-out:
-
-    zbc_sg_cmd_destroy(&cmd);
-
-    return( ret );
-
-}
-
-/**
  * Get zoned block device information(Maximum or optimul number of opening zones).
  */
 static int
@@ -700,48 +642,6 @@ zbc_ata_get_zbd_info(zbc_device_t *dev)
     }
 
     return( ret );
-
-}
-
-/**
- * Get a device information (capacity & sector sizes).
- */
-static int
-zbc_ata_get_info(zbc_device_t *dev)
-{
-    int ret;
-
-    /* Make sure the device is ready */
-    ret = zbc_sg_cmd_test_unit_ready(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get device model */
-    ret = zbc_ata_classify(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get vendor information */
-    zbc_ata_vendor_id(dev);
-
-    /* Get capacity information */
-    ret = zbc_ata_get_capacity(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get maximum command size */
-    zbc_sg_get_max_cmd_blocks(dev);
-
-    /* Get zoned block device information */
-    ret = zbc_ata_get_zbd_info(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    return( 0 );
 
 }
 
@@ -1267,6 +1167,46 @@ out:
     return( ret );
 
 }
+
+/**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_ata_get_info(zbc_device_t *dev)
+{
+    int ret;
+
+    /* Make sure the device is ready */
+    ret = zbc_sg_cmd_test_unit_ready(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get device model */
+    ret = zbc_ata_classify(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get vendor information */
+    zbc_ata_vendor_id(dev);
+
+    /* Get capacity information */
+    ret = zbc_sg_get_capacity(dev, zbc_ata_report_zones);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get zoned block device information */
+    ret = zbc_ata_get_zbd_info(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    return( 0 );
+
+}
+
 
 /**
  * Get the number of zones of the disk.
