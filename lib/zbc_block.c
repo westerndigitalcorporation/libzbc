@@ -24,23 +24,38 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/fs.h>
+#include <linux/blkzoned.h>
 
 #include "zbc.h"
 #include "zbc_sg.h"
 
-/***** Macro and types definitions *****/
+/***** Inline functions *****/
 
-/**
- * Block device descriptor data.
- */
-typedef struct zbc_block_device {
+static inline uint64_t zbc_block_lba2bytes(struct zbc_device *dev,
+					   uint64_t lba)
+{
+    return lba * dev->zbd_info.zbd_logical_block_size;
+}
 
-    struct zbc_device   dev;
+static inline uint64_t zbc_block_bytes2lba(struct zbc_device *dev,
+					   uint64_t bytes)
+{
+    return bytes / dev->zbd_info.zbd_logical_block_size;
+}
 
-    unsigned int        zone_sectors;
+static inline uint64_t zbc_block_lba2sector(struct zbc_device *dev,
+					    uint64_t lba)
+{
+    return zbc_block_lba2bytes(dev, lba) >> 9;
+}
 
-} zbc_block_device_t;
+static inline uint64_t zbc_block_sector2lba(struct zbc_device *dev,
+					    uint64_t sector)
+{
+    return zbc_block_bytes2lba(dev, sector << 9);
+}
 
 /***** Definition of private functions *****/
 
@@ -55,68 +70,47 @@ zbc_block_lba_to_sector(struct zbc_device *dev,
 }
 
 /**
- * Convert device address to block device handle address.
- */
-static inline zbc_block_device_t *
-zbc_dev_to_block_dev(struct zbc_device *dev)
-{
-    return container_of(dev, struct zbc_block_device, dev);
-}
-
-/**
  * Test if the block device is zoned.
  */
 static int
 zbc_block_device_is_zoned(struct zbc_device *dev)
 {
-    zbc_block_device_t *bdev = zbc_dev_to_block_dev(dev);
-    unsigned long long start, len;
-    unsigned int type, nr_zones;
+    unsigned int type = -1;
     int is_zoned = 0;
     char str[128];
-    FILE *zoned;
-    int ret = 1;
+    FILE *file;
 
-    /* Check zoned attributes, if any */
+    /* Check that this is a zoned block device */
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/queue/zoned",
 	     basename(dev->zbd_filename));
-    zoned = fopen(str, "r");
-    if ( ! zoned ) {
-	/* Not a zoned block device or no kernel support */
-	return 0;
+    file = fopen(str, "r");
+    if ( file ) {
+	fscanf(file, "%d", &is_zoned);
+    }
+    fclose(file);
+
+    if ( ! is_zoned ) {
+	goto out;
     }
 
-    while( 1 ) {
+    /* Get device type */
+    snprintf(str, sizeof(str),
+	     "/sys/block/%s/device/type",
+	     basename(dev->zbd_filename));
+    file = fopen(str, "r");
+    if ( file ) {
+	fscanf(file, "%u", &type);
+    }
+    fclose(file);
 
-	start = len = 0;
-	type = -1;
-	nr_zones = 0;
-	ret = fscanf(zoned, "%llu %llu %u %u", &start, &len, &type, &nr_zones);
-	if ( (ret == EOF) || (ret != 4) ) {
-	    break;
-	}
-
-	if ( nr_zones == 0 ) {
-	    /* Not a zoned block device */
-	    ret = 0;
-	    break;
-	}
-
-	if ( type >= 2 ) {
-	    if ( type == 2 ) {
-	        dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-	    } else {
-	        dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-	    }
-	    bdev->zone_sectors = len;
-	    is_zoned = 1;
-	    break;
-	}
-
+    if ( type == 0x14 ) {
+	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+    } else if ( type == 0x0 ) {
+	dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
     }
 
-    fclose(zoned);
+out:
 
     return is_zoned;
 
@@ -210,10 +204,10 @@ zbc_block_get_vendor_id(struct zbc_device *dev)
 
 /**
  * Test if the device can be handled
- * and set a the block device info.
+ * and get the block device info.
  */
 static int
-zbc_block_set_info(struct zbc_device *dev)
+zbc_block_get_info(struct zbc_device *dev)
 {
     unsigned long long size64;
     struct stat st;
@@ -331,7 +325,6 @@ zbc_block_open(const char *filename,
 	       int flags,
 	       struct zbc_device **pdev)
 {
-    zbc_block_device_t *bdev;
     struct zbc_device *dev;
     int fd, ret;
 
@@ -351,21 +344,19 @@ zbc_block_open(const char *filename,
 
     /* Allocate a handle */
     ret = -ENOMEM;
-    bdev = calloc(1, sizeof(*bdev));
-    if ( ! bdev ) {
+    dev = calloc(1, sizeof(struct zbc_device));
+    if ( ! dev ) {
         goto out;
     }
 
-    bdev->zone_sectors = 0;
-    dev = &bdev->dev;
     dev->zbd_fd = fd;
     dev->zbd_filename = strdup(filename);
     if ( ! dev->zbd_filename ) {
         goto out_free_dev;
     }
 
-    /* Set the fake device information */
-    ret = zbc_block_set_info(dev);
+    /* Get device information */
+    ret = zbc_block_get_info(dev);
     if ( ret != 0 ) {
         goto out_free_filename;
     }
@@ -383,7 +374,7 @@ out_free_filename:
 
 out_free_dev:
 
-    free(bdev);
+    free(dev);
 
 out:
 
@@ -405,7 +396,6 @@ out:
 static int
 zbc_block_close(zbc_device_t *dev)
 {
-    zbc_block_device_t *bdev = zbc_dev_to_block_dev(dev);
     int ret = 0;
 
     /* Close device */
@@ -415,7 +405,7 @@ zbc_block_close(zbc_device_t *dev)
 
     if ( ret == 0 ) {
         free(dev->zbd_filename);
-        free(bdev);
+        free(dev);
     }
 
     return ret;
@@ -435,9 +425,49 @@ zbc_block_flush(struct zbc_device *dev,
 }
 
 /**
- * Get the block device zone information: use SG_IO, but
- * sync the device first to ensure that the current write
- * pointer value is returned.
+ * Test if a zone should be reported depending
+ * on the specified reporting options.
+ */
+static bool
+zbc_block_must_report(struct zbc_zone *zone,
+		      enum zbc_reporting_options ro)
+{
+    enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
+
+    switch( options ) {
+    case ZBC_RO_ALL:
+        return true;
+    case ZBC_RO_EMPTY:
+        return zbc_zone_empty(zone);
+    case ZBC_RO_IMP_OPEN:
+        return zbc_zone_imp_open(zone);
+    case ZBC_RO_EXP_OPEN:
+        return zbc_zone_exp_open(zone);
+    case ZBC_RO_CLOSED:
+        return zbc_zone_closed(zone);
+    case ZBC_RO_FULL:
+        return zbc_zone_full(zone);
+    case ZBC_RO_RDONLY:
+        return zbc_zone_rdonly(zone);
+    case ZBC_RO_OFFLINE:
+        return zbc_zone_offline(zone);
+    case ZBC_RO_RESET:
+        return zbc_zone_need_reset(zone);
+    case ZBC_RO_NON_SEQ:
+        return zbc_zone_non_seq(zone);
+    case ZBC_RO_NOT_WP:
+        return zbc_zone_not_wp(zone);
+    default:
+	break;
+    }
+
+    return false;
+
+
+}
+
+/**
+ * Get the block device zone information.
  */
 static int
 zbc_block_report_zones(struct zbc_device *dev,
@@ -447,22 +477,134 @@ zbc_block_report_zones(struct zbc_device *dev,
 		       struct zbc_zone *zones,
 		       unsigned int *nr_zones)
 {
+    struct zbc_zone zone;
+    struct blkzone blkz;
+    unsigned int n = 0;
+    int ret;
 
-    fdatasync(dev->zbd_fd);
+    while( ((! *nr_zones) || (n < *nr_zones))
+	   && (start_lba < dev->zbd_info.zbd_logical_blocks) ) {
 
-    return zbc_scsi_report_zones(dev, start_lba, ro,
-				 max_lba, zones, nr_zones);
+	/* Get zone info */
+	memset(&blkz, 0, sizeof(struct blkzone));
+	blkz.start = zbc_block_lba2sector(dev, start_lba);
+	ret = ioctl(dev->zbd_fd, BLKREPORTZONE, &blkz);
+	if ( ret != 0 ) {
+	    ret = -errno;
+	    zbc_error("%s: ioctl BLKREPORTZONE failed %d (%s)\n",
+		      dev->zbd_filename,
+		      errno,
+		      strerror(errno));
+	    return ret;
+	}
+
+	memset(&zone, 0, sizeof(struct zbc_zone));
+
+	/* Zone start, length and write pointer position */
+	zone.zbz_length = zbc_block_sector2lba(dev, blkz.len);
+	zone.zbz_start = zbc_block_sector2lba(dev, blkz.start);
+	zone.zbz_write_pointer = zbc_block_sector2lba(dev, blkz.wp);
+
+	/* Zone type */
+	switch( blkz.type ) {
+	case BLKZONE_TYPE_CONVENTIONAL:
+	    zone.zbz_type = ZBC_ZT_CONVENTIONAL;
+	    break;
+	case BLKZONE_TYPE_SEQWRITE_REQ:
+	    zone.zbz_type = ZBC_ZT_SEQUENTIAL_REQ;
+	    break;
+	case BLKZONE_TYPE_SEQWRITE_PREF:
+	    zone.zbz_type = ZBC_ZT_SEQUENTIAL_PREF;
+	    break;
+	default:
+	    zone.zbz_type = 0;
+	    break;
+	}
+
+	/* Zone condition */
+	switch( blkz.cond ) {
+	case BLKZONE_COND_NOT_WP:
+	    zone.zbz_condition = ZBC_ZC_NOT_WP;
+	    break;
+	case BLKZONE_COND_EMPTY:
+	    zone.zbz_condition = ZBC_ZC_EMPTY;
+	    break;
+	case BLKZONE_COND_OPEN:
+	    zone.zbz_condition = ZBC_ZC_EXP_OPEN;
+	    break;
+	case BLKZONE_COND_CLOSED:
+	    zone.zbz_condition = ZBC_ZC_CLOSED;
+	    break;
+	case BLKZONE_COND_READONLY:
+	    zone.zbz_condition = ZBC_ZC_RDONLY;
+	    break;
+	case BLKZONE_COND_FULL:
+	    zone.zbz_condition = ZBC_ZC_FULL;
+	    break;
+	case BLKZONE_COND_OFFLINE:
+	    zone.zbz_condition = ZBC_ZC_OFFLINE;
+	    break;
+	default:
+	    /* Unknown */
+	    zone.zbz_condition = -1;
+	    break;
+	}
+
+	/* Zone flags */
+	if ( blkz.cond & BLKZONE_FLAG_NEED_RESET ) {
+	    zone.zbz_flags |= ZBC_ZF_NEED_RESET;
+	}
+	if ( blkz.cond & BLKZONE_FLAG_NON_SEQ ) {
+	    zone.zbz_flags |= ZBC_ZF_NON_SEQ;
+	}
+
+	if ( zbc_block_must_report(&zone, ro) ) {
+	    if ( *nr_zones ) {
+		memcpy(&zones[n], &zone, sizeof(struct zbc_zone));
+	    }
+	    n++;
+	}
+
+	start_lba += zbc_zone_length(&zone);
+
+    }
+
+    /* Return number of zones */
+    *nr_zones = n;
+
+    return ret;
 
 }
 
 /**
- * Open zone(s): use SG_IO.
+ * Open zone(s).
  */
 static int
 zbc_block_open_zone(zbc_device_t *dev,
 		    uint64_t start_lba)
 {
-    return zbc_scsi_open_zone(dev, start_lba);
+    uint64_t sector;
+    int ret;
+
+    if ( start_lba == (uint64_t)-1 ) {
+	/* For now */
+	return -EINVAL;
+    }
+
+    /* Open the zone */
+    sector = zbc_block_lba2sector(dev, start_lba);
+    ret = ioctl(dev->zbd_fd, BLKOPENZONE, &sector);
+    if ( ret != 0 ) {
+	ret = -errno;
+	zbc_error("%s: ioctl BLKOPENZONE failed %d (%s)\n",
+		  dev->zbd_filename,
+		  errno,
+		  strerror(errno));
+	return ret;
+    }
+
+    return 0;
+
 }
 
 /**
@@ -472,7 +614,28 @@ static int
 zbc_block_close_zone(zbc_device_t *dev,
 		     uint64_t start_lba)
 {
-    return zbc_scsi_close_zone(dev, start_lba);
+    uint64_t sector;
+    int ret;
+
+    if ( start_lba == (uint64_t)-1 ) {
+	/* For now */
+	return -EINVAL;
+    }
+
+    /* CLose the zone */
+    sector = zbc_block_lba2sector(dev, start_lba);
+    ret = ioctl(dev->zbd_fd, BLKCLOSEZONE, &sector);
+    if ( ret != 0 ) {
+	ret = -errno;
+	zbc_error("%s: ioctl BLKCLOSEZONE failed %d (%s)\n",
+		  dev->zbd_filename,
+		  errno,
+		  strerror(errno));
+	return ret;
+    }
+
+    return 0;
+
 }
 
 /**
@@ -482,7 +645,28 @@ static int
 zbc_block_finish_zone(zbc_device_t *dev,
 		      uint64_t start_lba)
 {
-    return zbc_scsi_finish_zone(dev, start_lba);
+    uint64_t sector;
+    int ret;
+
+    if ( start_lba == (uint64_t)-1 ) {
+	/* For now */
+	return -EINVAL;
+    }
+
+    /* Finish the zone */
+    sector = zbc_block_lba2sector(dev, start_lba);
+    ret = ioctl(dev->zbd_fd, BLKFINISHZONE, &sector);
+    if ( ret != 0 ) {
+	ret = -errno;
+	zbc_error("%s: ioctl BLKFINISHZONE failed %d (%s)\n",
+		  dev->zbd_filename,
+		  errno,
+		  strerror(errno));
+	return ret;
+    }
+
+    return 0;
+
 }
 
 /**
@@ -492,25 +676,53 @@ static int
 zbc_block_reset_wp(struct zbc_device *dev,
 		   uint64_t start_lba)
 {
-    zbc_block_device_t *bdev = zbc_dev_to_block_dev(dev);
-    uint64_t range[2];
+    struct zbc_zone zone;
+    unsigned int nr_zones, n;
+    uint64_t sector;
+    int ret;
 
     if ( start_lba == (uint64_t)-1 ) {
         /* Reset all zones */
-	range[0] = 0;
-	range[1] = dev->zbd_info.zbd_logical_blocks * dev->zbd_info.zbd_logical_block_size;
+	nr_zones = UINT_MAX;
+	start_lba = 0;
     } else {
         /* Reset only the zone at start_lba */
-	range[0] = start_lba * dev->zbd_info.zbd_logical_block_size;
-	range[1] = bdev->zone_sectors << 9;
+	nr_zones = 1;
     }
 
-    /* Discard */
-    if ( ioctl(dev->zbd_fd, BLKDISCARD, &range) != 0 ) {
-	return -errno;
+    while( (nr_zones > 0) && (start_lba < dev->zbd_info.zbd_logical_blocks) ) {
+
+	/* Get the zone info */
+	n = 1;
+	ret = zbc_block_report_zones(dev, start_lba, ZBC_RO_ALL, NULL, &zone, &n);
+	if ( ! n ) {
+	    ret = -EINVAL;
+	}
+	if ( ret != 0 ) {
+	    return ret;
+	}
+
+	/* Reset the zone */
+	if ( zbc_zone_sequential(&zone)
+	     && (! zbc_zone_empty(&zone)) ) {
+	    sector = zbc_block_lba2sector(dev, start_lba);
+	    ret = ioctl(dev->zbd_fd, BLKRESETZONE, &sector);
+	    if ( ret != 0 ) {
+		ret = -errno;
+		zbc_error("%s: ioctl BLKRESETZONE failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno,
+			  strerror(errno));
+		return ret;
+	    }
+	}
+
+	start_lba += zone.zbz_length;
+	nr_zones--;
+
     }
 
-    return 0;
+    return ret;
 
 }
 
@@ -529,12 +741,12 @@ zbc_block_pread(struct zbc_device *dev,
     /* Read */
     ret = pread(dev->zbd_fd,
 		buf,
-		lba_count * dev->zbd_info.zbd_logical_block_size,
-		(zone->zbz_start + lba_ofst) * dev->zbd_info.zbd_logical_block_size);
+		zbc_block_lba2bytes(dev, lba_count),
+		zbc_block_lba2bytes(dev, zone->zbz_start + lba_ofst));
     if ( ret < 0 ) {
         ret = -errno;
     } else {
-        ret /= dev->zbd_info.zbd_logical_block_size;
+        ret = zbc_block_bytes2lba(dev, ret);
     }
 
     return ret;
@@ -556,12 +768,12 @@ zbc_block_pwrite(struct zbc_device *dev,
     /* Read */
     ret = pwrite(dev->zbd_fd,
 		 buf,
-		 lba_count * dev->zbd_info.zbd_logical_block_size,
-		 (zone->zbz_start + lba_ofst) * dev->zbd_info.zbd_logical_block_size);
+		 zbc_block_lba2bytes(dev, lba_count),
+		 zbc_block_lba2bytes(dev, zone->zbz_start + lba_ofst));
     if ( ret < 0 ) {
         ret = -errno;
     } else {
-        ret /= dev->zbd_info.zbd_logical_block_size;
+        ret = zbc_block_bytes2lba(dev, ret);
     }
 
     return ret;
