@@ -1169,67 +1169,6 @@ out:
 }
 
 /**
- * Get a device information (capacity & sector sizes).
- */
-static int
-zbc_ata_get_info(zbc_device_t *dev)
-{
-    int ret;
-
-    /* Make sure the device is ready */
-    ret = zbc_sg_cmd_test_unit_ready(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get device model */
-    ret = zbc_ata_classify(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get vendor information */
-    zbc_ata_vendor_id(dev);
-
-    /* Get capacity information */
-    ret = zbc_sg_get_capacity(dev, zbc_ata_report_zones);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    /* Get zoned block device information */
-    ret = zbc_ata_get_zbd_info(dev);
-    if ( ret != 0 ) {
-        return( ret );
-    }
-
-    return( 0 );
-
-}
-
-
-/**
- * Get the number of zones of the disk.
- */
-static int
-zbc_ata_nr_zones(zbc_device_t *dev,
-		 uint64_t start_lba,
-		 enum zbc_reporting_options ro)
-{
-    unsigned int nr_zones;
-    int ret;
-
-    /* Get general purpose log */
-    ret = zbc_ata_report_zones(dev, start_lba, ro, NULL, NULL, &nr_zones);
-    if ( ret == 0 ) {
-	ret = nr_zones;
-    }
-
-    return( ret );
-
-}
-
-/**
  * Open zone(s).
  */
 static int
@@ -1588,6 +1527,67 @@ zbc_ata_reset_write_pointer(zbc_device_t *dev,
 
     /* Done */
     zbc_sg_cmd_destroy(&cmd);
+
+    return( ret );
+
+}
+
+/**
+ * Get a device information (capacity & sector sizes).
+ */
+static int
+zbc_ata_get_info(zbc_device_t *dev)
+{
+    int ret;
+
+    /* Make sure the device is ready */
+    ret = zbc_sg_cmd_test_unit_ready(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get device model */
+    ret = zbc_ata_classify(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get vendor information */
+    zbc_ata_vendor_id(dev);
+
+    /* Get capacity information */
+    ret = zbc_sg_get_capacity(dev, zbc_ata_report_zones);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    /* Get zoned block device information */
+    ret = zbc_ata_get_zbd_info(dev);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
+    return( 0 );
+
+}
+
+
+/**
+ * Get the number of zones of the disk.
+ */
+static int
+zbc_ata_nr_zones(zbc_device_t *dev,
+		 uint64_t start_lba,
+		 enum zbc_reporting_options ro)
+{
+    unsigned int nr_zones;
+    int ret;
+
+    /* Get general purpose log */
+    ret = zbc_ata_report_zones(dev, start_lba, ro, NULL, NULL, &nr_zones);
+    if ( ret == 0 ) {
+	ret = nr_zones;
+    }
 
     return( ret );
 
