@@ -299,7 +299,7 @@ zbc_scsi_flush(zbc_device_t *dev,
 /**
  * Get a SCSI device zone information.
  */
-int
+static int
 zbc_scsi_report_zones(zbc_device_t *dev,
                       uint64_t start_lba,
                       enum zbc_reporting_options ro,
@@ -493,7 +493,7 @@ out:
 /**
  * Open zone(s).
  */
-int
+static int
 zbc_scsi_open_zone(zbc_device_t *dev,
                    uint64_t start_lba)
 {
@@ -552,7 +552,7 @@ zbc_scsi_open_zone(zbc_device_t *dev,
 /**
  * Close zone(s).
  */
-int
+static int
 zbc_scsi_close_zone(zbc_device_t *dev,
                     uint64_t start_lba)
 {
@@ -611,7 +611,7 @@ zbc_scsi_close_zone(zbc_device_t *dev,
 /**
  * Finish zone(s).
  */
-int
+static int
 zbc_scsi_finish_zone(zbc_device_t *dev,
                      uint64_t start_lba)
 {

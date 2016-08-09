@@ -199,26 +199,6 @@ extern struct zbc_ops zbc_fake_ops;
 extern int
 zbc_scsi_get_zbd_chars(zbc_device_t *dev);
 
-extern int
-zbc_scsi_report_zones(zbc_device_t *dev,
-                      uint64_t start_lba,
-                      enum zbc_reporting_options ro,
-		      uint64_t *max_lba,
-                      zbc_zone_t *zones,
-                      unsigned int *nr_zones);
-
-extern int
-zbc_scsi_open_zone(zbc_device_t *dev,
-                   uint64_t start_lba);
-
-extern int
-zbc_scsi_close_zone(zbc_device_t *dev,
-                    uint64_t start_lba);
-
-extern int
-zbc_scsi_finish_zone(zbc_device_t *dev,
-                     uint64_t start_lba);
-
 #endif
 
 /* __LIBZBC_INTERNAL_H__ */
