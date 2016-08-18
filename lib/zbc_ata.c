@@ -1182,6 +1182,12 @@ zbc_ata_get_info(zbc_device_t *dev)
         return( ret );
     }
 
+    /* Get capacity information */
+    ret = zbc_sg_get_capacity(dev, zbc_ata_report_zones);
+    if ( ret != 0 ) {
+        return( ret );
+    }
+
     /* Get device model */
     ret = zbc_ata_classify(dev);
     if ( ret != 0 ) {
@@ -1190,12 +1196,6 @@ zbc_ata_get_info(zbc_device_t *dev)
 
     /* Get vendor information */
     zbc_ata_vendor_id(dev);
-
-    /* Get capacity information */
-    ret = zbc_sg_get_capacity(dev, zbc_ata_report_zones);
-    if ( ret != 0 ) {
-        return( ret );
-    }
 
     /* Get zoned block device information */
     ret = zbc_ata_get_zbd_info(dev);
