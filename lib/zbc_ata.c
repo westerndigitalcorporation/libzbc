@@ -1720,12 +1720,11 @@ zbc_ata_open(const char *filename,
         goto out;
     }
 
+    dev->zbd_fd = fd;
     dev->zbd_filename = strdup(filename);
     if ( ! dev->zbd_filename ) {
         goto out_free_dev;
     }
-
-    dev->zbd_fd = fd;
 
     ret = zbc_ata_get_info(dev);
     if ( ret ) {
@@ -1735,7 +1734,9 @@ zbc_ata_open(const char *filename,
     /* Set sense data reporting */
     ret = zbc_ata_enable_sense_data(dev);
     if ( ret ) {
-        /* nothing to do */
+	zbc_error("%s: Enable sense data reporting failed\n",
+                  filename);
+        goto out_free_filename;
     }
 
     /* Test if the disk accepts native SCSI read/write commands */
