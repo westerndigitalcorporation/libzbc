@@ -1169,7 +1169,6 @@ out:
 }
 
 /**
-<<<<<<< 3e929e95578f459bc90140f203aec591b17df804
  * Get a device information (capacity & sector sizes).
  */
 static int
