@@ -70,7 +70,7 @@ usage:
     }
 
     /* Open device */
-    ret = zbc_device_is_smr(argv[i], &info);
+    ret = zbc_device_is_zoned(argv[i], &info);
     if ( ret < 0 ) {
         fprintf(stderr,
                 "zbc_device_is_smr failed %d (%s)\n",
@@ -95,7 +95,7 @@ usage:
 	printf("    %.03F GB capacity\n",
 	       (double) (info.zbd_physical_blocks * info.zbd_physical_block_size) / 1000000000);
     } else {
-	printf("%s is not an SMR device\n", argv[i]);
+	printf("%s is not a zoned block device\n", argv[i]);
     }
 
     return( 0 );

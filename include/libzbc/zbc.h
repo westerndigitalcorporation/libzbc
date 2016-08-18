@@ -282,24 +282,31 @@ extern void
 zbc_set_log_level(char *log_level);
 
 /**
- * zbc_device_is_smr - test if a device is physically an SMR device.
+ * zbc_device_is_zoned - test if a physical device is zoned.
  * @filename:        (IN) path to the device file
  * @info:            (IN) Address where to store the device information
  *
- * Test if a device is physically SMR. This excludes libzbc emulation mode
- * showing a regular block device or regular file as a ZBC host-managed
- * block device. If @info is not NULL and the device is identified as
- * physically being an SMR device, the device information is returned
- * at the address specified by @info.
+ * Test if a physical device supports the ZBC/ZAC command set.
+ * This excludes libzbc emulation mode showing a regular block device
+ * or regular file as a ZBC host-managed block device. If @info is not
+ * NULL and the device is identified as a zoned device, the device
+ * information is returned at the address specified by @info.
  *
  * Returns a negative error code if the device test failed. 1 is returned
- * if the device is identified as being an SMR device. Otherwise, 0 is
- * returned. In this case, the application can use stat/fstat to get more
+ * if the device is identified as zoned. Otherwise, 0 is returned.
+ * In this case, the application can use stat/fstat to get more
  * details about the device.
  */
 extern int
-zbc_device_is_smr(const char *filename,
-		  zbc_device_info_t *info);
+zbc_device_is_zoned(const char *filename,
+		    zbc_device_info_t *info);
+
+static inline int __attribute__((deprecated))
+    zbc_device_is_smr(const char *filename,
+		      zbc_device_info_t *info)
+{
+    return zbc_device_is_zoned(filename, info);
+}
 
 /**
  * zbc_open - open a (device)file for ZBC access.
