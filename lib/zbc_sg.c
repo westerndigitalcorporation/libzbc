@@ -704,12 +704,11 @@ zbc_sg_get_capacity(zbc_device_t *dev,
         /* the last zone of the disk.                              */
         ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba, NULL, &nr_zones);
         if ( ret != 0 ) {
-            zbc_error("zbc_report_zones failed\n");
-            goto out;
-        }
+	    goto out;
+	}
 
-        /* Set the drive capacity to the reported max LBA */
-        dev->zbd_info.zbd_logical_blocks = max_lba + 1;
+	/* Set the drive capacity to the reported max LBA */
+	dev->zbd_info.zbd_logical_blocks = max_lba + 1;
 
         break;
 
