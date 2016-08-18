@@ -369,7 +369,7 @@ int
 zbc_device_is_smr(const char *filename,
 		  zbc_device_info_t *info)
 {
-    zbc_device_t *dev;
+    zbc_device_t *dev = NULL;
     int ret = -ENODEV, i;
 
     if ( ! filename ) {
@@ -386,7 +386,7 @@ zbc_device_is_smr(const char *filename,
 	}
     }
 
-    if ( dev->zbd_ops ) {
+    if ( dev && dev->zbd_ops ) {
 	if ( dev->zbd_ops != &zbc_fake_ops ) {
 	    ret = 1;
 	    if ( info ) {
@@ -396,9 +396,10 @@ zbc_device_is_smr(const char *filename,
 	    ret = 0;
 	}
 	dev->zbd_ops->zbd_close(dev);
-    } else if ( (ret == -ENODEV)
-		|| (ret == -ENXIO) ) {
-	ret = 0;
+    } else {
+	if ( (ret != -EPERM) && (ret != -EACCES) ) {
+	    ret = 0;
+	}
     }
 
     return( ret );
