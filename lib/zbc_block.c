@@ -75,7 +75,6 @@ zbc_block_lba_to_sector(struct zbc_device *dev,
 static int
 zbc_block_device_is_zoned(struct zbc_device *dev)
 {
-    int zoned = 0;
     char str[128];
     FILE *file;
 
@@ -85,17 +84,20 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 	     basename(dev->zbd_filename));
     file = fopen(str, "r");
     if ( file ) {
-	fscanf(file, "%d", &zoned);
+	memset(str, 0, sizeof(str));
+	fscanf(file, "%s", str);
     }
     fclose(file);
 
-    if ( zoned == 1 ) {
+    if ( strcmp(str, "host-aware") == 0 ) {
 	dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-    } else if ( zoned == 2 ) {
+	return 1;
+    } else if ( strcmp(str, "host-managed") == 0 ) {
 	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	return 1;
     }
 
-    return zoned != 0;
+    return 0;
 
 }
 
@@ -465,11 +467,11 @@ zbc_block_report_zones(struct zbc_device *dev,
     unsigned int n = 0;
     int ret;
 
-    /* Force a zone refresh */
-    ret = ioctl(dev->zbd_fd, BLKREFRESHZONES, &blkz);
+    /* Force update of zone information */
+    ret = ioctl(dev->zbd_fd, BLKUPDATEZONES, &blkz);
     if ( ret != 0 ) {
 	ret = -errno;
-	zbc_error("%s: ioctl BLKREFRESHZONES failed %d (%s)\n",
+	zbc_error("%s: ioctl BLKUPDATEZONES failed %d (%s)\n",
 		  dev->zbd_filename,
 		  errno,
 		  strerror(errno));
