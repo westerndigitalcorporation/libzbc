@@ -199,6 +199,30 @@ extern struct zbc_ops zbc_fake_ops;
 extern int
 zbc_scsi_get_zbd_chars(zbc_device_t *dev);
 
+/**
+ * SCSI backend driver open zone method.
+ * Used in block device backend too.
+ */
+extern int
+zbc_scsi_open_zone(zbc_device_t *dev,
+                   uint64_t start_lba);
+
+/**
+ * SCSI backend driver close zone method.
+ * Used in block device backend too.
+ */
+extern int
+zbc_scsi_close_zone(zbc_device_t *dev,
+                    uint64_t start_lba);
+
+/**
+ * SCSI backend driver finish zone method.
+ * Used in block device backend too.
+ */
+extern int
+zbc_scsi_finish_zone(zbc_device_t *dev,
+                     uint64_t start_lba);
+
 #endif
 
 /* __LIBZBC_INTERNAL_H__ */
