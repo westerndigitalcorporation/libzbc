@@ -465,28 +465,30 @@ zbc_block_report_zones(struct zbc_device *dev,
 		       unsigned int *nr_zones)
 {
     struct zbc_zone zone;
-    struct blk_zone_report rep;
+    struct blk_zone_report *rep;
     struct blk_zone *blkz;
     unsigned int i, n = 0;
     int ret;
 
-    blkz = malloc(sizeof(struct blk_zone) * ZBC_BLOCK_ZONE_REPORT_NR_ZONES);
-    if ( ! blkz ) {
+    rep = malloc(sizeof(struct blk_zone_report) +
+		 sizeof(struct blk_zone) * ZBC_BLOCK_ZONE_REPORT_NR_ZONES);
+    if ( ! rep ) {
  	zbc_error("%s: No memory for report zones\n",
                   dev->zbd_filename);
         return -ENOMEM;
     }
-	
+    blkz = (struct blk_zone *)(rep + 1);
+
     while( ((! *nr_zones) || (n < *nr_zones))
 	   && (start_lba < dev->zbd_info.zbd_logical_blocks) ) {
 
 	/* Get zone info */
-    	rep.sector = zbc_block_lba2sector(dev, start_lba);
-    	rep.nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
-    	rep.zones = blkz;
-	memset(blkz, 0, sizeof(struct blk_zone) * rep.nr_zones);
+	memset(rep, 0, sizeof(struct blk_zone_report) +
+	       sizeof(struct blk_zone) * ZBC_BLOCK_ZONE_REPORT_NR_ZONES);
+    	rep->sector = zbc_block_lba2sector(dev, start_lba);
+    	rep->nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
 
-	ret = ioctl(dev->zbd_fd, BLKREPORTZONE, &rep);
+	ret = ioctl(dev->zbd_fd, BLKREPORTZONE, rep);
 	if ( ret != 0 ) {
 	    ret = -errno;
 	    zbc_error("%s: ioctl BLKREPORTZONE at %llu failed %d (%s)\n",
@@ -494,10 +496,10 @@ zbc_block_report_zones(struct zbc_device *dev,
 		      (unsigned long long)start_lba,
 		      errno,
 		      strerror(errno));
-	    return ret;
+	    goto out;
 	}
 
-   	for(i = 0; i < rep.nr_zones; i++) {
+   	for(i = 0; i < rep->nr_zones; i++) {
 
     	    if ( (*nr_zones && (n >= *nr_zones))
 	         || (start_lba >= dev->zbd_info.zbd_logical_blocks) ) {
@@ -533,7 +535,8 @@ zbc_block_report_zones(struct zbc_device *dev,
     /* Return number of zones */
     *nr_zones = n;
 
-    free(blkz);
+out:
+    free(rep);
 
     return ret;
 
@@ -570,48 +573,38 @@ zbc_block_finish_zone(zbc_device_t *dev,
 }
 
 /**
- * Reset zone(s) write pointer: use BLKDISCARD ioctl.
+ * Reset a single zone write pointer.
  */
 static int
-zbc_block_reset_wp(struct zbc_device *dev,
-		   uint64_t start_lba)
+zbc_block_reset_one(struct zbc_device *dev,
+		    uint64_t start_lba)
 {
     struct blk_zone_range range;
-    struct blk_zone_report rep;
-    struct blk_zone zone;
+    struct zbc_zone zone;
+    unsigned int nr_zones = 1;
     int ret;
 
-    if ( start_lba == (uint64_t)-1 ) {
+    /* Get zone info */
+    ret = zbc_block_report_zones(dev, start_lba,
+				 ZBC_RO_ALL, NULL,
+				 &zone, &nr_zones);
+    if (ret) {
+	    return ret;
+    }
+    if (! nr_zones ) {
+	zbc_error("%s: Invalid LBA\n",
+		  dev->zbd_filename);
+	return -EINVAL;
+    }
 
-	/* All zones */
-	range.sector = 0;
-	range.nr_sectors = zbc_block_lba2sector(dev, dev->zbd_info.zbd_logical_blocks);
-
-    } else {
-
-	/* Get zone info */
-        memset(&zone, 0, sizeof(struct blk_zone));
-        rep.sector = zbc_block_lba2sector(dev, start_lba);
-        rep.zones = &zone;
-        rep.nr_zones = 1;
-
-        ret = ioctl(dev->zbd_fd, BLKREPORTZONE, &rep);
-        if ( ret != 0 ) {
-            ret = -errno;
-            zbc_error("%s: ioctl BLKREPORTZONE at %llu failed %d (%s)\n",
-                      dev->zbd_filename,
-                      (unsigned long long)start_lba,
-                      errno,
-                      strerror(errno));
-            return ret;
-        }
-
-	range.sector = zone.start;
-	range.nr_sectors = zone.len;
-
+    if (zbc_zone_conventional(&zone)
+	|| zbc_zone_empty(&zone)) {
+	    return 0;
     }
 
     /* Reset zone */
+    range.sector = zbc_block_lba2sector(dev, zbc_zone_start_lba(&zone));
+    range.nr_sectors = zbc_block_lba2sector(dev, zbc_zone_length(&zone));
     ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
     if ( ret != 0 ) {
 	ret = -errno;
@@ -619,10 +612,90 @@ zbc_block_reset_wp(struct zbc_device *dev,
 		  dev->zbd_filename,
 		  errno,
 		  strerror(errno));
-	return ret;
     }
 
-    return 0;
+    return ret;
+
+}
+
+/**
+ * Reset all zones write pointer.
+ */
+static int
+zbc_block_reset_all(struct zbc_device *dev)
+{
+    struct zbc_zone *zones;
+    unsigned int i, nr_zones;
+    struct blk_zone_range range;
+    uint64_t start_lba = 0;
+    int ret;
+
+    zones = malloc(sizeof(struct zbc_zone) * ZBC_BLOCK_ZONE_REPORT_NR_ZONES);
+    if ( ! zones ) {
+ 	zbc_error("%s: No memory for report zones\n",
+                  dev->zbd_filename);
+        return -ENOMEM;
+    }
+
+    while( 1 ) {
+
+	/* Get zone info */
+	nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
+	ret = zbc_block_report_zones(dev, start_lba,
+				     ZBC_RO_ALL, NULL,
+				     zones, &nr_zones);
+	if (ret || (! nr_zones)) {
+	    break;
+	}
+
+	for(i = 0; i < nr_zones; i++) {
+
+	    start_lba = zbc_zone_next_lba(&zones[i]);
+
+	    if (zbc_zone_conventional(&zones[i])
+		|| zbc_zone_empty(&zones[i])) {
+		continue;
+	    }
+
+	    /* Reset zone */
+	    range.sector = zbc_block_lba2sector(dev, zbc_zone_start_lba(&zones[i]));
+	    range.nr_sectors = zbc_block_lba2sector(dev, zbc_zone_length(&zones[i]));
+	    ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
+	    if ( ret != 0 ) {
+		ret = -errno;
+		zbc_error("%s: ioctl BLKRESETZONE failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno,
+			  strerror(errno));
+		goto out;
+	    }
+
+	}
+
+    }
+
+out:
+    free(zones);
+
+    return ret;
+
+}
+
+/**
+ * Reset zone(s) write pointer: use BLKDISCARD ioctl.
+ */
+static int
+zbc_block_reset_wp(struct zbc_device *dev,
+		   uint64_t start_lba)
+{
+
+    if ( start_lba == (uint64_t)-1 ) {
+	/* All zones */
+	return zbc_block_reset_all(dev);
+    }
+
+    /* One zone */
+    return zbc_block_reset_one(dev, start_lba);
 
 }
 
