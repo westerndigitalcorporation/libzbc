@@ -268,11 +268,10 @@ usage:
            zbc_zone_wp_lba(iozone));
 
     /* Check I/O size alignment */
-    if ( zbc_zone_sequential_req(iozone) ) {
+    if ( zbc_zone_sequential_req(iozone) )
 	ioalign = info.zbd_physical_block_size;
-    } else {
+    else
 	ioalign = info.zbd_logical_block_size;
-    }
     if ( iosize % ioalign ) {
         fprintf(stderr,
                 "Invalid I/O size %zu (must be aligned on %zu)\n",
@@ -283,7 +282,7 @@ usage:
     }
 
     /* Get an I/O buffer */
-    ret = posix_memalign((void **) &iobuf, ioalign, iosize);
+    ret = posix_memalign((void **) &iobuf, sysconf(_SC_PAGESIZE), iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
                 "No memory for I/O buffer (%zu B)\n",

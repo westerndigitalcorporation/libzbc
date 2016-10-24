@@ -41,7 +41,7 @@ static int zbc_read_zone_abort = 0;
 /**
  * System time in usecs.
  */
-static __inline__ unsigned long long
+static inline unsigned long long
 zbc_read_zone_usec(void)
 {
     struct timeval tv;
@@ -264,7 +264,7 @@ usage:
         ret = 1;
         goto out;
     }
-    ret = posix_memalign((void **) &iobuf, info.zbd_logical_block_size, iosize);
+    ret = posix_memalign((void **) &iobuf, sysconf(_SC_PAGESIZE), iosize);
     if ( ret != 0 ) {
         fprintf(stderr,
                 "No memory for I/O buffer (%zu B)\n",
