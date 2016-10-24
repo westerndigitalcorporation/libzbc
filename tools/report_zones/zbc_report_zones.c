@@ -29,7 +29,7 @@ int main(int argc,
          char **argv)
 {
     struct zbc_device_info info;
-    unsigned long long lba = 0;
+    unsigned long long lba = 0, nr_lba = 0;
     struct zbc_device *dev;
     enum zbc_reporting_options ro = ZBC_RO_ALL;
     int i, ret = 1;
@@ -232,10 +232,27 @@ usage:
     }
 
     printf("%u / %u zone%s:\n", nz, nr_zones, (nz > 1) ? "s" : "");
+    lba = 0;
     for(i = 0; i < (int)nz; i++) {
+
         z = &zones[i];
+
+	if (ro == ZBC_RO_ALL) {
+	    /* Check */
+	    if (zbc_zone_start_lba(z) != lba) {
+		printf("[WARNING] Zone %05d: LBA %llu should be %llu\n",
+		       i,
+		       zbc_zone_start_lba(z),
+		       lba);
+		lba = zbc_zone_start_lba(z);
+	    }
+	    nr_lba += zbc_zone_length(z);
+	    lba += zbc_zone_length(z);
+	}
+
         if ( zbc_zone_conventional(z) ) {
-            printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), LBA %llu, %llu sectors, wp N/A\n",
+            printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), LBA %llu, "
+		   "%llu sectors, wp N/A\n",
                    i,
                    zbc_zone_type(z),
                    zbc_zone_type_str(zbc_zone_type(z)),
@@ -243,19 +260,41 @@ usage:
                    zbc_zone_condition_str(zbc_zone_condition(z)),
                    zbc_zone_start_lba(z),
                    zbc_zone_length(z));
-        } else {
-            printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), need_reset %d, non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
-                   i,
-                   zbc_zone_type(z),
-                   zbc_zone_type_str(zbc_zone_type(z)),
-                   zbc_zone_condition(z),
-                   zbc_zone_condition_str(zbc_zone_condition(z)),
-                   zbc_zone_need_reset(z),
-                   zbc_zone_non_seq(z),
-                   zbc_zone_start_lba(z),
-                   zbc_zone_length(z),
-                   zbc_zone_wp_lba(z));
+	    continue;
         }
+
+        if ( zbc_zone_sequential(z) ) {
+	    printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), need_reset %d, "
+		   "non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+		   i,
+		   zbc_zone_type(z),
+		   zbc_zone_type_str(zbc_zone_type(z)),
+		   zbc_zone_condition(z),
+		   zbc_zone_condition_str(zbc_zone_condition(z)),
+		   zbc_zone_need_reset(z),
+		   zbc_zone_non_seq(z),
+		   zbc_zone_start_lba(z),
+		   zbc_zone_length(z),
+		   zbc_zone_wp_lba(z));
+	    continue;
+        }
+
+	printf("Zone %05d: unknown type 0x%x, LBA %llu, %llu sectors\n",
+	       i,
+	       zbc_zone_type(z),
+	       zbc_zone_start_lba(z),
+	       zbc_zone_length(z));
+
+    }
+
+    if ( ro == ZBC_RO_ALL ) {
+	/* Check */
+	if ( nr_lba != info.zbd_logical_blocks ) {
+	    printf("[WARNING] %llu logical blocks reported "
+		   "but capacity is %llu logical blocks\n",
+		   nr_lba,
+		   (unsigned long long)info.zbd_logical_blocks);
+	}
     }
 
 out:
