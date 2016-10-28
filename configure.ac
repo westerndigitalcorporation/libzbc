@@ -24,6 +24,12 @@ LIBS="$PTHREAD_LIBS $LIBS"
 CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CC="$PTHREAD_CC"
 
+# Checks for header files.
+AC_CHECK_HEADER(scsi/scsi.h, [], [AC_MSG_ERROR([Couldn't find scsi/scsi.h])])
+AC_CHECK_HEADER(scsi/sg.h, [], [AC_MSG_ERROR([Couldn't find scsi/sg.h])])
+AC_CHECK_HEADER(libgen.h, [], [AC_MSG_ERROR([Couldn't find libgen.h])])
+AC_CHECK_HEADERS([linux/fs.h linux/blkzoned.h])
+
 # Conditionals
 
 # Build gzbc only if GTK3 is installed.

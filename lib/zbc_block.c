@@ -26,10 +26,13 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/fs.h>
-#include <linux/blkzoned.h>
 
 #include "zbc.h"
 #include "zbc_sg.h"
+
+#ifdef HAVE_LINUX_BLKZONED_H
+#include <linux/blkzoned.h>
+#endif
 
 /***** Inline functions *****/
 
@@ -311,6 +314,11 @@ zbc_block_open(const char *filename,
     zbc_debug("%s: ########## Trying BLOCK driver ##########\n",
 	      filename);
 
+#ifndef HAVE_LINUX_BLKZONED_H
+    zbc_debug("libzbc compiled without block driver support\n");
+    return -ENXIO;
+#endif
+
     /* Open block device: always add write mode for discard (reset zone) */
     fd = open(filename, zbc_open_flags(flags) | O_WRONLY);
     if ( fd < 0 ) {
@@ -386,6 +394,8 @@ zbc_block_close(zbc_device_t *dev)
     return ret;
 
 }
+
+#ifdef HAVE_LINUX_BLKZONED_H
 
 /**
  * Flush the device.
@@ -533,7 +543,7 @@ out:
  */
 static int
 zbc_block_open_zone(zbc_device_t *dev,
-		    uint64_t start_lba)
+                    uint64_t start_lba)
 {
     return zbc_scsi_open_zone(dev, start_lba);
 }
@@ -543,7 +553,7 @@ zbc_block_open_zone(zbc_device_t *dev,
  */
 static int
 zbc_block_close_zone(zbc_device_t *dev,
-		     uint64_t start_lba)
+                     uint64_t start_lba)
 {
     return zbc_scsi_close_zone(dev, start_lba);
 }
@@ -553,7 +563,7 @@ zbc_block_close_zone(zbc_device_t *dev,
  */
 static int
 zbc_block_finish_zone(zbc_device_t *dev,
-		      uint64_t start_lba)
+                      uint64_t start_lba)
 {
     return zbc_scsi_finish_zone(dev, start_lba);
 }
@@ -731,6 +741,79 @@ zbc_block_pwrite(struct zbc_device *dev,
     return ret;
 
 }
+
+#else /* HAVE_LINUX_BLKZONED_H */
+
+static int
+zbc_block_report_zones(struct zbc_device *dev,
+		       uint64_t start_lba,
+		       enum zbc_reporting_options ro,
+		       uint64_t *max_lba,
+		       struct zbc_zone *zones,
+		       unsigned int *nr_zones)
+{
+    return -EOPNOTSUPP;
+}
+
+static int
+zbc_block_open_zone(zbc_device_t *dev,
+                    uint64_t start_lba)
+{
+    return -EOPNOTSUPP;
+}
+
+static int
+zbc_block_close_zone(zbc_device_t *dev,
+                     uint64_t start_lba)
+{
+    return -EOPNOTSUPP;
+}
+
+static int
+zbc_block_finish_zone(zbc_device_t *dev,
+                      uint64_t start_lba)
+{
+    return -EOPNOTSUPP;
+}
+
+
+static int
+zbc_block_reset_wp(struct zbc_device *dev,
+		   uint64_t start_lba)
+{
+    return -EOPNOTSUPP;
+}
+
+static int32_t
+zbc_block_pread(struct zbc_device *dev,
+		zbc_zone_t *zone,
+		void *buf,
+		uint32_t lba_count,
+		uint64_t lba_ofst)
+{
+    return -EOPNOTSUPP;
+}
+
+static int32_t
+zbc_block_pwrite(struct zbc_device *dev,
+		 zbc_zone_t *zone,
+		 const void *buf,
+		 uint32_t lba_count,
+		 uint64_t lba_ofst)
+{
+    return -EOPNOTSUPP;
+}
+
+static int
+zbc_block_flush(struct zbc_device *dev,
+		uint64_t lba_offset,
+		uint32_t lba_count,
+		int immediate)
+{
+    return -EOPNOTSUPP;
+}
+
+#endif /* HAVE_LINUX_BLKZONED_H */
 
 struct zbc_ops zbc_block_ops = {
     .zbd_open         = zbc_block_open,

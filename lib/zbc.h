@@ -18,7 +18,8 @@
 
 /***** Including files *****/
 
-#include <libzbc/zbc.h>
+#include "config.h"
+#include "libzbc/zbc.h"
 #include "zbc_log.h"
 
 #include <stdlib.h>
