@@ -18,6 +18,7 @@ if [ $# -ne 1 ]; then
 fi
 
 device_file=${1}
+device_base=`basename ${device_file}`
 
 # Check credentials
 if [ $(id -u) -ne 0 ]; then
@@ -25,16 +26,13 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-# Set file names
-log_file=${log_path}/${testname}.log
-
 # Test function
 function zbc_run_test()
 {
     declare -i run_test_ret=0
 
     ZBC_TEST_SUB_SCR_PATH=${ZBC_TEST_SCR_PATH}/${1}
-    ZBC_TEST_SUB_LOG_PATH=${ZBC_TEST_LOG_PATH}/${1}
+    ZBC_TEST_SUB_LOG_PATH=${ZBC_TEST_LOG_PATH}/${device_base}/${1}
 
     if [ ! -d ${ZBC_TEST_SUB_SCR_PATH} ]; then
         echo "Test script directory ${ZBC_TEST_SUB_SCR_PATH} does not exist"

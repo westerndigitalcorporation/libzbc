@@ -32,6 +32,7 @@ function zbc_test_init() {
 
     # Store argument
     device=$2
+    device_base=`basename ${device}`
     bin_path=$3
 
     # Test name
@@ -48,7 +49,7 @@ function zbc_test_init() {
     rm -f ${log_file}
 
     # Zone info file
-    zone_info_file="/tmp/${test_name}_zone_info.log"
+    zone_info_file="/tmp/${test_name}_zone_info.${device_base}.log"
     rm -f ${zone_info_file}
 
     # Dump zone info file
