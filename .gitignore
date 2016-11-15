@@ -26,6 +26,7 @@
 *.hex
 
 zbc_info
+zbc_inquiry
 zbc_report_zones
 zbc_reset_write_ptr
 zbc_close_zone
@@ -98,3 +99,8 @@ tools/lkvs/m4/ltsugar.m4
 tools/lkvs/m4/ltversion.m4
 tools/lkvs/m4/lt~obsolete.m4
 
+tools/lkvs/src/examples/lkvsfileput
+tools/lkvs/src/examples/lkvsget
+tools/lkvs/src/examples/lkvsmultiget
+tools/lkvs/src/examples/lkvsmultiput
+tools/lkvs/src/examples/lkvsput
