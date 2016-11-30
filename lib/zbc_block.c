@@ -86,16 +86,19 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 	     "/sys/block/%s/queue/zoned",
 	     basename(dev->zbd_filename));
     file = fopen(str, "r");
-    if ( file ) {
-	memset(str, 0, sizeof(str));
-	fscanf(file, "%s", str);
-    }
+    if (!file)
+	return 0;
+
+    memset(str, 0, sizeof(str));
+    fscanf(file, "%s", str);
     fclose(file);
 
     if ( strcmp(str, "host-aware") == 0 ) {
 	dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	return 1;
-    } else if ( strcmp(str, "host-managed") == 0 ) {
+    }
+
+    if ( strcmp(str, "host-managed") == 0 ) {
 	dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 	return 1;
     }
