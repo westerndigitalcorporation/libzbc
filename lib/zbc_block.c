@@ -73,10 +73,81 @@ zbc_block_lba_to_sector(struct zbc_device *dev,
 }
 
 /**
+ * Test if the block device is a partition.
+ * If yes, return the wholedisk name.
+ */
+static char *
+zbc_block_device_is_part(struct zbc_device *dev)
+{
+    unsigned long long size;
+    unsigned int major, minor = 0;
+    unsigned int disk_minor;
+    char *dev_name = basename(dev->zbd_filename);
+    char *disk_name = NULL;
+    char str[128];
+    char part_name[128];
+    FILE *file;
+    int ret = 0;
+
+    /* Check that this is a zoned block device */
+    file = fopen("/proc/partitions", "r");
+    if (!file)
+	return 0;
+
+    fgets(str, sizeof(str), file);
+    fgets(str, sizeof(str), file);
+    while( 1 ) {
+
+	ret = fscanf(file,
+		     " %u %u %llu %s",
+		     &major, &minor, &size, part_name);
+	if (ret != 4) {
+	    ret = 0;
+	    goto out;
+	}
+
+	if (strcmp(dev_name, part_name) == 0) {
+	    ret = 1;
+	    break;
+	}
+
+    }
+
+    /* Get the partition holder name */
+    disk_minor = minor & ~15U;
+    rewind(file);
+    fgets(str, sizeof(str), file);
+    fgets(str, sizeof(str), file);
+    while( 1 ) {
+
+	ret = fscanf(file,
+		     " %u %u %llu %s",
+		     &major, &minor, &size, part_name);
+	if (ret != 4) {
+	    ret = 0;
+	    goto out;
+	}
+
+	if (minor == disk_minor) {
+	    disk_name = strdup(part_name);
+	    break;
+	}
+
+    }
+
+out:
+    fclose(file);
+
+    return disk_name;
+
+}
+
+/**
  * Test if the block device is zoned.
  */
 static int
-zbc_block_device_is_zoned(struct zbc_device *dev)
+zbc_block_device_is_zoned(struct zbc_device *dev,
+			  char *disk_name)
 {
     char str[128];
     FILE *file;
@@ -84,7 +155,7 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
     /* Check that this is a zoned block device */
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/queue/zoned",
-	     basename(dev->zbd_filename));
+	     disk_name);
     file = fopen(str, "r");
     if (!file)
 	return 0;
@@ -140,7 +211,8 @@ zbc_block_get_str(FILE *file,
  * Get vendor ID.
  */
 static int
-zbc_block_get_vendor_id(struct zbc_device *dev)
+zbc_block_get_vendor_id(struct zbc_device *dev,
+			char *disk_name)
 {
     char str[128];
     FILE *file;
@@ -148,7 +220,7 @@ zbc_block_get_vendor_id(struct zbc_device *dev)
 
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/device/vendor",
-	     basename(dev->zbd_filename));
+	     disk_name);
     file = fopen(str, "r");
     if ( file ) {
 	len = zbc_block_get_str(file, str);
@@ -161,7 +233,7 @@ zbc_block_get_vendor_id(struct zbc_device *dev)
 
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/device/model",
-	     basename(dev->zbd_filename));
+	     disk_name);
     file = fopen(str, "r");
     if ( file ) {
 	len = zbc_block_get_str(file, str);
@@ -174,7 +246,7 @@ zbc_block_get_vendor_id(struct zbc_device *dev)
 
     snprintf(str, sizeof(str),
 	     "/sys/block/%s/device/rev",
-	     basename(dev->zbd_filename));
+	     disk_name);
     file = fopen(str, "r");
     if ( file ) {
 	len = zbc_block_get_str(file, str);
@@ -198,6 +270,7 @@ static int
 zbc_block_get_info(struct zbc_device *dev)
 {
     unsigned long long size64;
+    char *disk_name;
     struct stat st;
     int size32;
     int ret;
@@ -217,10 +290,18 @@ zbc_block_get_info(struct zbc_device *dev)
 	return -ENXIO;
     }
 
+    /* Check if we are dealing with a partition */
+    disk_name = zbc_block_device_is_part(dev);
+    if ( ! disk_name )
+	    /* No */
+	    disk_name = strdup(basename(dev->zbd_filename));
+
     /* Is this a zoned device ? And do we have kernel support ? */
-    if ( ! zbc_block_device_is_zoned(dev) )
+    if ( ! zbc_block_device_is_zoned(dev, disk_name) ) {
 	/* Not a zoned block device: ignore */
-	return -ENXIO;
+	ret = -ENXIO;
+	goto out;
+    }
 
     /* Get logical block size */
     ret = ioctl(dev->zbd_fd, BLKSSZGET, &size32);
@@ -230,7 +311,7 @@ zbc_block_get_info(struct zbc_device *dev)
 		  dev->zbd_filename,
 		  errno,
 		  strerror(errno));
-	return ret;
+	goto out;
     }
     dev->zbd_info.zbd_logical_block_size = size32;
 
@@ -242,7 +323,7 @@ zbc_block_get_info(struct zbc_device *dev)
 		  dev->zbd_filename,
 		  errno,
 		  strerror(errno));
-	return ret;
+	goto out;
     }
     dev->zbd_info.zbd_physical_block_size = size32;
 
@@ -254,14 +335,16 @@ zbc_block_get_info(struct zbc_device *dev)
 		  dev->zbd_filename,
 		  errno,
 		  strerror(errno));
-	return ret;
+	goto out;
     }
+
+    ret = -EINVAL;
 
     if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
 	zbc_error("%s: invalid logical sector size %d\n",
 		  dev->zbd_filename,
 		  size32);
-	return -EINVAL;
+	goto out;
     }
     dev->zbd_info.zbd_logical_blocks = size64 / dev->zbd_info.zbd_logical_block_size;
 
@@ -269,7 +352,7 @@ zbc_block_get_info(struct zbc_device *dev)
 	zbc_error("%s: invalid physical sector size %d\n",
 		  dev->zbd_filename,
 		  size32);
-	return -EINVAL;
+	goto out;
     }
     dev->zbd_info.zbd_physical_blocks = size64 / dev->zbd_info.zbd_physical_block_size;
 
@@ -277,30 +360,35 @@ zbc_block_get_info(struct zbc_device *dev)
     if ( ! dev->zbd_info.zbd_logical_blocks ) {
         zbc_error("%s: invalid capacity (logical blocks)\n",
                   dev->zbd_filename);
-        return -EINVAL;
+	goto out;
     }
 
     if ( ! dev->zbd_info.zbd_physical_blocks ) {
         zbc_error("%s: invalid capacity (physical blocks)\n",
                   dev->zbd_filename);
-        return -EINVAL;
+	goto out;
     }
 
     /* Finish setting */
     dev->zbd_info.zbd_type = ZBC_DT_BLOCK;
-    if ( ! zbc_block_get_vendor_id(dev) ) {
+    if ( ! zbc_block_get_vendor_id(dev, disk_name) ) {
 	strncpy(dev->zbd_info.zbd_vendor_id, "Unknown", ZBC_DEVICE_INFO_LENGTH - 1);
     }
 
     /* Use SG_IO to get zone characteristics (maximum number of open zones, etc) */
-    if ( zbc_scsi_get_zbd_chars(dev) )
-	return -ENXIO;
+    if ( zbc_scsi_get_zbd_chars(dev) ) {
+	ret = -ENXIO;
+        goto out;
+    }
 
     /* Get maximum command size */
     zbc_sg_get_max_cmd_blocks(dev);
+    ret = 0;
 
-    return 0;
+out:
+    free(disk_name);
 
+    return ret;
 }
 
 /**
