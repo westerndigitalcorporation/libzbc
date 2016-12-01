@@ -734,7 +734,8 @@ zbc_fake_open_zone(zbc_device_t *dev,
         if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
             dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
             dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
-            return -EIO;
+            ret = -EIO;
+	    goto out;
         }
 
         /* Check target zone */
@@ -857,7 +858,8 @@ zbc_fake_close_zone(zbc_device_t *dev,
         if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
             dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
             dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
-            return -EIO;
+            ret = -EIO;
+	    goto out;
         }
 
         /* Close the specified zone */
@@ -958,7 +960,8 @@ zbc_fake_finish_zone(zbc_device_t *dev,
         if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
             dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
             dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
-            return -EIO;
+            ret = -EIO;
+	    goto out;
         }
 
         /* Finish the specified zone */
@@ -1065,7 +1068,8 @@ zbc_fake_reset_wp(struct zbc_device *dev,
         if ( start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
             dev->zbd_errno.sk = ZBC_E_ILLEGAL_REQUEST;
             dev->zbd_errno.asc_ascq = ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
-            return -EIO;
+            ret = -EIO;
+	    goto out;
         }
 
         /* Reset the specified zone */
