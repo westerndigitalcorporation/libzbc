@@ -267,7 +267,7 @@ zbc_block_get_info(struct zbc_device *dev)
 			  strerror(errno));
 		goto out;
 	}
-	dev->zbd_info.zbd_logical_block_size = size32;
+	dev->zbd_info.zbd_lblock_size = size32;
 
 	/* Get physical block size */
 	ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
@@ -279,7 +279,7 @@ zbc_block_get_info(struct zbc_device *dev)
 			  strerror(errno));
 		goto out;
 	}
-	dev->zbd_info.zbd_physical_block_size = size32;
+	dev->zbd_info.zbd_pblock_size = size32;
 
 	/* Get capacity (Bytes) */
 	ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
@@ -294,32 +294,30 @@ zbc_block_get_info(struct zbc_device *dev)
 
 	ret = -EINVAL;
 
-	if (dev->zbd_info.zbd_logical_block_size <= 0) {
+	if (dev->zbd_info.zbd_lblock_size <= 0) {
 		zbc_error("%s: invalid logical sector size %d\n",
 			  dev->zbd_filename,
 			  size32);
 		goto out;
 	}
-	dev->zbd_info.zbd_logical_blocks =
-		size64 / dev->zbd_info.zbd_logical_block_size;
+	dev->zbd_info.zbd_lblocks = size64 / dev->zbd_info.zbd_lblock_size;
 
-	if (dev->zbd_info.zbd_physical_block_size <= 0) {
+	if (dev->zbd_info.zbd_pblock_size <= 0) {
 		zbc_error("%s: invalid physical sector size %d\n",
 			  dev->zbd_filename,
 			  size32);
 		goto out;
 	}
-	dev->zbd_info.zbd_physical_blocks =
-		size64 / dev->zbd_info.zbd_physical_block_size;
+	dev->zbd_info.zbd_pblocks = size64 / dev->zbd_info.zbd_pblock_size;
 
 	/* Check */
-	if (!dev->zbd_info.zbd_logical_blocks) {
+	if (!dev->zbd_info.zbd_lblocks) {
 		zbc_error("%s: invalid capacity (logical blocks)\n",
 			  dev->zbd_filename);
 		goto out;
 	}
 
-	if (!dev->zbd_info.zbd_physical_blocks) {
+	if (!dev->zbd_info.zbd_pblocks) {
 		zbc_error("%s: invalid capacity (physical blocks)\n",
 			  dev->zbd_filename);
 		goto out;
@@ -342,6 +340,10 @@ zbc_block_get_info(struct zbc_device *dev)
 
 	/* Get maximum command size */
 	zbc_sg_get_max_cmd_blocks(dev);
+
+	dev->zbd_info.zbd_sectors =
+		(dev->zbd_info.zbd_lblocks *
+		 dev->zbd_info.zbd_lblock_size) >> 9;
 	ret = 0;
 
 out:
@@ -514,11 +516,11 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 	blkz = (struct blk_zone *)(rep + 1);
 
 	while (((! *nr_zones) || (n < *nr_zones)) &&
-	       (start_lba < dev->zbd_info.zbd_logical_blocks)) {
+	       (start_lba < dev->zbd_info.zbd_lblocks)) {
 
 		/* Get zone info */
 		memset(rep, 0, rep_size);
-		rep->sector = zbc_lba2sect(dev, start_lba);
+		rep->sector = zbc_dev_lba2sect(dev, start_lba);
 		rep->nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
 
 		ret = ioctl(dev->zbd_fd, BLKREPORTZONE, rep);
@@ -535,15 +537,15 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 		for(i = 0; i < rep->nr_zones; i++) {
 
 			if ((*nr_zones && (n >= *nr_zones)) ||
-			    (start_lba >= dev->zbd_info.zbd_logical_blocks) )
+			    (start_lba >= dev->zbd_info.zbd_lblocks) )
 				break;
 
 			memset(&zone, 0, sizeof(struct zbc_zone));
 			zone.zbz_type = blkz[i].type;
 			zone.zbz_condition = blkz[i].cond;
-			zone.zbz_length = zbc_sect2lba(dev, blkz[i].len);
-			zone.zbz_start = zbc_sect2lba(dev, blkz[i].start);
-			zone.zbz_write_pointer = zbc_sect2lba(dev, blkz[i].wp);
+			zone.zbz_length = zbc_dev_sect2lba(dev, blkz[i].len);
+			zone.zbz_start = zbc_dev_sect2lba(dev, blkz[i].start);
+			zone.zbz_write_pointer = zbc_dev_sect2lba(dev, blkz[i].wp);
 			if ( blkz[i].reset )
 				zone.zbz_attributes |= ZBC_ZA_RWP_RECOMMENDED;
 			if ( blkz[i].non_seq )
@@ -626,8 +628,8 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t start_lba)
 		return 0;
 
 	/* Reset zone */
-	range.sector = zbc_lba2sect(dev, zbc_zone_start(&zone));
-	range.nr_sectors = zbc_lba2sect(dev, zbc_zone_length(&zone));
+	range.sector = zbc_dev_lba2sect(dev, zbc_zone_start(&zone));
+	range.nr_sectors = zbc_dev_lba2sect(dev, zbc_zone_length(&zone));
 	ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 	if (ret != 0) {
 		ret = -errno;
@@ -677,9 +679,9 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 
 			/* Reset zone */
 			range.sector =
-				zbc_lba2sect(dev, zones[i].zbz_start);
+				zbc_dev_lba2sect(dev, zones[i].zbz_start);
 			range.nr_sectors =
-				zbc_lba2sect(dev, zones[i].zbz_length);
+				zbc_dev_lba2sect(dev, zones[i].zbz_length);
 			ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 			if ( ret != 0 ) {
 				ret = -errno;
@@ -725,12 +727,12 @@ static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 
 	/* Read */
 	ret = pread(dev->zbd_fd, buf,
-		    zbc_lba2bytes(dev, lba_count),
-		    zbc_lba2bytes(dev, lba_offset));
+		    zbc_dev_lba2bytes(dev, lba_count),
+		    zbc_dev_lba2bytes(dev, lba_offset));
 	if (ret < 0)
 		return -errno;
 
-	return zbc_bytes2lba(dev, ret);
+	return zbc_dev_bytes2lba(dev, ret);
 }
 
 /**
@@ -745,12 +747,12 @@ static ssize_t zbc_block_pwrite(struct zbc_device *dev,
 
 	/* Read */
 	ret = pwrite(dev->zbd_fd, buf,
-		    zbc_lba2bytes(dev, lba_count),
-		    zbc_lba2bytes(dev, lba_offset));
+		    zbc_dev_lba2bytes(dev, lba_count),
+		    zbc_dev_lba2bytes(dev, lba_offset));
 	if (ret < 0)
 		return -errno;
 
-	return zbc_bytes2lba(dev, ret);
+	return zbc_dev_bytes2lba(dev, ret);
 }
 
 #else /* HAVE_LINUX_BLKZONED_H */

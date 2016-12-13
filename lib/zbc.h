@@ -176,14 +176,13 @@ extern struct zbc_ops zbc_fake_ops;
 /**
  * Logical block/sector conversion.
  */
-#define zbc_sect2lba(dev, sector) \
-	(((sector) << 9) / (dev)->zbd_info.zbd_logical_block_size)
-#define zbc_lba2sect(dev, lba) \
-	(((lba) * (dev)->zbd_info.zbd_logical_block_size) >> 9)
-#define zbc_bytes2lba(dev, bytes) \
-	((bytes) / (dev)->zbd_info.zbd_logical_block_size)
-#define zbc_lba2bytes(dev, lba) \
-	((lba) * (dev)->zbd_info.zbd_logical_block_size)
+#define zbc_dev_sect2lba(dev, sector)	zbc_sect2lba(&(dev)->zbd_info, sector)
+#define zbc_dev_lba2sect(dev, lba)	zbc_lba2sect(&(dev)->zbd_info, lba)
+
+#define zbc_dev_bytes2lba(dev, bytes) \
+	((bytes) / (dev)->zbd_info.zbd_lblock_size)
+#define zbc_dev_lba2bytes(dev, lba) \
+	((lba) * (dev)->zbd_info.zbd_lblock_size)
 /**
  * SCSI backend driver operations are also used
  * for block device control.
@@ -193,10 +192,8 @@ extern int zbc_scsi_get_zbd_chars(zbc_device_t *dev);
 /**
  * Zone operation.
  */
-extern int zbc_scsi_zone_op(zbc_device_t *dev,
-			    enum zbc_zone_op op,
-			    uint64_t start_lba,
-			    unsigned int flags);
+extern int zbc_scsi_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
+			    uint64_t start_lba, unsigned int flags);
 
 /**
  * Read from a device.

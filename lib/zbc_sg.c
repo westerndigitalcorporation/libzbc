@@ -662,8 +662,8 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 		goto out;
 
 	/* Logical block size */
-	dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-	if (dev->zbd_info.zbd_logical_block_size <= 0) {
+	dev->zbd_info.zbd_lblock_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+	if (dev->zbd_info.zbd_lblock_size <= 0) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
 		ret = -EINVAL;
@@ -689,14 +689,14 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 			goto out;
 
 		/* Set the drive capacity to the reported max LBA */
-		dev->zbd_info.zbd_logical_blocks = max_lba + 1;
+		dev->zbd_info.zbd_lblocks = max_lba + 1;
 
 		break;
 
 	case 0x01:
 
 		/* The disk last LBA was reported */
-		dev->zbd_info.zbd_logical_blocks =
+		dev->zbd_info.zbd_lblocks =
 			zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
 
 		break;
@@ -711,17 +711,19 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 
 	}
 
-	if (!dev->zbd_info.zbd_logical_blocks) {
+	if (!dev->zbd_info.zbd_lblocks) {
 		zbc_error("%s: invalid capacity (logical blocks)\n",
 			  dev->zbd_filename);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	dev->zbd_info.zbd_physical_block_size =
-		dev->zbd_info.zbd_logical_block_size * logical_per_physical;
-	dev->zbd_info.zbd_physical_blocks =
-		dev->zbd_info.zbd_logical_blocks / logical_per_physical;
+	dev->zbd_info.zbd_pblock_size =
+		dev->zbd_info.zbd_lblock_size * logical_per_physical;
+	dev->zbd_info.zbd_pblocks =
+		dev->zbd_info.zbd_lblocks / logical_per_physical;
+	dev->zbd_info.zbd_sectors =
+		(dev->zbd_info.zbd_lblocks * dev->zbd_info.zbd_lblock_size) >> 9;
 
 out:
 	zbc_sg_cmd_destroy(&cmd);

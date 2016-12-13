@@ -251,8 +251,8 @@ static int zbc_fake_open_metadata(zbc_fake_device_t *fdev)
 	}
 
 	/* Check */
-	capacity = fdev->dev.zbd_info.zbd_logical_block_size
-		* fdev->dev.zbd_info.zbd_logical_blocks;
+	capacity = fdev->dev.zbd_info.zbd_lblock_size
+		* fdev->dev.zbd_info.zbd_lblocks;
 	if (fdev->zbd_meta->zbd_capacity > capacity ||
 	    !fdev->zbd_meta->zbd_nr_zones) {
 		/*
@@ -269,8 +269,8 @@ static int zbc_fake_open_metadata(zbc_fake_device_t *fdev)
 
 	zbc_debug("%s: %llu sectors of %zuB, %u zones\n",
 		  fdev->dev.zbd_filename,
-		  (unsigned long long)fdev->dev.zbd_info.zbd_logical_blocks,
-		  (size_t)fdev->dev.zbd_info.zbd_logical_block_size,
+		  (unsigned long long)fdev->dev.zbd_info.zbd_lblocks,
+		  (size_t)fdev->dev.zbd_info.zbd_lblock_size,
 		  fdev->zbd_meta->zbd_nr_zones);
 
 	fdev->zbd_nr_zones = fdev->zbd_meta->zbd_nr_zones;
@@ -318,7 +318,7 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 			return ret;
 		}
 
-		dev->zbd_info.zbd_logical_block_size = size32;
+		dev->zbd_info.zbd_lblock_size = size32;
 
 		/* Get physical block size */
 		ret = ioctl(dev->zbd_fd, BLKPBSZGET, &size32);
@@ -329,7 +329,7 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 				  errno, strerror(errno));
 			return ret;
 		}
-		dev->zbd_info.zbd_physical_block_size = size32;
+		dev->zbd_info.zbd_pblock_size = size32;
 
 		/* Get capacity (B) */
 		ret = ioctl(dev->zbd_fd, BLKGETSIZE64, &size64);
@@ -342,34 +342,34 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 			return ret;
 		}
 
-		if (dev->zbd_info.zbd_logical_block_size <= 0) {
+		if (dev->zbd_info.zbd_lblock_size <= 0) {
 			zbc_error("%s: invalid logical sector size %d\n",
 				  dev->zbd_filename, size32);
 			return -EINVAL;
 		}
-		dev->zbd_info.zbd_logical_blocks =
-			size64 / dev->zbd_info.zbd_logical_block_size;
+		dev->zbd_info.zbd_lblocks =
+			size64 / dev->zbd_info.zbd_lblock_size;
 
-		if (dev->zbd_info.zbd_physical_block_size <= 0) {
+		if (dev->zbd_info.zbd_pblock_size <= 0) {
 			zbc_error("%s: invalid physical sector size %d\n",
 				  dev->zbd_filename,
 				  size32);
 			return -EINVAL;
 		}
-		dev->zbd_info.zbd_physical_blocks =
-			size64 / dev->zbd_info.zbd_physical_block_size;
+		dev->zbd_info.zbd_pblocks =
+			size64 / dev->zbd_info.zbd_pblock_size;
 
 	} else if (S_ISREG(st.st_mode)) {
 
 		/* Default value for files */
-		dev->zbd_info.zbd_logical_block_size =
+		dev->zbd_info.zbd_lblock_size =
 			ZBC_FAKE_FILE_SECTOR_SIZE;
-		dev->zbd_info.zbd_logical_blocks =
+		dev->zbd_info.zbd_lblocks =
 			st.st_size / ZBC_FAKE_FILE_SECTOR_SIZE;
-		dev->zbd_info.zbd_physical_block_size =
-			dev->zbd_info.zbd_logical_block_size;
-		dev->zbd_info.zbd_physical_blocks =
-			dev->zbd_info.zbd_logical_blocks;
+		dev->zbd_info.zbd_pblock_size =
+			dev->zbd_info.zbd_lblock_size;
+		dev->zbd_info.zbd_pblocks =
+			dev->zbd_info.zbd_lblocks;
 
 	} else {
 
@@ -378,13 +378,13 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 	}
 
 	/* Check */
-	if (!dev->zbd_info.zbd_logical_blocks) {
+	if (!dev->zbd_info.zbd_lblocks) {
 		zbc_error("%s: invalid capacity (logical blocks)\n",
 			  dev->zbd_filename);
 		return -EINVAL;
 	}
 
-	if (!dev->zbd_info.zbd_physical_blocks) {
+	if (!dev->zbd_info.zbd_pblocks) {
 		zbc_error("%s: invalid capacity (physical blocks)\n",
 			  dev->zbd_filename);
 		return -EINVAL;
@@ -567,7 +567,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev,
 	}
 
 	/* Check start_lba */
-	if (start_lba >= dev->zbd_info.zbd_logical_blocks) {
+	if (start_lba >= dev->zbd_info.zbd_lblocks) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -667,7 +667,7 @@ static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t start_lba,
 	}
 
 	/* Check start_lba */
-	if (start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+	if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -780,7 +780,7 @@ static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t start_lba,
 	}
 
         /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -865,7 +865,7 @@ static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t start_lba,
 	}
 
         /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -955,7 +955,7 @@ static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t start_lba,
 	}
 
         /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_logical_blocks - 1) {
+        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -1016,12 +1016,12 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 
 	/* XXX: check for overflows, zero read unwritten data */
 	ret = pread(dev->zbd_fd, buf,
-		    lba_count * dev->zbd_info.zbd_logical_block_size,
-		    lba_offset * dev->zbd_info.zbd_logical_block_size);
+		    lba_count * dev->zbd_info.zbd_lblock_size,
+		    lba_offset * dev->zbd_info.zbd_lblock_size);
 	if (ret < 0)
 		ret = -errno;
 	else
-		ret /= dev->zbd_info.zbd_logical_block_size;
+		ret /= dev->zbd_info.zbd_lblock_size;
 
 out:
 	zbc_fake_unlock(fdev);
@@ -1116,14 +1116,14 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	/* XXX: check for overflows */
 
 	ret = pwrite(dev->zbd_fd, buf,
-		     lba_count * dev->zbd_info.zbd_logical_block_size,
-		     lba_offset * dev->zbd_info.zbd_logical_block_size);
+		     lba_count * dev->zbd_info.zbd_lblock_size,
+		     lba_offset * dev->zbd_info.zbd_lblock_size);
 	if (ret < 0) {
 		ret = -errno;
 		goto out;
 	}
 
-        ret /= dev->zbd_info.zbd_logical_block_size;
+        ret /= dev->zbd_info.zbd_lblock_size;
         if (zbc_zone_sequential_req(zone)) {
 		/* Advance write pointer */
 		zone->zbz_write_pointer += lba_count;
@@ -1168,7 +1168,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
-	uint64_t lba = 0, device_size = dev->zbd_info.zbd_logical_blocks;
+	uint64_t lba = 0, device_size = dev->zbd_info.zbd_lblocks;
 	zbc_fake_meta_t fmeta;
 	char meta_path[512];
 	struct zbc_zone *zone;
@@ -1208,12 +1208,12 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	fmeta.zbd_nr_zones = fmeta.zbd_nr_conv_zones + fmeta.zbd_nr_seq_zones;
 	fdev->zbd_nr_zones = fmeta.zbd_nr_zones;
 
-	dev->zbd_info.zbd_logical_blocks = fdev->zbd_nr_zones * zone_sz;
-	dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks /
-		(dev->zbd_info.zbd_physical_block_size /
-		 dev->zbd_info.zbd_logical_block_size);
-	fmeta.zbd_capacity = dev->zbd_info.zbd_logical_blocks *
-		dev->zbd_info.zbd_logical_block_size;
+	dev->zbd_info.zbd_lblocks = fdev->zbd_nr_zones * zone_sz;
+	dev->zbd_info.zbd_pblocks = dev->zbd_info.zbd_lblocks /
+		(dev->zbd_info.zbd_pblock_size /
+		 dev->zbd_info.zbd_lblock_size);
+	fmeta.zbd_capacity = dev->zbd_info.zbd_lblocks *
+		dev->zbd_info.zbd_lblock_size;
 
 	/* Open metadata file */
 	zbc_fake_dev_meta_path(fdev, meta_path);

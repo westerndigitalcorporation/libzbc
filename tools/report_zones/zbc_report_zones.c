@@ -23,9 +23,6 @@
 
 #include <libzbc/zbc.h>
 
-#define sect2lba(info, sect)	(((sect) << 9) / (info).zbd_logical_block_size)
-#define lba2sect(info, lba)	(((lba) * (info).zbd_logical_block_size) >> 9)
-
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
@@ -41,7 +38,7 @@ int main(int argc, char **argv)
 	char *path;
 
 	/* Check command line */
-	if ( argc < 2 ) {
+	if (argc < 2) {
 usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
@@ -159,18 +156,23 @@ usage:
 	printf("    %s interface, %s disk model\n",
 	       zbc_disk_type_str(info.zbd_type),
 	       zbc_disk_model_str(info.zbd_model));
+	printf("    %llu 512-bytes sectors\n",
+	       (unsigned long long) info.zbd_sectors);
 	printf("    %llu logical blocks of %u B\n",
-	       (unsigned long long)info.zbd_logical_blocks,
-	       (unsigned int)info.zbd_logical_block_size);
+	       (unsigned long long)info.zbd_lblocks,
+	       (unsigned int)info.zbd_lblock_size);
 	printf("    %llu physical blocks of %u B\n",
-	       (unsigned long long)info.zbd_physical_blocks,
-	       (unsigned int)info.zbd_physical_block_size);
+	       (unsigned long long)info.zbd_pblocks,
+	       (unsigned int)info.zbd_pblock_size);
 	printf("    %.03F GB capacity\n",
-	       (double)(info.zbd_physical_blocks * info.zbd_physical_block_size)
-	       / 1000000000);
+	       (double)(info.zbd_sectors << 9) / 1000000000);
 
 	/* Get the number of zones */
-	ret = zbc_report_nr_zones(dev, start, ro, &nr_zones);
+	if (lba_unit)
+		sector = zbc_lba2sect(&info, start);
+	else
+		sector = start;
+	ret = zbc_report_nr_zones(dev, sector, ro, &nr_zones);
 	if (ret != 0) {
 		fprintf(stderr, "zbc_report_nr_zones at %llu, ro 0x%02x failed %d\n",
 			start, (unsigned int) ro, ret);
@@ -210,7 +212,7 @@ usage:
 	}
 
 	/* Get zone information */
-	ret = zbc_report_zones(dev, start, ro, zones, &nz);
+	ret = zbc_report_zones(dev, sector, ro, zones, &nz);
 	if (ret != 0) {
 		fprintf(stderr, "zbc_report_zones failed %d\n", ret);
 		ret = 1;
@@ -219,9 +221,9 @@ usage:
 
 	printf("%u / %u zone%s:\n", nz, nr_zones, (nz > 1) ? "s" : "");
 	if (lba_unit)
-		sector = lba2sect(info, start);
+		sector = zbc_lba2sect(&info, start);
 	else
-		sector = 0;
+		sector = start;
 	for (i = 0; i < (int)nz; i++) {
 
 		z = &zones[i];
@@ -246,9 +248,9 @@ usage:
 			       zbc_zone_type_str(zbc_zone_type(z)),
 			       zbc_zone_condition(z),
 			       zbc_zone_condition_str(zbc_zone_condition(z)),
-			       lba_unit ? sect2lba(info, zbc_zone_start(z)) :
+			       lba_unit ? zbc_sect2lba(&info, zbc_zone_start(z)) :
 			       zbc_zone_start(z),
-			       lba_unit ? sect2lba(info, zbc_zone_length(z)) :
+			       lba_unit ? zbc_sect2lba(&info, zbc_zone_length(z)) :
 			       zbc_zone_length(z));
 			continue;
 		}
@@ -263,32 +265,32 @@ usage:
 			       zbc_zone_condition_str(zbc_zone_condition(z)),
 			       zbc_zone_rwp_recommended(z),
 			       zbc_zone_non_seq(z),
-			       lba_unit ? sect2lba(info, zbc_zone_start(z)) :
+			       lba_unit ? zbc_sect2lba(&info, zbc_zone_start(z)) :
 			       zbc_zone_start(z),
-			       lba_unit ? sect2lba(info, zbc_zone_length(z)) :
+			       lba_unit ? zbc_sect2lba(&info, zbc_zone_length(z)) :
 			       zbc_zone_length(z),
-			       lba_unit ? sect2lba(info, zbc_zone_wp(z)) :
-			        zbc_zone_wp(z));
+			       lba_unit ? zbc_sect2lba(&info, zbc_zone_wp(z)) :
+			       zbc_zone_wp(z));
 			continue;
 		}
 
 		printf("Zone %05d: unknown type 0x%x, LBA %llu, %llu sectors\n",
 		       i,
 		       zbc_zone_type(z),
-		       lba_unit ? sect2lba(info, zbc_zone_start(z)) :
+		       lba_unit ? zbc_sect2lba(&info, zbc_zone_start(z)) :
 		       zbc_zone_start(z),
-		       lba_unit ? sect2lba(info, zbc_zone_length(z)) :
+		       lba_unit ? zbc_sect2lba(&info, zbc_zone_length(z)) :
 		       zbc_zone_length(z));
 
 	}
 
-	if (ro == ZBC_RO_ALL) {
+	if (start == 0 && ro == ZBC_RO_ALL) {
 		/* Check */
-		if ( sect2lba(info, nr_sectors) != info.zbd_logical_blocks ) {
+		if ( zbc_sect2lba(&info, nr_sectors) != info.zbd_lblocks ) {
 			printf("[WARNING] %llu logical blocks reported "
 			       "but capacity is %llu logical blocks\n",
-			       sect2lba(info, nr_sectors),
-			       (unsigned long long)info.zbd_logical_blocks);
+			       zbc_sect2lba(&info, nr_sectors),
+			       (unsigned long long)info.zbd_lblocks);
 		}
 	}
 

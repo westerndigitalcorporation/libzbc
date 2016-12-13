@@ -459,7 +459,7 @@ static int zbc_ata_get_zbd_info(zbc_device_t *dev)
 static ssize_t zbc_ata_pread_ata(zbc_device_t *dev, void *buf,
 				 size_t lba_count, uint64_t lba_offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_logical_block_size;
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
@@ -539,7 +539,7 @@ static ssize_t zbc_ata_pread_ata(zbc_device_t *dev, void *buf,
 			zbc_ata_request_sense_data_ext(dev);
 	} else {
 		ret = (sz - cmd.io_hdr.resid) /
-			dev->zbd_info.zbd_logical_block_size;
+			dev->zbd_info.zbd_lblock_size;
 	}
 
 	/* Done */
@@ -567,7 +567,7 @@ static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
 static ssize_t zbc_ata_pwrite_ata(zbc_device_t *dev, const void *buf,
 				  size_t lba_count, uint64_t lba_offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_logical_block_size;
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
 	int ret;
 
@@ -647,8 +647,7 @@ static ssize_t zbc_ata_pwrite_ata(zbc_device_t *dev, const void *buf,
 		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
 			zbc_ata_request_sense_data_ext(dev);
         } else {
-		ret = (sz - cmd.io_hdr.resid) /
-			dev->zbd_info.zbd_logical_block_size;
+		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
 	}
 
 	/* Done */
@@ -1084,7 +1083,7 @@ static int zbc_ata_scsi_rw(zbc_device_t *dev)
 		  (unsigned long long) zone.zbz_write_pointer);
 
 	/* Get a buffer for testing */
-	buf = malloc(dev->zbd_info.zbd_logical_block_size);
+	buf = malloc(dev->zbd_info.zbd_lblock_size);
 	if (!buf) {
 		zbc_error("No memory for r/w test\n");
 		return 1;
@@ -1203,8 +1202,8 @@ static int zbc_ata_classify(zbc_device_t *dev)
 		ret = zbc_ata_nr_zones(dev, 0, ZBC_RO_ALL);
 		if (ret == 0) {
 			/* No zones: standard or drive managed disk */
-			zbc_debug("Standard or drive managed ATA device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+			zbc_debug("Standard or device managed ATA device detected\n");
+			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 			ret = -ENXIO;
 		} else if (ret > 0) {
 			/* We have zones: host-aware disk */

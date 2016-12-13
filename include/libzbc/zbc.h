@@ -24,6 +24,17 @@
 #include <errno.h>
 
 /**
+ * zbc_set_log_level - Set the library log level
+ * @log_level:	(IN) library log level.
+ *
+ * Description:
+ * Set the library log level using the level name specified by @log_level.
+ * Valid level names are: "none", "error", "info", "debug" or "vdebug".
+ * The default level is "none".
+ */
+extern void zbc_set_log_level(char *log_level);
+
+/**
  * enum zbc_zone_type - Zone type
  *
  * Indicates the type of a zone.
@@ -53,6 +64,15 @@ enum zbc_zone_type {
 	ZBC_ZT_SEQUENTIAL_PREF	= 0x03,
 
 };
+
+/**
+ * zbc_zone_type_str - returns a string describing a zone type
+ * @type:	(IN) Zone type
+ *
+ * Description:
+ * Returns a string describing a zone type.
+ */
+extern const char *zbc_zone_type_str(enum zbc_zone_type type);
 
 /**
  * enum zbc_zone_condition - Zone condition
@@ -108,6 +128,15 @@ enum zbc_zone_condition {
 };
 
 /**
+ * zbc_zone_cond_str - Returns a string describing a zone condition
+ * @cond:	(IN) Zone condition
+ *
+ * Description:
+ * Returns a string describing a zone condition.
+ */
+extern const char *zbc_zone_condition_str(enum zbc_zone_condition cond);
+
+/**
  * enum zbc_zone_attributes - Zone attributes
  *
  * Defines the attributes of a zone. Attributes validity depend on the
@@ -133,230 +162,6 @@ enum zbc_zone_attributes {
 	 */
 	ZBC_ZA_NON_SEQ		= 0x0002,
 };
-
-/**
- * enum zbc_reporting_options - Reporting options
- *
- * Used to filter the zone information returned by the execution of a
- * REPORT ZONES command. Filtering is based on the value of the reporting
- * option and on the condition of the zones at the time of the execution of
- * the REPORT ZONES command.
- *
- * ZBC_RO_PARTIAL is not a filter: this reporting option can be combined
- * (or'ed) with any other filter option to limit the number of reported
- * zone information to the size of the REPORT ZONES command buffer.
- */
-enum zbc_reporting_options {
-
-	/**
-	 * List all of the zones in the device.
-	 */
-	ZBC_RO_ALL		= 0x00,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_EMPTY.
-	 */
-	ZBC_RO_EMPTY		= 0x01,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_IMP_OPEN.
-	 */
-	 ZBC_RO_IMP_OPEN	= 0x02,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_EXP_OPEN.
-	 */
-	ZBC_RO_EXP_OPEN		= 0x03,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_CLOSED.
-	 */
-	ZBC_RO_CLOSED		= 0x04,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_FULL.
-	 */
-	ZBC_RO_FULL		= 0x05,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_RDONLY.
-	 */
-	ZBC_RO_RDONLY		= 0x06,
-
-	/**
-	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
-	 */
-	ZBC_RO_OFFLINE		= 0x07,
-
-	/* 08h to 0Fh Reserved */
-
-	/**
-	 * List the zones with a zone attribute ZBC_ZA_RWP_RECOMMENDED set.
-	 */
-	ZBC_RO_RWP_RECOMMENDED	= 0x10,
-
-	/**
-	 * List the zones with a zone attribute ZBC_ZA_NON_SEQ set.
-	 */
-	ZBC_RO_NON_SEQ		= 0x11,
-
-	/* 12h to 3Eh Reserved */
-
-	/**
-	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
-	 */
-	ZBC_RO_NOT_WP		= 0x3f,
-
-	/**
-	 * Partial report flag.
-	 */
-	ZBC_RO_PARTIAL		= 0x80,
-
-};
-
-/**
- * enum zbc_dev_type - Device type definitions.
- *
- * Each type correspond to a different internal backend driver.
- */
-enum zbc_dev_type {
-
-	/**
-	 * Unknown drive type.
-	 */
-	ZBC_DT_UNKNOWN	= 0x00,
-
-	/**
-	 * SCSI device.
-	 */
-	ZBC_DT_SCSI	= 0x01,
-
-	/**
-	 * ATA device.
-	 */
-	ZBC_DT_ATA	= 0x02,
-
-	/**
-	 * Zoned block device (for kernels supporting ZBC/ZAC).
-	 */
-	ZBC_DT_BLOCK	= 0x03,
-
-	/**
-	 * Fake device (emulation mode).
-	 */
-	ZBC_DT_FAKE	= 0x04,
-
-};
-
-/**
- * Device model.
- *
- * Indicates the ZBC/ZAC device zone model, i.e host-aware, host-managed,
- * or drive-managed. Note that this last model is not handled by libzbc
- * (the device will be treated as a regular block device as it should).
- *   - Host aware: device type 0h & HAW_ZBC bit 1b
- *   - Host managed: device type 14h & HAW_ZBC bit 0b
- *   - Regular: device type 0h (standard block device)
- */
-enum zbc_dev_model {
-
-	/**
-	 * Unknown drive model.
-	 */
-	ZBC_DM_DRIVE_UNKNOWN	= 0x00,
-
-	/**
-	 * Host-aware drive model: the device type/signature is 0x00
-	 * and the ZONED field of the block device characteristics VPD
-	 * page B1h is 01b.
-	 */
-	ZBC_DM_HOST_AWARE	= 0x01,
-
-	/**
-	 * Host-managed drive model: the device type/signature is 0x14/0xabcd.
-	 */
-	ZBC_DM_HOST_MANAGED	= 0x02,
-
-	/**
-	 * Drive-managed drive model: the device type/signature is 0x00
-	 * and the ZONED field of the block device characteristics VPD
-	 * page B1h is 10b.
-	 */
-	ZBC_DM_DRIVE_MANAGED	= 0x03,
-
-};
-
-/**
- * enum zbc_dev_flags - Device flags definitions.
- *
- * Defines device information flags.
- */
-enum zbc_dev_flags {
-
-	/**
-	 * Indicates that a device has unrestricted read operation,
-	 * i.e. that read commands spanning a zone write pointer or two
-	 * consecutive zones of the same type will not result in an error.
-	 */
-	ZBC_UNRESTRICTED_READ = 0x01,
-
-};
-
-/**
- * SCSI Sense keys.
- *
- * SCSI sense keys inspected in case of command error.
- */
-enum zbc_sk {
-	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
-	ZBC_SK_DATA_PROTECT	= 0x7,
-	ZBC_SK_ABORTED_COMMAND	= 0xB,
-};
-
-/**
- * SCSI Additional sense codes and additional sense code qualifiers.
- *
- * SCSI Additional sense codes and additional sense code qualifiers
- * inspected in case of command error.
- */
-enum zbc_asc_ascq {
-	ZBC_ASC_INVALID_FIELD_IN_CDB			= 0x2400,
-	ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	= 0x2100,
-	ZBC_ASC_UNALIGNED_WRITE_COMMAND			= 0x2104,
-	ZBC_ASC_WRITE_BOUNDARY_VIOLATION		= 0x2105,
-	ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA		= 0x2106,
-	ZBC_ASC_READ_BOUNDARY_VIOLATION			= 0x2107,
-	ZBC_ASC_ZONE_IS_READ_ONLY			= 0x2708,
-	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
-};
-
-/**
- * struct zbc_errno - Detailed error descriptor.
- *
- * Standard and ZBC defined SCSI sense key and additional
- * sense codes are used to describe the error.
- */
-struct zbc_errno {
-
-	/**
-	 * Sense code.
-	 */
-	enum zbc_sk		sk;
-
-	/**
-	 * Additional sense code and sense code qualifier.
-	 */
-	enum zbc_asc_ascq	asc_ascq;
-
-};
-typedef struct zbc_errno zbc_errno_t;
-
-/**
- * struct zbc_device - Device handle.
- *
- * Used to identify a device that was open using the zbc_open function.
- */
-struct zbc_device;
 
 /**
  * struct zbc_zone - Zone descriptor data structure.
@@ -445,6 +250,124 @@ typedef struct zbc_zone zbc_zone_t;
 #define ZBC_DEVICE_INFO_LENGTH  32
 
 /**
+ * enum zbc_dev_type - Device type definitions.
+ *
+ * Each type correspond to a different internal backend driver.
+ */
+enum zbc_dev_type {
+
+	/**
+	 * Unknown drive type.
+	 */
+	ZBC_DT_UNKNOWN	= 0x00,
+
+	/**
+	 * Zoned block device (for kernels supporting ZBC/ZAC).
+	 */
+	ZBC_DT_BLOCK	= 0x01,
+
+	/**
+	 * SCSI device.
+	 */
+	ZBC_DT_SCSI	= 0x02,
+
+	/**
+	 * ATA device.
+	 */
+	ZBC_DT_ATA	= 0x03,
+
+	/**
+	 * Fake device (emulation mode).
+	 */
+	ZBC_DT_FAKE	= 0x04,
+
+};
+
+/**
+ * zbc_disk_type_str - Returns a disk type name
+ * @type:	(IN) Device type
+ *
+ * Description:
+ * Returns a string describing the device type of a disk.
+ */
+extern const char *zbc_disk_type_str(enum zbc_dev_type type);
+
+/**
+ * Device model.
+ *
+ * Indicates the ZBC/ZAC device zone model, i.e host-aware, host-managed,
+ * or drive-managed. Note that this last model is not handled by libzbc
+ * (the device will be treated as a regular block device as it should).
+ *   - Host aware: device type 0h & HAW_ZBC bit 1b
+ *   - Host managed: device type 14h & HAW_ZBC bit 0b
+ *   - Regular: device type 0h (standard block device)
+ */
+enum zbc_dev_model {
+
+	/**
+	 * Unknown drive model.
+	 */
+	ZBC_DM_DRIVE_UNKNOWN	= 0x00,
+
+	/**
+	 * Host-aware drive model: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 01b.
+	 */
+	ZBC_DM_HOST_AWARE	= 0x01,
+
+	/**
+	 * Host-managed drive model: the device type/signature is 0x14/0xabcd.
+	 */
+	ZBC_DM_HOST_MANAGED	= 0x02,
+
+	/**
+	 * Drive-managed drive model: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 10b.
+	 */
+	ZBC_DM_DEVICE_MANAGED	= 0x03,
+
+	/**
+	 * Standard disk: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 00b.
+	 */
+	ZBC_DM_STANDARD		= 0x04,
+
+};
+
+/**
+ * zbc_disk_model_str - Returns a disk model name
+ * @model:	(IN) Device model
+ *
+ * Description:
+ * Returns a string describing a device model.
+ */
+extern const char *zbc_disk_model_str(enum zbc_dev_model model);
+
+/**
+ * Device handle.
+ */
+struct zbc_device;
+
+/**
+ * enum zbc_dev_flags - Device flags definitions.
+ *
+ * Defines device information flags.
+ */
+enum zbc_dev_flags {
+
+	/**
+	 * Indicates that a device has unrestricted read operation,
+	 * i.e. that read commands spanning a zone write pointer or two
+	 * consecutive zones of the same type will not result in an error.
+	 */
+	ZBC_UNRESTRICTED_READ = 0x01,
+
+};
+
+/**
  * struct zbc_device_info - Device information
  *
  * Provide information on a device open using the zbc_open function.
@@ -467,24 +390,29 @@ struct zbc_device_info {
 	char			zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
 
 	/**
+	 * Total number of 512B sectors of the device.
+	 */
+	uint64_t		zbd_sectors;
+
+	/**
 	 * Size in bytes of the device logical blocks.
 	 */
-	uint32_t		zbd_logical_block_size;
+	uint32_t		zbd_lblock_size;
 
 	/**
 	 * Total number of logical blocks of the device.
 	 */
-	uint64_t		zbd_logical_blocks;
+	uint64_t		zbd_lblocks;
 
 	/**
 	 * Size in bytes of the device logical physical blocks.
 	 */
-	uint32_t		zbd_physical_block_size;
+	uint32_t		zbd_pblock_size;
 
 	/**
 	 * Total number of physical blocks of the device.
 	 */
-	uint64_t		zbd_physical_blocks;
+	uint64_t		zbd_pblocks;
 
 	/**
 	 * For a system memory page aligned memory buffer,
@@ -521,51 +449,63 @@ struct zbc_device_info {
 typedef struct zbc_device_info zbc_device_info_t;
 
 /**
- * zbc_set_log_level - Set the library log level
- * @log_level:	(IN) library log level.
- *
- * Description:
- * Set the library log level using the level name specified by @log_level.
- * Valid level names are: "none", "error", "info", "debug" or "vdebug".
- * The default level is "none".
+ * Convert LBA value to 512-bytes sector.
  */
-extern void zbc_set_log_level(char *log_level);
+#define zbc_lba2sect(info, lba)		(((lba) * (info)->zbd_lblock_size) >> 9)
 
 /**
- * zbc_disk_type_str - Returns a disk type name
- * @type:	(IN) Device type
- *
- * Description:
- * Returns a string describing the device type of a disk.
+ * Convert 512-bytes sector value to LBA.
  */
-extern const char *zbc_disk_type_str(enum zbc_dev_type type);
+#define zbc_sect2lba(info, sect)	(((sect) << 9) / (info)->zbd_lblock_size)
 
 /**
- * zbc_disk_model_str - Returns a disk model name
- * @model:	(IN) Device model
+ * SCSI Sense keys.
  *
- * Description:
- * Returns a string describing a device model.
+ * SCSI sense keys inspected in case of command error.
  */
-extern const char *zbc_disk_model_str(enum zbc_dev_model model);
+enum zbc_sk {
+	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
+	ZBC_SK_DATA_PROTECT	= 0x7,
+	ZBC_SK_ABORTED_COMMAND	= 0xB,
+};
 
 /**
- * zbc_zone_type_str - returns a string describing a zone type
- * @type:	(IN) Zone type
+ * SCSI Additional sense codes and additional sense code qualifiers.
  *
- * Description:
- * Returns a string describing a zone type.
+ * SCSI Additional sense codes and additional sense code qualifiers
+ * inspected in case of command error.
  */
-extern const char *zbc_zone_type_str(enum zbc_zone_type type);
+enum zbc_asc_ascq {
+	ZBC_ASC_INVALID_FIELD_IN_CDB			= 0x2400,
+	ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	= 0x2100,
+	ZBC_ASC_UNALIGNED_WRITE_COMMAND			= 0x2104,
+	ZBC_ASC_WRITE_BOUNDARY_VIOLATION		= 0x2105,
+	ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA		= 0x2106,
+	ZBC_ASC_READ_BOUNDARY_VIOLATION			= 0x2107,
+	ZBC_ASC_ZONE_IS_READ_ONLY			= 0x2708,
+	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
+};
 
 /**
- * zbc_zone_cond_str - Returns a string describing a zone condition
- * @cond:	(IN) Zone condition
+ * struct zbc_errno - Detailed error descriptor.
  *
- * Description:
- * Returns a string describing a zone condition.
+ * Standard and ZBC defined SCSI sense key and additional
+ * sense codes are used to describe the error.
  */
-extern const char *zbc_zone_condition_str(enum zbc_zone_condition cond);
+struct zbc_errno {
+
+	/**
+	 * Sense code.
+	 */
+	enum zbc_sk		sk;
+
+	/**
+	 * Additional sense code and sense code qualifier.
+	 */
+	enum zbc_asc_ascq	asc_ascq;
+
+};
+typedef struct zbc_errno zbc_errno_t;
 
 /**
  * zbc_errno - Get detailed error code of last operation
@@ -658,6 +598,86 @@ extern int zbc_close(struct zbc_device *dev);
  */
 extern void zbc_get_device_info(struct zbc_device *dev,
 				struct zbc_device_info *info);
+
+/**
+ * enum zbc_reporting_options - Reporting options
+ *
+ * Used to filter the zone information returned by the execution of a
+ * REPORT ZONES command. Filtering is based on the value of the reporting
+ * option and on the condition of the zones at the time of the execution of
+ * the REPORT ZONES command.
+ *
+ * ZBC_RO_PARTIAL is not a filter: this reporting option can be combined
+ * (or'ed) with any other filter option to limit the number of reported
+ * zone information to the size of the REPORT ZONES command buffer.
+ */
+enum zbc_reporting_options {
+
+	/**
+	 * List all of the zones in the device.
+	 */
+	ZBC_RO_ALL		= 0x00,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_EMPTY.
+	 */
+	ZBC_RO_EMPTY		= 0x01,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_IMP_OPEN.
+	 */
+	 ZBC_RO_IMP_OPEN	= 0x02,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_EXP_OPEN.
+	 */
+	ZBC_RO_EXP_OPEN		= 0x03,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_CLOSED.
+	 */
+	ZBC_RO_CLOSED		= 0x04,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_FULL.
+	 */
+	ZBC_RO_FULL		= 0x05,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_RDONLY.
+	 */
+	ZBC_RO_RDONLY		= 0x06,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
+	 */
+	ZBC_RO_OFFLINE		= 0x07,
+
+	/* 08h to 0Fh Reserved */
+
+	/**
+	 * List the zones with a zone attribute ZBC_ZA_RWP_RECOMMENDED set.
+	 */
+	ZBC_RO_RWP_RECOMMENDED	= 0x10,
+
+	/**
+	 * List the zones with a zone attribute ZBC_ZA_NON_SEQ set.
+	 */
+	ZBC_RO_NON_SEQ		= 0x11,
+
+	/* 12h to 3Eh Reserved */
+
+	/**
+	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
+	 */
+	ZBC_RO_NOT_WP		= 0x3f,
+
+	/**
+	 * Partial report flag.
+	 */
+	ZBC_RO_PARTIAL		= 0x80,
+
+};
 
 /**
  * zbc_report_zones - Get zone information

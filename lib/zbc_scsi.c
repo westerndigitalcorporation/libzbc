@@ -146,17 +146,21 @@ static int zbc_scsi_classify(zbc_device_t *dev)
 
 		switch ((cmd.out_buf[8] & 0x30) >> 4) {
 
+		case 0x00:
+			zbc_debug("Standard SCSI block device detected\n");
+			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+			ret = -ENXIO;
+			break;
 		case 0x01:
 			/* Host aware device */
-			zbc_debug("Host aware ZBC disk detected\n");
+			zbc_debug("Host-aware ZBC block device detected\n");
 			dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 			break;
 
-		case 0x00:
 		case 0x10:
-			/* Standard or drive-managed device */
-			zbc_debug("Standard or drive managed SCSI disk detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DRIVE_MANAGED;
+			/* Device-managed device */
+			zbc_debug("Device managed SCSI block device detected\n");
+			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 			ret = -ENXIO;
 			break;
 
@@ -182,7 +186,7 @@ out:
 ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 		       size_t lba_count, uint64_t lba_offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_logical_block_size;
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
@@ -202,8 +206,7 @@ ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid)
-			/ dev->zbd_info.zbd_logical_block_size;
+		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
 
 	zbc_sg_cmd_destroy(&cmd);
 
@@ -216,7 +219,7 @@ ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 			size_t lba_count, uint64_t lba_offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_logical_block_size;
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
@@ -236,8 +239,7 @@ ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid)
-			/ dev->zbd_info.zbd_logical_block_size;
+		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
 
 	zbc_sg_cmd_destroy(&cmd);
 

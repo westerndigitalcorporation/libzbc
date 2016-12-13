@@ -100,14 +100,14 @@ zbc_set_log_level(char *log_level)
 const char *zbc_disk_type_str(enum zbc_dev_type type)
 {
 	switch (type) {
-	case ZBC_DT_SCSI:
-		return( "SCSI ZBC" );
-	case ZBC_DT_ATA:
-		return( "ATA ZAC" );
-	case ZBC_DT_FAKE:
-		return( "Emulated zoned device" );
 	case ZBC_DT_BLOCK:
 		return( "Zoned block device" );
+	case ZBC_DT_SCSI:
+		return( "SCSI ZBC device" );
+	case ZBC_DT_ATA:
+		return( "ATA ZAC device" );
+	case ZBC_DT_FAKE:
+		return( "Emulated zoned block device" );
 	case ZBC_DT_UNKNOWN:
 	default:
 		return "Unknown-disk-type";
@@ -120,12 +120,14 @@ const char *zbc_disk_type_str(enum zbc_dev_type type)
 const char *zbc_disk_model_str(enum zbc_dev_model model)
 {
 	switch (model) {
-	case ZBC_DM_DRIVE_MANAGED:
-		return( "Standard/Drive-managed" );
 	case ZBC_DM_HOST_AWARE:
 		return( "Host-aware" );
 	case ZBC_DM_HOST_MANAGED:
 		return( "Host-managed" );
+	case ZBC_DM_DEVICE_MANAGED:
+		return( "Device-managed" );
+	case ZBC_DM_STANDARD:
+		return( "Regular" );
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
 		return "Unknown-disk-model";
@@ -230,7 +232,7 @@ int zbc_device_is_zoned(const char *filename,
 	for (i = 0; zbc_ops[i]; i++) {
 		ret = zbc_ops[i]->zbd_open(filename, O_RDONLY, &dev);
 		if (ret == 0) {
-			/* This backend accepted the drive */
+			/* This backend accepted the device */
 			dev->zbd_ops = zbc_ops[i];
 			break;
 		}
@@ -240,7 +242,8 @@ int zbc_device_is_zoned(const char *filename,
 		if (dev->zbd_ops != &zbc_fake_ops) {
 			ret = 1;
 			if (info)
-				memcpy(info, &dev->zbd_info, sizeof(zbc_device_info_t));
+				memcpy(info, &dev->zbd_info,
+				       sizeof(zbc_device_info_t));
 		} else {
 			ret = 0;
 		}
@@ -259,7 +262,7 @@ int zbc_device_is_zoned(const char *filename,
 int zbc_open(const char *filename, int flags, zbc_device_t **pdev)
 {
 	zbc_device_t *dev = NULL;
-	int ret = -ENODEV, i;
+	int ret, i;
 
 	/* Test all backends until one accepts the drive */
 	for (i = 0; zbc_ops[i] != NULL; i++) {
@@ -268,11 +271,11 @@ int zbc_open(const char *filename, int flags, zbc_device_t **pdev)
 			/* This backend accepted the drive */
 			dev->zbd_ops = zbc_ops[i];
 			*pdev = dev;
-			break;
+			return 0;
 		}
 	}
 
-	return ret;
+	return -ENODEV;
 }
 
 /**
@@ -280,7 +283,7 @@ int zbc_open(const char *filename, int flags, zbc_device_t **pdev)
  */
 int zbc_close(zbc_device_t *dev)
 {
-    return dev->zbd_ops->zbd_close(dev);
+	return dev->zbd_ops->zbd_close(dev);
 }
 
 /**
@@ -298,8 +301,8 @@ static inline int zbc_do_report_zones(zbc_device_t *dev, uint64_t sector,
 				      enum zbc_reporting_options ro,
 				      zbc_zone_t *zones, unsigned int *nr_zones)
 {
-	return (dev->zbd_ops->zbd_report_zones)(dev, zbc_sect2lba(dev, sector),
-						ro, zones, nr_zones);
+	return (dev->zbd_ops->zbd_report_zones)(dev,
+			zbc_dev_sect2lba(dev, sector), ro, zones, nr_zones);
 }
 
 /**
@@ -346,17 +349,16 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		for (i = 0; i < n; i++) {
 
-			if (zones[z].zbz_start >=
-			    dev->zbd_info.zbd_logical_blocks)
+			if (zones[z].zbz_start >= dev->zbd_info.zbd_lblocks)
 				goto out;
 
 			zones[z].zbz_start =
-				zbc_lba2sect(dev, zones[z+i].zbz_start);
+				zbc_dev_lba2sect(dev, zones[z+i].zbz_start);
 			zones[z].zbz_length =
-				zbc_lba2sect(dev, zones[z+i].zbz_length);
+				zbc_dev_lba2sect(dev, zones[z+i].zbz_length);
 			if (zbc_zone_sequential(&zones[z]))
 				zones[z].zbz_write_pointer =
-					zbc_lba2sect(dev, zones[z+i].zbz_write_pointer);
+					zbc_dev_lba2sect(dev, zones[z+i].zbz_write_pointer);
 
 			sector = zones[z].zbz_start + zones[z].zbz_length;
 			z++;
@@ -422,12 +424,12 @@ int zbc_open_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
 	int ret;
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_logical_block_size)
+	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
 	/* Open zone */
-	ret = (dev->zbd_ops->zbd_open_zone)(dev, zbc_sect2lba(dev, sector),
-					    flags);
+	ret = (dev->zbd_ops->zbd_open_zone)(dev,
+					zbc_dev_sect2lba(dev, sector), flags);
 	if (ret != 0) {
 		zbc_error("OPEN ZONE command failed\n");
 		return ret;
@@ -444,12 +446,12 @@ int zbc_close_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
 	int ret;
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_logical_block_size)
+	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
 	/* Close zone */
-	ret = (dev->zbd_ops->zbd_close_zone)(dev, zbc_sect2lba(dev, sector),
-					     flags);
+	ret = (dev->zbd_ops->zbd_close_zone)(dev,
+					zbc_dev_sect2lba(dev, sector), flags);
 	if (ret != 0) {
 		zbc_error("CLOSE ZONE command failed\n");
 		return ret;
@@ -466,12 +468,12 @@ int zbc_finish_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
 	int ret;
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_logical_block_size)
+	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
 	/* Finish zone */
-	ret = (dev->zbd_ops->zbd_finish_zone)(dev, zbc_sect2lba(dev, sector),
-					      flags);
+	ret = (dev->zbd_ops->zbd_finish_zone)(dev,
+					zbc_dev_sect2lba(dev, sector), flags);
 	if (ret != 0) {
 		zbc_error("FINISH ZONE command failed\n");
 		return ret;
@@ -488,12 +490,12 @@ int zbc_reset_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
 	int ret;
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_logical_block_size)
+	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
 	/* Reset zone write pointer */
-	ret = (dev->zbd_ops->zbd_reset_zone)(dev, zbc_sect2lba(dev, sector),
-					     flags);
+	ret = (dev->zbd_ops->zbd_reset_zone)(dev,
+					zbc_dev_sect2lba(dev, sector), flags);
 	if (ret != 0) {
 		zbc_error("RESET WRITE POINTER command failed\n");
 		return ret;
@@ -512,20 +514,20 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	size_t lba_count;
 	uint64_t lba_offset;
 
-	if ((count << 9) % dev->zbd_info.zbd_logical_block_size ||
-	    (offset << 9) % dev->zbd_info.zbd_logical_block_size)
+	if ((count << 9) % dev->zbd_info.zbd_lblock_size ||
+	    (offset << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
 	if (count > dev->zbd_info.zbd_max_rw_sectors)
 		return -EINVAL;
 
-	lba_count = zbc_sect2lba(dev, count);
-	lba_offset = zbc_sect2lba(dev, offset);
-	if (lba_offset > dev->zbd_info.zbd_logical_blocks)
+	lba_count = zbc_dev_sect2lba(dev, count);
+	lba_offset = zbc_dev_sect2lba(dev, offset);
+	if (lba_offset > dev->zbd_info.zbd_lblocks)
 		return -EINVAL;
 
-	if ((lba_offset + lba_count) > dev->zbd_info.zbd_logical_blocks)
-		lba_count = dev->zbd_info.zbd_logical_blocks - lba_offset;
+	if ((lba_offset + lba_count) > dev->zbd_info.zbd_lblocks)
+		lba_count = dev->zbd_info.zbd_lblocks - lba_offset;
 	if (!lba_count)
 		return 0;
 
@@ -537,7 +539,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		return ret;
 	}
 
-	return zbc_lba2sect(dev, ret);
+	return zbc_dev_lba2sect(dev, ret);
 }
 
 /**
@@ -550,20 +552,20 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	size_t lba_count;
 	uint64_t lba_offset;
 
-	if ((count << 9) % dev->zbd_info.zbd_physical_block_size ||
-	    (offset << 9) % dev->zbd_info.zbd_physical_block_size)
+	if ((count << 9) % dev->zbd_info.zbd_pblock_size ||
+	    (offset << 9) % dev->zbd_info.zbd_pblock_size)
 		return -EINVAL;
 
 	if (count > dev->zbd_info.zbd_max_rw_sectors)
 		return -EINVAL;
 
-	lba_count = zbc_sect2lba(dev, count);
-	lba_offset = zbc_sect2lba(dev, offset);
-	if (lba_offset > dev->zbd_info.zbd_logical_blocks)
+	lba_count = zbc_dev_sect2lba(dev, count);
+	lba_offset = zbc_dev_sect2lba(dev, offset);
+	if (lba_offset > dev->zbd_info.zbd_lblocks)
 		return -EINVAL;
 
-	if ((lba_offset + lba_count) > dev->zbd_info.zbd_logical_blocks)
-		lba_count = dev->zbd_info.zbd_logical_blocks - lba_offset;
+	if ((lba_offset + lba_count) > dev->zbd_info.zbd_lblocks)
+		lba_count = dev->zbd_info.zbd_lblocks - lba_offset;
 	if (!lba_count)
 		return 0;
 
@@ -575,7 +577,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 		return ret;
 	}
 
-	return zbc_lba2sect(dev, ret);
+	return zbc_dev_lba2sect(dev, ret);
 }
 
 /**
