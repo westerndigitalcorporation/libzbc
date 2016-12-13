@@ -19,12 +19,8 @@ global:
 	zbc_close;
 	zbc_get_device_info;
 	zbc_report_zones;
-	zbc_report_nr_zones;
 	zbc_list_zones;
-	zbc_open_zone;
-	zbc_close_zone;
-	zbc_finish_zone;
-	zbc_reset_zone;
+	zbc_zone_operation;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

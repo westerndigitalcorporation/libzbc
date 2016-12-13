@@ -48,7 +48,7 @@ dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
 			    gpointer user_data);
 
 static void
-dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_rwp_recommended(GtkTreeViewColumn *col,
 				  GtkCellRenderer *renderer,
 				  GtkTreeModel *model,
 				  GtkTreeIter *iter,
@@ -190,23 +190,22 @@ dz_if_set_margin(GtkWidget *widget,
 }
 
 static struct dz_if_zinfo_filter {
-    int ro;
-    char *str;
-} zfilter[] =
-    {
-        { ZBC_RO_ALL,      "All zones"                      },
-        { ZBC_RO_NOT_WP,   "Conventional zones"             },
-        { ZBC_RO_EMPTY,    "Empty zones"                    },
-        { ZBC_RO_FULL,     "Full zones"                     },
-        { ZBC_RO_IMP_OPEN, "Implicitly open zones"          },
-        { ZBC_RO_EXP_OPEN, "Explicitly open zones"          },
-        { ZBC_RO_CLOSED,   "Closed zones"                   },
-        { ZBC_RO_RESET,    "Zones needing reset"            },
-        { ZBC_RO_NON_SEQ,  "Zones not sequentially written" },
-        { ZBC_RO_RDONLY,   "Read-only zones"                },
-        { ZBC_RO_OFFLINE,  "Offline zones"                  },
+	int ro;
+	char *str;
+} zfilter[] = {
+        { ZBC_RO_ALL,			"All zones"                      },
+        { ZBC_RO_NOT_WP,		"Conventional zones"             },
+        { ZBC_RO_EMPTY,			"Empty zones"                    },
+        { ZBC_RO_FULL,			"Full zones"                     },
+        { ZBC_RO_IMP_OPEN,		"Implicitly open zones"          },
+        { ZBC_RO_EXP_OPEN,		"Explicitly open zones"          },
+        { ZBC_RO_CLOSED,		"Closed zones"                   },
+        { ZBC_RO_RWP_RECOMMENDED,	"Zones needing reset"            },
+        { ZBC_RO_NON_SEQ,		"Zones not sequentially written" },
+        { ZBC_RO_RDONLY,		"Read-only zones"                },
+        { ZBC_RO_OFFLINE,		"Offline zones"			 },
         { 0, NULL }
-    };
+};
 
 /***** Definition of public functions *****/
 
@@ -251,9 +250,9 @@ dz_if_dev_open(char *path)
     /* Zone list filter frame */
     snprintf(str, sizeof(str) - 1,
              "<b>%.03F GB, %u B logical sectors, %u B physical sectors</b>",
-             (double) (dzd->info.zbd_logical_blocks * dzd->info.zbd_logical_block_size) / 1000000000,
-             dzd->info.zbd_logical_block_size,
-             dzd->info.zbd_physical_block_size);
+             (double) (dzd->info.zbd_lblocks * dzd->info.zbd_lblock_size) / 1000000000,
+             dzd->info.zbd_lblock_size,
+             dzd->info.zbd_pblock_size);
     frame = gtk_frame_new(str);
     gtk_widget_show(frame);
     gtk_box_pack_start(GTK_BOX(top_vbox), frame, FALSE, TRUE, 0);
@@ -418,7 +417,7 @@ dz_if_dev_open(char *path)
     /* Need reset column */
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Need Reset", renderer, "text", DZ_ZONE_NEED_RESET, NULL);
-    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_need_reset, dzd, NULL);
+    gtk_tree_view_column_set_cell_data_func(column, renderer, dz_if_zlist_print_zone_rwp_recommended, dzd, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
 
     /* Non-seq column */
@@ -647,10 +646,10 @@ dz_if_dev_update(dz_dev_t *dzd,
 /***** Definition of private functions *****/
 
 static long long
-dz_if_lba2block(dz_dev_t *dzd,
+dz_if_sect2block(dz_dev_t *dzd,
 		unsigned long long lba)
 {
-    return( (lba * dzd->info.zbd_logical_block_size) / dzd->block_size );
+    return( (lba * dzd->info.zbd_lblock_size) / dzd->block_size );
 }
 
 static void
@@ -754,7 +753,7 @@ dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
 }
 
 static void
-dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
+dz_if_zlist_print_zone_rwp_recommended(GtkTreeViewColumn *col,
 				  GtkCellRenderer *renderer,
 				  GtkTreeModel *model,
 				  GtkTreeIter *iter,
@@ -769,7 +768,7 @@ dz_if_zlist_print_zone_need_reset(GtkTreeViewColumn *col,
     z = &dzd->zones[i].info;
 
     /* Zone need reset */
-    if ( zbc_zone_need_reset(z) ) {
+    if ( zbc_zone_rwp_recommended(z) ) {
 	g_object_set(renderer, "foreground", "Red", "foreground-set", TRUE, NULL);
 	strncpy(str, "Yes", sizeof(str));
     } else {
@@ -829,9 +828,9 @@ dz_if_zlist_print_zone_start(GtkTreeViewColumn *col,
     /* Zone start LBA */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
     if ( dzd->use_hexa ) {
-	snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_start_lba(z)));
+	snprintf(str, sizeof(str), "0x%llX", dz_if_sect2block(dzd, zbc_zone_start(z)));
     } else {
-	snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_start_lba(z)));
+	snprintf(str, sizeof(str), "%lld", dz_if_sect2block(dzd, zbc_zone_start(z)));
     }
     g_object_set(renderer, "text", str, NULL);
 
@@ -857,9 +856,9 @@ dz_if_zlist_print_zone_length(GtkTreeViewColumn *col,
     /* Zone length */
     g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
     if ( dzd->use_hexa ) {
-	snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_length(z)));
+	snprintf(str, sizeof(str), "0x%llX", dz_if_sect2block(dzd, zbc_zone_length(z)));
     } else {
-	snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_length(z)));
+	snprintf(str, sizeof(str), "%lld", dz_if_sect2block(dzd, zbc_zone_length(z)));
     }
     g_object_set(renderer, "text", str, NULL);
 
@@ -892,9 +891,9 @@ dz_if_zlist_print_zone_wp(GtkTreeViewColumn *col,
     } else {
 	g_object_set(renderer, "foreground", "Black", "foreground-set", TRUE, NULL);
 	if ( dzd->use_hexa ) {
-	    snprintf(str, sizeof(str), "0x%llX", dz_if_lba2block(dzd, zbc_zone_wp_lba(z)));
+	    snprintf(str, sizeof(str), "0x%llX", dz_if_sect2block(dzd, zbc_zone_wp(z)));
 	} else {
-	    snprintf(str, sizeof(str), "%lld", dz_if_lba2block(dzd, zbc_zone_wp_lba(z)));
+	    snprintf(str, sizeof(str), "%lld", dz_if_sect2block(dzd, zbc_zone_wp(z)));
 	}
     }
     g_object_set(renderer, "text", str, NULL);
@@ -933,11 +932,11 @@ dz_if_zlist_fill(dz_dev_t *dzd)
                            DZ_ZONE_NUM, dzd->zones[i].no,
                            DZ_ZONE_TYPE, z->zbz_type,
                            DZ_ZONE_COND, z->zbz_condition,
-                           DZ_ZONE_NEED_RESET, zbc_zone_need_reset(z),
+                           DZ_ZONE_NEED_RESET, zbc_zone_rwp_recommended(z),
                            DZ_ZONE_NONSEQ, zbc_zone_non_seq(z),
-                           DZ_ZONE_START, dz_if_lba2block(dzd, zbc_zone_start_lba(z)),
-                           DZ_ZONE_LENGTH, dz_if_lba2block(dzd, zbc_zone_length(z)),
-                           DZ_ZONE_WP, dz_if_lba2block(dzd, zbc_zone_wp_lba(z)),
+                           DZ_ZONE_START, dz_if_sect2block(dzd, zbc_zone_start(z)),
+                           DZ_ZONE_LENGTH, dz_if_sect2block(dzd, zbc_zone_length(z)),
+                           DZ_ZONE_WP, dz_if_sect2block(dzd, zbc_zone_wp(z)),
                            DZ_ZONE_VISIBLE, dzd->zones[i].visible,
                            -1);
         gtk_tree_model_iter_next(model, &iter);
@@ -1071,7 +1070,7 @@ dz_if_zblock_set(dz_dev_t *dzd)
     if ( dzd->zlist_selection < 0 ) {
 	block = -1;
     } else {
-	block = dz_if_lba2block(dzd, zbc_zone_start_lba(&dzd->zones[dzd->zlist_selection].info));
+	block = dz_if_sect2block(dzd, zbc_zone_start(&dzd->zones[dzd->zlist_selection].info));
     }
 
     if ( dzd->use_hexa ) {
@@ -1200,12 +1199,12 @@ dz_if_zblock_set_cb(GtkEntry *entry,
     int zno = -1;
 
     if ( (block >= 0)
-	 && (block < dz_if_lba2block(dzd, dzd->info.zbd_logical_blocks)) ) {
+	 && (block < dz_if_sect2block(dzd, dzd->info.zbd_lblocks)) ) {
 	/* Search zone */
 	for(i = 0; i < dzd->max_nr_zones; i++) {
 	    z = &dzd->zones[i].info;
-	    if ( (block >= dz_if_lba2block(dzd, zbc_zone_start_lba(z)))
-		 && (block < dz_if_lba2block(dzd, zbc_zone_start_lba(z) + zbc_zone_length(z))) ) {
+	    if ( (block >= dz_if_sect2block(dzd, zbc_zone_start(z)))
+		 && (block < dz_if_sect2block(dzd, zbc_zone_start(z) + zbc_zone_length(z))) ) {
 		zno = i;
 		break;
 	    }
@@ -1331,7 +1330,7 @@ dz_if_zlist_set_block_size_cb(GtkEntry *entry,
 	} else if ( dz.block_size ) {
 	    dzd->block_size = dz.block_size;
 	} else {
-	    dzd->block_size = dzd->info.zbd_logical_block_size;
+	    dzd->block_size = dzd->info.zbd_lblock_size;
 	}
 
 	snprintf(str, sizeof(str) - 1, "%d", dzd->block_size);
@@ -1523,7 +1522,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
                  || zbc_zone_exp_open(z)
                  || zbc_zone_closed(z)) ) {
 	    /* Written space in zone */
-	    ww = (zw * (zbc_zone_wp_lba(z) - zbc_zone_start_lba(z))) / zbc_zone_length(z);
+	    ww = (zw * (zbc_zone_wp(z) - zbc_zone_start(z))) / zbc_zone_length(z);
 	    if ( ww ) {
 		gdk_cairo_set_source_rgba(cr, &dz.seqw_color);
 		cairo_rectangle(cr, x, DZ_DRAW_HOFST, ww, h - DZ_DRAW_HOFST * 2);
@@ -1544,7 +1543,7 @@ dz_if_zones_draw_cb(GtkWidget *widget,
 	cairo_show_text(cr, str);
 
 	/* Write zone size */
-	sz = zbc_zone_length(z) * dzd->info.zbd_logical_block_size;
+	sz = zbc_zone_length(z) * dzd->info.zbd_lblock_size;
 	if ( sz > (1024 * 1024 *1024) ) {
 	    sprintf(str, "%llu GiB", sz / (1024 * 1024 *1024));
 	} else {

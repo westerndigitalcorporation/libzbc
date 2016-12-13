@@ -882,8 +882,8 @@ static int zbc_ata_nr_zones(zbc_device_t *dev, uint64_t start_lba,
 /**
  * Zone(s) operation.
  */
-static int zbc_ata_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
-			   uint64_t start_lba, unsigned int flags)
+static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
+			   enum zbc_zone_op op, unsigned int flags)
 {
 	unsigned int af;
 	zbc_sg_cmd_t cmd;
@@ -983,42 +983,6 @@ static int zbc_ata_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
-}
-
-/**
- * Open zone(s).
- */
-static int zbc_ata_open_zone(zbc_device_t *dev, uint64_t start_lba,
-			     unsigned int flags)
-{
-	return zbc_ata_zone_op(dev, ZBC_OP_OPEN_ZONE, start_lba, flags);
-}
-
-/**
- * Close zone(s).
- */
-static int zbc_ata_close_zone(zbc_device_t *dev, uint64_t start_lba,
-			      unsigned int flags)
-{
-	return zbc_ata_zone_op(dev, ZBC_OP_CLOSE_ZONE, start_lba, flags);
-}
-
-/**
- * Finish zone(s).
- */
-static int zbc_ata_finish_zone(zbc_device_t *dev, uint64_t start_lba,
-			       unsigned int flags)
-{
-	return zbc_ata_zone_op(dev, ZBC_OP_FINISH_ZONE, start_lba, flags);
-}
-
-/**
- * Reset zone(s) write pointer.
- */
-static int zbc_ata_reset_zone(zbc_device_t *dev, uint64_t start_lba,
-			      unsigned int flags)
-{
-	return zbc_ata_zone_op(dev, ZBC_OP_RESET_ZONE, start_lba, flags);
 }
 
 /**
@@ -1380,9 +1344,6 @@ zbc_ops_t zbc_ata_ops =
 	.zbd_pwrite		= zbc_ata_pwrite,
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
-	.zbd_open_zone		= zbc_ata_open_zone,
-	.zbd_close_zone		= zbc_ata_close_zone,
-	.zbd_finish_zone	= zbc_ata_finish_zone,
-	.zbd_reset_zone		= zbc_ata_reset_zone,
+	.zbd_zone_op		= zbc_ata_zone_op,
 };
 

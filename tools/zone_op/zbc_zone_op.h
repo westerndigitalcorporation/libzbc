@@ -14,15 +14,15 @@
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  */
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifndef _ZBC_ZONE_OP_H_
+#define _ZBC_ZONE_OP_H_
 
 #include <libzbc/zbc.h>
-#include "../zone_op/zbc_zone_op.h"
 
-int main(int argc, char **argv)
-{
-	return zbc_zone_op(argv[0], ZBC_OP_CLOSE_ZONE,
-			   argc - 1, &argv[1]);
-}
+/**
+ * Execute a zone operation.
+ */
+extern int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
+		       int argc, char **argv);
 
+#endif /* _ZBC_ZONE_OP_H_ */

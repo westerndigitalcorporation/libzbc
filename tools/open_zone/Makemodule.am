@@ -1,3 +1,3 @@
 bin_PROGRAMS += zbc_open_zone
 zbc_open_zone_SOURCES = tools/open_zone/zbc_open_zone.c
-zbc_open_zone_LDADD = $(libzbc_ldadd)
+zbc_open_zone_LDADD = libzone_op.la $(libzbc_ldadd)

@@ -27,16 +27,6 @@
 #include <scsi/sg.h>
 
 /**
- * Zone operation code.
- */
-enum zbc_zone_op {
-	ZBC_OP_OPEN_ZONE = 0x01,
-	ZBC_OP_CLOSE_ZONE = 0x02,
-	ZBC_OP_FINISH_ZONE = 0x03,
-	ZBC_OP_RESET_ZONE = 0x04,
-};
-
-/**
  * Device operations.
  */
 typedef struct zbc_ops {
@@ -50,6 +40,19 @@ typedef struct zbc_ops {
 	 * Close device.
 	 */
 	int	(*zbd_close)(struct zbc_device *);
+
+	/**
+	 * Report a device zone information (mandatory).
+	 */
+	int	(*zbd_report_zones)(struct zbc_device *, uint64_t,
+                                    enum zbc_reporting_options,
+				    zbc_zone_t *, unsigned int *);
+
+	/**
+	 * Execute a zone operation.
+	 */
+	int	(*zbd_zone_op)(struct zbc_device *, uint64_t,
+			       enum zbc_zone_op, unsigned int);
 
 	/**
 	 * Read from a ZBC device
@@ -66,33 +69,6 @@ typedef struct zbc_ops {
 	 * Flush to a ZBC device cache.
 	 */
 	int	(*zbd_flush)(struct zbc_device *, uint64_t, size_t, int);
-
-	/**
-	 * Report a device zone information (mandatory).
-	 */
-	int	(*zbd_report_zones)(struct zbc_device *, uint64_t,
-                                    enum zbc_reporting_options,
-				    zbc_zone_t *, unsigned int *);
-
-	/**
-	 * Open a zone or all zones (mandatory).
-	 */
-	int	(*zbd_open_zone)(struct zbc_device *, uint64_t, unsigned int);
-
-	/**
-	 * Close a zone or all zones (mandatory).
-	 */
-	int	(*zbd_close_zone)(struct zbc_device *, uint64_t, unsigned int);
-
-	/**
-	 * Finish a zone or all zones (mandatory).
-	 */
-	int	(*zbd_finish_zone)(struct zbc_device *, uint64_t, unsigned int);
-
-	/**
-	 * Reset a zone or all write pointer zones (mandatory).
-	 */
-	int	(*zbd_reset_zone)(struct zbc_device *, uint64_t, unsigned int);
 
 	/**
 	 * Change a device zone configuration.
@@ -192,8 +168,8 @@ extern int zbc_scsi_get_zbd_chars(zbc_device_t *dev);
 /**
  * Zone operation.
  */
-extern int zbc_scsi_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
-			    uint64_t start_lba, unsigned int flags);
+extern int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
+			    enum zbc_zone_op op, unsigned int flags);
 
 /**
  * Read from a device.

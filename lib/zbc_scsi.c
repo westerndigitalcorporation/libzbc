@@ -181,103 +181,6 @@ out:
 }
 
 /**
- * Read from a ZBC device
- */
-ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
-		       size_t lba_count, uint64_t lba_offset)
-{
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
-	zbc_sg_cmd_t cmd;
-	ssize_t ret;
-
-	/* READ 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ, buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
-		return ret;
-	}
-
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
-	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Write to a ZBC device
- */
-ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
-			size_t lba_count, uint64_t lba_offset)
-{
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
-	zbc_sg_cmd_t cmd;
-	ssize_t ret;
-
-	/* WRITE 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
-		return ret;
-	}
-
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
-	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Flush a ZBC device cache.
- */
-static int zbc_scsi_flush(zbc_device_t *dev, uint64_t lba_offset,
-			  size_t lba_count, int immediate)
-{
-	zbc_sg_cmd_t cmd;
-	int ret;
-
-	/* SYNCHRONIZE CACHE 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SYNC_CACHE, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
-		return ret;
-	}
-
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
-	if (immediate)
-		cmd.cdb[1] = 0x02;
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
@@ -473,8 +376,8 @@ static int zbc_scsi_report_zones(zbc_device_t *dev, uint64_t start_lba,
 /**
  * Zone(s) operation.
  */
-int zbc_scsi_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
-		     uint64_t start_lba, unsigned int flags)
+int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
+		     enum zbc_zone_op op, unsigned int flags)
 {
 	unsigned int opid;
 	unsigned int opcode;
@@ -552,42 +455,6 @@ int zbc_scsi_zone_op(zbc_device_t *dev, enum zbc_zone_op op,
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
-}
-
-/**
- * Open zone(s).
- */
-static int zbc_scsi_open_zone(zbc_device_t *dev, uint64_t start_lba,
-			      unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_OPEN_ZONE, start_lba, flags);
-}
-
-/**
- * Close zone(s).
- */
-static int zbc_scsi_close_zone(zbc_device_t *dev, uint64_t start_lba,
-			       unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_CLOSE_ZONE, start_lba, flags);
-}
-
-/**
- * Finish zone(s).
- */
-static int zbc_scsi_finish_zone(zbc_device_t *dev, uint64_t start_lba,
-				unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_FINISH_ZONE, start_lba, flags);
-}
-
-/**
- * Reset zone(s) write pointer.
- */
-static int zbc_scsi_reset_zone(zbc_device_t *dev, uint64_t start_lba,
-			       unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_RESET_ZONE, start_lba, flags);
 }
 
 /**
@@ -864,6 +731,103 @@ static int zbc_scsi_close(zbc_device_t *dev)
 }
 
 /**
+ * Read from a ZBC device
+ */
+ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
+		       size_t lba_count, uint64_t lba_offset)
+{
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	zbc_sg_cmd_t cmd;
+	ssize_t ret;
+
+	/* READ 16 */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ, buf, sz);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
+
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
+	cmd.cdb[1] = 0x10;
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret == 0)
+		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Write to a ZBC device
+ */
+ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
+			size_t lba_count, uint64_t lba_offset)
+{
+	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	zbc_sg_cmd_t cmd;
+	ssize_t ret;
+
+	/* WRITE 16 */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
+
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
+	cmd.cdb[1] = 0x10;
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret == 0)
+		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Flush a ZBC device cache.
+ */
+static int zbc_scsi_flush(zbc_device_t *dev, uint64_t lba_offset,
+			  size_t lba_count, int immediate)
+{
+	zbc_sg_cmd_t cmd;
+	int ret;
+
+	/* SYNCHRONIZE CACHE 16 */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SYNC_CACHE, NULL, 0);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
+
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+	if (immediate)
+		cmd.cdb[1] = 0x02;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
  * ZBC with SCSI I/O device operations.
  */
 zbc_ops_t zbc_scsi_ops =
@@ -874,10 +838,7 @@ zbc_ops_t zbc_scsi_ops =
 	.zbd_pwrite		= zbc_scsi_pwrite,
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
-	.zbd_open_zone		= zbc_scsi_open_zone,
-	.zbd_close_zone		= zbc_scsi_close_zone,
-	.zbd_finish_zone	= zbc_scsi_finish_zone,
-	.zbd_reset_zone		= zbc_scsi_reset_zone,
+	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_set_zones		= zbc_scsi_set_zones,
 	.zbd_set_wp		= zbc_scsi_set_write_pointer,
 };

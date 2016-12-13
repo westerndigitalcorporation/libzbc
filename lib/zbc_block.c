@@ -574,33 +574,6 @@ out:
 }
 
 /**
- * Open zone(s): use SG_IO.
- */
-static int zbc_block_open_zone(zbc_device_t *dev, uint64_t start_lba,
-			       unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_OPEN_ZONE, start_lba, flags);
-}
-
-/**
- * Close zone(s): use SG_IO.
- */
-static int zbc_block_close_zone(zbc_device_t *dev, uint64_t start_lba,
-				unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_CLOSE_ZONE, start_lba, flags);
-}
-
-/**
- * Finish zone(s): use SG_IO.
- */
-static int zbc_block_finish_zone(zbc_device_t *dev, uint64_t start_lba,
-				 unsigned int flags)
-{
-	return zbc_scsi_zone_op(dev, ZBC_OP_FINISH_ZONE, start_lba, flags);
-}
-
-/**
  * Reset a single zone write pointer.
  */
 static int zbc_block_reset_one(struct zbc_device *dev, uint64_t start_lba)
@@ -702,19 +675,29 @@ out:
 }
 
 /**
- * Reset zone(s) write pointer: use BLKDISCARD ioctl.
+ * Execute an operation on a zone
  */
 static int
-zbc_block_reset_zone(struct zbc_device *dev, uint64_t start_lba,
-		     unsigned int flags)
+zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
+		  enum zbc_zone_op op, unsigned int flags)
 {
+	switch (op) {
 
-	if (flags & ZBC_OP_ALL_ZONES)
-		/* All zones */
-		return zbc_block_reset_all(dev);
+	case ZBC_OP_RESET_ZONE:
 
-	/* One zone */
-	return zbc_block_reset_one(dev, start_lba);
+		if (flags & ZBC_OP_ALL_ZONES)
+			/* All zones */
+			return zbc_block_reset_all(dev);
+
+		/* One zone */
+		return zbc_block_reset_one(dev, start_lba);
+	case ZBC_OP_OPEN_ZONE:
+	case ZBC_OP_CLOSE_ZONE:
+	case ZBC_OP_FINISH_ZONE:
+	default:
+		/* Use SG_IO */
+		return zbc_scsi_zone_op(dev, op, start_lba, flags);
+	}
 }
 
 /**
@@ -765,26 +748,8 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
     return -EOPNOTSUPP;
 }
 
-static int zbc_block_open_zone(zbc_device_t *dev, uint64_t start_lba,
-			       unsigned int flags)
-{
-    return -EOPNOTSUPP;
-}
-
-static int zbc_block_close_zone(zbc_device_t *dev, uint64_t start_lba,
-				unsigned int flags)
-{
-    return -EOPNOTSUPP;
-}
-
-static int zbc_block_finish_zone(zbc_device_t *dev, uint64_t start_lba,
-				 unsigned int flags)
-{
-    return -EOPNOTSUPP;
-}
-
-static int zbc_block_reset_zone(struct zbc_device *dev, uint64_t start_lba,
-		     unsigned int flags)
+static int zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
+			     enum zbc_zone_op op, unsigned int flags)
 {
     return -EOPNOTSUPP;
 }
@@ -817,8 +782,5 @@ struct zbc_ops zbc_block_ops = {
     .zbd_pwrite       = zbc_block_pwrite,
     .zbd_flush        = zbc_block_flush,
     .zbd_report_zones = zbc_block_report_zones,
-    .zbd_open_zone    = zbc_block_open_zone,
-    .zbd_close_zone   = zbc_block_close_zone,
-    .zbd_finish_zone  = zbc_block_finish_zone,
-    .zbd_reset_zone   = zbc_block_reset_zone,
+    .zbd_zone_op      = zbc_block_zone_op,
 };

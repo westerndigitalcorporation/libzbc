@@ -238,7 +238,7 @@ dz_report_zones(dz_dev_t *dzd)
     /* Apply filter */
     for(i = 0; i < dzd->max_nr_zones; i++) {
 	if ( (j < dzd->nr_zones)
-	     && (zbc_zone_start_lba(&dzd->zones[i].info) == zbc_zone_start_lba(&dzd->zbc_zones[j])) ) {
+	     && (zbc_zone_start(&dzd->zones[i].info) == zbc_zone_start(&dzd->zbc_zones[j])) ) {
 	    memcpy(&dzd->zones[i].info, &dzd->zbc_zones[j], sizeof(struct zbc_zone));
 	    dzd->zones[i].visible = 1;
 	    j++;
@@ -261,9 +261,13 @@ dz_reset_zone(dz_dev_t *dzd)
     int ret;
 
     if ( zno == -1 ) {
-        ret = zbc_reset_write_pointer(dzd->dev, -1);
+        ret = zbc_reset_zone(dzd->dev,
+			     0,
+			     ZBC_OP_ALL_ZONES);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_reset_write_pointer(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
+        ret = zbc_reset_zone(dzd->dev,
+			     zbc_zone_start(&dzd->zones[zno].info),
+			     0);
     } else {
 	fprintf(stderr, "Invalid zone number %d for reset\n",
 		zno);
@@ -273,7 +277,7 @@ dz_reset_zone(dz_dev_t *dzd)
 
     if ( ret != 0 ) {
         ret = errno;
-        fprintf(stderr, "zbc_reset_write_pointer failed %d (%s)\n",
+        fprintf(stderr, "zbc_reset_zone failed %d (%s)\n",
                 errno,
                 strerror(errno));
     }
@@ -292,9 +296,13 @@ dz_open_zone(dz_dev_t *dzd)
     int ret = 0;
 
     if ( zno == -1 ) {
-        ret = zbc_open_zone(dzd->dev, -1);
+        ret = zbc_open_zone(dzd->dev,
+			    0,
+			    ZBC_OP_ALL_ZONES);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_open_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
+        ret = zbc_open_zone(dzd->dev,
+			    zbc_zone_start(&dzd->zones[zno].info),
+			    0);
     } else {
 	fprintf(stderr, "Invalid zone number %d for open\n",
 		zno);
@@ -323,9 +331,13 @@ dz_close_zone(dz_dev_t *dzd)
     int ret = 0;
 
     if ( zno == -1 ) {
-        ret = zbc_close_zone(dzd->dev, -1);
+        ret = zbc_close_zone(dzd->dev,
+			     0,
+			     ZBC_OP_ALL_ZONES);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_close_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
+        ret = zbc_close_zone(dzd->dev,
+			     zbc_zone_start(&dzd->zones[zno].info),
+			     0);
     } else {
 	fprintf(stderr, "Invalid zone number %d for close\n",
 		zno);
@@ -354,9 +366,13 @@ dz_finish_zone(dz_dev_t *dzd)
     int ret = 0;
 
     if ( zno == -1 ) {
-        ret = zbc_finish_zone(dzd->dev, -1);
+        ret = zbc_finish_zone(dzd->dev,
+			      0,
+			      ZBC_OP_ALL_ZONES);
     } else if ( (zno >= 0) && (zno < (int)dzd->nr_zones) ) {
-        ret = zbc_finish_zone(dzd->dev, zbc_zone_start_lba(&dzd->zones[zno].info));
+        ret = zbc_finish_zone(dzd->dev,
+			      zbc_zone_start(&dzd->zones[zno].info),
+			     0);
     } else {
 	fprintf(stderr, "Invalid zone number %d for close\n",
 		zno);
@@ -477,33 +493,27 @@ dz_open(char *path)
         return( NULL );
     }
 
-    ret = zbc_get_device_info(dzd->dev, &dzd->info);
-    if ( ret != 0 ) {
-        fprintf(stderr,
-                "zbc_get_device_info failed\n");
-        goto out;
-    }
+    zbc_get_device_info(dzd->dev, &dzd->info);
 
     dzd->block_size = dz.block_size;
     if ( dzd->block_size ) {
-	if ( ((unsigned int) dzd->block_size < dzd->info.zbd_logical_block_size)
-	     && (dzd->info.zbd_logical_block_size % dzd->block_size) ) {
+	if ( ((unsigned int) dzd->block_size < dzd->info.zbd_lblock_size)
+	     && (dzd->info.zbd_lblock_size % dzd->block_size) ) {
 	    dzd->block_size = 0;
-	} else if ( ((unsigned int) dzd->block_size >= dzd->info.zbd_logical_block_size)
-		    && (dzd->block_size % dzd->info.zbd_logical_block_size) ) {
+	} else if ( ((unsigned int) dzd->block_size >= dzd->info.zbd_lblock_size)
+		    && (dzd->block_size % dzd->info.zbd_lblock_size) ) {
 	    dzd->block_size = 0;
 	}
     }
 
     if ( ! dzd->block_size ) {
-	dzd->block_size = dzd->info.zbd_logical_block_size;
+	dzd->block_size = dzd->info.zbd_lblock_size;
     }
 
     /* Get zone information */
     ret = dz_report_zones(dzd);
-    if ( ret != 0 ) {
+    if (ret != 0)
 	goto out;
-    }
 
     dz.nr_devs++;
 

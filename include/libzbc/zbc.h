@@ -717,9 +717,12 @@ extern int zbc_report_zones(struct zbc_device *dev,
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
-			       enum zbc_reporting_options ro,
-			       unsigned int *nr_zones);
+static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
+				      enum zbc_reporting_options ro,
+				      unsigned int *nr_zones)
+{
+	return zbc_report_zones(dev, sector, ro, NULL, nr_zones);
+}
 
 /**
  * zbc_list_zones - Get zone information
@@ -745,7 +748,36 @@ extern int zbc_list_zones(struct zbc_device *dev,
 			  struct zbc_zone **zones, unsigned int *nr_zones);
 
 /**
- * Zone operation flags.
+ * enum zbc_zone_op - Zone operation codes
+ *
+ * Encode the operation to perform on a zone.
+ */
+enum zbc_zone_op {
+
+	/**
+	 * Reset zone write pointer.
+	 */
+	ZBC_OP_RESET_ZONE	= 0x01,
+
+	/**
+	 * Open a zone.
+	 */
+	ZBC_OP_OPEN_ZONE	= 0x02,
+
+	/**
+	 * Close a zone.
+	 */
+	ZBC_OP_CLOSE_ZONE	= 0x03,
+
+	/**
+	 * Finish a zone.
+	 */
+	ZBC_OP_FINISH_ZONE	= 0x04,
+
+};
+
+/**
+ * enum zbc_zone_op_flags - Zone operation flags.
  *
  * Control the behavior of zone operations.
  * flags defined here can be or'ed together and passed to the functions
@@ -761,10 +793,32 @@ enum zbc_zone_op_flags {
 };
 
 /**
+ * zbc_zone_operation - Execute an operation on a zone
+ * @dev:	(IN) Device handle obtained with zbc_open
+ * @sector:	(IN) First sector of the target zone
+ * @op:		(IN) The operation to perform
+ * @flags:	(IN) Zone operation flags
+ *
+ * Description:
+ * Exexcute an operation on the zone of @dev starting at the sector specified by
+ * @sector. The target zone must be a write pointer zone, that is, its type
+ * must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The validity of the operation (reset, open, close or finish) depends on the
+ * condition of the target zone. See @zbc_reset_zone, @zbc_open_zone,
+ * @zbc_close_zone and @zbc_finish_zone for details.
+ * If ZBC_OP_ALL_ZONES is set in @flags then @sector is ignored and
+ * the operation is executed on all possible zones.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
+			      enum zbc_zone_op op, unsigned int flags);
+
+/**
  * zbc_open_zone - Explicitly open a zone
  * @dev:	(IN) Device handle obtained with zbc_open
  * @sector:	(IN) First sector of the zone to open
- * @flags:	(IN) Zone operation flags.
+ * @flags:	(IN) Zone operation flags
  *
  * Description:
  * Explicitly open the zone of @dev starting at the sector specified by
@@ -780,8 +834,12 @@ enum zbc_zone_op_flags {
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_open_zone(struct zbc_device *dev,
-			 uint64_t sector, unsigned int flags);
+static inline int zbc_open_zone(struct zbc_device *dev,
+				uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_OPEN_ZONE, flags);
+}
 
 /**
  * zbc_close_zone - Close an open zone
@@ -800,8 +858,12 @@ extern int zbc_open_zone(struct zbc_device *dev,
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_close_zone(struct zbc_device *dev,
-			  uint64_t sector, unsigned int flags);
+static inline int zbc_close_zone(struct zbc_device *dev,
+				 uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_CLOSE_ZONE, flags);
+}
 
 /**
  * zbc_finish_zone - Finish a write pointer zone
@@ -821,8 +883,12 @@ extern int zbc_close_zone(struct zbc_device *dev,
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_finish_zone(struct zbc_device *dev,
-			   uint64_t sector, unsigned int flags);
+static inline int zbc_finish_zone(struct zbc_device *dev,
+				  uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_FINISH_ZONE, flags);
+}
 
 /**
  * zbc_reset_zone - Reset the write pointer of a zone
@@ -841,8 +907,12 @@ extern int zbc_finish_zone(struct zbc_device *dev,
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_reset_zone(struct zbc_device *dev,
-			  uint64_t sector, unsigned int flags);
+static inline int zbc_reset_zone(struct zbc_device *dev,
+				 uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_RESET_ZONE, flags);
+}
 
 /**
  * zbc_pread - Read sectors form a device

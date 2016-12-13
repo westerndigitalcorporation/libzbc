@@ -22,7 +22,6 @@
 
 int main(int argc, char **argv)
 {
-	return zbc_zone_op(argv[0], ZBC_OP_CLOSE_ZONE,
+	return zbc_zone_op(argv[0], ZBC_OP_RESET_ZONE,
 			   argc - 1, &argv[1]);
 }
-

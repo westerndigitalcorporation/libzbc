@@ -44,10 +44,23 @@ static struct zbc_sg_sk_s {
 	enum zbc_sk	sk;
 	const char	*sk_name;
 } zbc_sg_sk_list[] = {
-	{ ZBC_SK_ILLEGAL_REQUEST, "Illegal-request" },
-	{ ZBC_SK_DATA_PROTECT, "Data-protect" },
-	{ ZBC_SK_ABORTED_COMMAND, "Aborted-command" },
-	{ 0, NULL }
+
+	{
+		ZBC_SK_ILLEGAL_REQUEST,
+		"Illegal-request"
+	},
+	{
+		 ZBC_SK_DATA_PROTECT,
+		 "Data-protect"
+	},
+	{
+		ZBC_SK_ABORTED_COMMAND,
+		"Aborted-command"
+	},
+	{
+		 0,
+		 NULL
+	}
 };
 
 /**
@@ -57,15 +70,43 @@ static struct zbc_sg_asc_ascq_s {
 	enum zbc_asc_ascq	asc_ascq;
 	const char		*ascq_name;
 } zbc_sg_asc_ascq_list[] = {
-	{ ZBC_ASC_INVALID_FIELD_IN_CDB, "Invalid-field-in-cdb" },
-	{ ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE, "Logical-block-address-out-of-range" },
-	{ ZBC_ASC_UNALIGNED_WRITE_COMMAND, "Unaligned-write-command" },
-	{ ZBC_ASC_WRITE_BOUNDARY_VIOLATION, "Write-boundary-violation" },
-	{ ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA, "Attempt-to-read-invalid-data" },
-	{ ZBC_ASC_READ_BOUNDARY_VIOLATION, "Read-boundary-violation" },
-	{ ZBC_ASC_ZONE_IS_READ_ONLY, "Zone-is-read-only" },
-	{ ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES, "Insufficient-zone-resources" },
-	{ 0, NULL }
+
+	{
+		ZBC_ASC_INVALID_FIELD_IN_CDB,
+		"Invalid-field-in-cdb"
+	},
+	{
+		ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE,
+		"Logical-block-address-out-of-range"
+	},
+	{
+		 ZBC_ASC_UNALIGNED_WRITE_COMMAND,
+		 "Unaligned-write-command"
+	},
+	{
+		 ZBC_ASC_WRITE_BOUNDARY_VIOLATION,
+		 "Write-boundary-violation"
+	},
+	{
+		 ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA,
+		 "Attempt-to-read-invalid-data"
+	},
+	{
+		 ZBC_ASC_READ_BOUNDARY_VIOLATION,
+		 "Read-boundary-violation"
+	},
+	{
+		 ZBC_ASC_ZONE_IS_READ_ONLY,
+		 "Zone-is-read-only"
+	},
+	{
+		 ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
+		 "Insufficient-zone-resources"
+	},
+	{
+		 0,
+		 NULL
+	}
 };
 
 /***** Definition of public functions *****/
@@ -306,16 +347,6 @@ static inline int zbc_do_report_zones(zbc_device_t *dev, uint64_t sector,
 }
 
 /**
- * zbc_report_nr_zones - Get the number of zones matches
- */
-int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
-			enum zbc_reporting_options ro,
-			unsigned int *nr_zones)
-{
-	return zbc_report_zones(dev, sector, ro, NULL, nr_zones);
-}
-
-/**
  * zbc_report_zones - Get zone information
  */
 int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
@@ -417,91 +448,19 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_open_zone - Explicitly open a zone
+ * zbc_zone_operation - Execute an operation on a zone
  */
-int zbc_open_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
+int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
+		       enum zbc_zone_op op, unsigned int flags)
 {
-	int ret;
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
 	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
 		return -EINVAL;
 
-	/* Open zone */
-	ret = (dev->zbd_ops->zbd_open_zone)(dev,
-					zbc_dev_sect2lba(dev, sector), flags);
-	if (ret != 0) {
-		zbc_error("OPEN ZONE command failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * zbc_close_zone - Close an open zone
- */
-int zbc_close_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
-{
-	int ret;
-
-	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
-		return -EINVAL;
-
-	/* Close zone */
-	ret = (dev->zbd_ops->zbd_close_zone)(dev,
-					zbc_dev_sect2lba(dev, sector), flags);
-	if (ret != 0) {
-		zbc_error("CLOSE ZONE command failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * zbc_finish_zone - Finish a write pointer zone
- */
-int zbc_finish_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
-{
-	int ret;
-
-	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
-		return -EINVAL;
-
-	/* Finish zone */
-	ret = (dev->zbd_ops->zbd_finish_zone)(dev,
-					zbc_dev_sect2lba(dev, sector), flags);
-	if (ret != 0) {
-		zbc_error("FINISH ZONE command failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * zbc_reset_zone - Reset the write pointer of a zone
- */
-int zbc_reset_zone(zbc_device_t *dev, uint64_t sector, unsigned int flags)
-{
-	int ret;
-
-	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
-		return -EINVAL;
-
-	/* Reset zone write pointer */
-	ret = (dev->zbd_ops->zbd_reset_zone)(dev,
-					zbc_dev_sect2lba(dev, sector), flags);
-	if (ret != 0) {
-		zbc_error("RESET WRITE POINTER command failed\n");
-		return ret;
-	}
-
-	return 0;
+	/* Execute the operation */
+	return (dev->zbd_ops->zbd_zone_op)(dev, zbc_dev_sect2lba(dev, sector),
+					   op, flags);
 }
 
 /**

@@ -991,6 +991,28 @@ out:
 }
 
 /**
+ * Execute an operation on a zone
+ */
+static int
+zbc_fake_zone_op(struct zbc_device *dev, uint64_t start_lba,
+		 enum zbc_zone_op op, unsigned int flags)
+{
+	switch (op) {
+
+	case ZBC_OP_RESET_ZONE:
+		return zbc_fake_reset_zone(dev, start_lba, flags);
+	case ZBC_OP_OPEN_ZONE:
+		return zbc_fake_open_zone(dev, start_lba, flags);
+	case ZBC_OP_CLOSE_ZONE:
+		return zbc_fake_close_zone(dev, start_lba, flags);
+	case ZBC_OP_FINISH_ZONE:
+		return zbc_fake_finish_zone(dev, start_lba, flags);
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
  * Read from the emulated device/file.
  */
 static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
@@ -1363,10 +1385,7 @@ struct zbc_ops zbc_fake_ops = {
 	.zbd_pwrite		= zbc_fake_pwrite,
 	.zbd_flush		= zbc_fake_flush,
 	.zbd_report_zones	= zbc_fake_report_zones,
-	.zbd_open_zone		= zbc_fake_open_zone,
-	.zbd_close_zone		= zbc_fake_close_zone,
-	.zbd_finish_zone	= zbc_fake_finish_zone,
-	.zbd_reset_zone		= zbc_fake_reset_zone,
+	.zbd_zone_op		= zbc_fake_zone_op,
 	.zbd_set_zones		= zbc_fake_set_zones,
 	.zbd_set_wp		= zbc_fake_set_write_pointer,
 };
