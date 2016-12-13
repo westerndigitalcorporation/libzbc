@@ -1,7 +1,8 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the BSD 2-clause license,
  * "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -9,8 +10,8 @@
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
  * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
  *
- * Author: Damien Le Moal (damien.lemoal@hgst.com)
- *         Christophe Louargant (christophe.louargant@hgst.com)
+ * Author: Damien Le Moal (damien.lemoal@wdc.com)
+ *         Christophe Louargant (christophe.louargant@wdc.com)
  */
 
 /***** Including files *****/
@@ -373,471 +374,437 @@ zbc_sg_max_segments(struct zbc_device *dev)
 /**
  * Get the maximum allowed command blocks for the device.
  */
-void
-zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
+void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 {
-    struct stat st;
-    int ret, sgsz = ZBC_SG_MAX_SGSZ;
+	struct stat st;
+	size_t sgsz = ZBC_SG_MAX_SGSZ;
+	int ret;
 
-    /* Get device stats */
-    if ( fstat(dev->zbd_fd, &st) < 0 ) {
-	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-	    zbc_error("%s: stat failed %d (%s)\n",
-		      dev->zbd_filename,
-		      errno,
-		      strerror(errno));
+	/* Get device stats */
+	if (fstat(dev->zbd_fd, &st) < 0) {
+		if (zbc_log_level >= ZBC_LOG_DEBUG) {
+			zbc_error("%s: stat failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno, strerror(errno));
+		}
+		goto out;
 	}
-	goto out;
-    }
 
-    if ( S_ISCHR(st.st_mode) ) {
-	ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
-	if ( ret != 0 ) {
-	    if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-		ret = -errno;
-		zbc_error("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
-			  dev->zbd_filename,
-			  errno,
-			  strerror(errno));
-		sgsz = ZBC_SG_MAX_SGSZ;
-	    }
+	if (S_ISCHR(st.st_mode)) {
+		ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
+		if (ret != 0) {
+			if (zbc_log_level >= ZBC_LOG_DEBUG) {
+				ret = -errno;
+				zbc_error("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
+					  dev->zbd_filename,
+					  errno,
+					  strerror(errno));
+				sgsz = ZBC_SG_MAX_SGSZ;
+			}
+		}
+		if (!sgsz)
+			sgsz = 1;
+	} else if ( S_ISBLK(st.st_mode) ) {
+		sgsz = zbc_sg_max_segments(dev);
+	} else {
+		/* Files for fake backend */
+		sgsz = 128;
 	}
-	if (!sgsz)
-	    sgsz = 1;
-    } else if ( S_ISBLK(st.st_mode) ) {
-	sgsz = zbc_sg_max_segments(dev);
-    } else {
-	/* Files for fake backend */
-	sgsz = 128;
-    }
 
 out:
+	dev->zbd_info.zbd_max_rw_sectors =
+		(uint32_t)sgsz * sysconf(_SC_PAGESIZE) >> 9;
 
-    dev->zbd_info.zbd_max_rw_logical_blocks =
-	(uint32_t)sgsz * sysconf(_SC_PAGESIZE) / dev->zbd_info.zbd_logical_block_size;
-
-    zbc_debug("%s: Maximum command data transfer size is %llu logical blocks\n",
-	      dev->zbd_filename,
-	      (unsigned long long)dev->zbd_info.zbd_max_rw_logical_blocks);
-
-    return;
-
+	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
+		  dev->zbd_filename,
+		  (unsigned long long)dev->zbd_info.zbd_max_rw_sectors);
 }
 
 /**
  * Execute a command.
  */
-int
-zbc_sg_cmd_exec(zbc_device_t *dev,
-                zbc_sg_cmd_t *cmd)
+int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 {
-    int ret;
+	int ret;
 
-    if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-        zbc_debug("%s: Sending command 0x%02x:0x%02x (%s):\n",
-                  dev->zbd_filename,
-                  cmd->cdb_opcode,
-                  cmd->cdb_sa,
-                  zbc_sg_cmd_name(cmd));
-	zbc_sg_print_bytes(dev, cmd->cdb, cmd->cdb_sz);
-    }
-
-    /* Send the SG_IO command */
-    ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
-    if ( ret != 0 ) {
-        ret = -errno;
-	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-            zbc_error("%s: SG_IO ioctl failed %d (%s)\n",
-		      dev->zbd_filename,
-		      errno,
-		      strerror(errno));
-	}
-        goto out;
-    }
-
-    /* Reset errno */
-    zbc_sg_set_sense(dev, NULL);
-
-    zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
-              dev->zbd_filename,
-              zbc_sg_cmd_name(cmd),
-              (unsigned int)cmd->io_hdr.status,
-              (unsigned int)cmd->io_hdr.masked_status,
-              (unsigned int)cmd->io_hdr.host_status,
-              (unsigned int)zbc_sg_cmd_driver_status(cmd),
-              (unsigned int)zbc_sg_cmd_driver_flags(cmd));
-
-    /* Check status */
-    if ( ((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16))
-         && (cmd->cdb[2] & (1 << 5)) ) {
-
-       /* ATA command status */
-       if ( cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION ) {
-           zbc_sg_set_sense(dev, cmd->sense_buf);
-           ret = -EIO;
-           goto out;
-       }
-
-       if ( (zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE)
-            && (cmd->io_hdr.sb_len_wr > 21)
-            && (cmd->sense_buf[21] != 0x50) ) {
-           zbc_sg_set_sense(dev, cmd->sense_buf);
-           ret = -EIO;
-           goto out;
-       }
-
-       cmd->io_hdr.status = 0;
-
-    }
-
-    if ( cmd->io_hdr.status
-         || (cmd->io_hdr.host_status != ZBC_SG_DID_OK)
-	 || (zbc_sg_cmd_driver_status(cmd) && (zbc_sg_cmd_driver_status(cmd) != ZBC_SG_DRIVER_SENSE)) ) {
-
-	if ( zbc_log_level >= ZBC_LOG_DEBUG ) {
-
-	    zbc_error("%s: Command %s failed with status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
-		      dev->zbd_filename,
-		      zbc_sg_cmd_name(cmd),
-		      (unsigned int)cmd->io_hdr.status,
-		      (unsigned int)cmd->io_hdr.masked_status,
-		      (unsigned int)cmd->io_hdr.host_status,
-		      (unsigned int)zbc_sg_cmd_driver_status(cmd),
-		      (unsigned int)zbc_sg_cmd_driver_flags(cmd));
-
-            if ( cmd->io_hdr.sb_len_wr ) {
-                zbc_debug("%s: Sense data (%d B):\n",
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		zbc_debug("%s: Sending command 0x%02x:0x%02x (%s):\n",
 			  dev->zbd_filename,
-			  cmd->io_hdr.sb_len_wr);
-		zbc_sg_print_bytes(dev, cmd->sense_buf, cmd->io_hdr.sb_len_wr);
-            } else {
-                zbc_debug("%s: No sense data\n", dev->zbd_filename);
-            }
+			  cmd->cdb_opcode,
+			  cmd->cdb_sa,
+			  zbc_sg_cmd_name(cmd));
+		zbc_sg_print_bytes(dev, cmd->cdb, cmd->cdb_sz);
+	}
+
+	/* Send the SG_IO command */
+	ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
+	if (ret != 0) {
+		ret = -errno;
+		if (zbc_log_level >= ZBC_LOG_DEBUG) {
+			zbc_error("%s: SG_IO ioctl failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno,
+				  strerror(errno));
+		}
+		goto out;
+	}
+
+	/* Reset errno */
+	zbc_sg_set_sense(dev, NULL);
+
+	zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
+		  dev->zbd_filename,
+		  zbc_sg_cmd_name(cmd),
+		  (unsigned int)cmd->io_hdr.status,
+		  (unsigned int)cmd->io_hdr.masked_status,
+		  (unsigned int)cmd->io_hdr.host_status,
+		  (unsigned int)zbc_sg_cmd_driver_status(cmd),
+		  (unsigned int)zbc_sg_cmd_driver_flags(cmd));
+
+	/* Check status */
+	if (((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16))
+	     && (cmd->cdb[2] & (1 << 5))) {
+
+		/* ATA command status */
+		if (cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION) {
+			zbc_sg_set_sense(dev, cmd->sense_buf);
+			ret = -EIO;
+			goto out;
+		}
+
+		if ((zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE) &&
+		    (cmd->io_hdr.sb_len_wr > 21) &&
+		    (cmd->sense_buf[21] != 0x50) ) {
+			zbc_sg_set_sense(dev, cmd->sense_buf);
+			ret = -EIO;
+			goto out;
+		}
+
+		cmd->io_hdr.status = 0;
 
 	}
 
-        zbc_sg_set_sense(dev, cmd->sense_buf);
-        ret = -EIO;
+	if (cmd->io_hdr.status ||
+	    (cmd->io_hdr.host_status != ZBC_SG_DID_OK) ||
+	    (zbc_sg_cmd_driver_status(cmd) &&
+	     (zbc_sg_cmd_driver_status(cmd) != ZBC_SG_DRIVER_SENSE))) {
 
-        goto out;
+		if (zbc_log_level >= ZBC_LOG_DEBUG) {
 
-    }
+			zbc_error("%s: Command %s failed with status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
+				  dev->zbd_filename,
+				  zbc_sg_cmd_name(cmd),
+				  (unsigned int)cmd->io_hdr.status,
+				  (unsigned int)cmd->io_hdr.masked_status,
+				  (unsigned int)cmd->io_hdr.host_status,
+				  (unsigned int)zbc_sg_cmd_driver_status(cmd),
+				  (unsigned int)zbc_sg_cmd_driver_flags(cmd));
 
-    if ( cmd->io_hdr.resid ) {
-        zbc_debug("%s: Transfer missing %d B of data\n",
-                  dev->zbd_filename,
-                  cmd->io_hdr.resid);
-        cmd->out_bufsz -= cmd->io_hdr.resid;
-    }
+			if (cmd->io_hdr.sb_len_wr) {
+				zbc_debug("%s: Sense data (%d B):\n",
+					  dev->zbd_filename,
+					  cmd->io_hdr.sb_len_wr);
+				zbc_sg_print_bytes(dev, cmd->sense_buf, cmd->io_hdr.sb_len_wr);
+			} else {
+				zbc_debug("%s: No sense data\n", dev->zbd_filename);
+			}
 
-    zbc_debug("%s: Command %s executed in %u ms, %zu B transfered\n",
-              dev->zbd_filename,
-              zbc_sg_cmd_name(cmd),
-              cmd->io_hdr.duration,
-              cmd->out_bufsz);
+		}
+
+		zbc_sg_set_sense(dev, cmd->sense_buf);
+		ret = -EIO;
+
+		goto out;
+
+	}
+
+	if (cmd->io_hdr.resid) {
+		zbc_debug("%s: Transfer missing %d B of data\n",
+			  dev->zbd_filename,
+			  cmd->io_hdr.resid);
+		cmd->out_bufsz -= cmd->io_hdr.resid;
+	}
+
+	zbc_debug("%s: Command %s executed in %u ms, %zu B transfered\n",
+		  dev->zbd_filename,
+		  zbc_sg_cmd_name(cmd),
+		  cmd->io_hdr.duration,
+		  cmd->out_bufsz);
 
 out:
-
-    return( ret );
-
+    return ret;
 }
 
 /**
  * Test if unit is ready. This will retry 5 times if the command
  * returns "UNIT ATTENTION".
  */
-int
-zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
+int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
 {
-    zbc_sg_cmd_t cmd;
-    int ret = -EAGAIN, retries = 5;
+	zbc_sg_cmd_t cmd;
+	int ret = -EAGAIN, retries = 5;
 
-    while( retries && (ret == -EAGAIN) ) {
+	while (retries && (ret == -EAGAIN)) {
 
-	retries--;
+		retries--;
 
-	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
-	if ( ret != 0 ) {
-	    zbc_error("%s: zbc_sg_cmd_init TEST UNIT READY failed\n",
-		      dev->zbd_filename);
-	    return( ret );
+		/* Intialize command */
+		ret = zbc_sg_cmd_init(&cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
+		if (ret != 0) {
+			zbc_error("%s: zbc_sg_cmd_init TEST UNIT READY failed\n",
+				  dev->zbd_filename);
+			return ret;
+		}
+		cmd.cdb[0] = ZBC_SG_TEST_UNIT_READY_CDB_OPCODE;
+
+		/* Execute the SG_IO command */
+		ret = zbc_sg_cmd_exec(dev, &cmd);
+		if ((ret != 0) &&
+		    ((cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR) ||
+		     (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) ) {
+			zbc_debug("%s: Unit attention required, %d / 5 retries left\n",
+				  dev->zbd_filename,
+				  retries);
+			ret = -EAGAIN;
+		}
+
+		zbc_sg_cmd_destroy(&cmd);
+
 	}
-	cmd.cdb[0] = ZBC_SG_TEST_UNIT_READY_CDB_OPCODE;
 
-	/* Execute the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if ( (ret != 0)
-	     && ((cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR)
-		 || (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) ) {
-	    zbc_debug("%s: Unit attention required, %d / 5 retries left\n",
-		      dev->zbd_filename,
-		      retries);
-	    ret = -EAGAIN;
-	}
+	if (ret != 0)
+		return -ENXIO;
 
-	zbc_sg_cmd_destroy(&cmd);
-
-    }
-
-    if ( ret != 0 ) {
-	ret = -ENXIO;
-    }
-
-    return( ret );
-
+	return 0;
 }
 
 /**
  * Fill the buffer with the result of INQUIRY command.
  * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
-int
-zbc_sg_cmd_inquiry(zbc_device_t *dev,
-                   void *buf)
+int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf)
 {
-    zbc_sg_cmd_t cmd;
-    int ret;
+	zbc_sg_cmd_t cmd;
+	int ret;
 
-    /* Allocate and intialize inquiry command */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
-    if ( ret != 0 ) {
-        zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
-		  dev->zbd_filename);
-        return( ret );
-    }
+	/* Allocate and intialize inquiry command */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
+	if (ret != 0) {
+		zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
+			  dev->zbd_filename);
+		return ret;
+	}
 
-    /* Fill command CDB:
-     * +=============================================================================+
-     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-     * |Byte |        |        |        |        |        |        |        |        |
-     * |=====+=======================================================================|
-     * | 0   |                           Operation Code (12h)                        |
-     * |-----+-----------------------------------------------------------------------|
-     * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
-     * |-----+-----------------------------------------------------------------------|
-     * | 2   |                           Page Code                                   |
-     * |-----+-----------------------------------------------------------------------|
-     * | 3   | (MSB)                                                                 |
-     * |- - -+---                    Allocation Length                            ---|
-     * | 4   |                                                                 (LSB) |
-     * |-----+-----------------------------------------------------------------------|
-     * | 5   |                           Control                                     |
-     * +=============================================================================+
-     */
-    cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-    zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                           Operation Code (12h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                           Page Code                                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   | (MSB)                                                                 |
+	 * |- - -+---                    Allocation Length                            ---|
+	 * | 4   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5   |                           Control                                     |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+	zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
 
-    /* Execute the SG_IO command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
-    if ( ret == 0 ) {
+	/* Execute the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret == 0)
+		memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
 
-        memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
+	zbc_sg_cmd_destroy(&cmd);
 
-    }
-
-    zbc_sg_cmd_destroy(&cmd);
-
-    return( ret );
-
+	return ret;
 }
 
 /**
  * Get a device capacity information (total sectors & sector sizes).
  */
-int
-zbc_sg_get_capacity(zbc_device_t *dev,
-		    int (*report_zones)(struct zbc_device *,
-					uint64_t,
-					enum zbc_reporting_options,
-					uint64_t *,
-					zbc_zone_t *,
-					unsigned int *))
+int zbc_sg_get_capacity(zbc_device_t *dev,
+			int (*report_zones)(struct zbc_device *,
+					    uint64_t,
+					    enum zbc_reporting_options,
+					    uint64_t *,
+					    zbc_zone_t *,
+					    unsigned int *))
 {
-    zbc_sg_cmd_t cmd;
-    zbc_zone_t *zones = NULL;
-    int logical_per_physical;
-    unsigned int nr_zones = 0;
-    uint64_t max_lba;
-    int ret;
+	zbc_sg_cmd_t cmd;
+	zbc_zone_t *zones = NULL;
+	int logical_per_physical;
+	unsigned int nr_zones = 0;
+	uint64_t max_lba;
+	int ret;
 
-    /* READ CAPACITY 16 */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
-    if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
-        return( ret );
-    }
-
-    /* Fill command CDB */
-    cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
-    cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-    zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
-
-    /* Send the SG_IO command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
-    if ( ret != 0 ) {
-        goto out;
-    }
-
-    /* Logical block size */
-    dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-    if ( dev->zbd_info.zbd_logical_block_size <= 0 ) {
-        zbc_error("%s: invalid logical sector size\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
-
-    logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
-
-    /* Get maximum command size */
-    zbc_sg_get_max_cmd_blocks(dev);
-
-    /* Check RC_BASIS field */
-    switch( (cmd.out_buf[12] & 0x30) >> 4 ) {
-
-    case 0x00:
-
-        /* The logical block address indicates the last LBA of the */
-        /* conventional zones at the beginning of the disk. To get */
-        /* the entire disk capacity, we need to get last LBA of    */
-        /* the last zone of the disk.                              */
-        ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba, NULL, &nr_zones);
-        if ( ret != 0 ) {
-	    goto out;
+	/* READ CAPACITY 16 */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
 	}
 
-	/* Set the drive capacity to the reported max LBA */
-	dev->zbd_info.zbd_logical_blocks = max_lba + 1;
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
 
-        break;
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
 
-    case 0x01:
+	/* Logical block size */
+	dev->zbd_info.zbd_logical_block_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+	if (dev->zbd_info.zbd_logical_block_size <= 0) {
+		zbc_error("%s: invalid logical sector size\n",
+			  dev->zbd_filename);
+		ret = -EINVAL;
+		goto out;
+	}
 
-        /* The disk last LBA was reported */
-        dev->zbd_info.zbd_logical_blocks = zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
+	logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
 
-        break;
+	/* Get maximum command size */
+	zbc_sg_get_max_cmd_blocks(dev);
 
-    default:
+	/* Check RC_BASIS field */
+	switch ((cmd.out_buf[12] & 0x30) >> 4) {
 
-        zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
-                  dev->zbd_filename);
-        ret = -EIO;
+	case 0x00:
 
-        goto out;
+		/* The logical block address indicates the last LBA of the */
+		/* conventional zones at the beginning of the disk. To get */
+		/* the entire disk capacity, we need to get last LBA of    */
+		/* the last zone of the disk.                              */
+		ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba, NULL, &nr_zones);
+		if (ret != 0)
+			goto out;
 
-    }
+		/* Set the drive capacity to the reported max LBA */
+		dev->zbd_info.zbd_logical_blocks = max_lba + 1;
 
-    if ( ! dev->zbd_info.zbd_logical_blocks ) {
-        zbc_error("%s: invalid capacity (logical blocks)\n",
-                  dev->zbd_filename);
-        ret = -EINVAL;
-        goto out;
-    }
+		break;
 
-    dev->zbd_info.zbd_physical_block_size = dev->zbd_info.zbd_logical_block_size * logical_per_physical;
-    dev->zbd_info.zbd_physical_blocks = dev->zbd_info.zbd_logical_blocks / logical_per_physical;
+	case 0x01:
+
+		/* The disk last LBA was reported */
+		dev->zbd_info.zbd_logical_blocks =
+			zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
+
+		break;
+
+	default:
+
+		zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+			  dev->zbd_filename);
+		ret = -EIO;
+
+		goto out;
+
+	}
+
+	if (!dev->zbd_info.zbd_logical_blocks) {
+		zbc_error("%s: invalid capacity (logical blocks)\n",
+			  dev->zbd_filename);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	dev->zbd_info.zbd_physical_block_size =
+		dev->zbd_info.zbd_logical_block_size * logical_per_physical;
+	dev->zbd_info.zbd_physical_blocks =
+		dev->zbd_info.zbd_logical_blocks / logical_per_physical;
 
 out:
+	zbc_sg_cmd_destroy(&cmd);
 
-    zbc_sg_cmd_destroy(&cmd);
+	if (zones)
+		free(zones);
 
-    if ( zones ) {
-        free(zones);
-    }
-
-    return( ret );
-
+	return ret;
 }
 
 /**
  * Set bytes in a command cdb.
  */
-void
-zbc_sg_cmd_set_bytes(uint8_t *cmd,
-                     void *buf,
-                     int bytes)
+void zbc_sg_cmd_set_bytes(uint8_t *cmd, void *buf, int bytes)
 {
-    uint8_t *v = (uint8_t *) buf;
-    int i;
+	uint8_t *v = (uint8_t *) buf;
+	int i;
 
-    for(i = 0; i < bytes; i++) {
+	for (i = 0; i < bytes; i++) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        /* The least significant byte is stored last */
-        cmd[bytes - i - 1] = v[i];
+		/* The least significant byte is stored last */
+		cmd[bytes - i - 1] = v[i];
 #else
-        /* The most significant byte is stored first */
-        cmd[i] = v[i];
+		/* The most significant byte is stored first */
+		cmd[i] = v[i];
 #endif
-    }
-
-    return;
-
+	}
 }
 
 /**
  * Get bytes from a command output buffer.
  */
-void
-zbc_sg_cmd_get_bytes(uint8_t *val,
-                     union converter *conv,
-                     int bytes)
+void zbc_sg_cmd_get_bytes(uint8_t *val, union converter *conv, int bytes)
 {
-    uint8_t *v = (uint8_t *) val;
-    int i;
+	uint8_t *v = (uint8_t *) val;
+	int i;
 
-    memset(conv, 0, sizeof(union converter));
+	memset(conv, 0, sizeof(union converter));
 
-    for(i = 0; i < bytes; i++) {
+	for (i = 0; i < bytes; i++) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        conv->val_buf[bytes - i - 1] = v[i];
+		conv->val_buf[bytes - i - 1] = v[i];
 #else
-        conv->val_buf[i] = v[i];
+		conv->val_buf[i] = v[i];
 #endif
-    }
-
-    return;
-
+	}
 }
 
 /**
  * Print an array of bytes.
  */
-void
-zbc_sg_print_bytes(zbc_device_t *dev,
-		   uint8_t *buf,
-		   unsigned int len)
+void zbc_sg_print_bytes(zbc_device_t *dev, uint8_t *buf, unsigned int len)
 {
-    char msg[512];
-    unsigned i = 0, j;
-    int n;
+	char msg[512];
+	unsigned i = 0, j;
+	int n;
 
-    zbc_debug("%s: * +==================================\n", dev->zbd_filename);
-    zbc_debug("%s: * |Byte |   0  |  1   |  2   |  3   |\n", dev->zbd_filename);
-    zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
+	zbc_debug("%s: * +==================================\n",
+		  dev->zbd_filename);
+	zbc_debug("%s: * |Byte |   0  |  1   |  2   |  3   |\n",
+		  dev->zbd_filename);
+	zbc_debug("%s: * |=====+======+======+======+======+\n",
+		  dev->zbd_filename);
 
-    while( i < len ) {
+	while (i < len) {
 
-	n = sprintf(msg, "%s: * | %3d |", dev->zbd_filename, i);
-	for(j = 0; j < 4; j++) {
-	    if ( i < len ) {
-		n += sprintf(msg + n, " 0x%02x |",
-			     (unsigned int)buf[i]);
-	    } else {
-		n += sprintf(msg + n, "      |");
-	    }
-	    i++;
+		n = sprintf(msg, "%s: * | %3d |", dev->zbd_filename, i);
+		for (j = 0; j < 4; j++) {
+			if (i < len)
+				n += sprintf(msg + n, " 0x%02x |",
+					     (unsigned int)buf[i]);
+			else
+				n += sprintf(msg + n, "      |");
+			i++;
+		}
+
+		zbc_debug("%s\n", msg);
+		if (i < (len - 4))
+			zbc_debug("%s: * |=====+======+======+======+======+\n",
+				  dev->zbd_filename);
+		else
+			zbc_debug("%s: * +==================================\n",
+				  dev->zbd_filename);
 	}
-
-	zbc_debug("%s\n", msg);
-	if ( i < (len - 4) ) {
-	    zbc_debug("%s: * |=====+======+======+======+======+\n", dev->zbd_filename);
-	} else {
-	    zbc_debug("%s: * +==================================\n", dev->zbd_filename);
-	}
-    }
-
-    return;
-
 }
+
