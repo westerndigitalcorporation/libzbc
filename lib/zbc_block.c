@@ -441,11 +441,9 @@ static int zbc_block_close(zbc_device_t *dev)
 /**
  * Flush the device.
  */
-static int
-zbc_block_flush(struct zbc_device *dev,
-		uint64_t lba_offset,
-		uint32_t lba_count,
-		int immediate)
+static int zbc_block_flush(struct zbc_device *dev,
+			   uint64_t lba_offset, size_t lba_count,
+			   int immediate)
 {
 	return fsync(dev->zbd_fd);
 }
@@ -477,8 +475,8 @@ zbc_block_must_report(struct zbc_zone *zone,
 		return zbc_zone_rdonly(zone);
 	case ZBC_RO_OFFLINE:
 		return zbc_zone_offline(zone);
-	case ZBC_RO_RESET:
-		return zbc_zone_need_reset(zone);
+	case ZBC_RO_RWP_RECOMMENDED:
+		return zbc_zone_rwp_recommended(zone);
 	case ZBC_RO_NON_SEQ:
 		return zbc_zone_non_seq(zone);
 	case ZBC_RO_NOT_WP:
@@ -537,7 +535,7 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 		for(i = 0; i < rep->nr_zones; i++) {
 
 			if ((*nr_zones && (n >= *nr_zones)) ||
-			    || (start_lba >= dev->zbd_info.zbd_logical_blocks) )
+			    (start_lba >= dev->zbd_info.zbd_logical_blocks) )
 				break;
 
 			memset(&zone, 0, sizeof(struct zbc_zone));
@@ -547,9 +545,9 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 			zone.zbz_start = zbc_sect2lba(dev, blkz[i].start);
 			zone.zbz_write_pointer = zbc_sect2lba(dev, blkz[i].wp);
 			if ( blkz[i].reset )
-				zone.zbz_flags |= ZBC_ZF_NEED_RESET;
+				zone.zbz_attributes |= ZBC_ZA_RWP_RECOMMENDED;
 			if ( blkz[i].non_seq )
-				zone.zbz_flags |= ZBC_ZF_NON_SEQ;
+				zone.zbz_attributes |= ZBC_ZA_NON_SEQ;
 
 			if ( zbc_block_must_report(&zone, ro) ) {
 				if ( zones )
@@ -628,8 +626,8 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t start_lba)
 		return 0;
 
 	/* Reset zone */
-	range.sector = zbc_lba2sect(dev, zbc_zone_sector(&zone));
-	range.nr_sectors = zbc_lba2sect(dev, zbc_zone_sectors(&zone));
+	range.sector = zbc_lba2sect(dev, zbc_zone_start(&zone));
+	range.nr_sectors = zbc_lba2sect(dev, zbc_zone_length(&zone));
 	ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 	if (ret != 0) {
 		ret = -errno;
@@ -741,7 +739,7 @@ static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 static ssize_t zbc_block_pwrite(struct zbc_device *dev,
 				const void *buf,
 				size_t lba_count,
-				uint64_t lba_ofst)
+				uint64_t lba_offset)
 {
 	ssize_t ret;
 
