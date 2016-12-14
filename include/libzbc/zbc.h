@@ -1,17 +1,18 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the BSD 2-clause license,
  * "as is," without technical support, and WITHOUT ANY WARRANTY, without
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
- * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+ * with libzbc. If not, see <http://opensource.org/licenses/BSD-2-Clause>.
  *
- * Authors: Damien Le Moal (damien.lemoal@hgst.com)
+ * Authors: Damien Le Moal (damien.lemoal@wdc.com)
  *          Christoph Hellwig (hch@infradead.org)
- *          Christophe Louargant (christophe.louargant@hgst.com)
+ *          Christophe Louargant (christophe.louargant@wdc.com)
  */
 
 #ifndef _LIBZBC_H_
