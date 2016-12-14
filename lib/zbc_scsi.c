@@ -183,12 +183,13 @@ out:
 /**
  * Get a SCSI device zone information.
  */
-static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t sector,
 				    enum zbc_reporting_options ro,
 				    uint64_t *max_lba,
 				    zbc_zone_t *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	zbc_sg_cmd_t cmd;
 	size_t max_bufsz;
@@ -235,7 +236,7 @@ static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
 	 */
 	cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba);
 	zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
 	cmd.cdb[14] = ro & 0xbf;
 
@@ -342,14 +343,24 @@ static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
 	 */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
 	for (i = 0; i < nz; i++) {
+
 		zones[i].zbz_type = buf[0] & 0x0f;
-		zones[i].zbz_condition = (buf[1] >> 4) & 0x0f;
-		zones[i].zbz_length = zbc_sg_cmd_get_int64(&buf[8]);
-		zones[i].zbz_start = zbc_sg_cmd_get_int64(&buf[16]);
-		zones[i].zbz_write_pointer =
-			zbc_sg_cmd_get_int64(&buf[24]);
+
 		zones[i].zbz_attributes = buf[1] & 0x03;
+		zones[i].zbz_condition = (buf[1] >> 4) & 0x0f;
+
+		zones[i].zbz_length =
+			zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[8]));
+		zones[i].zbz_start =
+			zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[16]));
+		if (zbc_zone_sequential(&zones[i]))
+			zones[i].zbz_write_pointer =
+				zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[24]));
+		else
+			zones[i].zbz_write_pointer = (uint64_t)-1;
+
 		buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
+
 	}
 
 out:
@@ -365,20 +376,21 @@ out:
 /**
  * Get a SCSI device zone information.
  */
-static int zbc_scsi_report_zones(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_scsi_report_zones(zbc_device_t *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
 				 zbc_zone_t *zones, unsigned int *nr_zones)
 {
-	return zbc_scsi_do_report_zones(dev, start_lba, ro,
+	return zbc_scsi_do_report_zones(dev, sector, ro,
 					NULL, zones, nr_zones);
 }
 
 /**
  * Zone(s) operation.
  */
-int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
+int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
 		     enum zbc_zone_op op, unsigned int flags)
 {
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int opid;
 	unsigned int opcode;
 	unsigned int sa;
@@ -445,8 +457,8 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
 		/* Operate on all zones */
 		cmd.cdb[14] = 0x01;
 	else
-		/* Operate on the zone at start_lba */
-		zbc_sg_cmd_set_int64(&cmd.cdb[2], start_lba);
+		/* Operate on the zone at lba */
+		zbc_sg_cmd_set_int64(&cmd.cdb[2], lba);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -463,55 +475,58 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
 static int zbc_scsi_set_zones(zbc_device_t *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
 {
-    zbc_sg_cmd_t cmd;
-    int ret;
+	uint64_t conv_lba = zbc_dev_sect2lba(dev, conv_sz);
+	uint64_t zone_lba = zbc_dev_sect2lba(dev, zone_sz);
+	zbc_sg_cmd_t cmd;
+	int ret;
 
-    /* Allocate and intialize set zone command */
-    ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_ZONES, NULL, 0);
-    if ( ret != 0 ) {
-        zbc_error("zbc_sg_cmd_init failed\n");
-        return( ret );
-    }
+	/* Allocate and intialize set zone command */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_ZONES, NULL, 0);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
 
-    /* Fill command CDB:
-     * +=============================================================================+
-     * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-     * |Byte |        |        |        |        |        |        |        |        |
-     * |=====+==========================+============================================|
-     * | 0   |                           Operation Code (9Fh)                        |
-     * |-----+-----------------------------------------------------------------------|
-     * | 1   |      Reserved            |       Service Action (15h)                 |
-     * |-----+-----------------------------------------------------------------------|
-     * | 2   | (MSB)                                                                 |
-     * |- - -+---             Conventional Zone Sise (LBA)                        ---|
-     * | 8   |                                                                 (LSB) |
-     * |-----+-----------------------------------------------------------------------|
-     * | 9   | (MSB)                                                                 |
-     * |- - -+---                   Zone Sise (LBA)                               ---|
-     * | 15  |                                                                 (LSB) |
-     * +=============================================================================+
-     */
-    cmd.cdb[0] = ZBC_SG_SET_ZONES_CDB_OPCODE;
-    cmd.cdb[1] = ZBC_SG_SET_ZONES_CDB_SA;
-    zbc_sg_cmd_set_bytes(&cmd.cdb[2], &conv_sz, 7);
-    zbc_sg_cmd_set_bytes(&cmd.cdb[9], &zone_sz, 7);
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (9Fh)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (15h)                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---             Conventional Zone Sise (LBA)                        ---|
+	 * | 8   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 9   | (MSB)                                                                 |
+	 * |- - -+---                   Zone Sise (LBA)                               ---|
+	 * | 15  |                                                                 (LSB) |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_SET_ZONES_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_SET_ZONES_CDB_SA;
+	zbc_sg_cmd_set_bytes(&cmd.cdb[2], &conv_lba, 7);
+	zbc_sg_cmd_set_bytes(&cmd.cdb[9], &zone_lba, 7);
 
-    /* Send the SG_IO command */
-    ret = zbc_sg_cmd_exec(dev, &cmd);
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
 
-    /* Cleanup */
-    zbc_sg_cmd_destroy(&cmd);
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
 
-    return( ret );
-
+	return ret;
 }
 
 /**
  * Change the value of a zone write pointer ("emulated" ZBC devices only).
  */
 static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
-				      uint64_t start_lba, uint64_t wp_lba)
+				      uint64_t sector, uint64_t wp_sector)
 {
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
+	uint64_t wp_lba = zbc_dev_sect2lba(dev, wp_sector);
 	zbc_sg_cmd_t cmd;
 	int ret;
 
@@ -542,7 +557,7 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
 	 */
 	cmd.cdb[0] = ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_SET_WRITE_POINTER_CDB_SA;
-	zbc_sg_cmd_set_bytes(&cmd.cdb[2], &start_lba, 7);
+	zbc_sg_cmd_set_bytes(&cmd.cdb[2], &lba, 7);
 	zbc_sg_cmd_set_bytes(&cmd.cdb[9], &wp_lba, 7);
 
 	/* Send the SG_IO command */
@@ -734,9 +749,9 @@ static int zbc_scsi_close(zbc_device_t *dev)
  * Read from a ZBC device
  */
 static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
-			      size_t lba_count, uint64_t lba_offset)
+			      size_t count, uint64_t offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	size_t sz = count << 9;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
@@ -750,13 +765,13 @@ static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
 	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
+		ret = (sz - cmd.io_hdr.resid) >> 9;
 
 	zbc_sg_cmd_destroy(&cmd);
 
@@ -767,9 +782,9 @@ static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
  * Write to a ZBC device
  */
 static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
-			       size_t lba_count, uint64_t lba_offset)
+			       size_t count, uint64_t offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	size_t sz = count << 9;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
@@ -783,13 +798,13 @@ static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
 	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
+		ret = (sz - cmd.io_hdr.resid) >> 9;
 
 	zbc_sg_cmd_destroy(&cmd);
 
@@ -799,8 +814,8 @@ static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 /**
  * Flush a ZBC device cache.
  */
-static int zbc_scsi_flush(zbc_device_t *dev, uint64_t lba_offset,
-			  size_t lba_count, int immediate)
+static int zbc_scsi_flush(zbc_device_t *dev, uint64_t offset,
+			  size_t count, int immediate)
 {
 	zbc_sg_cmd_t cmd;
 	int ret;
@@ -814,8 +829,8 @@ static int zbc_scsi_flush(zbc_device_t *dev, uint64_t lba_offset,
 
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba_offset);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], lba_count);
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
 	if (immediate)
 		cmd.cdb[1] = 0x02;
 

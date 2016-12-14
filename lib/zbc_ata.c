@@ -447,15 +447,18 @@ static int zbc_ata_get_zoned_device_info(zbc_device_t *dev)
  * in an ATA PASSTHROUGH command.
  */
 static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
-			     size_t lba_count, uint64_t lba_offset)
+			     size_t count, uint64_t offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
+	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
+	size_t sz = count << 9;
 	zbc_sg_cmd_t cmd;
 	ssize_t ret;
 
 	/* Check */
-	if (sz > (65536 << 9)) {
-		zbc_error("Read operation too large (limited to 65536 x 512 B sectors)\n");
+	if (count > 65536) {
+		zbc_error("Read operation too large "
+			  "(limited to 65536 x 512 B sectors)\n");
 		return -EINVAL;
 	}
 
@@ -528,8 +531,7 @@ static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
 		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd) )
 			zbc_ata_request_sense_data_ext(dev);
 	} else {
-		ret = (sz - cmd.io_hdr.resid) /
-			dev->zbd_info.zbd_lblock_size;
+		ret = (sz - cmd.io_hdr.resid) >> 9;
 	}
 
 	/* Done */
@@ -543,14 +545,16 @@ static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
  * in an ATA PASSTHROUGH command.
  */
 static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
-			      size_t lba_count, uint64_t lba_offset)
+			      size_t count, uint64_t offset)
 {
-	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
+	size_t sz = count << 9;
+	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
+	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
 	zbc_sg_cmd_t cmd;
 	int ret;
 
 	/* Check */
-	if ( sz > (65536 << 9)) {
+	if (count > 65536) {
 		zbc_error("Write operation too large "
 			  "(limited to 65536 x 512 B sectors)\n");
 		return -EINVAL;
@@ -625,7 +629,7 @@ static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
 		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
 			zbc_ata_request_sense_data_ext(dev);
         } else {
-		ret = (sz - cmd.io_hdr.resid) / dev->zbd_info.zbd_lblock_size;
+		ret = (sz - cmd.io_hdr.resid) >> 9;
 	}
 
 	/* Done */
@@ -638,7 +642,7 @@ static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
  * Flush a ZAC device cache.
  */
 static int zbc_ata_flush(zbc_device_t *dev,
-			 uint64_t lba_ofst, size_t lba_count,
+			 uint64_t offset, size_t count,
 			 int immediate)
 {
 	zbc_sg_cmd_t cmd;
@@ -670,12 +674,13 @@ static int zbc_ata_flush(zbc_device_t *dev,
 /**
  * Get device zone information.
  */
-static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t sector,
 				   enum zbc_reporting_options ro,
 				   uint64_t *max_lba,
 				   zbc_zone_t *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	size_t max_bufsz;
 	zbc_sg_cmd_t cmd;
@@ -746,12 +751,12 @@ static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
 	cmd.cdb[4] = ZBC_ATA_REPORT_ZONES_EXT_AF;
 	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
 	cmd.cdb[6] = (bufsz / 512) & 0xff;
-	cmd.cdb[8]  = start_lba & 0xff;
-	cmd.cdb[10] = (start_lba >>  8) & 0xff;
-	cmd.cdb[12] = (start_lba >> 16) & 0xff;
-	cmd.cdb[7]  = (start_lba >> 24) & 0xff;
-	cmd.cdb[9]  = (start_lba >> 32) & 0xff;
-	cmd.cdb[11] = (start_lba >> 40) & 0xff;
+	cmd.cdb[8]  = lba & 0xff;
+	cmd.cdb[10] = (lba >>  8) & 0xff;
+	cmd.cdb[12] = (lba >> 16) & 0xff;
+	cmd.cdb[7]  = (lba >> 24) & 0xff;
+	cmd.cdb[9]  = (lba >> 32) & 0xff;
+	cmd.cdb[11] = (lba >> 40) & 0xff;
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_IN;
 
@@ -797,12 +802,22 @@ static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t start_lba,
         /* Get zone descriptors */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
         for(i = 0; i < nz; i++) {
+
 		zones[i].zbz_type = buf[0] & 0x0f;
-		zones[i].zbz_condition = (buf[1] >> 4) & 0x0f;
-		zones[i].zbz_length = zbc_ata_get_qword(&buf[8]);
-		zones[i].zbz_start = zbc_ata_get_qword(&buf[16]);
-		zones[i].zbz_write_pointer = zbc_ata_get_qword(&buf[24]);
+
 		zones[i].zbz_attributes = buf[1] & 0x03;
+		zones[i].zbz_condition = (buf[1] >> 4) & 0x0f;
+
+		zones[i].zbz_length =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[8]));
+		zones[i].zbz_start =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
+		if (zbc_zone_sequential(&zones[i]))
+			zones[i].zbz_write_pointer =
+				zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[24]));
+		else
+			zones[i].zbz_write_pointer = (uint64_t)-1;
+
 		buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
         }
 
@@ -819,20 +834,21 @@ out:
 /**
  * Get device zone information.
  */
-static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t sector,
 				enum zbc_reporting_options ro,
 				zbc_zone_t *zones, unsigned int *nr_zones)
 {
-	return zbc_ata_do_report_zones(dev, start_lba, ro,
+	return zbc_ata_do_report_zones(dev, sector, ro,
 				       NULL, zones, nr_zones);
 }
 
 /**
  * Zone(s) operation.
  */
-static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t sector,
 			   enum zbc_zone_op op, unsigned int flags)
 {
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int af;
 	zbc_sg_cmd_t cmd;
 	int ret;
@@ -909,13 +925,13 @@ static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
 		/* Operate on all zones */
 		cmd.cdb[3] = 0x01;
 	} else {
-		/* Operate on the zone at start_lba */
-		cmd.cdb[8] = start_lba & 0xff;
-		cmd.cdb[10] = (start_lba >> 8) & 0xff;
-		cmd.cdb[12] = (start_lba >> 16) & 0xff;
-		cmd.cdb[7] = (start_lba >> 24) & 0xff;
-		cmd.cdb[9] = (start_lba >> 32) & 0xff;
-		cmd.cdb[11] = (start_lba >> 40) & 0xff;
+		/* Operate on the zone at lba */
+		cmd.cdb[8] = lba & 0xff;
+		cmd.cdb[10] = (lba >> 8) & 0xff;
+		cmd.cdb[12] = (lba >> 16) & 0xff;
+		cmd.cdb[7] = (lba >> 24) & 0xff;
+		cmd.cdb[9] = (lba >> 32) & 0xff;
+		cmd.cdb[11] = (lba >> 40) & 0xff;
 	}
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_OUT;

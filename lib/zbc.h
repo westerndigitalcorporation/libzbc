@@ -154,25 +154,28 @@ extern struct zbc_ops zbc_fake_ops;
 #define zbc_ro_mask(ro)		((ro) & 0x3f)
 
 /**
- * Logical block/sector conversion.
+ * Logical block to sector conversion.
  */
-#define zbc_dev_sect2lba(dev, sector)	zbc_sect2lba(&(dev)->zbd_info, sector)
+#define zbc_dev_sect2lba(dev, sect)	zbc_sect2lba(&(dev)->zbd_info, sect)
 #define zbc_dev_lba2sect(dev, lba)	zbc_lba2sect(&(dev)->zbd_info, lba)
 
-#define zbc_dev_bytes2lba(dev, bytes) \
-	((bytes) / (dev)->zbd_info.zbd_lblock_size)
-#define zbc_dev_lba2bytes(dev, lba) \
-	((lba) * (dev)->zbd_info.zbd_lblock_size)
+/**
+ * Check sector alignment to logical block.
+ */
+#define zbc_dev_sect_laligned(dev, sect)	\
+	((((sect) << 9) & ((dev)->zbd_info.zbd_lblock_size - 1)) == 0)
 
 /**
- * SCSI backend driver operations are also used
- * for block device control.
+ * Check sector alignment to physical block.
+ */
+#define zbc_dev_sect_paligned(dev, sect)	\
+	((((sect) << 9) & ((dev)->zbd_info.zbd_pblock_size - 1)) == 0)
+
+/**
+ * The block backend driver uses the SCSI backend information and
+ * some zone operation.
  */
 extern int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev);
-
-/**
- * Zone operation.
- */
 extern int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
 			    enum zbc_zone_op op, unsigned int flags);
 

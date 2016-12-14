@@ -441,16 +441,6 @@ static int zbc_block_close(zbc_device_t *dev)
 #ifdef HAVE_LINUX_BLKZONED_H
 
 /**
- * Flush the device.
- */
-static int zbc_block_flush(struct zbc_device *dev,
-			   uint64_t lba_offset, size_t lba_count,
-			   int immediate)
-{
-	return fsync(dev->zbd_fd);
-}
-
-/**
  * Test if a zone should be reported depending
  * on the specified reporting options.
  */
@@ -493,7 +483,7 @@ zbc_block_must_report(struct zbc_zone *zone,
 /**
  * Get the block device zone information.
  */
-static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
+static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 				  enum zbc_reporting_options ro,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
@@ -516,11 +506,11 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 	blkz = (struct blk_zone *)(rep + 1);
 
 	while (((! *nr_zones) || (n < *nr_zones)) &&
-	       (start_lba < dev->zbd_info.zbd_lblocks)) {
+	       (sector < dev->zbd_info.zbd_sectors)) {
 
 		/* Get zone info */
 		memset(rep, 0, rep_size);
-		rep->sector = zbc_dev_lba2sect(dev, start_lba);
+		rep->sector = sector;
 		rep->nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
 
 		ret = ioctl(dev->zbd_fd, BLKREPORTZONE, rep);
@@ -528,7 +518,7 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 			ret = -errno;
 			zbc_error("%s: ioctl BLKREPORTZONE at %llu failed %d (%s)\n",
 				  dev->zbd_filename,
-				  (unsigned long long)rep->sector,
+				  (unsigned long long)sector,
 				  errno,
 				  strerror(errno));
 			goto out;
@@ -537,15 +527,15 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 		for(i = 0; i < rep->nr_zones; i++) {
 
 			if ((*nr_zones && (n >= *nr_zones)) ||
-			    (start_lba >= dev->zbd_info.zbd_lblocks) )
+			    (sector >= dev->zbd_info.zbd_sectors) )
 				break;
 
 			memset(&zone, 0, sizeof(struct zbc_zone));
 			zone.zbz_type = blkz[i].type;
 			zone.zbz_condition = blkz[i].cond;
-			zone.zbz_length = zbc_dev_sect2lba(dev, blkz[i].len);
-			zone.zbz_start = zbc_dev_sect2lba(dev, blkz[i].start);
-			zone.zbz_write_pointer = zbc_dev_sect2lba(dev, blkz[i].wp);
+			zone.zbz_length = blkz[i].len;
+			zone.zbz_start = blkz[i].start;
+			zone.zbz_write_pointer = blkz[i].wp;
 			if ( blkz[i].reset )
 				zone.zbz_attributes |= ZBC_ZA_RWP_RECOMMENDED;
 			if ( blkz[i].non_seq )
@@ -558,7 +548,7 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
 				n++;
 			}
 
-			start_lba += zone.zbz_length;
+			sector = zone.zbz_start + zone.zbz_length;
 
 		}
 
@@ -576,7 +566,7 @@ out:
 /**
  * Reset a single zone write pointer.
  */
-static int zbc_block_reset_one(struct zbc_device *dev, uint64_t start_lba)
+static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 {
 	struct blk_zone_range range;
 	unsigned int nr_zones = 1;
@@ -584,25 +574,26 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t start_lba)
 	int ret;
 
 	/* Get zone info */
-	ret = zbc_block_report_zones(dev, start_lba, ZBC_RO_ALL,
+	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
 				     &zone, &nr_zones);
 	if (ret)
 		return ret;
 
-	if (! nr_zones) {
-		zbc_error("%s: Invalid zone start LBA %llu\n",
+	if (!nr_zones) {
+		zbc_error("%s: Invalid zone sector %llu\n",
 			  dev->zbd_filename,
-			  (unsigned long long)start_lba);
+			  (unsigned long long)sector);
 		return -EINVAL;
 	}
 
 	if (zbc_zone_conventional(&zone)
 	    || zbc_zone_empty(&zone))
+		/* Nothing to do */
 		return 0;
 
 	/* Reset zone */
-	range.sector = zbc_dev_lba2sect(dev, zbc_zone_start(&zone));
-	range.nr_sectors = zbc_dev_lba2sect(dev, zbc_zone_length(&zone));
+	range.sector = zbc_zone_start(&zone);
+	range.nr_sectors = zbc_zone_length(&zone);
 	ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 	if (ret != 0) {
 		ret = -errno;
@@ -623,10 +614,11 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 	struct zbc_zone *zones;
 	unsigned int i, nr_zones;
 	struct blk_zone_range range;
-	uint64_t start_lba = 0;
+	uint64_t sector = 0;
 	int ret;
 
-	zones = calloc(ZBC_BLOCK_ZONE_REPORT_NR_ZONES, sizeof(struct zbc_zone));
+	zones = calloc(ZBC_BLOCK_ZONE_REPORT_NR_ZONES,
+		       sizeof(struct zbc_zone));
 	if (!zones) {
 		zbc_error("%s: No memory for report zones\n",
 			  dev->zbd_filename);
@@ -637,38 +629,35 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 
 		/* Get zone info */
 		nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
-		ret = zbc_block_report_zones(dev, start_lba, ZBC_RO_ALL,
+		ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
 					     zones, &nr_zones);
-		if (ret || (! nr_zones))
+		if (ret || !nr_zones)
 			break;
 
 		for (i = 0; i < nr_zones; i++) {
 
-			start_lba = zones[i].zbz_start + zones[i].zbz_length;
+			sector = zones[i].zbz_start + zones[i].zbz_length;
 
 			if (zbc_zone_conventional(&zones[i])
 			    || zbc_zone_empty(&zones[i]))
 				continue;
 
 			/* Reset zone */
-			range.sector =
-				zbc_dev_lba2sect(dev, zones[i].zbz_start);
-			range.nr_sectors =
-				zbc_dev_lba2sect(dev, zones[i].zbz_length);
+			range.sector = zones[i].zbz_start;
+			range.nr_sectors = zones[i].zbz_length;
 			ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 			if ( ret != 0 ) {
 				ret = -errno;
 				zbc_error("%s: ioctl BLKRESETZONE failed %d (%s)\n",
 					  dev->zbd_filename,
 					  errno, strerror(errno));
-				goto out;
+				break;
 			}
 
 		}
 
 	}
 
-out:
 	free(zones);
 
 	return ret;
@@ -678,7 +667,7 @@ out:
  * Execute an operation on a zone
  */
 static int
-zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
+zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 		  enum zbc_zone_op op, unsigned int flags)
 {
 	switch (op) {
@@ -690,13 +679,13 @@ zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
 			return zbc_block_reset_all(dev);
 
 		/* One zone */
-		return zbc_block_reset_one(dev, start_lba);
+		return zbc_block_reset_one(dev, sector);
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
 	default:
 		/* Use SG_IO */
-		return zbc_scsi_zone_op(dev, op, start_lba, flags);
+		return zbc_scsi_zone_op(dev, op, sector, flags);
 	}
 }
 
@@ -704,18 +693,16 @@ zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
  * Read from the block device.
  */
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
-			       size_t lba_count, uint64_t lba_offset)
+			       size_t count, uint64_t offset)
 {
 	ssize_t ret;
 
 	/* Read */
-	ret = pread(dev->zbd_fd, buf,
-		    zbc_dev_lba2bytes(dev, lba_count),
-		    zbc_dev_lba2bytes(dev, lba_offset));
+	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0)
 		return -errno;
 
-	return zbc_dev_bytes2lba(dev, ret);
+	return ret >> 9;
 }
 
 /**
@@ -723,24 +710,32 @@ static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
  */
 static ssize_t zbc_block_pwrite(struct zbc_device *dev,
 				const void *buf,
-				size_t lba_count,
-				uint64_t lba_offset)
+				size_t count,
+				uint64_t offset)
 {
 	ssize_t ret;
 
 	/* Read */
-	ret = pwrite(dev->zbd_fd, buf,
-		    zbc_dev_lba2bytes(dev, lba_count),
-		    zbc_dev_lba2bytes(dev, lba_offset));
+	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0)
 		return -errno;
 
-	return zbc_dev_bytes2lba(dev, ret);
+	return ret >> 9;
+}
+
+/**
+ * Flush the device.
+ */
+static int zbc_block_flush(struct zbc_device *dev,
+			   uint64_t lba_offset, size_t lba_count,
+			   int immediate)
+{
+	return fsync(dev->zbd_fd);
 }
 
 #else /* HAVE_LINUX_BLKZONED_H */
 
-static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
+static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 				  enum zbc_reporting_options ro,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
@@ -748,26 +743,26 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_lba,
     return -EOPNOTSUPP;
 }
 
-static int zbc_block_zone_op(struct zbc_device *dev, uint64_t start_lba,
+static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			     enum zbc_zone_op op, unsigned int flags)
 {
     return -EOPNOTSUPP;
 }
 
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
-			       size_t lba_count, uint64_t lba_offset)
+			       size_t count, uint64_t offset)
 {
     return -EOPNOTSUPP;
 }
 
 static ssize_t zbc_block_pwrite(struct zbc_device *dev, const void *buf,
-			       size_t lba_count, uint64_t lba_offset)
+			       size_t count, uint64_t offset)
 {
     return -EOPNOTSUPP;
 }
 
 static int zbc_block_flush(struct zbc_device *dev,
-			   uint64_t lba_offset, size_t lba_count,
+			   uint64_t offset, size_t count,
 			   int immediate)
 {
     return -EOPNOTSUPP;

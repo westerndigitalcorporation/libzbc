@@ -602,7 +602,7 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 
 	/* Logical block size */
 	dev->zbd_info.zbd_lblock_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-	if (dev->zbd_info.zbd_lblock_size <= 0) {
+	if (dev->zbd_info.zbd_lblock_size == 0) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
 		ret = -EINVAL;
@@ -620,9 +620,9 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 	case 0x00:
 
 		/*
-		 * The logical block address indicates the last LBA of the
+		 * The capacity represents only the space used by
 		 * conventional zones at the beginning of the disk. To get
-		 * the entire disk capacity, we need to get the last LBA
+		 * the entire device capacity, we need to get the last LBA
 		 * of the last zone of the disk.
 		 */
 		ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba,

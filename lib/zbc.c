@@ -336,74 +336,52 @@ void zbc_get_device_info(zbc_device_t *dev, struct zbc_device_info *info)
 }
 
 /**
- * Execute report zone.
- */
-static inline int zbc_do_report_zones(zbc_device_t *dev, uint64_t sector,
-				      enum zbc_reporting_options ro,
-				      zbc_zone_t *zones, unsigned int *nr_zones)
-{
-	return (dev->zbd_ops->zbd_report_zones)(dev,
-			zbc_dev_sect2lba(dev, sector), ro, zones, nr_zones);
-}
-
-/**
  * zbc_report_zones - Get zone information
  */
 int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
-        unsigned int i, n, z = 0, nz = 0;
+        unsigned int n, nz = 0;
+	uint64_t last_sector;
 	int ret = 0;
 
 	if (!zones)
 		/* Get the number of zones */
-		return zbc_do_report_zones(dev, sector, zbc_ro_mask(ro),
-					   NULL, nr_zones);
+		return (dev->zbd_ops->zbd_report_zones)(dev, sector, ro,
+							NULL, nr_zones);
 
         /* Get zones information */
         while (nz < *nr_zones) {
 
 		n = *nr_zones - nz;
-		ret = zbc_do_report_zones(dev, sector,
-					  zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
-					  &zones[z], &n);
+		ret = (dev->zbd_ops->zbd_report_zones)(dev, sector,
+						       zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
+						       &zones[nz], &n);
 		if (ret != 0) {
 			zbc_error("Get zones from LBA %llu failed %d (%s) %d %d %d\n",
 				  (unsigned long long) sector,
 				  ret, strerror(-ret), n, *nr_zones, nz);
-			break;
+			return ret;
 		}
 
 		if (n == 0)
 			break;
 
-		for (i = 0; i < n; i++) {
+		nz += n;
+		last_sector = zones[nz - 1].zbz_start +
+			zones[nz - 1].zbz_length;
 
-			if (zones[z].zbz_start >= dev->zbd_info.zbd_lblocks)
-				goto out;
+		if (last_sector >= dev->zbd_info.zbd_sectors)
+			break;
 
-			zones[z].zbz_start =
-				zbc_dev_lba2sect(dev, zones[z].zbz_start);
-			zones[z].zbz_length =
-				zbc_dev_lba2sect(dev, zones[z].zbz_length);
-			if (zbc_zone_sequential(&zones[z]))
-				zones[z].zbz_write_pointer =
-					zbc_dev_lba2sect(dev, zones[z].zbz_write_pointer);
-
-			sector = zones[z].zbz_start + zones[z].zbz_length;
-			z++;
-			nz++;
-
-		}
+		sector = last_sector;
 
         }
 
-out:
-        if (ret == 0)
-		*nr_zones = nz;
+	*nr_zones = nz;
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -455,12 +433,11 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 {
 
 	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
-	    (sector << 9) % dev->zbd_info.zbd_lblock_size)
+	    !zbc_dev_sect_laligned(dev, sector))
 		return -EINVAL;
 
 	/* Execute the operation */
-	return (dev->zbd_ops->zbd_zone_op)(dev, zbc_dev_sect2lba(dev, sector),
-					   op, flags);
+	return (dev->zbd_ops->zbd_zone_op)(dev, sector, op, flags);
 }
 
 /**
@@ -470,35 +447,27 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		  size_t count, uint64_t offset)
 {
 	ssize_t ret;
-	size_t lba_count;
-	uint64_t lba_offset;
 
-	if ((count << 9) % dev->zbd_info.zbd_lblock_size ||
-	    (offset << 9) % dev->zbd_info.zbd_lblock_size)
+	if (!zbc_dev_sect_laligned(dev, count) ||
+	    !zbc_dev_sect_laligned(dev, offset))
 		return -EINVAL;
 
 	if (count > dev->zbd_info.zbd_max_rw_sectors)
 		return -EINVAL;
 
-	lba_count = zbc_dev_sect2lba(dev, count);
-	lba_offset = zbc_dev_sect2lba(dev, offset);
-	if (lba_offset > dev->zbd_info.zbd_lblocks)
-		return -EINVAL;
-
-	if ((lba_offset + lba_count) > dev->zbd_info.zbd_lblocks)
-		lba_count = dev->zbd_info.zbd_lblocks - lba_offset;
-	if (!lba_count)
+	if ((offset + count) > dev->zbd_info.zbd_sectors)
+		count = dev->zbd_info.zbd_sectors - offset;
+	if (!count ||
+	    offset >= dev->zbd_info.zbd_sectors)
 		return 0;
 
-	ret = (dev->zbd_ops->zbd_pread)(dev, buf, lba_count, lba_offset);
-	if (ret < 0) {
+	ret = (dev->zbd_ops->zbd_pread)(dev, buf, count, offset);
+	if (ret < 0)
 		zbc_error("Read %zu sectors at sector %llu failed %zd (%s)\n",
 			  count, (unsigned long long) offset,
 			  -ret, strerror(-ret));
-		return ret;
-	}
 
-	return zbc_dev_lba2sect(dev, ret);
+	return ret;
 }
 
 /**
@@ -508,35 +477,27 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 		   size_t count, uint64_t offset)
 {
 	ssize_t ret;
-	size_t lba_count;
-	uint64_t lba_offset;
 
-	if ((count << 9) % dev->zbd_info.zbd_pblock_size ||
-	    (offset << 9) % dev->zbd_info.zbd_pblock_size)
+	if (!zbc_dev_sect_paligned(dev, count) ||
+	    !zbc_dev_sect_paligned(dev, offset))
 		return -EINVAL;
 
 	if (count > dev->zbd_info.zbd_max_rw_sectors)
 		return -EINVAL;
 
-	lba_count = zbc_dev_sect2lba(dev, count);
-	lba_offset = zbc_dev_sect2lba(dev, offset);
-	if (lba_offset > dev->zbd_info.zbd_lblocks)
-		return -EINVAL;
-
-	if ((lba_offset + lba_count) > dev->zbd_info.zbd_lblocks)
-		lba_count = dev->zbd_info.zbd_lblocks - lba_offset;
-	if (!lba_count)
+	if ((offset + count) > dev->zbd_info.zbd_sectors)
+		count = dev->zbd_info.zbd_sectors - offset;
+	if (!count ||
+	    offset >= dev->zbd_info.zbd_sectors)
 		return 0;
 
-	ret = (dev->zbd_ops->zbd_pwrite)(dev, buf, lba_count, lba_offset);
-	if (ret < 0) {
+	ret = (dev->zbd_ops->zbd_pwrite)(dev, buf, count, offset);
+	if (ret < 0)
 		zbc_error("Write %zu sectors at sector %llu failed %zd (%s)\n",
 			  count, (unsigned long long) offset,
 			  -ret, strerror(-ret));
-		return ret;
-	}
 
-	return zbc_dev_lba2sect(dev, ret);
+	return ret;
 }
 
 /**
@@ -558,6 +519,10 @@ int zbc_set_zones(zbc_device_t *dev,
 	if (!dev->zbd_ops->zbd_set_zones)
 		return -ENXIO;
 
+	if (!zbc_dev_sect_paligned(dev, conv_sz) ||
+	    !zbc_dev_sect_paligned(dev, zone_sz))
+		return -EINVAL;
+
 	return (dev->zbd_ops->zbd_set_zones)(dev, conv_sz, zone_sz);
 }
 
@@ -574,6 +539,10 @@ zbc_set_write_pointer(struct zbc_device *dev,
 	if (!dev->zbd_ops->zbd_set_wp)
 		return -ENXIO;
 
-	return (dev->zbd_ops->zbd_set_wp)(dev, start_lba, wp_lba);
+	if (!zbc_dev_sect_paligned(dev, sector) ||
+	    !zbc_dev_sect_paligned(dev, wp_sector))
+		return -EINVAL;
+
+	return (dev->zbd_ops->zbd_set_wp)(dev, sector, wp_sector);
 }
 

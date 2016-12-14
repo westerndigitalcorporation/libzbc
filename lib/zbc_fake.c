@@ -129,7 +129,7 @@ static inline zbc_fake_device_t *zbc_fake_to_file_dev(struct zbc_device *dev)
  * Find a zone using its start LBA.
  */
 static struct zbc_zone *zbc_fake_find_zone(zbc_fake_device_t *fdev,
-					   uint64_t lba,
+					   uint64_t sector,
 					   bool start)
 {
 	struct zbc_zone *zone;
@@ -141,11 +141,11 @@ static struct zbc_zone *zbc_fake_find_zone(zbc_fake_device_t *fdev,
 	for (i = 0; i < fdev->zbd_nr_zones; i++) {
 		zone = &fdev->zbd_zones[i];
 		if (start) {
-			if (zone->zbz_start == lba)
+			if (zone->zbz_start == sector)
 				return zone;
 		} else {
-			if (lba >= zone->zbz_start &&
-			    lba < zone->zbz_start + zone->zbz_length)
+			if (sector >= zone->zbz_start &&
+			    sector < zone->zbz_start + zone->zbz_length)
 				return zone;
 		}
 	}
@@ -497,13 +497,13 @@ static int zbc_fake_close(zbc_device_t *dev)
 /**
  * Test if a zone must be reported.
  */
-static bool zbc_fake_must_report_zone(struct zbc_zone *zone, uint64_t start_lba,
+static bool zbc_fake_must_report_zone(struct zbc_zone *zone, uint64_t sector,
 				      enum zbc_reporting_options ro)
 {
 	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
 
 	if (zone->zbz_length == 0 ||
-	    zone->zbz_start < start_lba)
+	    zone->zbz_start + zone->zbz_length < sector)
 		return false;
 
 	switch (options) {
@@ -537,11 +537,9 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone, uint64_t start_lba,
 /**
  * Get device zone information.
  */
-static int zbc_fake_report_zones(struct zbc_device *dev,
-				 uint64_t start_lba,
+static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
-				 struct zbc_zone *zones,
-				 unsigned int *nr_zones)
+				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	unsigned int max_nr_zones = *nr_zones;
@@ -568,8 +566,8 @@ static int zbc_fake_report_zones(struct zbc_device *dev,
 		return -EIO;
 	}
 
-	/* Check start_lba */
-	if (start_lba >= dev->zbd_info.zbd_lblocks) {
+	/* Check sector */
+	if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -578,13 +576,13 @@ static int zbc_fake_report_zones(struct zbc_device *dev,
 
 	zbc_fake_lock(fdev);
 
-	if (! zones && !max_nr_zones)
+	if (!zones && !max_nr_zones)
 		max_nr_zones = fdev->zbd_nr_zones;
 
 	/* Get matching zones */
 	for (in = 0; in < fdev->zbd_nr_zones; in++) {
 		if (zbc_fake_must_report_zone(&fdev->zbd_zones[in],
-					      start_lba, options)) {
+					      sector, options)) {
 			if (zones && (out < max_nr_zones))
 				memcpy(&zones[out], &fdev->zbd_zones[in],
 				       sizeof(struct zbc_zone));
@@ -626,7 +624,7 @@ static void zbc_zone_do_close(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 /**
  * Open zone(s).
  */
-static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t sector,
 			      unsigned int flags)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
@@ -668,8 +666,8 @@ static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t start_lba,
 		goto out;
 	}
 
-	/* Check start_lba */
-	if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
+	/* Check sector */
+	if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -678,7 +676,7 @@ static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t start_lba,
 	}
 
 	/* Check target zone */
-	zone = zbc_fake_find_zone(fdev, start_lba, true);
+	zone = zbc_fake_find_zone(fdev, sector, true);
         if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
@@ -759,7 +757,7 @@ static bool zbc_zone_close_allowed(struct zbc_zone *zone)
 /**
  * Close zone(s).
  */
-static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t sector,
 			       unsigned int flags)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
@@ -781,8 +779,8 @@ static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t start_lba,
 		goto out;
 	}
 
-        /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
+        /* Check sector */
+        if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -791,7 +789,7 @@ static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t start_lba,
         }
 
         /* Close the specified zone */
-        zone = zbc_fake_find_zone(fdev, start_lba, true);
+        zone = zbc_fake_find_zone(fdev, sector, true);
         if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
@@ -844,7 +842,7 @@ static void zbc_zone_do_finish(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 /**
  * Finish zone(s).
  */
-static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t start_lba,
+static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t sector,
 				unsigned int flags)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
@@ -866,8 +864,8 @@ static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t start_lba,
 		goto out;
 	}
 
-        /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
+        /* Check sector */
+        if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -876,7 +874,7 @@ static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t start_lba,
         }
 
         /* Finish the specified zone */
-        zone = zbc_fake_find_zone(fdev, start_lba, true);
+        zone = zbc_fake_find_zone(fdev, sector, true);
         if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
@@ -934,7 +932,7 @@ static void zbc_zone_do_reset(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 /**
  * Reset zone(s) write pointer.
  */
-static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t start_lba,
+static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
@@ -956,8 +954,8 @@ static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t start_lba,
 		goto out;
 	}
 
-        /* Check start_lba */
-        if (start_lba > dev->zbd_info.zbd_lblocks - 1) {
+        /* Check sector */
+        if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -966,7 +964,7 @@ static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t start_lba,
         }
 
         /* Reset the specified zone */
-        zone = zbc_fake_find_zone(fdev, start_lba, true);
+        zone = zbc_fake_find_zone(fdev, sector, true);
         if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
@@ -996,19 +994,18 @@ out:
  * Execute an operation on a zone
  */
 static int
-zbc_fake_zone_op(struct zbc_device *dev, uint64_t start_lba,
+zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 		 enum zbc_zone_op op, unsigned int flags)
 {
 	switch (op) {
-
 	case ZBC_OP_RESET_ZONE:
-		return zbc_fake_reset_zone(dev, start_lba, flags);
+		return zbc_fake_reset_zone(dev, sector, flags);
 	case ZBC_OP_OPEN_ZONE:
-		return zbc_fake_open_zone(dev, start_lba, flags);
+		return zbc_fake_open_zone(dev, sector, flags);
 	case ZBC_OP_CLOSE_ZONE:
-		return zbc_fake_close_zone(dev, start_lba, flags);
+		return zbc_fake_close_zone(dev, sector, flags);
 	case ZBC_OP_FINISH_ZONE:
-		return zbc_fake_finish_zone(dev, start_lba, flags);
+		return zbc_fake_finish_zone(dev, sector, flags);
 	default:
 		return -EINVAL;
 	}
@@ -1018,7 +1015,7 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t start_lba,
  * Read from the emulated device/file.
  */
 static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
-			      size_t lba_count, uint64_t lba_offset)
+			      size_t count, uint64_t offset)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -1030,7 +1027,7 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 	zbc_fake_lock(fdev);
 
 	/* Find the target zone */
-	zone = zbc_fake_find_zone(fdev, lba_offset, false);
+	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
@@ -1039,13 +1036,11 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 	}
 
 	/* XXX: check for overflows, zero read unwritten data */
-	ret = pread(dev->zbd_fd, buf,
-		    lba_count * dev->zbd_info.zbd_lblock_size,
-		    lba_offset * dev->zbd_info.zbd_lblock_size);
+	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0)
 		ret = -errno;
 	else
-		ret /= dev->zbd_info.zbd_lblock_size;
+		ret >>= 9;
 
 out:
 	zbc_fake_unlock(fdev);
@@ -1057,11 +1052,11 @@ out:
  * Write to the emulated device/file.
  */
 static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
-			       size_t lba_count, uint64_t lba_offset)
+			       size_t count, uint64_t offset)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone, *next_zone;
-	uint64_t next_lba;
+	uint64_t next_sector;
 	ssize_t ret = -EIO;
 
 	if (!fdev->zbd_meta)
@@ -1070,7 +1065,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	zbc_fake_lock(fdev);
 
 	/* Find the target zone */
-	zone = zbc_fake_find_zone(fdev, lba_offset, false);
+	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
@@ -1079,9 +1074,9 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	/* Writes cannot span zones */
-	next_lba = zone->zbz_start + zone->zbz_length;
-	next_zone = zbc_fake_find_zone(fdev, next_lba, true);
-	if (lba_offset + lba_count > next_lba) {
+	next_sector = zone->zbz_start + zone->zbz_length;
+	next_zone = zbc_fake_find_zone(fdev, next_sector, true);
+	if (offset + count > next_sector) {
 		if (next_zone) {
 			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 			dev->zbd_errno.asc_ascq =
@@ -1097,7 +1092,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	if (zbc_zone_sequential_req(zone)) {
 
 		/* Can only write at the write pointer */
-		if (lba_offset != zone->zbz_write_pointer) {
+		if (offset != zone->zbz_write_pointer) {
 			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 			dev->zbd_errno.asc_ascq =
 				ZBC_ASC_UNALIGNED_WRITE_COMMAND;
@@ -1138,20 +1133,18 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	/* XXX: check for overflows */
-
-	ret = pwrite(dev->zbd_fd, buf,
-		     lba_count * dev->zbd_info.zbd_lblock_size,
-		     lba_offset * dev->zbd_info.zbd_lblock_size);
+	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0) {
 		ret = -errno;
 		goto out;
 	}
 
-        ret /= dev->zbd_info.zbd_lblock_size;
+        ret >>= 9;
+
         if (zbc_zone_sequential_req(zone)) {
 		/* Advance write pointer */
-		zone->zbz_write_pointer += lba_count;
-		if (zone->zbz_write_pointer >= next_lba) {
+		zone->zbz_write_pointer += ret;
+		if (zone->zbz_write_pointer >= next_sector) {
 			if (zbc_zone_imp_open(zone))
 				fdev->zbd_meta->zbd_nr_imp_open_zones--;
 			else
@@ -1169,8 +1162,8 @@ out:
 /**
  * Flush the emulated device data and metadata.
  */
-static int zbc_fake_flush(struct zbc_device *dev, uint64_t lba_offset,
-			  size_t lba_count, int immediate)
+static int zbc_fake_flush(struct zbc_device *dev, uint64_t offset,
+			  size_t count, int immediate)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	int ret;
@@ -1178,9 +1171,13 @@ static int zbc_fake_flush(struct zbc_device *dev, uint64_t lba_offset,
 	if (!fdev->zbd_meta)
 		return -ENXIO;
 
+	zbc_fake_lock(fdev);
+
 	ret = msync(fdev->zbd_meta, fdev->zbd_meta_size, MS_SYNC);
 	if (ret == 0)
 		ret = fsync(dev->zbd_fd);
+
+	zbc_fake_unlock(fdev);
 
 	return ret;
 }
@@ -1192,7 +1189,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
-	uint64_t lba = 0, device_size = dev->zbd_info.zbd_lblocks;
+	uint64_t sector = 0, device_size = dev->zbd_info.zbd_sectors;
 	zbc_fake_meta_t fmeta;
 	char meta_path[512];
 	struct zbc_zone *zone;
@@ -1296,13 +1293,13 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 
 		zone->zbz_type = ZBC_ZT_CONVENTIONAL;
 		zone->zbz_condition = ZBC_ZC_NOT_WP;
-		zone->zbz_start = lba;
+		zone->zbz_start = sector;
 		zone->zbz_write_pointer = (uint64_t)-1;
 		zone->zbz_length = zone_sz;
 
 		memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-		lba += zone_sz;
+		sector += zone_sz;
 
 	}
 
@@ -1313,14 +1310,13 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 
 		zone->zbz_type = ZBC_ZT_SEQUENTIAL_REQ;
 		zone->zbz_condition = ZBC_ZC_EMPTY;
-
-		zone->zbz_start = lba;
+		zone->zbz_start = sector;
 		zone->zbz_write_pointer = zone->zbz_start;
 		zone->zbz_length = zone_sz;
 
 		memset(&zone->__pad, 0, sizeof(zone->__pad));
 
-		lba += zone_sz;
+		sector += zone_sz;
 
 	}
 
@@ -1337,7 +1333,7 @@ out:
  * Change the value of a zone write pointer.
  */
 static int zbc_fake_set_write_pointer(struct zbc_device *dev,
-				      uint64_t start_lba, uint64_t wp_lba)
+				      uint64_t sector, uint64_t wp_sector)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -1348,7 +1344,7 @@ static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 
 	zbc_fake_lock(fdev);
 
-	zone = zbc_fake_find_zone(fdev, start_lba, true);
+	zone = zbc_fake_find_zone(fdev, sector, true);
 	if (!zone)
 		goto out;
 
@@ -1358,7 +1354,7 @@ static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 		if (zbc_zone_is_open(zone))
 			zbc_zone_do_close(fdev, zone);
 
-		zone->zbz_write_pointer = wp_lba;
+		zone->zbz_write_pointer = wp_sector;
 		if (zone->zbz_write_pointer == zone->zbz_start) {
 			zone->zbz_condition = ZBC_ZC_EMPTY;
 		} else if (zone->zbz_write_pointer > zone->zbz_start &&
