@@ -404,7 +404,7 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 		}
 		if (!sgsz)
 			sgsz = 1;
-	} else if ( S_ISBLK(st.st_mode) ) {
+	} else if (S_ISBLK(st.st_mode)) {
 		sgsz = zbc_sg_max_segments(dev);
 	} else {
 		/* Files for fake backend */
