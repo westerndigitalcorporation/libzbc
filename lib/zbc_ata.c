@@ -59,6 +59,7 @@
 #define ZBC_ATA_RESET_WRITE_POINTER_EXT_AF	0x04
 
 #define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
+#define ZBC_ATA_CAPACITY_PAGE			0x02
 #define ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE	0x03
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
@@ -672,10 +673,9 @@ static int zbc_ata_flush(zbc_device_t *dev)
 /**
  * Get device zone information.
  */
-static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t sector,
-				   enum zbc_reporting_options ro,
-				   uint64_t *max_lba,
-				   zbc_zone_t *zones, unsigned int *nr_zones)
+static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t sector,
+				enum zbc_reporting_options ro,
+				zbc_zone_t *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
@@ -782,8 +782,7 @@ static int zbc_ata_do_report_zones(zbc_device_t *dev, uint64_t sector,
 	/* Get number of zones in result */
 	buf = (uint8_t *) cmd.out_buf;
 	nz = zbc_ata_get_dword(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
-	if (max_lba)
-		*max_lba = zbc_ata_get_qword(&buf[8]);
+	/* max_lba = zbc_ata_get_qword(&buf[8]); */
 
 	if (!zones || !nz)
 		goto out;
@@ -827,17 +826,6 @@ out:
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
-}
-
-/**
- * Get device zone information.
- */
-static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t sector,
-				enum zbc_reporting_options ro,
-				zbc_zone_t *zones, unsigned int *nr_zones)
-{
-	return zbc_ata_do_report_zones(dev, sector, ro,
-				       NULL, zones, nr_zones);
 }
 
 /**
@@ -1102,6 +1090,80 @@ out:
 }
 
 /**
+ * Get a device capacity information (total blocks & block size).
+ */
+static int zbc_ata_get_capacity(zbc_device_t *dev)
+{
+	uint8_t buf[512];
+	uint64_t qword;
+	int logical_per_physical;
+	int ret;
+
+	/* Get capacity log page */
+	ret = zbc_ata_read_log(dev,
+			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
+			       ZBC_ATA_CAPACITY_PAGE,
+			       buf,
+			       sizeof(buf));
+	if (ret != 0) {
+		zbc_error("Get supported capabilities page failed\n");
+		return ret;
+	}
+
+	/* Total capacity (logical blocks) */
+	qword = zbc_ata_get_qword(&buf[8]);
+	dev->zbd_info.zbd_lblocks = qword & 0x0000ffffffffffff;
+	if (!(qword & (1ULL << 63)) ||
+	    dev->zbd_info.zbd_lblocks == 0) {
+		zbc_error("%s: invalid capacity (logical blocks)\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	/* Logical block size */
+	qword = zbc_ata_get_qword(&buf[16]);
+	if (!(qword & (1ULL << 63))) {
+		zbc_error("%s: invalid Physical/Logical Sector Size field\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	if (qword & (1ULL << 61))
+		dev->zbd_info.zbd_lblock_size =
+			zbc_ata_get_qword(&buf[24]) & 0xffffffff;
+	else
+		/* 512B */
+		dev->zbd_info.zbd_lblock_size = 512;
+	if (dev->zbd_info.zbd_lblock_size == 0) {
+		zbc_error("%s: invalid logical sector size\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	if (qword & (1ULL << 62))
+		logical_per_physical = 1 << ((qword >> 16) & 0x7);
+	else
+		logical_per_physical = 1;
+	if (!logical_per_physical) {
+		zbc_error("%s: invalid logical-per-physical value\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	/* Get maximum command size */
+	zbc_sg_get_max_cmd_blocks(dev);
+
+	dev->zbd_info.zbd_pblock_size =
+		dev->zbd_info.zbd_lblock_size * logical_per_physical;
+	dev->zbd_info.zbd_pblocks =
+		dev->zbd_info.zbd_lblocks / logical_per_physical;
+	dev->zbd_info.zbd_sectors =
+		(dev->zbd_info.zbd_lblocks * dev->zbd_info.zbd_lblock_size) >> 9;
+
+	return 0;
+}
+
+/**
  * Get a device information (capacity & sector sizes).
  */
 static int zbc_ata_get_dev_info(zbc_device_t *dev)
@@ -1119,7 +1181,7 @@ static int zbc_ata_get_dev_info(zbc_device_t *dev)
 		return ret;
 
 	/* Get capacity information */
-	ret = zbc_sg_get_capacity(dev, zbc_ata_do_report_zones);
+	ret = zbc_ata_get_capacity(dev);
 	if (ret != 0 )
 		return ret;
 
