@@ -8,7 +8,7 @@
  * "as is," without technical support, and WITHOUT ANY WARRANTY, without
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
- * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+ * with libzbc. If not, see <http://opensource.org/licenses/BSD-2-Clause>.
  *
  * Authors: Damien Le Moal (damien.lemoal@wdc.com)
  *          Christophe Louargant (christophe.louargant@hgst.com)
