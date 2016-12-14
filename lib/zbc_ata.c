@@ -402,10 +402,10 @@ static void zbc_ata_vendor_id(zbc_device_t *dev)
 }
 
 /**
- * Get zoned block device information
- * (Maximum or optimal number of open zones).
+ * Get zoned device information (maximum or optimal number of open zones,
+ * read restriction, etc)). Data log 30h, page 09h.
  */
-static int zbc_ata_get_zbd_characteristics(zbc_device_t *dev)
+static int zbc_ata_get_zoned_device_info(zbc_device_t *dev)
 {
 	uint8_t buf[512];
 	int ret;
@@ -1112,8 +1112,8 @@ static int zbc_ata_get_dev_info(zbc_device_t *dev)
 	/* Get vendor information */
 	zbc_ata_vendor_id(dev);
 
-	/* Get zoned block device information */
-	ret = zbc_ata_get_zbd_characteristics(dev);
+	/* Get zoned device information */
+	ret = zbc_ata_get_zoned_device_info(dev);
 	if (ret != 0)
 		return ret;
 
