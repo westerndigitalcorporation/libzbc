@@ -57,9 +57,9 @@
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
 #define ZBC_ATA_OPEN_ZONE_EXT_AF		0x03
 #define ZBC_ATA_RESET_WRITE_POINTER_EXT_AF	0x04
-#define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
-#define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDRESS 0x30
+#define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
+#define ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE	0x03
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
 /**
@@ -405,14 +405,14 @@ static void zbc_ata_vendor_id(zbc_device_t *dev)
  * Get zoned block device information
  * (Maximum or optimal number of open zones).
  */
-static int zbc_ata_get_zbd_info(zbc_device_t *dev)
+static int zbc_ata_get_zbd_characteristics(zbc_device_t *dev)
 {
 	uint8_t buf[512];
 	int ret;
 
 	/* Get zoned block device information */
 	ret = zbc_ata_read_log(dev,
-			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDRESS,
+			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
 			       ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE,
 			       buf,
 			       sizeof(buf));
@@ -828,23 +828,6 @@ static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t start_lba,
 }
 
 /**
- * Get the number of zones of the disk.
- */
-static int zbc_ata_nr_zones(zbc_device_t *dev, uint64_t start_lba,
-			    enum zbc_reporting_options ro)
-{
-	unsigned int nr_zones;
-	int ret;
-
-	/* Get general purpose log */
-	ret = zbc_ata_do_report_zones(dev, start_lba, ro, NULL, NULL, &nr_zones);
-	if (ret != 0)
-		return ret;
-
-	return nr_zones;
-}
-
-/**
  * Zone(s) operation.
  */
 static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
@@ -955,6 +938,8 @@ static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
  */
 static int zbc_ata_classify(zbc_device_t *dev)
 {
+	uint8_t buf[512];
+	uint64_t zoned;
 	zbc_sg_cmd_t cmd;
 	unsigned int sig;
 	uint8_t *desc;
@@ -1047,30 +1032,51 @@ static int zbc_ata_classify(zbc_device_t *dev)
 
 		/*
 		 * Normal device signature: this may be a host-aware device.
-		 * So check log page 1Ah to see if there are zones.
+		 * So check the zoned field in the supported capabilities.
 		 */
-		zbc_debug("Standard ATA signature detected\n");
-		ret = zbc_ata_nr_zones(dev, 0, ZBC_RO_ALL);
-		if (ret == 0) {
-			/* No zones: standard or drive managed disk */
-			zbc_debug("Standard or device managed ATA device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
+		ret = zbc_ata_read_log(dev,
+				       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
+				       ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE,
+				       buf,
+				       sizeof(buf));
+		if (ret != 0) {
+			zbc_error("Get supported capabilities page failed\n");
+			goto out;
+		}
+
+		zoned = zbc_ata_get_qword(&buf[104]);
+		if (!(zoned  & (1ULL << 63)))
+			zoned = 0;
+
+		switch (zoned & 0x03) {
+
+		case 0x00:
+			zbc_debug("Standard ATA device detected\n");
+			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 			ret = -ENXIO;
-		} else if (ret > 0) {
-			/* We have zones: host-aware disk */
-			zbc_debug("Host aware ATA device detected\n");
+			goto out;
+		case 0x01:
+			zbc_debug("Host-aware ATA device detected\n");
 			dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 			ret = 0;
-		} else {
+			goto out;
+		case 0x02:
+			zbc_debug("Device-managed ATA device detected\n");
+			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 			ret = -ENXIO;
+			goto out;
+		default:
+			break;
 		}
-		break;
+
+		/* Fall through (unknown disk) */
 
 	default:
 
 		/* Unsupported device */
 		zbc_debug("Unsupported device (signature %02x:%02x)\n",
 			  desc[9], desc[11]);
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		ret = -ENXIO;
 		break;
 	}
@@ -1084,7 +1090,7 @@ out:
 /**
  * Get a device information (capacity & sector sizes).
  */
-static int zbc_ata_get_info(zbc_device_t *dev)
+static int zbc_ata_get_dev_info(zbc_device_t *dev)
 {
 	int ret;
 
@@ -1093,21 +1099,21 @@ static int zbc_ata_get_info(zbc_device_t *dev)
 	if (ret != 0)
 		return ret;
 
-	/* Get capacity information */
-	ret = zbc_sg_get_capacity(dev, zbc_ata_do_report_zones);
-	if (ret != 0 )
-		return ret;
-
 	/* Get device model */
 	ret = zbc_ata_classify(dev);
 	if (ret != 0)
+		return ret;
+
+	/* Get capacity information */
+	ret = zbc_sg_get_capacity(dev, zbc_ata_do_report_zones);
+	if (ret != 0 )
 		return ret;
 
 	/* Get vendor information */
 	zbc_ata_vendor_id(dev);
 
 	/* Get zoned block device information */
-	ret = zbc_ata_get_zbd_info(dev);
+	ret = zbc_ata_get_zbd_characteristics(dev);
 	if (ret != 0)
 		return ret;
 
@@ -1164,7 +1170,7 @@ static int zbc_ata_open(const char *filename,
 	if (!dev->zbd_filename)
 		goto out_free_dev;
 
-	ret = zbc_ata_get_info(dev);
+	ret = zbc_ata_get_dev_info(dev);
 	if (ret != 0)
 		goto out_free_filename;
 
