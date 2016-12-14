@@ -384,12 +384,12 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 				goto out;
 
 			zones[z].zbz_start =
-				zbc_dev_lba2sect(dev, zones[z+i].zbz_start);
+				zbc_dev_lba2sect(dev, zones[z].zbz_start);
 			zones[z].zbz_length =
-				zbc_dev_lba2sect(dev, zones[z+i].zbz_length);
+				zbc_dev_lba2sect(dev, zones[z].zbz_length);
 			if (zbc_zone_sequential(&zones[z]))
 				zones[z].zbz_write_pointer =
-					zbc_dev_lba2sect(dev, zones[z+i].zbz_write_pointer);
+					zbc_dev_lba2sect(dev, zones[z].zbz_write_pointer);
 
 			sector = zones[z].zbz_start + zones[z].zbz_length;
 			z++;
