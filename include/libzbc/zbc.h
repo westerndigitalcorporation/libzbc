@@ -390,6 +390,11 @@ struct zbc_device_info {
 	char			zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
 
 	/**
+	 * Device flags (enum zbc_dev_flags).
+	 */
+	uint32_t		zbd_flags;
+
+	/**
 	 * Total number of 512B sectors of the device.
 	 */
 	uint64_t		zbd_sectors;
@@ -405,7 +410,7 @@ struct zbc_device_info {
 	uint64_t		zbd_lblocks;
 
 	/**
-	 * Size in bytes of the device logical physical blocks.
+	 * Size in bytes of the device physical blocks.
 	 */
 	uint32_t		zbd_pblock_size;
 
@@ -415,8 +420,8 @@ struct zbc_device_info {
 	uint64_t		zbd_pblocks;
 
 	/**
-	 * For a system memory page aligned memory buffer,
-	 * the maximum number of 512B sectors that can be
+	 * For an I/O buffer aligned on the system memory page size,
+	 * this defines the maximum number of 512B sectors that can be
 	 * transferred with a single call to zbc_pread and zbc_pwrite.
 	 */
 	uint64_t		zbd_max_rw_sectors;
@@ -440,23 +445,18 @@ struct zbc_device_info {
 	 */
 	uint32_t		zbd_max_nr_open_seq_req;
 
-	/**
-	 * Device flags (enum zbc_dev_flags).
-	 */
-	uint32_t		zbd_flags;
-
 };
 typedef struct zbc_device_info zbc_device_info_t;
 
 /**
  * Convert LBA value to 512-bytes sector.
  */
-#define zbc_lba2sect(info, lba)		(((lba) * (info)->zbd_lblock_size) >> 9)
+#define zbc_lba2sect(info, lba)	(((lba) * (info)->zbd_lblock_size) >> 9)
 
 /**
  * Convert 512-bytes sector value to LBA.
  */
-#define zbc_sect2lba(info, sect)	(((sect) << 9) / (info)->zbd_lblock_size)
+#define zbc_sect2lba(info, sect) (((sect) << 9) / (info)->zbd_lblock_size)
 
 /**
  * SCSI Sense keys.
