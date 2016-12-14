@@ -63,16 +63,6 @@
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
 /**
- * For a disk connected to an AHCI port, the kernel libata/SCSI layer
- * handles command translation. So native SCSI read/write commands
- * can be sent to the disk. However, in the case of a SAS HBA connected disk,
- * native SCSI read/write commands may not be translated by the HBA for
- * host-managed drives. This device flag indicates that the disk accepts
- * native SCSI commands. This is tested when the device is open.
- */
-#define ZBC_ATA_SCSI_RW				0x00000001
-
-/**
  * Get a word from a command data buffer.
  */
 static inline uint16_t zbc_ata_get_word(uint8_t *buf)
@@ -420,7 +410,7 @@ static int zbc_ata_get_zbd_info(zbc_device_t *dev)
 	uint8_t buf[512];
 	int ret;
 
-	/* Get zoned blockd device information */
+	/* Get zoned block device information */
 	ret = zbc_ata_read_log(dev,
 			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDRESS,
 			       ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE,
@@ -456,8 +446,8 @@ static int zbc_ata_get_zbd_info(zbc_device_t *dev)
  * Read from a ZAC device using READ DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pread_ata(zbc_device_t *dev, void *buf,
-				 size_t lba_count, uint64_t lba_offset)
+static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
+			     size_t lba_count, uint64_t lba_offset)
 {
 	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
@@ -549,23 +539,11 @@ static ssize_t zbc_ata_pread_ata(zbc_device_t *dev, void *buf,
 }
 
 /**
- * Read from a ZAC device.
+ * Write to a ZAC device using WRITE DMA EXT packed
+ * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
-			     size_t lba_count, uint64_t lba_offset)
-{
-	/* ATA command or native SCSI command ? */
-	if (dev->zbd_flags & ZBC_ATA_SCSI_RW)
-		return zbc_scsi_pread(dev, buf, lba_count, lba_offset);
-
-	return zbc_ata_pread_ata(dev, buf, lba_count, lba_offset);
-}
-
-/**
- * Write to a ZAC device using WRITE DMA EXT packed in an ATA PASSTHROUGH command.
- */
-static ssize_t zbc_ata_pwrite_ata(zbc_device_t *dev, const void *buf,
-				  size_t lba_count, uint64_t lba_offset)
+static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
+			      size_t lba_count, uint64_t lba_offset)
 {
 	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
@@ -654,19 +632,6 @@ static ssize_t zbc_ata_pwrite_ata(zbc_device_t *dev, const void *buf,
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
-}
-
-/**
- * Write to a ZAC device.
- */
-static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
-			      size_t lba_count, uint64_t lba_offset)
-{
-	/* ATA command or native SCSI command ? */
-	if (dev->zbd_flags & ZBC_ATA_SCSI_RW)
-		return zbc_scsi_pwrite(dev, buf, lba_count, lba_offset);
-
-	return zbc_ata_pwrite_ata(dev, buf, lba_count, lba_offset);
 }
 
 /**
@@ -986,84 +951,6 @@ static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t start_lba,
 }
 
 /**
- * If the disk is connected to a SAS HBA, test if command translation is
- * working properly with HM disks (as those do not have a standard device
- * signature, the HBA may fail command translation).
- * In the case of an AHCI connected disks, the kernel libata/SCSI layer
- * will handle the translation.
- * If testing does not complete properly, assume that native SCSI commands are OK.
- */
-static int zbc_ata_scsi_rw(zbc_device_t *dev)
-{
-	unsigned int nr_zones = 1;
-	zbc_zone_t zone;
-	void *buf;
-	int ret;
-
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE)
-		/* SCSI commands should work */
-		return 1;
-
-	/* Host managed: find a conventional zone */
-	ret = zbc_ata_do_report_zones(dev, 0, ZBC_RO_NOT_WP | ZBC_RO_PARTIAL,
-				      NULL, &zone, &nr_zones);
-	if (ret != 0)
-		return 1;
-
-	if (!nr_zones) {
-		/* No conventional zones: try closed sequential zones */
-		nr_zones = 1;
-		ret = zbc_ata_do_report_zones(dev, 0,
-					      ZBC_RO_CLOSED | ZBC_RO_PARTIAL,
-					      NULL, &zone, &nr_zones);
-		if (ret != 0)
-			return 1;
-	}
-
-        if (!nr_zones) {
-		/* No conventional zones: try full sequential zones */
-		nr_zones = 1;
-		ret = zbc_ata_do_report_zones(dev, 0,
-					      ZBC_RO_FULL | ZBC_RO_PARTIAL,
-					      NULL, &zone, &nr_zones);
-		if (ret != 0)
-			return 1;
-	}
-
-        if (!nr_zones) {
-		zbc_debug("No suitable zone found for r/w test: "
-			  "assuming SCSI r/w commands are OK\n");
-            return 1;
-        }
-
-
-	zbc_debug("R/W test zone: type 0x%x, cond 0x%x, attr 0x%x, "
-		  "LBA %llu, %llu sectors, wp %llu\n",
-		  (int)zone.zbz_type,
-		  (int)zone.zbz_condition,
-		  (int)zone.zbz_attributes,
-		  (unsigned long long) zone.zbz_start,
-		  (unsigned long long) zone.zbz_length,
-		  (unsigned long long) zone.zbz_write_pointer);
-
-	/* Get a buffer for testing */
-	buf = malloc(dev->zbd_info.zbd_lblock_size);
-	if (!buf) {
-		zbc_error("No memory for r/w test\n");
-		return 1;
-	}
-
-	/* Test SCSI command */
-	ret = zbc_scsi_pread(dev, buf, 1, 0);
-	if (ret > 0)
-		ret = 1;
-
-	free(buf);
-
-	return 0;
-}
-
-/**
  * Test device signature (return device model detected).
  */
 static int zbc_ata_classify(zbc_device_t *dev)
@@ -1287,15 +1174,6 @@ static int zbc_ata_open(const char *filename,
 		zbc_error("%s: Enable sense data reporting failed\n",
 			  filename);
 		goto out_free_filename;
-	}
-
-	/* Test if the disk accepts native SCSI read/write commands */
-	if (zbc_ata_scsi_rw(dev)) {
-		zbc_debug("%s: Using SCSI R/W commands\n", filename);
-		dev->zbd_flags |= ZBC_ATA_SCSI_RW;
-	} else {
-		zbc_debug("%s: Using ATA R/W commands\n", filename);
-		dev->zbd_flags &= ~ZBC_ATA_SCSI_RW;
 	}
 
 	*pdev = dev;
