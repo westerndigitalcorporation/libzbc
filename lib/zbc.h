@@ -34,53 +34,57 @@ typedef struct zbc_ops {
 	/**
 	 * Open device.
 	 */
-	int	(*zbd_open)(const char *, int, struct zbc_device **);
+	int		(*zbd_open)(const char *, int, struct zbc_device **);
 
 	/**
 	 * Close device.
 	 */
-	int	(*zbd_close)(struct zbc_device *);
+	int		(*zbd_close)(struct zbc_device *);
 
 	/**
-	 * Report a device zone information (mandatory).
+	 * Report a device zone information.
 	 */
-	int	(*zbd_report_zones)(struct zbc_device *, uint64_t,
-                                    enum zbc_reporting_options,
-				    zbc_zone_t *, unsigned int *);
+	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
+					    enum zbc_reporting_options,
+					    zbc_zone_t *, unsigned int *);
 
 	/**
 	 * Execute a zone operation.
 	 */
-	int	(*zbd_zone_op)(struct zbc_device *, uint64_t,
-			       enum zbc_zone_op, unsigned int);
+	int		(*zbd_zone_op)(struct zbc_device *, uint64_t,
+				       enum zbc_zone_op, unsigned int);
 
 	/**
 	 * Read from a ZBC device
 	 */
-	ssize_t	(*zbd_pread)(struct zbc_device *, void *, size_t, uint64_t);
+	ssize_t		(*zbd_pread)(struct zbc_device *, void *,
+				     size_t, uint64_t);
 
 	/**
 	 * Write to a ZBC device
 	 */
-	ssize_t	(*zbd_pwrite)(struct zbc_device *, const void *,
-			      size_t, uint64_t);
+	ssize_t		(*zbd_pwrite)(struct zbc_device *, const void *,
+				      size_t, uint64_t);
 
 	/**
 	 * Flush to a ZBC device cache.
 	 */
-	int	(*zbd_flush)(struct zbc_device *, uint64_t, size_t, int);
+	int		(*zbd_flush)(struct zbc_device *, uint64_t,
+				     size_t, int);
 
 	/**
 	 * Change a device zone configuration.
 	 * For emulated drives only (optional).
 	 */
-	int	(*zbd_set_zones)(struct zbc_device *, uint64_t, uint64_t);
+	int		(*zbd_set_zones)(struct zbc_device *,
+					 uint64_t, uint64_t);
 
 	/**
 	 * Change a zone write pointer.
 	 * For emulated drives only (optional).
 	 */
-	int	(*zbd_set_wp)(struct zbc_device *, uint64_t, uint64_t);
+	int		(*zbd_set_wp)(struct zbc_device *,
+				      uint64_t, uint64_t);
 
 } zbc_ops_t;
 
@@ -159,29 +163,18 @@ extern struct zbc_ops zbc_fake_ops;
 	((bytes) / (dev)->zbd_info.zbd_lblock_size)
 #define zbc_dev_lba2bytes(dev, lba) \
 	((lba) * (dev)->zbd_info.zbd_lblock_size)
+
 /**
  * SCSI backend driver operations are also used
  * for block device control.
  */
-extern int zbc_scsi_get_zbd_chars(zbc_device_t *dev);
+extern int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev);
 
 /**
  * Zone operation.
  */
 extern int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
 			    enum zbc_zone_op op, unsigned int flags);
-
-/**
- * Read from a device.
- */
-extern ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
-			      size_t lba_count, uint64_t lba_offset);
-
-/**
- * Write to a ZBC device
- */
-extern ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
-			       size_t lba_count, uint64_t lba_offset);
 
 #endif
 

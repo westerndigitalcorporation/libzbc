@@ -157,9 +157,9 @@ static int zbc_scsi_classify(zbc_device_t *dev)
 			dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 			break;
 
-		case 0x10:
+		case 0x02:
 			/* Device-managed device */
-			zbc_debug("Device managed SCSI block device detected\n");
+			zbc_debug("Device-managed SCSI block device detected\n");
 			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 			ret = -ENXIO;
 			break;
@@ -558,7 +558,7 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
  * Get zoned block device characteristics
  * (Maximum or optimum number of open zones).
  */
-int zbc_scsi_get_zbd_chars(zbc_device_t *dev)
+int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev)
 {
 	zbc_sg_cmd_t cmd;
 	int ret;
@@ -611,7 +611,7 @@ out:
 /**
  * Get a device information (capacity & sector sizes).
  */
-static int zbc_scsi_get_info(zbc_device_t *dev)
+static int zbc_scsi_get_dev_info(zbc_device_t *dev)
 {
 	int ret;
 
@@ -631,7 +631,7 @@ static int zbc_scsi_get_info(zbc_device_t *dev)
 		return ret;
 
 	/* Get zoned block device characteristics */
-	ret = zbc_scsi_get_zbd_chars(dev);
+	ret = zbc_scsi_get_zbd_characteristics(dev);
 	if (ret != 0)
 		return ret;
 
@@ -687,7 +687,7 @@ static int zbc_scsi_open(const char *filename,
 	if (!dev->zbd_filename)
 		goto out_free_dev;
 
-	ret = zbc_scsi_get_info(dev);
+	ret = zbc_scsi_get_dev_info(dev);
 	if (ret != 0)
 		goto out_free_filename;
 
@@ -733,8 +733,8 @@ static int zbc_scsi_close(zbc_device_t *dev)
 /**
  * Read from a ZBC device
  */
-ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
-		       size_t lba_count, uint64_t lba_offset)
+static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
+			      size_t lba_count, uint64_t lba_offset)
 {
 	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;
@@ -766,8 +766,8 @@ ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 /**
  * Write to a ZBC device
  */
-ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
-			size_t lba_count, uint64_t lba_offset)
+static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
+			       size_t lba_count, uint64_t lba_offset)
 {
 	size_t sz = lba_count * dev->zbd_info.zbd_lblock_size;
 	zbc_sg_cmd_t cmd;

@@ -333,7 +333,7 @@ zbc_block_get_info(struct zbc_device *dev)
 	 * Use SG_IO to get zone characteristics
 	 * (maximum number of open zones, etc).
 	 */
-	if (zbc_scsi_get_zbd_chars(dev)) {
+	if (zbc_scsi_get_zbd_characteristics(dev)) {
 		ret = -ENXIO;
 		goto out;
 	}
