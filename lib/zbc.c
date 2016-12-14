@@ -505,7 +505,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  */
 int zbc_flush(zbc_device_t *dev)
 {
-	return (dev->zbd_ops->zbd_flush)(dev, 0, 0, 0);
+	return (dev->zbd_ops->zbd_flush)(dev);
 }
 
 /**

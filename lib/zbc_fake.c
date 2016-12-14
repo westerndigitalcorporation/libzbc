@@ -1162,8 +1162,7 @@ out:
 /**
  * Flush the emulated device data and metadata.
  */
-static int zbc_fake_flush(struct zbc_device *dev, uint64_t offset,
-			  size_t count, int immediate)
+static int zbc_fake_flush(struct zbc_device *dev)
 {
 	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
 	int ret;

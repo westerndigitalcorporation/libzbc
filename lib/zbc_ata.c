@@ -641,9 +641,7 @@ static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
 /**
  * Flush a ZAC device cache.
  */
-static int zbc_ata_flush(zbc_device_t *dev,
-			 uint64_t offset, size_t count,
-			 int immediate)
+static int zbc_ata_flush(zbc_device_t *dev)
 {
 	zbc_sg_cmd_t cmd;
 	int ret;

@@ -726,9 +726,7 @@ static ssize_t zbc_block_pwrite(struct zbc_device *dev,
 /**
  * Flush the device.
  */
-static int zbc_block_flush(struct zbc_device *dev,
-			   uint64_t lba_offset, size_t lba_count,
-			   int immediate)
+static int zbc_block_flush(struct zbc_device *dev)
 {
 	return fsync(dev->zbd_fd);
 }
@@ -761,9 +759,7 @@ static ssize_t zbc_block_pwrite(struct zbc_device *dev, const void *buf,
     return -EOPNOTSUPP;
 }
 
-static int zbc_block_flush(struct zbc_device *dev,
-			   uint64_t offset, size_t count,
-			   int immediate)
+static int zbc_block_flush(struct zbc_device *dev)
 {
     return -EOPNOTSUPP;
 }

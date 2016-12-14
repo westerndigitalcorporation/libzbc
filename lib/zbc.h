@@ -69,8 +69,7 @@ typedef struct zbc_ops {
 	/**
 	 * Flush to a ZBC device cache.
 	 */
-	int		(*zbd_flush)(struct zbc_device *, uint64_t,
-				     size_t, int);
+	int		(*zbd_flush)(struct zbc_device *);
 
 	/**
 	 * Change a device zone configuration.

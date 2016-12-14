@@ -814,8 +814,7 @@ static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 /**
  * Flush a ZBC device cache.
  */
-static int zbc_scsi_flush(zbc_device_t *dev, uint64_t offset,
-			  size_t count, int immediate)
+static int zbc_scsi_flush(zbc_device_t *dev)
 {
 	zbc_sg_cmd_t cmd;
 	int ret;
@@ -827,12 +826,11 @@ static int zbc_scsi_flush(zbc_device_t *dev, uint64_t offset,
 		return ret;
 	}
 
-	/* Fill command CDB */
+	/* Fill command CDB (immediate flush) */
 	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
-	if (immediate)
-		cmd.cdb[1] = 0x02;
+	cmd.cdb[1] = 0x02;
+	zbc_sg_cmd_set_int64(&cmd.cdb[2], 0);
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], 0);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
