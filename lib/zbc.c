@@ -550,7 +550,8 @@ int zbc_flush(zbc_device_t *dev)
 /**
  * zbc_set_zones - Configure zones of an emulated device
  */
-int zbc_set_zones(zbc_device_t *dev, uint64_t conv_sz, uint64_t zone_sz)
+int zbc_set_zones(zbc_device_t *dev,
+		  uint64_t conv_sz, uint64_t zone_sz)
 {
 
 	/* Do this only if supported */
@@ -565,8 +566,8 @@ int zbc_set_zones(zbc_device_t *dev, uint64_t conv_sz, uint64_t zone_sz)
  */
 int
 zbc_set_write_pointer(struct zbc_device *dev,
-                      uint64_t start_lba,
-                      uint64_t wp_lba)
+                      uint64_t sector,
+                      uint64_t wp_sector)
 {
 
 	/* Do this only if supported */
