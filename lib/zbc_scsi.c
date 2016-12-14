@@ -555,7 +555,7 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
 }
 
 /**
- * Get zoned block device characteristics
+ * Get zoned block device characteristics VPD page information
  * (Maximum or optimum number of open zones).
  */
 int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev)
