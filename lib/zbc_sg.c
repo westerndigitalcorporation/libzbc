@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <assert.h>
 
 #include "zbc.h"
 #include "zbc_sg.h"
@@ -36,308 +37,254 @@
  */
 static struct zbc_sg_cmd_s
 {
-
-    char                *cdb_cmd_name;
-    int                 cdb_opcode;
-    int                 cdb_sa;
-    size_t              cdb_length;
-    int			dir;
+	char		*cdb_cmd_name;
+	int		cdb_opcode;
+	int		cdb_sa;
+	size_t		cdb_length;
+	int		dir;
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
-    /* ZBC_SG_TEST_UNIT_READY */
-    {
-        "TEST UNIT READY",
-        ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
-        0,
-        ZBC_SG_TEST_UNIT_READY_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_TEST_UNIT_READY */
+	{
+		"TEST UNIT READY",
+		ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
+		0,
+		ZBC_SG_TEST_UNIT_READY_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_INQUIRY */
-    {
-        "INQUIRY",
-        ZBC_SG_INQUIRY_CDB_OPCODE,
-        0,
-        ZBC_SG_INQUIRY_CDB_LENGTH,
-	SG_DXFER_FROM_DEV
-    },
+	/* ZBC_SG_INQUIRY */
+	{
+		"INQUIRY",
+		ZBC_SG_INQUIRY_CDB_OPCODE,
+		0,
+		ZBC_SG_INQUIRY_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
 
-    /* ZBC_SG_READ_CAPACITY */
-    {
-        "READ CAPACITY 16",
-        ZBC_SG_READ_CAPACITY_CDB_OPCODE,
-        ZBC_SG_READ_CAPACITY_CDB_SA,
-        ZBC_SG_READ_CAPACITY_CDB_LENGTH,
-	SG_DXFER_FROM_DEV
-    },
+	/* ZBC_SG_READ_CAPACITY */
+	{
+		"READ CAPACITY 16",
+		ZBC_SG_READ_CAPACITY_CDB_OPCODE,
+		ZBC_SG_READ_CAPACITY_CDB_SA,
+		ZBC_SG_READ_CAPACITY_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
 
-    /* ZBC_SG_READ */
-    {
-        "READ 16",
-        ZBC_SG_READ_CDB_OPCODE,
-        0,
-        ZBC_SG_READ_CDB_LENGTH,
-	SG_DXFER_FROM_DEV
-    },
+	/* ZBC_SG_READ */
+	{
+		"READ 16",
+		ZBC_SG_READ_CDB_OPCODE,
+		0,
+		ZBC_SG_READ_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
 
-    /* ZBC_SG_WRITE */
-    {
-        "WRITE 16",
-        ZBC_SG_WRITE_CDB_OPCODE,
-        0,
-        ZBC_SG_WRITE_CDB_LENGTH,
-	SG_DXFER_TO_DEV
-    },
+	/* ZBC_SG_WRITE */
+	{
+		"WRITE 16",
+		ZBC_SG_WRITE_CDB_OPCODE,
+		0,
+		ZBC_SG_WRITE_CDB_LENGTH,
+		SG_DXFER_TO_DEV
+	},
 
-    /* ZBC_SG_SYNC_CACHE */
-    {
-        "SYNCHRONIZE CACHE 16",
-        ZBC_SG_SYNC_CACHE_CDB_OPCODE,
-        0,
-        ZBC_SG_SYNC_CACHE_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_SYNC_CACHE */
+	{
+		"SYNCHRONIZE CACHE 16",
+		ZBC_SG_SYNC_CACHE_CDB_OPCODE,
+		0,
+		ZBC_SG_SYNC_CACHE_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_REPORT_ZONES */
-    {
-        "REPORT ZONES",
-        ZBC_SG_REPORT_ZONES_CDB_OPCODE,
-        ZBC_SG_REPORT_ZONES_CDB_SA,
-        ZBC_SG_REPORT_ZONES_CDB_LENGTH,
-	SG_DXFER_FROM_DEV
-    },
+	/* ZBC_SG_REPORT_ZONES */
+	{
+		"REPORT ZONES",
+		ZBC_SG_REPORT_ZONES_CDB_OPCODE,
+		ZBC_SG_REPORT_ZONES_CDB_SA,
+		ZBC_SG_REPORT_ZONES_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
 
-    /* ZBC_SG_OPEN_ZONE */
-    {
-        "OPEN ZONE",
-        ZBC_SG_OPEN_ZONE_CDB_OPCODE,
-        ZBC_SG_OPEN_ZONE_CDB_SA,
-        ZBC_SG_OPEN_ZONE_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_OPEN_ZONE */
+	{
+		"OPEN ZONE",
+		ZBC_SG_OPEN_ZONE_CDB_OPCODE,
+		ZBC_SG_OPEN_ZONE_CDB_SA,
+		ZBC_SG_OPEN_ZONE_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_CLOSE_ZONE */
-    {
-        "CLOSE ZONE",
-        ZBC_SG_CLOSE_ZONE_CDB_OPCODE,
-        ZBC_SG_CLOSE_ZONE_CDB_SA,
-        ZBC_SG_CLOSE_ZONE_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_CLOSE_ZONE */
+	{
+		"CLOSE ZONE",
+		ZBC_SG_CLOSE_ZONE_CDB_OPCODE,
+		ZBC_SG_CLOSE_ZONE_CDB_SA,
+		ZBC_SG_CLOSE_ZONE_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_FINISH_ZONE */
-    {
-        "FINISH ZONE",
-        ZBC_SG_FINISH_ZONE_CDB_OPCODE,
-        ZBC_SG_FINISH_ZONE_CDB_SA,
-        ZBC_SG_FINISH_ZONE_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_FINISH_ZONE */
+	{
+		"FINISH ZONE",
+		ZBC_SG_FINISH_ZONE_CDB_OPCODE,
+		ZBC_SG_FINISH_ZONE_CDB_SA,
+		ZBC_SG_FINISH_ZONE_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_RESET_WRITE_POINTER */
-    {
-        "RESET WRITE POINTER",
-        ZBC_SG_RESET_WRITE_POINTER_CDB_OPCODE,
-        ZBC_SG_RESET_WRITE_POINTER_CDB_SA,
-        ZBC_SG_RESET_WRITE_POINTER_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_RESET_WRITE_POINTER */
+	{
+		"RESET WRITE POINTER",
+		ZBC_SG_RESET_WRITE_POINTER_CDB_OPCODE,
+		ZBC_SG_RESET_WRITE_POINTER_CDB_SA,
+		ZBC_SG_RESET_WRITE_POINTER_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_SET_ZONES */
-    {
-        "SET ZONES",
-        ZBC_SG_SET_ZONES_CDB_OPCODE,
-        ZBC_SG_SET_ZONES_CDB_SA,
-        ZBC_SG_SET_ZONES_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_SET_ZONES */
+	{
+		"SET ZONES",
+		ZBC_SG_SET_ZONES_CDB_OPCODE,
+		ZBC_SG_SET_ZONES_CDB_SA,
+		ZBC_SG_SET_ZONES_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_SET_WRITE_POINTER */
-    {
-        "SET WRITE POINTER",
-        ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE,
-        ZBC_SG_SET_WRITE_POINTER_CDB_SA,
-        ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH,
-	SG_DXFER_NONE
-    },
+	/* ZBC_SG_SET_WRITE_POINTER */
+	{
+		"SET WRITE POINTER",
+		ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE,
+		ZBC_SG_SET_WRITE_POINTER_CDB_SA,
+		ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
 
-    /* ZBC_SG_ATA12 */
-    {
-	"ATA 12",
-	ZBC_SG_ATA12_CDB_OPCODE,
-	0,
-        ZBC_SG_ATA12_CDB_LENGTH,
-	0
-    },
-
-    /* ZBC_SG_ATA16 */
-    {
-	"ATA 16",
-	ZBC_SG_ATA16_CDB_OPCODE,
-	0,
-        ZBC_SG_ATA16_CDB_LENGTH,
-	0
-    }
+	/* ZBC_SG_ATA16 */
+	{
+		"ATA 16",
+		ZBC_SG_ATA16_CDB_OPCODE,
+		0,
+		ZBC_SG_ATA16_CDB_LENGTH,
+		0
+	}
 
 };
 
 /**
  * Get a command name from its operation code in a CDB.
  */
-static char *
-zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
+static char *zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
 {
-    char *name;
 
-    if ( (cmd->code >= 0)
-         && (cmd->code < ZBC_SG_CMD_NUM) ) {
-        name = zbc_sg_cmd_list[cmd->code].cdb_cmd_name;
-    } else {
-        name = "(UNKNOWN COMMAND)";
-    }
+	if (cmd->code >= 0 &&
+	    cmd->code < ZBC_SG_CMD_NUM)
+		return zbc_sg_cmd_list[cmd->code].cdb_cmd_name;
 
-    return( name );
-
+	return "(UNKNOWN COMMAND)";
 }
 
 /**
  * Set ASC, ASCQ.
  */
-static void
-zbc_sg_set_sense(zbc_device_t *dev,
-                 uint8_t *sense_buf)
+static void zbc_sg_set_sense(zbc_device_t *dev, uint8_t *sense_buf)
 {
 
-    if ( sense_buf == NULL ) {
+	if (sense_buf == NULL) {
+		dev->zbd_errno.sk = 0x00;
+		dev->zbd_errno.asc_ascq = 0x0000;
+		return;
+	}
 
-        dev->zbd_errno.sk       = 0x00;
-        dev->zbd_errno.asc_ascq = 0x0000;
+	if ((sense_buf[0] & 0x7F) == 0x72 ||
+	    (sense_buf[0] & 0x7F) == 0x73) {
+		/* store sense key, ASC/ASCQ */
+		dev->zbd_errno.sk = sense_buf[1] & 0x0F;
+		dev->zbd_errno.asc_ascq =
+			((int)sense_buf[2] << 8) | (int)sense_buf[3];
+		return;
+	}
 
-    } else {
-
-        if ( (sense_buf[0] & 0x7F) == 0x72
-             || (sense_buf[0] & 0x7F) == 0x73 ) {
-
-            /* store sense key, ASC/ASCQ */
-            dev->zbd_errno.sk       = sense_buf[1] & 0x0F;
-            dev->zbd_errno.asc_ascq = ((int)sense_buf[2] << 8) | (int)sense_buf[3];
-
-        } else if ( (sense_buf[0] & 0x7F) == 0x70
-                    || (sense_buf[0] & 0x7F) == 0x71 ) {
-
-            /* store sense key, ASC/ASCQ */
-            dev->zbd_errno.sk       = sense_buf[2] & 0x0F;
-            dev->zbd_errno.asc_ascq = ((int)sense_buf[12] << 8) | (int)sense_buf[13];
-
-        }
-    }
-
-    return;
-
+	if ((sense_buf[0] & 0x7F) == 0x70 ||
+		   (sense_buf[0] & 0x7F) == 0x71) {
+		/* store sense key, ASC/ASCQ */
+		dev->zbd_errno.sk = sense_buf[2] & 0x0F;
+		dev->zbd_errno.asc_ascq =
+			((int)sense_buf[12] << 8) | (int)sense_buf[13];
+	}
 }
 
 /**
  * Free a command.
  */
-void
-zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
+void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
 {
-
-    /* Free the command */
-    if ( cmd ) {
-        if ( cmd->out_buf
-             && cmd->out_buf_needfree ) {
-            free(cmd->out_buf);
-            cmd->out_buf = NULL;
-            cmd->out_bufsz = 0;
+	/* Free the command buffer */
+        if (cmd->out_buf && cmd->out_buf_needfree) {
+		free(cmd->out_buf);
+		cmd->out_buf = NULL;
+		cmd->out_bufsz = 0;
         }
-    }
-
-    return;
-
 }
 
 /**
  * Allocate and initialize a new command.
  */
-int
-zbc_sg_cmd_init(zbc_sg_cmd_t *cmd,
-                int cmd_code,
-                uint8_t *out_buf,
-                size_t out_bufsz)
+int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
+		    uint8_t *out_buf, size_t out_bufsz)
 {
-    int ret = 0;
 
-    if ( (! cmd)
-         || (cmd_code < 0)
-         || (cmd_code >= ZBC_SG_CMD_NUM) ) {
-        zbc_error("Invalid command specified\n");
-        return( -EINVAL );
-    }
+	/* Set command */
+	memset(cmd, 0, sizeof(zbc_sg_cmd_t));
+	cmd->code = cmd_code;
+	cmd->cdb_sz = zbc_sg_cmd_list[cmd_code].cdb_length;
+	zbc_assert(cmd->cdb_sz <= ZBC_SG_CDB_MAX_LENGTH);
+	cmd->cdb_opcode = zbc_sg_cmd_list[cmd_code].cdb_opcode;
+	cmd->cdb_sa = zbc_sg_cmd_list[cmd_code].cdb_sa;
 
-    /* Set command */
-    memset(cmd, 0, sizeof(zbc_sg_cmd_t));
-    cmd->code = cmd_code;
-    cmd->cdb_sz = zbc_sg_cmd_list[cmd_code].cdb_length;
-    zbc_assert(cmd->cdb_sz <= ZBC_SG_CDB_MAX_LENGTH);
-    cmd->cdb_opcode = zbc_sg_cmd_list[cmd_code].cdb_opcode;
-    cmd->cdb_sa = zbc_sg_cmd_list[cmd_code].cdb_sa;
+	if (!out_buf) {
 
-    /* Set output buffer */
-    if ( out_buf ) {
+		int ret;
 
-        /* Set specified buffer */
-        if ( ! out_bufsz ) {
-            zbc_error("Invalid 0 output buffer size\n");
-            ret = -EINVAL;
-            goto out;
-        }
+		/* Allocate a buffer */
+		ret = posix_memalign((void **) &cmd->out_buf,
+				     sysconf(_SC_PAGESIZE), out_bufsz);
+		if (ret != 0) {
+			zbc_error("No memory for output buffer (%zu B)\n",
+				  out_bufsz);
+			return -ENOMEM;
+		}
 
-        cmd->out_buf = out_buf;
-        cmd->out_bufsz = out_bufsz;
+		memset(cmd->out_buf, 0, out_bufsz);
+		cmd->out_buf_needfree = 1;
 
-    } else if ( out_bufsz ) {
+	} else {
 
-        /* Allocate a buffer */
-        ret = posix_memalign((void **) &cmd->out_buf, sysconf(_SC_PAGESIZE), out_bufsz);
-        if ( ret != 0 ) {
-            zbc_error("No memory for output buffer (%zu B)\n",
-                      out_bufsz);
-            ret = -ENOMEM;
-            goto out;
-        }
-        memset(cmd->out_buf, 0, out_bufsz);
-        cmd->out_bufsz = out_bufsz;
-        cmd->out_buf_needfree = 1;
+		/* Use spzecified buffer */
+		cmd->out_buf = out_buf;
 
-    }
+	}
 
-    /* OK: setup SGIO header */
-    memset(&cmd->io_hdr, 0, sizeof(sg_io_hdr_t));
+	cmd->out_bufsz = out_bufsz;
 
-    cmd->io_hdr.interface_id    = 'S';
-    cmd->io_hdr.timeout         = 20000;
-    cmd->io_hdr.flags           = 0; //SG_FLAG_DIRECT_IO;
+	/* Setup SGIO header */
+	cmd->io_hdr.interface_id    = 'S';
+	cmd->io_hdr.timeout         = 20000;
+	cmd->io_hdr.flags           = 0; //SG_FLAG_DIRECT_IO;
 
-    cmd->io_hdr.cmd_len         = cmd->cdb_sz;
-    cmd->io_hdr.cmdp            = &cmd->cdb[0];
+	cmd->io_hdr.cmd_len         = cmd->cdb_sz;
+	cmd->io_hdr.cmdp            = &cmd->cdb[0];
 
-    cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
-    cmd->io_hdr.dxfer_len       = cmd->out_bufsz;
-    cmd->io_hdr.dxferp          = cmd->out_buf;
+	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
+	cmd->io_hdr.dxfer_len       = cmd->out_bufsz;
+	cmd->io_hdr.dxferp          = cmd->out_buf;
 
-    cmd->io_hdr.mx_sb_len       = ZBC_SG_SENSE_MAX_LENGTH;
-    cmd->io_hdr.sbp             = cmd->sense_buf;
+	cmd->io_hdr.mx_sb_len       = ZBC_SG_SENSE_MAX_LENGTH;
+	cmd->io_hdr.sbp             = cmd->sense_buf;
 
-out:
-
-    if ( ret != 0 ) {
-        zbc_sg_cmd_destroy(cmd);
-    }
-
-    return( ret );
-
+	return 0;
 }
 
 /**
@@ -348,27 +295,26 @@ out:
 /**
  * Get the maximum allowed command size of a block device.
  */
-static int
-zbc_sg_max_segments(struct zbc_device *dev)
+static int zbc_sg_max_segments(struct zbc_device *dev)
 {
-    char str[128];
-    FILE *fmax_segs;
-    unsigned int max_segs = ZBC_SG_MAX_SGSZ;
-    int ret;
+	unsigned int max_segs = ZBC_SG_MAX_SGSZ;
+	FILE *fmax_segs;
+	char str[128];
+	int ret;
 
-    snprintf(str, sizeof(str),
-	     "/sys/block/%s/queue/max_segments",
-	     basename(dev->zbd_filename));
-    fmax_segs = fopen(str, "r");
-    if ( fmax_segs ) {
-	ret = fscanf(fmax_segs, "%u", &max_segs);
-	if ( ret != 1 )
-	    max_segs = ZBC_SG_MAX_SGSZ;
-	fclose(fmax_segs);
-    }
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/queue/max_segments",
+		 basename(dev->zbd_filename));
 
-    return max_segs;
+	fmax_segs = fopen(str, "r");
+	if (fmax_segs) {
+		ret = fscanf(fmax_segs, "%u", &max_segs);
+		if (ret != 1)
+			max_segs = ZBC_SG_MAX_SGSZ;
+		fclose(fmax_segs);
+	}
 
+	return max_segs;
 }
 
 /**
@@ -382,25 +328,20 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 
 	/* Get device stats */
 	if (fstat(dev->zbd_fd, &st) < 0) {
-		if (zbc_log_level >= ZBC_LOG_DEBUG) {
-			zbc_error("%s: stat failed %d (%s)\n",
-				  dev->zbd_filename,
-				  errno, strerror(errno));
-		}
+		zbc_debug("%s: stat failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno, strerror(errno));
 		goto out;
 	}
 
 	if (S_ISCHR(st.st_mode)) {
 		ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
 		if (ret != 0) {
-			if (zbc_log_level >= ZBC_LOG_DEBUG) {
-				ret = -errno;
-				zbc_error("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
-					  dev->zbd_filename,
-					  errno,
-					  strerror(errno));
-				sgsz = ZBC_SG_MAX_SGSZ;
-			}
+			zbc_debug("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno,
+				  strerror(errno));
+			sgsz = ZBC_SG_MAX_SGSZ;
 		}
 		if (!sgsz)
 			sgsz = 1;
@@ -440,19 +381,18 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 	ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
 	if (ret != 0) {
 		ret = -errno;
-		if (zbc_log_level >= ZBC_LOG_DEBUG) {
-			zbc_error("%s: SG_IO ioctl failed %d (%s)\n",
-				  dev->zbd_filename,
-				  errno,
-				  strerror(errno));
-		}
-		goto out;
+		zbc_debug("%s: SG_IO ioctl failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno,
+			  strerror(errno));
+		return ret;
 	}
 
 	/* Reset errno */
 	zbc_sg_set_sense(dev, NULL);
 
-	zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
+	zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status "
+		  "0x%04x, driver status 0x%04x (flags 0x%04x)\n",
 		  dev->zbd_filename,
 		  zbc_sg_cmd_name(cmd),
 		  (unsigned int)cmd->io_hdr.status,
@@ -462,22 +402,20 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 		  (unsigned int)zbc_sg_cmd_driver_flags(cmd));
 
 	/* Check status */
-	if (((cmd->code == ZBC_SG_ATA12) || (cmd->code == ZBC_SG_ATA16))
-	     && (cmd->cdb[2] & (1 << 5))) {
+	if (cmd->code == ZBC_SG_ATA16 &&
+	    (cmd->cdb[2] & (1 << 5))) {
 
 		/* ATA command status */
 		if (cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION) {
 			zbc_sg_set_sense(dev, cmd->sense_buf);
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		if ((zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE) &&
 		    (cmd->io_hdr.sb_len_wr > 21) &&
 		    (cmd->sense_buf[21] != 0x50) ) {
 			zbc_sg_set_sense(dev, cmd->sense_buf);
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		cmd->io_hdr.status = 0;
@@ -491,7 +429,9 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 
 		if (zbc_log_level >= ZBC_LOG_DEBUG) {
 
-			zbc_error("%s: Command %s failed with status 0x%02x (0x%02x), host status 0x%04x, driver status 0x%04x (flags 0x%04x)\n",
+			zbc_error("%s: Command %s failed with status 0x%02x "
+				  "(0x%02x), host status 0x%04x, driver status "
+				  "0x%04x (flags 0x%04x)\n",
 				  dev->zbd_filename,
 				  zbc_sg_cmd_name(cmd),
 				  (unsigned int)cmd->io_hdr.status,
@@ -504,18 +444,18 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 				zbc_debug("%s: Sense data (%d B):\n",
 					  dev->zbd_filename,
 					  cmd->io_hdr.sb_len_wr);
-				zbc_sg_print_bytes(dev, cmd->sense_buf, cmd->io_hdr.sb_len_wr);
+				zbc_sg_print_bytes(dev, cmd->sense_buf,
+						   cmd->io_hdr.sb_len_wr);
 			} else {
-				zbc_debug("%s: No sense data\n", dev->zbd_filename);
+				zbc_debug("%s: No sense data\n",
+					  dev->zbd_filename);
 			}
 
 		}
 
 		zbc_sg_set_sense(dev, cmd->sense_buf);
-		ret = -EIO;
 
-		goto out;
-
+		return -EIO;
 	}
 
 	if (cmd->io_hdr.resid) {
@@ -531,8 +471,7 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 		  cmd->io_hdr.duration,
 		  cmd->out_bufsz);
 
-out:
-    return ret;
+	return 0;
 }
 
 /**
@@ -551,7 +490,7 @@ int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
 		/* Intialize command */
 		ret = zbc_sg_cmd_init(&cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
 		if (ret != 0) {
-			zbc_error("%s: zbc_sg_cmd_init TEST UNIT READY failed\n",
+			zbc_error("%s: init TEST UNIT READY command failed\n",
 				  dev->zbd_filename);
 			return ret;
 		}
@@ -562,7 +501,7 @@ int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
 		if ((ret != 0) &&
 		    ((cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR) ||
 		     (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) ) {
-			zbc_debug("%s: Unit attention required, %d / 5 retries left\n",
+			zbc_debug("%s: Unit attention required, %d / 5 retries\n",
 				  dev->zbd_filename,
 				  retries);
 			ret = -EAGAIN;
@@ -633,8 +572,7 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 			int (*report_zones)(struct zbc_device *,
 					    uint64_t,
 					    enum zbc_reporting_options,
-					    uint64_t *,
-					    zbc_zone_t *,
+					    uint64_t *, zbc_zone_t *,
 					    unsigned int *))
 {
 	zbc_sg_cmd_t cmd;
@@ -645,7 +583,8 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 	int ret;
 
 	/* READ CAPACITY 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY, NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
+			      NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
 	if (ret != 0) {
 		zbc_error("zbc_sg_cmd_init failed\n");
 		return ret;
@@ -680,11 +619,14 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 
 	case 0x00:
 
-		/* The logical block address indicates the last LBA of the */
-		/* conventional zones at the beginning of the disk. To get */
-		/* the entire disk capacity, we need to get last LBA of    */
-		/* the last zone of the disk.                              */
-		ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba, NULL, &nr_zones);
+		/*
+		 * The logical block address indicates the last LBA of the
+		 * conventional zones at the beginning of the disk. To get
+		 * the entire disk capacity, we need to get the last LBA
+		 * of the last zone of the disk.
+		 */
+		ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba,
+				   NULL, &nr_zones);
 		if (ret != 0)
 			goto out;
 
@@ -703,7 +645,8 @@ int zbc_sg_get_capacity(zbc_device_t *dev,
 
 	default:
 
-		zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+		zbc_error("%s: invalid RC_BASIS field encountered "
+			  "in READ CAPACITY result\n",
 			  dev->zbd_filename);
 		ret = -EIO;
 
