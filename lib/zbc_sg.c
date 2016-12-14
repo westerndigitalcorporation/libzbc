@@ -217,20 +217,7 @@ static void zbc_sg_set_sense(zbc_device_t *dev, uint8_t *sense_buf)
 }
 
 /**
- * Free a command.
- */
-void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
-{
-	/* Free the command buffer */
-        if (cmd->out_buf && cmd->out_buf_needfree) {
-		free(cmd->out_buf);
-		cmd->out_buf = NULL;
-		cmd->out_bufsz = 0;
-        }
-}
-
-/**
- * Allocate and initialize a new command.
+ * Initialize a command.
  */
 int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
 		    uint8_t *out_buf, size_t out_bufsz)
@@ -288,77 +275,16 @@ int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
 }
 
 /**
- * Default maximum number of SG segments (128KB for 4K pages).
+ * Free resources of a command.
  */
-#define ZBC_SG_MAX_SGSZ		32
-
-/**
- * Get the maximum allowed command size of a block device.
- */
-static int zbc_sg_max_segments(struct zbc_device *dev)
+void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
 {
-	unsigned int max_segs = ZBC_SG_MAX_SGSZ;
-	FILE *fmax_segs;
-	char str[128];
-	int ret;
-
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/max_segments",
-		 basename(dev->zbd_filename));
-
-	fmax_segs = fopen(str, "r");
-	if (fmax_segs) {
-		ret = fscanf(fmax_segs, "%u", &max_segs);
-		if (ret != 1)
-			max_segs = ZBC_SG_MAX_SGSZ;
-		fclose(fmax_segs);
-	}
-
-	return max_segs;
-}
-
-/**
- * Get the maximum allowed command blocks for the device.
- */
-void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
-{
-	struct stat st;
-	size_t sgsz = ZBC_SG_MAX_SGSZ;
-	int ret;
-
-	/* Get device stats */
-	if (fstat(dev->zbd_fd, &st) < 0) {
-		zbc_debug("%s: stat failed %d (%s)\n",
-			  dev->zbd_filename,
-			  errno, strerror(errno));
-		goto out;
-	}
-
-	if (S_ISCHR(st.st_mode)) {
-		ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
-		if (ret != 0) {
-			zbc_debug("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
-				  dev->zbd_filename,
-				  errno,
-				  strerror(errno));
-			sgsz = ZBC_SG_MAX_SGSZ;
-		}
-		if (!sgsz)
-			sgsz = 1;
-	} else if (S_ISBLK(st.st_mode)) {
-		sgsz = zbc_sg_max_segments(dev);
-	} else {
-		/* Files for fake backend */
-		sgsz = 128;
-	}
-
-out:
-	dev->zbd_info.zbd_max_rw_sectors =
-		(uint32_t)sgsz * sysconf(_SC_PAGESIZE) >> 9;
-
-	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
-		  dev->zbd_filename,
-		  (unsigned long long)dev->zbd_info.zbd_max_rw_sectors);
+	/* Free the command buffer */
+        if (cmd->out_buf && cmd->out_buf_needfree) {
+		free(cmd->out_buf);
+		cmd->out_buf = NULL;
+		cmd->out_bufsz = 0;
+        }
 }
 
 /**
@@ -475,6 +401,80 @@ int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
 }
 
 /**
+ * Default maximum number of SG segments (128KB for 4K pages).
+ */
+#define ZBC_SG_MAX_SGSZ		32
+
+/**
+ * Get the maximum allowed command size of a block device.
+ */
+static int zbc_sg_max_segments(struct zbc_device *dev)
+{
+	unsigned int max_segs = ZBC_SG_MAX_SGSZ;
+	FILE *fmax_segs;
+	char str[128];
+	int ret;
+
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/queue/max_segments",
+		 basename(dev->zbd_filename));
+
+	fmax_segs = fopen(str, "r");
+	if (fmax_segs) {
+		ret = fscanf(fmax_segs, "%u", &max_segs);
+		if (ret != 1)
+			max_segs = ZBC_SG_MAX_SGSZ;
+		fclose(fmax_segs);
+	}
+
+	return max_segs;
+}
+
+/**
+ * Get the maximum allowed command blocks for the device.
+ */
+void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
+{
+	struct stat st;
+	size_t sgsz = ZBC_SG_MAX_SGSZ;
+	int ret;
+
+	/* Get device stats */
+	if (fstat(dev->zbd_fd, &st) < 0) {
+		zbc_debug("%s: stat failed %d (%s)\n",
+			  dev->zbd_filename,
+			  errno, strerror(errno));
+		goto out;
+	}
+
+	if (S_ISCHR(st.st_mode)) {
+		ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
+		if (ret != 0) {
+			zbc_debug("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno,
+				  strerror(errno));
+			sgsz = ZBC_SG_MAX_SGSZ;
+		}
+		if (!sgsz)
+			sgsz = 1;
+	} else if (S_ISBLK(st.st_mode)) {
+		sgsz = zbc_sg_max_segments(dev);
+	} else {
+		/* Files for fake backend */
+		sgsz = 128;
+	}
+
+out:
+	dev->zbd_info.zbd_max_rw_sectors =
+		(uint32_t)sgsz * sysconf(_SC_PAGESIZE) >> 9;
+
+	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
+		  dev->zbd_filename,
+		  (unsigned long long)dev->zbd_info.zbd_max_rw_sectors);
+}
+
+/**
  * Test if unit is ready. This will retry 5 times if the command
  * returns "UNIT ATTENTION".
  */
@@ -561,118 +561,6 @@ int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf)
 		memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
 
 	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Get a device capacity information (total sectors & sector sizes).
- */
-int zbc_sg_get_capacity(zbc_device_t *dev,
-			int (*report_zones)(struct zbc_device *,
-					    uint64_t,
-					    enum zbc_reporting_options,
-					    uint64_t *, zbc_zone_t *,
-					    unsigned int *))
-{
-	zbc_sg_cmd_t cmd;
-	zbc_zone_t *zones = NULL;
-	int logical_per_physical;
-	unsigned int nr_zones = 0;
-	uint64_t max_lba;
-	int ret;
-
-	/* READ CAPACITY 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
-			      NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
-		return ret;
-	}
-
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
-		goto out;
-
-	/* Logical block size */
-	dev->zbd_info.zbd_lblock_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
-	if (dev->zbd_info.zbd_lblock_size == 0) {
-		zbc_error("%s: invalid logical sector size\n",
-			  dev->zbd_filename);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
-
-	/* Get maximum command size */
-	zbc_sg_get_max_cmd_blocks(dev);
-
-	/* Check RC_BASIS field */
-	switch ((cmd.out_buf[12] & 0x30) >> 4) {
-
-	case 0x00:
-
-		/*
-		 * The capacity represents only the space used by
-		 * conventional zones at the beginning of the disk. To get
-		 * the entire device capacity, we need to get the last LBA
-		 * of the last zone of the disk.
-		 */
-		ret = report_zones(dev, 0, ZBC_RO_ALL, &max_lba,
-				   NULL, &nr_zones);
-		if (ret != 0)
-			goto out;
-
-		/* Set the drive capacity to the reported max LBA */
-		dev->zbd_info.zbd_lblocks = max_lba + 1;
-
-		break;
-
-	case 0x01:
-
-		/* The disk last LBA was reported */
-		dev->zbd_info.zbd_lblocks =
-			zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
-
-		break;
-
-	default:
-
-		zbc_error("%s: invalid RC_BASIS field encountered "
-			  "in READ CAPACITY result\n",
-			  dev->zbd_filename);
-		ret = -EIO;
-
-		goto out;
-
-	}
-
-	if (!dev->zbd_info.zbd_lblocks) {
-		zbc_error("%s: invalid capacity (logical blocks)\n",
-			  dev->zbd_filename);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	dev->zbd_info.zbd_pblock_size =
-		dev->zbd_info.zbd_lblock_size * logical_per_physical;
-	dev->zbd_info.zbd_pblocks =
-		dev->zbd_info.zbd_lblocks / logical_per_physical;
-	dev->zbd_info.zbd_sectors =
-		(dev->zbd_info.zbd_lblocks * dev->zbd_info.zbd_lblock_size) >> 9;
-
-out:
-	zbc_sg_cmd_destroy(&cmd);
-
-	if (zones)
-		free(zones);
 
 	return ret;
 }

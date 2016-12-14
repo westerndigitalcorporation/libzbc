@@ -570,6 +570,113 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
 }
 
 /**
+ * Get a device capacity information (total sectors & sector sizes).
+ */
+static int zbc_scsi_get_capacity(zbc_device_t *dev)
+{
+	zbc_sg_cmd_t cmd;
+	zbc_zone_t *zones = NULL;
+	int logical_per_physical;
+	unsigned int nr_zones = 0;
+	uint64_t max_lba;
+	int ret;
+
+	/* READ CAPACITY 16 */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
+			      NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
+
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
+	zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	/* Logical block size */
+	dev->zbd_info.zbd_lblock_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+	if (dev->zbd_info.zbd_lblock_size == 0) {
+		zbc_error("%s: invalid logical sector size\n",
+			  dev->zbd_filename);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
+
+	/* Get maximum command size */
+	zbc_sg_get_max_cmd_blocks(dev);
+
+	/* Check RC_BASIS field */
+	switch ((cmd.out_buf[12] & 0x30) >> 4) {
+
+	case 0x00:
+
+		/*
+		 * The capacity represents only the space used by
+		 * conventional zones at the beginning of the disk. To get
+		 * the entire device capacity, we need to get the last LBA
+		 * of the last zone of the disk.
+		 */
+		ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL, &max_lba,
+					       NULL, &nr_zones);
+		if (ret != 0)
+			goto out;
+
+		/* Set the drive capacity to the reported max LBA */
+		dev->zbd_info.zbd_lblocks = max_lba + 1;
+
+		break;
+
+	case 0x01:
+
+		/* The disk last LBA was reported */
+		dev->zbd_info.zbd_lblocks =
+			zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
+
+		break;
+
+	default:
+
+		zbc_error("%s: invalid RC_BASIS field encountered "
+			  "in READ CAPACITY result\n",
+			  dev->zbd_filename);
+		ret = -EIO;
+
+		goto out;
+
+	}
+
+	if (!dev->zbd_info.zbd_lblocks) {
+		zbc_error("%s: invalid capacity (logical blocks)\n",
+			  dev->zbd_filename);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	dev->zbd_info.zbd_pblock_size =
+		dev->zbd_info.zbd_lblock_size * logical_per_physical;
+	dev->zbd_info.zbd_pblocks =
+		dev->zbd_info.zbd_lblocks / logical_per_physical;
+	dev->zbd_info.zbd_sectors =
+		(dev->zbd_info.zbd_lblocks * dev->zbd_info.zbd_lblock_size) >> 9;
+
+out:
+	zbc_sg_cmd_destroy(&cmd);
+
+	if (zones)
+		free(zones);
+
+	return ret;
+}
+
+/**
  * Get zoned block device characteristics VPD page information
  * (Maximum or optimum number of open zones).
  */
@@ -641,7 +748,7 @@ static int zbc_scsi_get_dev_info(zbc_device_t *dev)
 		return ret;
 
 	/* Get capacity information */
-	ret = zbc_sg_get_capacity(dev, zbc_scsi_do_report_zones);
+	ret = zbc_scsi_get_capacity(dev);
 	if (ret != 0)
 		return ret;
 

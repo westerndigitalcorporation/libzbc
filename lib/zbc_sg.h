@@ -258,17 +258,6 @@ extern int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev);
 extern int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf);
 
 /**
- * Get a device capacity information (total sectors & sector sizes).
- */
-extern int zbc_sg_get_capacity(zbc_device_t *dev,
-			       int (*report_zones)(struct zbc_device *,
-						   uint64_t,
-						   enum zbc_reporting_options,
-						   uint64_t *,
-						   zbc_zone_t *,
-						   unsigned int *));
-
-/**
  * Get information string from inquiry output.
  */
 static inline int zbc_sg_cmd_strcpy(char *dst, char *buf, int buf_len)
