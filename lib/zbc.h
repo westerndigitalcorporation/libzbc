@@ -19,8 +19,8 @@
 
 #include "config.h"
 #include "libzbc/zbc.h"
-#include "zbc_log.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <scsi/scsi.h>
@@ -177,6 +177,67 @@ extern struct zbc_ops zbc_fake_ops;
 extern int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev);
 extern int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
 			    enum zbc_zone_op op, unsigned int flags);
+
+/**
+ * Log levels.
+ */
+enum {
+	ZBC_LOG_NONE = 0,
+	ZBC_LOG_ERROR,
+	ZBC_LOG_INFO,
+	ZBC_LOG_DEBUG,
+	ZBC_LOG_VDEBUG,
+	ZBC_LOG_MAX
+};
+
+/**
+ * Library log level.
+ */
+extern int zbc_log_level;
+
+#define zbc_print(stream,format,args...)		\
+	do {						\
+		fprintf((stream), format, ## args);     \
+		fflush(stream);                         \
+	} while(0)
+
+/**
+ * Log level controlled messages.
+ */
+#define zbc_print_level(l,stream,format,args...)		\
+	do {							\
+		if ((l) <= zbc_log_level)			\
+			zbc_print((stream), "(libzbc) " format,	\
+				  ## args);			\
+	} while( 0 )
+
+#define zbc_info(format,args...)	\
+	zbc_print_level(ZBC_LOG_INFO, stdout, format, ##args)
+
+#define zbc_error(format,args...)	\
+	zbc_print_level(ZBC_LOG_ERROR, stderr, "[ERROR] " format, ##args)
+
+#define zbc_debug(format,args...)	\
+	zbc_print_level(ZBC_LOG_DEBUG, stdout, format, ##args)
+
+#define zbc_vdebug(format,args...)	\
+	zbc_print_level(ZBC_LOG_VDEBUG, stdout, format, ##args)
+
+#define zbc_panic(format,args...)	\
+	do {						\
+		zbc_print_level(ZBC_LOG_ERROR,		\
+				stderr,			\
+				"[PANIC] " format,      \
+				##args);                \
+		assert(0);                              \
+	} while( 0 )
+
+#define zbc_assert(cond)					\
+	do {							\
+		if (!(cond))					\
+			zbc_panic("Condition %s failed\n",	\
+				  # cond);			\
+	} while( 0 )
 
 #endif
 
