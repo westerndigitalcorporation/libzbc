@@ -422,7 +422,7 @@ static int zbc_fake_open(const char *filename, int flags,
 		  filename);
 
 	/* Open emulation device/file */
-	fd = open(filename, flags);
+	fd = open(filename, flags | O_LARGEFILE);
 	if (fd < 0) {
 		ret = -errno;
 		zbc_error("%s: open failed %d (%s)\n",
@@ -497,13 +497,14 @@ static int zbc_fake_close(zbc_device_t *dev)
 /**
  * Test if a zone must be reported.
  */
-static bool zbc_fake_must_report_zone(struct zbc_zone *zone, uint64_t sector,
+static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
+				      uint64_t start_sector,
 				      enum zbc_reporting_options ro)
 {
 	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
 
 	if (zone->zbz_length == 0 ||
-	    zone->zbz_start + zone->zbz_length < sector)
+	    zone->zbz_start + zone->zbz_length < start_sector)
 		return false;
 
 	switch (options) {
