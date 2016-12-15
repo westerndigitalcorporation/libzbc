@@ -17,9 +17,6 @@
 #include "zbc.h"
 
 #include <string.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <linux/fs.h>
 
 /*
  * Log level.
@@ -44,23 +41,10 @@ static struct zbc_sg_sk_s {
 	enum zbc_sk	sk;
 	const char	*sk_name;
 } zbc_sg_sk_list[] = {
-
-	{
-		ZBC_SK_ILLEGAL_REQUEST,
-		"Illegal-request"
-	},
-	{
-		 ZBC_SK_DATA_PROTECT,
-		 "Data-protect"
-	},
-	{
-		ZBC_SK_ABORTED_COMMAND,
-		"Aborted-command"
-	},
-	{
-		 0,
-		 NULL
-	}
+	{ ZBC_SK_ILLEGAL_REQUEST,	"Illegal-request"	},
+	{ ZBC_SK_DATA_PROTECT,		"Data-protect"		},
+	{ ZBC_SK_ABORTED_COMMAND,	"Aborted-command"	},
+	{ 0,				NULL }
 };
 
 /**
@@ -117,22 +101,25 @@ static struct zbc_sg_asc_ascq_s {
 void
 zbc_set_log_level(char *log_level)
 {
-	if ( log_level ) {
-		if ( strcmp(log_level, "none") == 0 ) {
-			zbc_log_level = ZBC_LOG_NONE;
-		} else if ( strcmp(log_level, "error") == 0 ) {
-			zbc_log_level = ZBC_LOG_ERROR;
-		} else if ( strcmp(log_level, "info") == 0 ) {
-			zbc_log_level = ZBC_LOG_INFO;
-		} else if ( strcmp(log_level, "debug") == 0 ) {
-			zbc_log_level = ZBC_LOG_DEBUG;
-		} else if ( strcmp(log_level, "vdebug") == 0 ) {
-			zbc_log_level = ZBC_LOG_VDEBUG;
-		} else {
-			fprintf(stderr, "Unknown log level \"%s\"\n",
-				log_level);
-		}
+	if (!log_level) {
+		/* Set default */
+		zbc_log_level = ZBC_LOG_ERROR;
+		return;
 	}
+
+	if (strcmp(log_level, "none") == 0)
+		zbc_log_level = ZBC_LOG_NONE;
+	else if (strcmp(log_level, "error") == 0)
+		zbc_log_level = ZBC_LOG_ERROR;
+	else if (strcmp(log_level, "info") == 0)
+		zbc_log_level = ZBC_LOG_INFO;
+	else if (strcmp(log_level, "debug") == 0)
+		zbc_log_level = ZBC_LOG_DEBUG;
+	else if (strcmp(log_level, "vdebug") == 0)
+		zbc_log_level = ZBC_LOG_VDEBUG;
+	else
+		fprintf(stderr, "Unknown log level \"%s\"\n",
+			log_level);
 }
 
 /**
