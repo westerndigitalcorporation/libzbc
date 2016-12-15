@@ -15,10 +15,12 @@
 
 /***** Including files *****/
 
+#include "zbc.h"
+#include "zbc_sg.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -26,9 +28,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/fs.h>
-
-#include "zbc.h"
-#include "zbc_sg.h"
 
 #ifdef HAVE_LINUX_BLKZONED_H
 #include <linux/blkzoned.h>
@@ -370,7 +369,7 @@ static int zbc_block_open(const char *filename, int flags,
 #endif
 
 	/* Open block device: always add write mode for discard (reset zone) */
-	fd = open(filename, flags | O_WRONLY);
+	fd = open(filename, flags | O_LARGEFILE);
 	if (fd < 0) {
 		zbc_error("%s: open failed %d (%s)\n",
 			  filename,
@@ -445,12 +444,15 @@ static int zbc_block_close(zbc_device_t *dev)
  * on the specified reporting options.
  */
 static bool
-zbc_block_must_report(struct zbc_zone *zone,
+zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
 		      enum zbc_reporting_options ro)
 {
 	enum zbc_reporting_options options = zbc_ro_mask(ro);
 
-	switch ( options ) {
+	if (zone->zbz_start + zone->zbz_length < start_sector)
+		return false;
+
+	switch (options) {
 	case ZBC_RO_ALL:
 		return true;
 	case ZBC_RO_EMPTY:
@@ -483,12 +485,13 @@ zbc_block_must_report(struct zbc_zone *zone,
 /**
  * Get the block device zone information.
  */
-static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
+static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
 				  enum zbc_reporting_options ro,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
 {
 	size_t rep_size;
+	uint64_t sector = start_sector;
 	struct zbc_zone zone;
 	struct blk_zone_report *rep;
 	struct blk_zone *blkz;
@@ -536,13 +539,13 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 			zone.zbz_length = blkz[i].len;
 			zone.zbz_start = blkz[i].start;
 			zone.zbz_write_pointer = blkz[i].wp;
-			if ( blkz[i].reset )
+			if (blkz[i].reset)
 				zone.zbz_attributes |= ZBC_ZA_RWP_RECOMMENDED;
-			if ( blkz[i].non_seq )
+			if (blkz[i].non_seq)
 				zone.zbz_attributes |= ZBC_ZA_NON_SEQ;
 
-			if ( zbc_block_must_report(&zone, ro) ) {
-				if ( zones )
+			if (zbc_block_must_report(&zone, start_sector, ro)) {
+				if (zones)
 					memcpy(&zones[n], &zone,
 					       sizeof(struct zbc_zone));
 				n++;
@@ -670,6 +673,7 @@ static int
 zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 		  enum zbc_zone_op op, unsigned int flags)
 {
+
 	switch (op) {
 
 	case ZBC_OP_RESET_ZONE:
@@ -680,12 +684,15 @@ zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 
 		/* One zone */
 		return zbc_block_reset_one(dev, sector);
+
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
-	default:
 		/* Use SG_IO */
-		return zbc_scsi_zone_op(dev, op, sector, flags);
+		return zbc_scsi_zone_op(dev, sector, op, flags);
+	default:
+		zbc_error("Invalid operation code 0x%x\n", op);
+		return -EINVAL;
 	}
 }
 
