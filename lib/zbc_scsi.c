@@ -391,39 +391,40 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
 		     enum zbc_zone_op op, unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
-	unsigned int opid;
-	unsigned int opcode;
-	unsigned int sa;
+	unsigned int cmdid;
+	unsigned int cmdcode;
+	unsigned int cmdsa;
 	zbc_sg_cmd_t cmd;
 	int ret;
 
 	switch (op) {
+	case ZBC_OP_RESET_ZONE:
+		cmdid = ZBC_SG_RESET_ZONE;
+		cmdcode = ZBC_SG_RESET_ZONE_CDB_OPCODE;
+		cmdsa = ZBC_SG_RESET_ZONE_CDB_SA;
+		break;
 	case ZBC_OP_OPEN_ZONE:
-		opid = ZBC_SG_OPEN_ZONE;
-		opcode = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
-		sa = ZBC_SG_OPEN_ZONE_CDB_SA;
+		cmdid = ZBC_SG_OPEN_ZONE;
+		cmdcode = ZBC_SG_OPEN_ZONE_CDB_OPCODE;
+		cmdsa = ZBC_SG_OPEN_ZONE_CDB_SA;
 		break;
 	case ZBC_OP_CLOSE_ZONE:
-		opid = ZBC_SG_CLOSE_ZONE;
-		opcode = ZBC_SG_CLOSE_ZONE_CDB_OPCODE;
-		sa = ZBC_SG_CLOSE_ZONE_CDB_SA;
+		cmdid = ZBC_SG_CLOSE_ZONE;
+		cmdcode = ZBC_SG_CLOSE_ZONE_CDB_OPCODE;
+		cmdsa = ZBC_SG_CLOSE_ZONE_CDB_SA;
 		break;
 	case ZBC_OP_FINISH_ZONE:
-		opid = ZBC_SG_FINISH_ZONE;
-		opcode = ZBC_SG_FINISH_ZONE_CDB_OPCODE;
-		sa = ZBC_SG_FINISH_ZONE_CDB_SA;
-		break;
-	case ZBC_OP_RESET_ZONE:
-		opid = ZBC_SG_CLOSE_ZONE;
-		opcode = ZBC_SG_CLOSE_ZONE_CDB_OPCODE;
-		sa = ZBC_SG_CLOSE_ZONE_CDB_SA;
+		cmdid = ZBC_SG_FINISH_ZONE;
+		cmdcode = ZBC_SG_FINISH_ZONE_CDB_OPCODE;
+		cmdsa = ZBC_SG_FINISH_ZONE_CDB_SA;
 		break;
 	default:
+		zbc_error("Invalid operation code 0x%x\n", op);
 		return -EINVAL;
 	}
 
 	/* Allocate and intialize zone command */
-	ret = zbc_sg_cmd_init(&cmd, opid, NULL, 0);
+	ret = zbc_sg_cmd_init(&cmd, cmdid, NULL, 0);
 	if (ret != 0) {
 		zbc_error("zbc_sg_cmd_init failed\n");
 		return ret;
@@ -451,8 +452,8 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
 	 * | 15  |                           Control                                     |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = opcode;
-	cmd.cdb[1] = sa;
+	cmd.cdb[0] = cmdcode;
+	cmd.cdb[1] = cmdsa;
 	if (flags & ZBC_OP_ALL_ZONES)
 		/* Operate on all zones */
 		cmd.cdb[14] = 0x01;

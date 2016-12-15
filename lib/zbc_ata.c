@@ -853,6 +853,7 @@ static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t sector,
 		af = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
 		break;
 	default:
+		zbc_error("Invalid operation code 0x%x\n", op);
 		return -EINVAL;
 	}
 
