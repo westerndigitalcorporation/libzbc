@@ -42,6 +42,10 @@ function zbc_run_test()
     mkdir -p ${ZBC_TEST_SUB_LOG_PATH}
     cd ${ZBC_TEST_SUB_SCR_PATH}
 
+    # Init: Close and reset all zones
+    ${ZBC_TEST_BIN_PATH}/zbc_test_close_zone ${device_file} -1
+    ${ZBC_TEST_BIN_PATH}/zbc_test_reset_write_ptr ${device_file} -1
+
     for script in *.sh; do
         ./${script} ${device_file} ${ZBC_TEST_BIN_PATH} ${ZBC_TEST_SUB_LOG_PATH}
         script_ret=$?
