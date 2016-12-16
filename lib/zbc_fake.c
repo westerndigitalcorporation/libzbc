@@ -95,7 +95,7 @@ struct zbc_fake_meta {
  */
 struct zbc_fake_device {
 
-	struct zbc_device   dev;
+	struct zbc_device	dev;
 
 	int			zbd_meta_fd;
 	size_t			zbd_meta_size;
@@ -109,24 +109,26 @@ struct zbc_fake_device {
 };
 
 /**
- * Build meta-data file path for a device.
+ * zbc_fake_dev_meta_path - Build metadata file path for a device.
  */
-static inline void zbc_fake_dev_meta_path(struct zbc_fake_device *fdev, char *buf)
+static inline void zbc_fake_dev_meta_path(struct zbc_fake_device *fdev,
+					  char *buf)
 {
 	sprintf(buf, "%s/zbc-%s.meta", ZBC_FAKE_META_DIR,
 		basename(fdev->dev.zbd_filename));
 }
 
 /**
- * Convert device address to fake device address.
+ * zbc_fake_to_file_dev - Convert device address to fake device address.
  */
-static inline struct zbc_fake_device *zbc_fake_to_file_dev(struct zbc_device *dev)
+static inline struct zbc_fake_device *
+zbc_fake_to_file_dev(struct zbc_device *dev)
 {
 	return container_of(dev, struct zbc_fake_device, dev);
 }
 
 /**
- * Find a zone using its start LBA.
+ * zbc_fake_find_zone - Find a zone using its start LBA.
  */
 static struct zbc_zone *zbc_fake_find_zone(struct zbc_fake_device *fdev,
 					   uint64_t sector,
@@ -154,24 +156,36 @@ static struct zbc_zone *zbc_fake_find_zone(struct zbc_fake_device *fdev,
 }
 
 /**
- * Lock a device metadata.
+ * zbc_fake_clear_errno - Clear the current errno informatiopn.
+ */
+static inline void zbc_fake_clear_errno(struct zbc_device *dev)
+{
+        dev->zbd_errno.sk = 0;
+        dev->zbd_errno.asc_ascq = 0;
+}
+
+
+/**
+ * zbc_fake_lock - Lock a device metadata.
  */
 static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
 {
 	pthread_mutex_lock(&fdev->zbd_meta->zbd_mutex);
+
+	/* Clear errno */
+	zbc_fake_clear_errno(&fdev->dev);
 }
 
 /**
- * Unlock a device metadata.
+ * zbc_fake_unlock - Unlock a device metadata.
  */
-static inline void
-zbc_fake_unlock(struct zbc_fake_device *fdev)
+static inline void zbc_fake_unlock(struct zbc_fake_device *fdev)
 {
 	pthread_mutex_unlock(&fdev->zbd_meta->zbd_mutex);
 }
 
 /**
- * Close metadata file of a fake device.
+ * zbc_fake_close_metadata - Close metadata file of a fake device.
  */
 static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 {
@@ -193,7 +207,7 @@ static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 }
 
 /**
- * Open metadata file of a fake device.
+ * zbc_fake_open_metadata - Open metadata file of a fake device.
  */
 static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 {
@@ -288,7 +302,7 @@ out:
 }
 
 /**
- * Set a device info.
+ * zbc_fake_set_info - Set a device info.
  */
 static int zbc_fake_set_info(struct zbc_device *dev)
 {
@@ -410,7 +424,7 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 }
 
 /**
- * Open an emulation device or file.
+ * zbc_fake_open - Open an emulation device or file.
  */
 static int zbc_fake_open(const char *filename, int flags,
 			 struct zbc_device **pdev)
@@ -476,7 +490,7 @@ out:
 }
 
 /**
- * close a device.
+ * zbc_fake_close - Close a device.
  */
 static int zbc_fake_close(struct zbc_device *dev)
 {
@@ -495,7 +509,7 @@ static int zbc_fake_close(struct zbc_device *dev)
 }
 
 /**
- * Test if a zone must be reported.
+ * zbc_fake_must_report_zone - Test if a zone must be reported.
  */
 static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 				      uint64_t start_sector,
@@ -536,7 +550,7 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 }
 
 /**
- * Get device zone information.
+ * zbc_fake_report_zones - Get fake device zone information.
  */
 static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
@@ -603,7 +617,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Close a zone.
+ * zbc_zone_do_close - Close a zone.
  */
 static void zbc_zone_do_close(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
@@ -623,7 +637,7 @@ static void zbc_zone_do_close(struct zbc_fake_device *fdev, struct zbc_zone *zon
 }
 
 /**
- * Open zone(s).
+ * zbc_fake_open_zone - Open zone(s).
  */
 static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 			      unsigned int flags)
@@ -744,7 +758,7 @@ out:
 }
 
 /**
- * Test if a zone can be closed.
+ * zbc_zone_close_allowed - Test if a zone can be closed.
  */
 static bool zbc_zone_close_allowed(struct zbc_zone *zone)
 {
@@ -756,7 +770,7 @@ static bool zbc_zone_close_allowed(struct zbc_zone *zone)
 }
 
 /**
- * Close zone(s).
+ * zbc_fake_close_zone - Close zone(s).
  */
 static int zbc_fake_close_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
@@ -817,7 +831,7 @@ out:
 }
 
 /**
- * Test if a zone can be finished.
+ * zbc_zone_finish_allowed - Test if a zone can be finished.
  */
 static bool zbc_zone_finish_allowed(struct zbc_zone *zone)
 {
@@ -828,7 +842,7 @@ static bool zbc_zone_finish_allowed(struct zbc_zone *zone)
 }
 
 /**
- * Finish a zone.
+ * zbc_zone_do_finish - Finish a zone.
  */
 static void zbc_zone_do_finish(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
@@ -841,7 +855,7 @@ static void zbc_zone_do_finish(struct zbc_fake_device *fdev, struct zbc_zone *zo
 }
 
 /**
- * Finish zone(s).
+ * zbc_fake_finish_zone - Finish zone(s).
  */
 static int zbc_fake_finish_zone(struct zbc_device *dev, uint64_t sector,
 				unsigned int flags)
@@ -902,7 +916,7 @@ out:
 }
 
 /**
- * Test if a zone write pointer can be reset.
+ * zbc_zone_reset_allowed - Test if a zone write pointer can be reset.
  */
 static bool zbc_zone_reset_allowed(struct zbc_zone *zone)
 {
@@ -915,7 +929,7 @@ static bool zbc_zone_reset_allowed(struct zbc_zone *zone)
 }
 
 /**
- * Reset a zone write pointer.
+ * zbc_zone_do_reset - Reset a zone write pointer.
  */
 static void zbc_zone_do_reset(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
@@ -931,7 +945,7 @@ static void zbc_zone_do_reset(struct zbc_fake_device *fdev, struct zbc_zone *zon
 }
 
 /**
- * Reset zone(s) write pointer.
+ * zbc_fake_reset_zone - Reset zone(s) write pointer.
  */
 static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
@@ -992,7 +1006,7 @@ out:
 }
 
 /**
- * Execute an operation on a zone
+ * zbc_fake_zone_op - Execute a zone operation.
  */
 static int
 zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
@@ -1013,7 +1027,7 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Read from the emulated device/file.
+ * zbc_fake_pread - Read from the emulated device/file.
  */
 static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 			      size_t count, uint64_t offset)
@@ -1050,7 +1064,7 @@ out:
 }
 
 /**
- * Write to the emulated device/file.
+ * zbc_fake_pwrite - Write to the emulated device/file.
  */
 static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 			       size_t count, uint64_t offset)
@@ -1161,7 +1175,7 @@ out:
 }
 
 /**
- * Flush the emulated device data and metadata.
+ * zbc_fake_flush - Flush the emulated device data and metadata.
  */
 static int zbc_fake_flush(struct zbc_device *dev)
 {
@@ -1183,7 +1197,7 @@ static int zbc_fake_flush(struct zbc_device *dev)
 }
 
 /**
- * Initialize an emulated device metadata.
+ * zbc_fake_set_zones - Initialize an emulated device metadata.
  */
 static int zbc_fake_set_zones(struct zbc_device *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
@@ -1330,7 +1344,7 @@ out:
 }
 
 /**
- * Change the value of a zone write pointer.
+ * zbc_fake_set_write_pointer - Change the value of a zone write pointer.
  */
 static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 				      uint64_t sector, uint64_t wp_sector)
@@ -1376,6 +1390,9 @@ out:
 	return ret;
 }
 
+/**
+ * Fake backend driver operations.
+ */
 struct zbc_ops zbc_fake_ops = {
 	.zbd_open		= zbc_fake_open,
 	.zbd_close		= zbc_fake_close,
