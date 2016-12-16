@@ -476,7 +476,7 @@ dz_dev_t * dz_if_dev_open(char *path)
 			 G_CALLBACK(dz_if_znum_set_cb),
 			 dzd);
 
-	/* Block size unit selection entry */
+	/* Block selection entry */
 	label = gtk_label_new("<b>Block</b>");
 	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
 	gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
@@ -614,7 +614,7 @@ void dz_if_dev_update(dz_dev_t *dzd, int do_report_zones)
 static long long dz_if_sect2block(dz_dev_t *dzd,
 				  unsigned long long sector)
 {
-    return (sector << 9) / dzd->block_size;
+	return (sector << 9) / dzd->block_size;
 }
 
 static void dz_if_zlist_print_zone_number(GtkTreeViewColumn *col,
@@ -984,12 +984,13 @@ static void dz_if_zblock_set(dz_dev_t *dzd)
 	long long block;
 	char str[64];
 
-	if (dzd->zlist_selection < 0)
+	if (dzd->zlist_selection < 0) {
 		block = -1;
-	else
-		block = dz_if_sect2block(dzd, zbc_zone_start(&dzd->zones[dzd->zlist_selection].info));
-
-	dz_if_val_str(dzd, str, block);
+		strcpy(str, "-1");
+	} else {
+		block = zbc_zone_start(&dzd->zones[dzd->zlist_selection].info);
+		dz_if_val_str(dzd, str, block);
+	}
 	gtk_entry_set_text(GTK_ENTRY(dzd->zblock_entry), str);
 }
 

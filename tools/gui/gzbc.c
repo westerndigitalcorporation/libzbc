@@ -187,8 +187,6 @@ static int dz_report_zones(dz_dev_t *dzd)
 		if (ret != 0)
 			return ret;
 
-		printf("############### %u\n", dzd->nr_zones);
-
 		/* Allocate zone array */
 		dzd->max_nr_zones = dzd->nr_zones;
 		dzd->zones = (dz_dev_zone_t *) calloc(dzd->max_nr_zones,
