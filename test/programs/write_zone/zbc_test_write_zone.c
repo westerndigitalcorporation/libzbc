@@ -1,200 +1,152 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
- * under the terms of the GNU Lesser General Public License version 3,
- * or any later version, "as is," without technical support, and WITHOUT
- * ANY WARRANTY, without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
- * of the GNU Lesser General Public License along with libzbc.  If not,
- * see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
- * Authors: Damien Le Moal (damien.lemoal@hgst.com)
- *          Christophe Louargant (christophe.louargant@hgst.com)
+ * This software is distributed under the terms of the BSD 2-clause license,
+ * "as is," without technical support, and WITHOUT ANY WARRANTY, without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE. You should have received a copy of the BSD 2-clause license along
+ * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+ *
+ * Author: Masato Suzuki (masato.suzuki@wdc.com)
+ *         Damien Le Moal (damien.lemoal@wdc.com)
  */
-
-/***** Including files *****/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <linux/fs.h>
 
 #include <libzbc/zbc.h>
 
-/***** Main *****/
-
-int main(int argc,
-         char **argv)
+int main(int argc, char **argv)
 {
-    struct zbc_device_info info;
-    struct zbc_device *dev = NULL;
-    int i, ret = 1;
-    size_t iosize;
-    void *iobuf = NULL;
-    uint32_t lba_count;
-    struct zbc_zone *zones = NULL;
-    struct zbc_zone *iozone = NULL;
-    unsigned int nr_zones;
-    char *path;
-    unsigned long long lba = 0;
-    int nio = 1;
+	struct zbc_device_info info;
+	struct zbc_device *dev;
+	size_t iosize;
+	void *iobuf = NULL;
+	unsigned long long lba;
+	unsigned int lba_count;
+	unsigned long long sector;
+	unsigned int sector_count;
+	int i, nio = 1, ret;
+	char *path;
 
-    /* Check command line */
-    if ( argc < 4 ) {
+	/* Check command line */
+	if (argc < 4) {
 usage:
-        printf("Usage: %s [options] <dev> <lba> <num lba>\n"
-               "  Write <num LBA> LBAs from LBA <lba>\n"
-               "Options:\n"
-               "    -v         : Verbose mode\n"
-               "    -n <num>   : Repeat sequentially the write operation <num> times\n",
-               argv[0]);
-        return( 1 );
-    }
+		printf("Usage: %s [options] <dev> <lba> <num lba>\n"
+		       "  Write <num LBA> LBAs from LBA <lba>\n"
+		       "Options:\n"
+		       "  -v	   : Verbose mode\n"
+		       "  -n <nio> : Repeat sequentially the write operation <nio> times\n",
+		       argv[0]);
+		return 1;
+	}
 
-    /* Parse options */
-    for(i = 1; i < (argc - 1); i++) {
+	/* Parse options */
+	for (i = 1; i < argc - 3; i++) {
 
-        if ( strcmp(argv[i], "-v") == 0 ) {
+		if (strcmp(argv[i], "-v") == 0) {
 
-            zbc_set_log_level("debug");
+			zbc_set_log_level("debug");
 
-	} else if ( strcmp(argv[i], "-n") == 0 ) {
+		} else if (strcmp(argv[i], "-n") == 0) {
 
-            i++;
-	    if ( i >= (argc - 1) ) {
-		goto usage;
-	    }
+			i++;
+			if (i >= argc - 1)
+				goto usage;
 
-	    nio = atoi(argv[i]);
-	    if ( nio <= 0 ) {
-		printf("Invalid number of operations\n");
-		return( 1 );
-	    }
+			nio = atoi(argv[i]);
+			if (nio <= 0) {
+				fprintf(stderr, "Invalid number of I/O\n");
+				return 1;
+			}
 
-        } else if ( argv[i][0] == '-' ) {
+		} else if (argv[i][0] == '-') {
 
-            printf("Unknown option \"%s\"\n",
-                    argv[i]);
-            goto usage;
+			fprintf(stderr, "Unknown option \"%s\"\n", argv[i]);
+			goto usage;
 
-        } else {
+		} else {
 
-            break;
+			break;
 
-        }
-
-    }
-
-    if ( i != (argc - 3) ) {
-        goto usage;
-    }
-
-    /* Get parameters */
-    path = argv[i];
-    lba = atoll(argv[i+1]);
-    lba_count = (uint32_t)atoi(argv[i+2]);
-
-    /* Open device */
-    ret = zbc_open(path, O_WRONLY | ZBC_FORCE_ATA_RW, &dev);
-    if ( ret != 0 ) {
-	fprintf(stderr, "[TEST][ERROR],open device failed\n");
-	printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
-	printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
-        return( 1 );
-    }
-
-    ret = zbc_get_device_info(dev, &info);
-    if ( ret < 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],zbc_get_device_info failed\n");
-        goto out;
-    }
-
-    /* Get zone list */
-    ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
-    if ( ret != 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],zbc_list_zones failed\n");
-        ret = 1;
-        goto out;
-    }
-
-    /* Search target zone */
-    for ( i = 0; i < (int)nr_zones; i++ ) {
-        if ( (lba >= zones[i].zbz_start)
-	     && (lba < (zones[i].zbz_start + zones[i].zbz_length)) ) {
-            iozone = &zones[i];
-            break;
-        }
-    }
-
-    if ( iozone == NULL ) {
-        fprintf(stderr,
-                "[TEST][ERROR],Target zone not found\n");
-        ret = 1;
-        goto out;
-    }
-
-    iosize = lba_count * info.zbd_logical_block_size;
-    ret = posix_memalign((void **) &iobuf, info.zbd_logical_block_size, iosize);
-    if ( ret != 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],No memory for I/O buffer (%zu B)\n",
-                iosize);
-        ret = 1;
-        goto out;
-    }
-
-    while( nio ) {
-
-	ret = zbc_pwrite(dev, iozone, iobuf, lba_count, lba - iozone->zbz_start );
-	if ( ret <= 0 ) {
-
-	    fprintf(stderr,
-		    "[TEST][ERROR],zbc_write_zone failed\n");
-
-	    {
-		zbc_errno_t zbc_err;
-		const char *sk_name;
-		const char *ascq_name;
-
-		zbc_errno(dev, &zbc_err);
-		sk_name = zbc_sk_str(zbc_err.sk);
-		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
-
-		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-	    }
-
-	    ret = 1;
-	    break;
+		}
 
 	}
 
-	nio--;
-	lba += lba_count;
-	ret = 0;
+	if (i != argc - 3)
+		goto usage;
 
-    }
+	/* Get parameters */
+	path = argv[i];
+	lba = atoll(argv[i+1]);
+	lba_count = (uint32_t)atoi(argv[i+2]);
+
+	zbc_set_log_level("debug");
+
+	/* Open device */
+	ret = zbc_open(path, O_WRONLY, &dev);
+	if ( ret != 0 ) {
+		fprintf(stderr, "[TEST][ERROR],open device failed\n");
+		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
+		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
+		return 1;
+	}
+
+	zbc_get_device_info(dev, &info);
+	sector = zbc_lba2sect(&info, lba);
+	sector_count = zbc_lba2sect(&info, lba_count);
+
+	iosize = lba_count * info.zbd_lblock_size;
+	ret = posix_memalign((void **) &iobuf, info.zbd_lblock_size, iosize);
+	if (ret != 0) {
+		fprintf(stderr,
+			"[TEST][ERROR],No memory for I/O buffer (%zu B)\n",
+			iosize);
+		ret = 1;
+		goto out;
+	}
+
+	while (nio) {
+
+		printf("##### %d: Write %u at %llu\n",
+		       nio, sector_count, sector);
+
+		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
+		if (ret <= 0) {
+			zbc_errno_t zbc_err;
+			const char *sk_name;
+			const char *ascq_name;
+
+			fprintf(stderr,
+				"[TEST][ERROR],zbc_write_zone failed\n");
+
+			zbc_errno(dev, &zbc_err);
+			sk_name = zbc_sk_str(zbc_err.sk);
+			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+
+			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+			ret = 1;
+			break;
+
+		}
+
+		nio--;
+		sector += sector_count;
+		ret = 0;
+
+	}
 
 out:
+	if (iobuf)
+		free(iobuf);
+	zbc_close(dev);
 
-    if ( iobuf ) {
-        free(iobuf);
-    }
-
-
-    zbc_close(dev);
-
-    return( ret );
-
+	return ret;
 }
 

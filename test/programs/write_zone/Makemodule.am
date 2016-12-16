@@ -1,3 +1,4 @@
 noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_write_zone
 __top_builddir__test_programs_zbc_test_write_zone_SOURCES = test/programs/write_zone/zbc_test_write_zone.c
 __top_builddir__test_programs_zbc_test_write_zone_LDADD = $(libzbc_ldadd)
+__top_builddir__test_programs_zbc_test_write_zone_LDFLAGS = -no-install

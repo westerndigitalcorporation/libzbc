@@ -12,9 +12,9 @@
 #
 
 if [ $# -ne 1 ]; then
-  echo "Usage: $0 <target device file>"
-  echo "    Ex: $0 /dev/sg3"
-  exit 1
+    echo "Usage: $0 <target device file>"
+    echo "Ex: $0 /dev/sg3"
+    exit 1
 fi
 
 device_file=${1}
@@ -42,6 +42,11 @@ function zbc_run_test()
     mkdir -p ${ZBC_TEST_SUB_LOG_PATH}
     cd ${ZBC_TEST_SUB_SCR_PATH}
 
+    # Init: Close and reset all
+    ${ZBC_TEST_BIN_PATH}/zbc_test_close_zone ${device_file} -1
+    ${ZBC_TEST_BIN_PATH}/zbc_test_reset_zone ${device_file} -1
+
+    # Execute tests
     for script in *.sh; do
         ./${script} ${device_file} ${ZBC_TEST_BIN_PATH} ${ZBC_TEST_SUB_LOG_PATH}
         script_ret=$?
@@ -79,7 +84,7 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
 fi
 
 # Binary check
-for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_test_print_devinfo zbc_test_read_zone zbc_test_report_zones zbc_test_reset_write_ptr zbc_test_write_zone; do
+for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_test_print_devinfo zbc_test_read_zone zbc_test_report_zones zbc_test_reset_zone zbc_test_write_zone; do
    bin_path=${ZBC_TEST_BIN_PATH}/${bin_name}
    if [ ! -e ${bin_path} ]; then
        echo "Test program ${bin_name} not found in directory ${ZBC_TEST_BIN_PATH}"

@@ -24,12 +24,12 @@ expected_asc="Insufficient-zone-resources"
 # Get drive information
 zbc_test_get_drive_info
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ ${device_model} != "Host-managed" ]; then
     zbc_test_print_not_applicable
     exit
-else
-    zone_type="0x2"
 fi
+
+zone_type="0x2"
 
 # Create closed zones
 declare -i count=0
@@ -55,6 +55,6 @@ zbc_test_get_sk_ascq
 zbc_test_check_sk_ascq
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} -1
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 rm -f ${zone_info_file}
 

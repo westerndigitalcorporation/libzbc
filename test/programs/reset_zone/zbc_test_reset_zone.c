@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 	/* Check command line */
 	if (argc < 3 || argc > 4) {
 		printf("Usage: %s [-v] <dev> <lba>\n"
-		       "  If lba is -1, then open all zones\n"
+		       "  If lba is -1, then reset all zones\n"
 		       "Options:\n"
 		       "  -v : Verbose mode\n",
 		       argv[0]);
@@ -70,15 +70,15 @@ int main(int argc, char **argv)
 		lba = 0;
 	}
 
-	/* Open zone(s) */
-	ret = zbc_open_zone(dev, zbc_lba2sect(&info, lba), flags);
+	/* Reset zone(s) */
+	ret = zbc_reset_zone(dev, zbc_lba2sect(&info, lba), flags);
 	if (ret != 0) {
 		zbc_errno_t zbc_err;
 		const char *sk_name;
 		const char *ascq_name;
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_test_open_zone failed\n");
+			"[TEST][ERROR],zbc_test_reset_zone failed\n");
 
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);

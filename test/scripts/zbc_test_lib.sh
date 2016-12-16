@@ -12,7 +12,7 @@
 
 # For pretty printing...
 
-red="\e[1;33m"
+red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
 
@@ -66,6 +66,8 @@ function zbc_test_info() {
 function zbc_test_run() {
 
     local _cmd="$*"
+
+    #echo "######## Executing: ${_cmd}"
 
     echo "" >> ${log_file} 2>&1
     echo "## Executing: ${_cmd}" >> ${log_file} 2>&1
@@ -346,10 +348,13 @@ function zbc_test_get_sk_ascq() {
 
 function zbc_test_print_passed() {
 
+    width=`tput cols`
+    width=$(($width-9))
+
     echo "" >> ${log_file} 2>&1
     echo "Passed" >> ${log_file} 2>&1
 
-    echo -e "\r\e[120C[${green}Passed${end}]"
+    echo -e "\r\e[${width}C[${green}Passed${end}]"
 
     return 0
 
@@ -357,11 +362,14 @@ function zbc_test_print_passed() {
 
 function zbc_test_print_failed_sk() {
 
+    width=`tput cols`
+    width=$(($width-9))
+
     echo "" >> ${log_file} 2>&1
     echo "Failed" >> ${log_file} 2>&1
     echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
 
-    echo -e "\r\e[120C[${red}Failed${end}]"
+    echo -e "\r\e[${width}C[${red}Failed${end}]"
     echo "        => Expected ${expected_sk} / ${expected_asc}"
     echo "           Got ${sk} / ${asc}"
 
