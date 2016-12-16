@@ -1130,8 +1130,9 @@ static int zbc_ata_get_capacity(zbc_device_t *dev)
 	}
 
 	if (qword & (1ULL << 61))
+		/* LOGICAL SECTOR SIZE SUPPORTED bit set */
 		dev->zbd_info.zbd_lblock_size =
-			zbc_ata_get_qword(&buf[24]) & 0xffffffff;
+			(zbc_ata_get_qword(&buf[24]) & 0xffffffff) << 1;
 	else
 		/* 512B */
 		dev->zbd_info.zbd_lblock_size = 512;
