@@ -64,32 +64,32 @@ static struct zbc_sg_asc_ascq_s {
 		"Logical-block-address-out-of-range"
 	},
 	{
-		 ZBC_ASC_UNALIGNED_WRITE_COMMAND,
-		 "Unaligned-write-command"
+		ZBC_ASC_UNALIGNED_WRITE_COMMAND,
+		"Unaligned-write-command"
 	},
 	{
-		 ZBC_ASC_WRITE_BOUNDARY_VIOLATION,
-		 "Write-boundary-violation"
+		ZBC_ASC_WRITE_BOUNDARY_VIOLATION,
+		"Write-boundary-violation"
 	},
 	{
-		 ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA,
-		 "Attempt-to-read-invalid-data"
+		ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA,
+		"Attempt-to-read-invalid-data"
 	},
 	{
-		 ZBC_ASC_READ_BOUNDARY_VIOLATION,
-		 "Read-boundary-violation"
+		ZBC_ASC_READ_BOUNDARY_VIOLATION,
+		"Read-boundary-violation"
 	},
 	{
-		 ZBC_ASC_ZONE_IS_READ_ONLY,
-		 "Zone-is-read-only"
+		ZBC_ASC_ZONE_IS_READ_ONLY,
+		"Zone-is-read-only"
 	},
 	{
-		 ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
-		 "Insufficient-zone-resources"
+		ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
+		"Insufficient-zone-resources"
 	},
 	{
-		 0,
-		 NULL
+		0,
+		NULL
 	}
 };
 
@@ -210,9 +210,9 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 /**
  * zbc_errno - Get detailed error code of last operation
  */
-void zbc_errno(struct zbc_device *dev, struct zbc_errno  *err)
+void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
 {
-        memcpy(err, &dev->zbd_errno, sizeof(zbc_errno_t));
+        memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
 }
 
 /**
@@ -331,11 +331,12 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 {
         unsigned int n, nz = 0;
 	uint64_t last_sector;
-	int ret = 0;
+	int ret;
 
 	if (!zones)
 		/* Get the number of zones */
-		return (dev->zbd_ops->zbd_report_zones)(dev, sector, ro,
+		return (dev->zbd_ops->zbd_report_zones)(dev, sector,
+							zbc_ro_mask(ro),
 							NULL, nr_zones);
 
         /* Get zones information */
@@ -343,12 +344,12 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		n = *nr_zones - nz;
 		ret = (dev->zbd_ops->zbd_report_zones)(dev, sector,
-						       zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
-						       &zones[nz], &n);
+					zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
+					&zones[nz], &n);
 		if (ret != 0) {
-			zbc_error("Get zones from LBA %llu failed %d (%s) %d %d %d\n",
+			zbc_error("Get zones from LBA %llu failed %d (%s)\n",
 				  (unsigned long long) sector,
-				  ret, strerror(-ret), n, *nr_zones, nz);
+				  ret, strerror(-ret));
 			return ret;
 		}
 
