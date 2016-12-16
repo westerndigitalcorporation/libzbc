@@ -421,7 +421,7 @@ out:
 /**
  * Close a device.
  */
-static int zbc_block_close(zbc_device_t *dev)
+static int zbc_block_close(struct zbc_device *dev)
 {
 	int ret = 0;
 

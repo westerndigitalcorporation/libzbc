@@ -253,7 +253,7 @@ const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq)
 int zbc_device_is_zoned(const char *filename,
 			struct zbc_device_info *info)
 {
-	zbc_device_t *dev = NULL;
+	struct zbc_device *dev = NULL;
 	int ret = -ENODEV, i;
 
 	/* Test all backends until one accepts the drive. */
@@ -287,9 +287,9 @@ int zbc_device_is_zoned(const char *filename,
 /**
  * zbc_open - open a ZBC device
  */
-int zbc_open(const char *filename, int flags, zbc_device_t **pdev)
+int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 {
-	zbc_device_t *dev = NULL;
+	struct zbc_device *dev = NULL;
 	int ret, i;
 
 	/* Test all backends until one accepts the drive */
@@ -309,7 +309,7 @@ int zbc_open(const char *filename, int flags, zbc_device_t **pdev)
 /**
  * zbc_close - close a ZBC Device
  */
-int zbc_close(zbc_device_t *dev)
+int zbc_close(struct zbc_device *dev)
 {
 	return dev->zbd_ops->zbd_close(dev);
 }
@@ -317,7 +317,7 @@ int zbc_close(zbc_device_t *dev)
 /**
  * zbc_get_device_info - Get a ZBC device information
  */
-void zbc_get_device_info(zbc_device_t *dev, struct zbc_device_info *info)
+void zbc_get_device_info(struct zbc_device *dev, struct zbc_device_info *info)
 {
 	memcpy(info, &dev->zbd_info, sizeof(zbc_device_info_t));
 }
@@ -378,7 +378,7 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 		   enum zbc_reporting_options ro,
 		   struct zbc_zone **pzones, unsigned int *pnr_zones)
 {
-	zbc_zone_t *zones = NULL;
+	struct zbc_zone *zones = NULL;
 	unsigned int nr_zones;
 	int ret;
 
@@ -392,7 +392,7 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 		  nr_zones);
 
 	/* Allocate zone array */
-	zones = (zbc_zone_t *) calloc(nr_zones, sizeof(zbc_zone_t));
+	zones = (struct zbc_zone *) calloc(nr_zones, sizeof(struct zbc_zone));
 	if (!zones) {
 		zbc_error("No memory\n");
 		return -ENOMEM;
@@ -490,7 +490,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 /**
  * zbc_flush - flush a device write cache
  */
-int zbc_flush(zbc_device_t *dev)
+int zbc_flush(struct zbc_device *dev)
 {
 	return (dev->zbd_ops->zbd_flush)(dev);
 }
@@ -498,7 +498,7 @@ int zbc_flush(zbc_device_t *dev)
 /**
  * zbc_set_zones - Configure zones of an emulated device
  */
-int zbc_set_zones(zbc_device_t *dev,
+int zbc_set_zones(struct zbc_device *dev,
 		  uint64_t conv_sz, uint64_t zone_sz)
 {
 

@@ -199,7 +199,7 @@ enum {
 /**
  * SG command descriptor. Used to process SCSI commands.
 */
-typedef struct zbc_sg_cmd {
+struct zbc_sg_cmd {
 
 	int		code;
 
@@ -217,7 +217,7 @@ typedef struct zbc_sg_cmd {
 
 	sg_io_hdr_t	io_hdr;
 
-} zbc_sg_cmd_t;
+};
 
 #define zbc_sg_cmd_driver_status(cmd)	((cmd)->io_hdr.driver_status & \
 					 ZBC_SG_DRIVER_STATUS_MASK)
@@ -227,13 +227,13 @@ typedef struct zbc_sg_cmd {
 /**
  * Allocate and initialize a new command.
  */
-extern int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
+extern int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 			   uint8_t *out_buf, size_t out_bufsz);
 
 /**
  * Free a command.
  */
-extern void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd);
+extern void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd);
 
 /**
  * Get the maximum allowed command size for the device.
@@ -243,24 +243,24 @@ extern void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev);
 /**
  * Execute a command.
  */
-extern int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd);
+extern int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd);
 
 /**
  * Test if unit is ready. This will retry 5 times if the command
  * returns "UNIT ATTENTION".
  */
-extern int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev);
+extern int zbc_sg_test_unit_ready(struct zbc_device *dev);
 
 /**
  * Fill the buffer with the result of INQUIRY command.
  * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
-extern int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf);
+extern int zbc_sg_inquiry(struct zbc_device *dev, void *buf);
 
 /**
  * Get information string from inquiry output.
  */
-static inline int zbc_sg_cmd_strcpy(char *dst, char *buf, int buf_len)
+static inline int zbc_sg_strcpy(char *dst, char *buf, int buf_len)
 {
 	int len = buf_len - 1;
 
@@ -279,30 +279,30 @@ static inline int zbc_sg_cmd_strcpy(char *dst, char *buf, int buf_len)
 /**
  * Set bytes in a command cdb.
  */
-extern void zbc_sg_cmd_set_bytes(uint8_t *cmd, void *buf, int bytes);
+extern void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes);
 
 /**
  * Set a 64 bits integer in a command cdb.
  */
-static inline void zbc_sg_cmd_set_int64(uint8_t *buf, uint64_t val)
+static inline void zbc_sg_set_int64(uint8_t *buf, uint64_t val)
 {
-	zbc_sg_cmd_set_bytes(buf, &val, 8);
+	zbc_sg_set_bytes(buf, &val, 8);
 }
 
 /**
  * Set a 32 bits integer in a command cdb.
  */
-static inline void zbc_sg_cmd_set_int32(uint8_t *buf, uint32_t val)
+static inline void zbc_sg_set_int32(uint8_t *buf, uint32_t val)
 {
-    zbc_sg_cmd_set_bytes(buf, &val, 4);
+	zbc_sg_set_bytes(buf, &val, 4);
 }
 
 /**
  * Set a 16 bits integer in a command cdb.
  */
-static inline void zbc_sg_cmd_set_int16(uint8_t *buf, uint16_t val)
+static inline void zbc_sg_set_int16(uint8_t *buf, uint16_t val)
 {
-    zbc_sg_cmd_set_bytes(buf, &val, 2);
+	zbc_sg_set_bytes(buf, &val, 2);
 }
 
 /**
@@ -318,17 +318,17 @@ union converter {
 /**
  * Get bytes from a command output buffer.
  */
-extern void zbc_sg_cmd_get_bytes(uint8_t *val, union converter *conv,
-				 int bytes);
+extern void zbc_sg_get_bytes(uint8_t *val, union converter *conv,
+			     int bytes);
 
 /**
  * Get a 64 bits integer from a command output buffer.
  */
-static inline uint64_t zbc_sg_cmd_get_int64(uint8_t *buf)
+static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
 {
 	union converter conv;
 
-	zbc_sg_cmd_get_bytes(buf, &conv, 8);
+	zbc_sg_get_bytes(buf, &conv, 8);
 
 	return conv.val64;
 }
@@ -336,11 +336,11 @@ static inline uint64_t zbc_sg_cmd_get_int64(uint8_t *buf)
 /**
  * Get a 32 bits integer from a command output buffer.
  */
-static inline uint32_t zbc_sg_cmd_get_int32(uint8_t *buf)
+static inline uint32_t zbc_sg_get_int32(uint8_t *buf)
 {
 	union converter conv;
 
-	zbc_sg_cmd_get_bytes(buf, &conv, 4);
+	zbc_sg_get_bytes(buf, &conv, 4);
 
 	return conv.val32;
 }
@@ -348,11 +348,11 @@ static inline uint32_t zbc_sg_cmd_get_int32(uint8_t *buf)
 /**
  * Get a 16 bits integer from a command output buffer.
  */
-static inline uint16_t zbc_sg_cmd_get_int16(uint8_t *buf)
+static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
 {
 	union converter conv;
 
-	zbc_sg_cmd_get_bytes(buf, &conv, 2);
+	zbc_sg_get_bytes(buf, &conv, 2);
 
 	return conv.val16;
 }
@@ -360,7 +360,7 @@ static inline uint16_t zbc_sg_cmd_get_int16(uint8_t *buf)
 /**
  * Print an array of bytes.
  */
-extern void zbc_sg_print_bytes(zbc_device_t *dev, uint8_t *buf,
+extern void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf,
 			       unsigned int len);
 
 #endif /* __LIBZBC_SG_H__ */

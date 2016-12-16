@@ -51,7 +51,7 @@
 /**
  * Metadata header.
  */
-typedef struct zbc_fake_meta {
+struct zbc_fake_meta {
 
 	/**
 	 * Capacity in B.
@@ -88,30 +88,30 @@ typedef struct zbc_fake_meta {
 	 */
 	pthread_mutex_t	zbd_mutex;
 
-} zbc_fake_meta_t;
+};
 
 /**
  * Fake device descriptor data.
  */
-typedef struct zbc_fake_device {
+struct zbc_fake_device {
 
 	struct zbc_device   dev;
 
 	int			zbd_meta_fd;
 	size_t			zbd_meta_size;
-	zbc_fake_meta_t		*zbd_meta;
+	struct zbc_fake_meta	*zbd_meta;
 
 	pthread_mutexattr_t	zbd_mutex_attr;
 
 	uint32_t		zbd_nr_zones;
 	struct zbc_zone		*zbd_zones;
 
-} zbc_fake_device_t;
+};
 
 /**
  * Build meta-data file path for a device.
  */
-static inline void zbc_fake_dev_meta_path(zbc_fake_device_t *fdev, char *buf)
+static inline void zbc_fake_dev_meta_path(struct zbc_fake_device *fdev, char *buf)
 {
 	sprintf(buf, "%s/zbc-%s.meta", ZBC_FAKE_META_DIR,
 		basename(fdev->dev.zbd_filename));
@@ -120,7 +120,7 @@ static inline void zbc_fake_dev_meta_path(zbc_fake_device_t *fdev, char *buf)
 /**
  * Convert device address to fake device address.
  */
-static inline zbc_fake_device_t *zbc_fake_to_file_dev(struct zbc_device *dev)
+static inline struct zbc_fake_device *zbc_fake_to_file_dev(struct zbc_device *dev)
 {
 	return container_of(dev, struct zbc_fake_device, dev);
 }
@@ -128,7 +128,7 @@ static inline zbc_fake_device_t *zbc_fake_to_file_dev(struct zbc_device *dev)
 /**
  * Find a zone using its start LBA.
  */
-static struct zbc_zone *zbc_fake_find_zone(zbc_fake_device_t *fdev,
+static struct zbc_zone *zbc_fake_find_zone(struct zbc_fake_device *fdev,
 					   uint64_t sector,
 					   bool start)
 {
@@ -156,7 +156,7 @@ static struct zbc_zone *zbc_fake_find_zone(zbc_fake_device_t *fdev,
 /**
  * Lock a device metadata.
  */
-static inline void zbc_fake_lock(zbc_fake_device_t *fdev)
+static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
 {
 	pthread_mutex_lock(&fdev->zbd_meta->zbd_mutex);
 }
@@ -165,7 +165,7 @@ static inline void zbc_fake_lock(zbc_fake_device_t *fdev)
  * Unlock a device metadata.
  */
 static inline void
-zbc_fake_unlock(zbc_fake_device_t *fdev)
+zbc_fake_unlock(struct zbc_fake_device *fdev)
 {
 	pthread_mutex_unlock(&fdev->zbd_meta->zbd_mutex);
 }
@@ -173,7 +173,7 @@ zbc_fake_unlock(zbc_fake_device_t *fdev)
 /**
  * Close metadata file of a fake device.
  */
-static void zbc_fake_close_metadata(zbc_fake_device_t *fdev)
+static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 {
 
 	if (fdev->zbd_meta_fd < 0)
@@ -195,7 +195,7 @@ static void zbc_fake_close_metadata(zbc_fake_device_t *fdev)
 /**
  * Open metadata file of a fake device.
  */
-static int zbc_fake_open_metadata(zbc_fake_device_t *fdev)
+static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 {
 	uint64_t capacity;
 	char meta_path[512];
@@ -415,7 +415,7 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 static int zbc_fake_open(const char *filename, int flags,
 			 struct zbc_device **pdev)
 {
-	zbc_fake_device_t *fdev;
+	struct zbc_fake_device *fdev;
 	int fd, ret;
 
 	zbc_debug("%s: ########## Trying FAKE driver ##########\n",
@@ -478,9 +478,9 @@ out:
 /**
  * close a device.
  */
-static int zbc_fake_close(zbc_device_t *dev)
+static int zbc_fake_close(struct zbc_device *dev)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 
 	/* Close metadata */
 	zbc_fake_close_metadata(fdev);
@@ -542,7 +542,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
 				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	unsigned int max_nr_zones = *nr_zones;
 	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
 	unsigned int in, out = 0;
@@ -605,7 +605,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 /**
  * Close a zone.
  */
-static void zbc_zone_do_close(zbc_fake_device_t *fdev, struct zbc_zone *zone)
+static void zbc_zone_do_close(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
 
 	if (!zbc_zone_is_open(zone))
@@ -625,10 +625,10 @@ static void zbc_zone_do_close(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 /**
  * Open zone(s).
  */
-static int zbc_fake_open_zone(zbc_device_t *dev, uint64_t sector,
+static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 			      unsigned int flags)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
 	unsigned int i;
 	int ret = 0;
@@ -758,10 +758,10 @@ static bool zbc_zone_close_allowed(struct zbc_zone *zone)
 /**
  * Close zone(s).
  */
-static int zbc_fake_close_zone(zbc_device_t *dev, uint64_t sector,
+static int zbc_fake_close_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
         struct zbc_zone *zone;
 	unsigned int i;
 	int ret = 0;
@@ -830,7 +830,7 @@ static bool zbc_zone_finish_allowed(struct zbc_zone *zone)
 /**
  * Finish a zone.
  */
-static void zbc_zone_do_finish(zbc_fake_device_t *fdev, struct zbc_zone *zone)
+static void zbc_zone_do_finish(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
 
 	if (zbc_zone_is_open(zone))
@@ -843,10 +843,10 @@ static void zbc_zone_do_finish(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 /**
  * Finish zone(s).
  */
-static int zbc_fake_finish_zone(zbc_device_t *dev, uint64_t sector,
+static int zbc_fake_finish_zone(struct zbc_device *dev, uint64_t sector,
 				unsigned int flags)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
         struct zbc_zone *zone;
         unsigned int i;
 	int ret = 0;
@@ -917,7 +917,7 @@ static bool zbc_zone_reset_allowed(struct zbc_zone *zone)
 /**
  * Reset a zone write pointer.
  */
-static void zbc_zone_do_reset(zbc_fake_device_t *fdev, struct zbc_zone *zone)
+static void zbc_zone_do_reset(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
 
 	if (zbc_zone_empty(zone))
@@ -936,7 +936,7 @@ static void zbc_zone_do_reset(zbc_fake_device_t *fdev, struct zbc_zone *zone)
 static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
         struct zbc_zone *zone;
         unsigned int i;
 	int ret = 0;
@@ -1018,7 +1018,7 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 			      size_t count, uint64_t offset)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
 	ssize_t ret = -EIO;
 
@@ -1055,7 +1055,7 @@ out:
 static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 			       size_t count, uint64_t offset)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone, *next_zone;
 	uint64_t next_sector;
 	ssize_t ret = -EIO;
@@ -1165,7 +1165,7 @@ out:
  */
 static int zbc_fake_flush(struct zbc_device *dev)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	int ret;
 
 	if (!fdev->zbd_meta)
@@ -1188,9 +1188,9 @@ static int zbc_fake_flush(struct zbc_device *dev)
 static int zbc_fake_set_zones(struct zbc_device *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	uint64_t sector = 0, device_size = dev->zbd_info.zbd_sectors;
-	zbc_fake_meta_t fmeta;
+	struct zbc_fake_meta fmeta;
 	char meta_path[512];
 	struct zbc_zone *zone;
 	unsigned int z = 0;
@@ -1200,7 +1200,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	if (fdev->zbd_meta)
 		zbc_fake_close_metadata(fdev);
 
-	memset(&fmeta, 0, sizeof(zbc_fake_meta_t));
+	memset(&fmeta, 0, sizeof(struct zbc_fake_meta));
 
 	pthread_mutexattr_init(&fdev->zbd_mutex_attr);
 	pthread_mutexattr_setpshared(&fdev->zbd_mutex_attr,
@@ -1249,7 +1249,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	}
 
 	/* Truncate metadata file */
-	fdev->zbd_meta_size = sizeof(zbc_fake_meta_t) +
+	fdev->zbd_meta_size = sizeof(struct zbc_fake_meta) +
 		(fdev->zbd_nr_zones * sizeof(struct zbc_zone));
 	if (ftruncate(fdev->zbd_meta_fd, fdev->zbd_meta_size) < 0) {
 		ret = -errno;
@@ -1277,7 +1277,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	fdev->zbd_zones = (struct zbc_zone *) (fdev->zbd_meta + 1);
 
 	/* Setup metadata header */
-	memcpy(fdev->zbd_meta, &fmeta, sizeof(zbc_fake_meta_t));
+	memcpy(fdev->zbd_meta, &fmeta, sizeof(struct zbc_fake_meta));
 	ret = pthread_mutex_init(&fdev->zbd_meta->zbd_mutex, &fdev->zbd_mutex_attr);
 	if (ret != 0) {
 		zbc_error("%s: Initialize metadata mutex failed %d (%s)\n",
@@ -1335,7 +1335,7 @@ out:
 static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 				      uint64_t sector, uint64_t wp_sector)
 {
-	zbc_fake_device_t *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
 	int ret = -EIO;
 

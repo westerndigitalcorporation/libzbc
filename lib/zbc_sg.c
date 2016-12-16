@@ -176,7 +176,7 @@ static struct zbc_sg_cmd_s
 /**
  * Get a command name from its operation code in a CDB.
  */
-static char *zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
+static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 {
 
 	if (cmd->code >= 0 &&
@@ -189,7 +189,7 @@ static char *zbc_sg_cmd_name(zbc_sg_cmd_t *cmd)
 /**
  * Set ASC, ASCQ.
  */
-static void zbc_sg_set_sense(zbc_device_t *dev, uint8_t *sense_buf)
+static void zbc_sg_set_sense(struct zbc_device *dev, uint8_t *sense_buf)
 {
 
 	if (sense_buf == NULL) {
@@ -219,12 +219,12 @@ static void zbc_sg_set_sense(zbc_device_t *dev, uint8_t *sense_buf)
 /**
  * Initialize a command.
  */
-int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
+int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 		    uint8_t *out_buf, size_t out_bufsz)
 {
 
 	/* Set command */
-	memset(cmd, 0, sizeof(zbc_sg_cmd_t));
+	memset(cmd, 0, sizeof(struct zbc_sg_cmd));
 	cmd->code = cmd_code;
 	cmd->cdb_sz = zbc_sg_cmd_list[cmd_code].cdb_length;
 	zbc_assert(cmd->cdb_sz <= ZBC_SG_CDB_MAX_LENGTH);
@@ -277,7 +277,7 @@ int zbc_sg_cmd_init(zbc_sg_cmd_t *cmd, int cmd_code,
 /**
  * Free resources of a command.
  */
-void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
+void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd)
 {
 	/* Free the command buffer */
         if (cmd->out_buf && cmd->out_buf_needfree) {
@@ -290,7 +290,7 @@ void zbc_sg_cmd_destroy(zbc_sg_cmd_t *cmd)
 /**
  * Execute a command.
  */
-int zbc_sg_cmd_exec(zbc_device_t *dev, zbc_sg_cmd_t *cmd)
+int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
 	int ret;
 
@@ -478,9 +478,9 @@ out:
  * Test if unit is ready. This will retry 5 times if the command
  * returns "UNIT ATTENTION".
  */
-int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
+int zbc_sg_test_unit_ready(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret = -EAGAIN, retries = 5;
 
 	while (retries && (ret == -EAGAIN)) {
@@ -521,9 +521,9 @@ int zbc_sg_cmd_test_unit_ready(zbc_device_t *dev)
  * Fill the buffer with the result of INQUIRY command.
  * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
-int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf)
+int zbc_sg_inquiry(struct zbc_device *dev, void *buf)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Allocate and intialize inquiry command */
@@ -553,7 +553,7 @@ int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf)
 	 * +=============================================================================+
 	 */
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
 
 	/* Execute the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -568,7 +568,7 @@ int zbc_sg_cmd_inquiry(zbc_device_t *dev, void *buf)
 /**
  * Set bytes in a command cdb.
  */
-void zbc_sg_cmd_set_bytes(uint8_t *cmd, void *buf, int bytes)
+void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes)
 {
 	uint8_t *v = (uint8_t *) buf;
 	int i;
@@ -587,7 +587,7 @@ void zbc_sg_cmd_set_bytes(uint8_t *cmd, void *buf, int bytes)
 /**
  * Get bytes from a command output buffer.
  */
-void zbc_sg_cmd_get_bytes(uint8_t *val, union converter *conv, int bytes)
+void zbc_sg_get_bytes(uint8_t *val, union converter *conv, int bytes)
 {
 	uint8_t *v = (uint8_t *) val;
 	int i;
@@ -606,7 +606,7 @@ void zbc_sg_cmd_get_bytes(uint8_t *val, union converter *conv, int bytes)
 /**
  * Print an array of bytes.
  */
-void zbc_sg_print_bytes(zbc_device_t *dev, uint8_t *buf, unsigned int len)
+void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf, unsigned int len)
 {
 	char msg[512];
 	unsigned i = 0, j;

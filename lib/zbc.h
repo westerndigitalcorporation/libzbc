@@ -29,7 +29,7 @@
 /**
  * Device operations.
  */
-typedef struct zbc_ops {
+struct zbc_ops {
 
 	/**
 	 * Open device.
@@ -46,7 +46,7 @@ typedef struct zbc_ops {
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
 					    enum zbc_reporting_options,
-					    zbc_zone_t *, unsigned int *);
+					    struct zbc_zone *, unsigned int *);
 
 	/**
 	 * Execute a zone operation.
@@ -85,12 +85,12 @@ typedef struct zbc_ops {
 	int		(*zbd_set_wp)(struct zbc_device *,
 				      uint64_t, uint64_t);
 
-} zbc_ops_t;
+};
 
 /**
  * Device descriptor.
  */
-typedef struct zbc_device {
+struct zbc_device {
 
 	/**
 	 * Device file path.
@@ -105,12 +105,12 @@ typedef struct zbc_device {
 	/**
 	 * Device operations.
 	 */
-	zbc_ops_t		*zbd_ops;
+	struct zbc_ops		*zbd_ops;
 
 	/**
 	 * Device info.
 	 */
-	zbc_device_info_t	zbd_info;
+	struct zbc_device_info	zbd_info;
 
 	/**
 	 * Device flags set by backend drivers.
@@ -120,24 +120,24 @@ typedef struct zbc_device {
 	/**
 	 * Command execution error info.
 	 */
-	zbc_errno_t		zbd_errno;
+	struct zbc_errno	zbd_errno;
 
-} zbc_device_t;
+};
 
 /**
  * Block device operations (requires kernel support).
  */
-extern zbc_ops_t zbc_block_ops;
+extern struct zbc_ops zbc_block_ops;
 
 /**
  * ZAC (ATA) device operations (uses SG_IO).
  */
-extern zbc_ops_t zbc_ata_ops;
+extern struct zbc_ops zbc_ata_ops;
 
 /**
  * ZBC (SCSI) device operations (uses SG_IO).
  */
-extern zbc_ops_t zbc_scsi_ops;
+extern struct zbc_ops zbc_scsi_ops;
 
 /**
  * ZBC emulation (file or block device).
@@ -174,8 +174,8 @@ extern struct zbc_ops zbc_fake_ops;
  * The block backend driver uses the SCSI backend information and
  * some zone operation.
  */
-extern int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev);
-extern int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t start_lba,
+extern int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
+extern int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_lba,
 			    enum zbc_zone_op op, unsigned int flags);
 
 /**

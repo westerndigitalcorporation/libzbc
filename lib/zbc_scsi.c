@@ -43,9 +43,9 @@
 /**
  * Get information (model, vendor, ...) from a SCSI device.
  */
-static int zbc_scsi_classify(zbc_device_t *dev)
+static int zbc_scsi_classify(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int dev_type;
 	int n, ret;
 
@@ -75,7 +75,7 @@ static int zbc_scsi_classify(zbc_device_t *dev)
 	 * +=============================================================================+
 	 */
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
 
 	/* Execute the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -92,16 +92,16 @@ static int zbc_scsi_classify(zbc_device_t *dev)
 	dev->zbd_info.zbd_type = ZBC_DT_SCSI;
 
 	/* Vendor identification */
-	n = zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[0],
-			      (char *)&cmd.out_buf[8], 8);
+	n = zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[0],
+			  (char *)&cmd.out_buf[8], 8);
 
 	/* Product identification */
-	n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			       (char *)&cmd.out_buf[16], 16);
+	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+			   (char *)&cmd.out_buf[16], 16);
 
 	/* Product revision */
-	n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			       (char *)&cmd.out_buf[32], 4);
+	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+			   (char *)&cmd.out_buf[32], 4);
 
 	/* Now check the device type */
 	dev_type = (int)(cmd.out_buf[0] & 0x1f);
@@ -133,7 +133,7 @@ static int zbc_scsi_classify(zbc_device_t *dev)
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
 	cmd.cdb[1] = 0x01;
 	cmd.cdb[2] = 0xB1;
-	zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
+	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
 
 	/* Execute the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -183,15 +183,15 @@ out:
 /**
  * Get a SCSI device zone information.
  */
-static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t sector,
+static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 				    enum zbc_reporting_options ro,
 				    uint64_t *max_lba,
-				    zbc_zone_t *zones, unsigned int *nr_zones)
+				    struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
@@ -236,8 +236,8 @@ static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t sector,
 	 */
 	cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], lba);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
+	zbc_sg_set_int64(&cmd.cdb[2], lba);
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
 	cmd.cdb[14] = ro & 0xbf;
 
 	/* Send the SG_IO command */
@@ -295,9 +295,9 @@ static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t sector,
 
 	/* Get number of zones in result */
 	buf = (uint8_t *) cmd.out_buf;
-	nz = zbc_sg_cmd_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
+	nz = zbc_sg_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	if (max_lba)
-		*max_lba = zbc_sg_cmd_get_int64(&buf[8]);
+		*max_lba = zbc_sg_get_int64(&buf[8]);
 
 	if (!zones || !nz)
 		goto out;
@@ -350,12 +350,12 @@ static int zbc_scsi_do_report_zones(zbc_device_t *dev, uint64_t sector,
 		zones[i].zbz_condition = (buf[1] >> 4) & 0x0f;
 
 		zones[i].zbz_length =
-			zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[8]));
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 		zones[i].zbz_start =
-			zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[16]));
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
 		if (zbc_zone_sequential(&zones[i]))
 			zones[i].zbz_write_pointer =
-				zbc_dev_lba2sect(dev, zbc_sg_cmd_get_int64(&buf[24]));
+				zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
 		else
 			zones[i].zbz_write_pointer = (uint64_t)-1;
 
@@ -376,9 +376,9 @@ out:
 /**
  * Get a SCSI device zone information.
  */
-static int zbc_scsi_report_zones(zbc_device_t *dev, uint64_t sector,
+static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
-				 zbc_zone_t *zones, unsigned int *nr_zones)
+				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	return zbc_scsi_do_report_zones(dev, sector, ro,
 					NULL, zones, nr_zones);
@@ -387,14 +387,14 @@ static int zbc_scsi_report_zones(zbc_device_t *dev, uint64_t sector,
 /**
  * Zone(s) operation.
  */
-int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
+int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_zone_op op, unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int cmdid;
 	unsigned int cmdcode;
 	unsigned int cmdsa;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	switch (op) {
@@ -459,7 +459,7 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
 		cmd.cdb[14] = 0x01;
 	else
 		/* Operate on the zone at lba */
-		zbc_sg_cmd_set_int64(&cmd.cdb[2], lba);
+		zbc_sg_set_int64(&cmd.cdb[2], lba);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -473,12 +473,12 @@ int zbc_scsi_zone_op(zbc_device_t *dev, uint64_t sector,
 /**
  * Configure zones of a "emulated" ZBC device
  */
-static int zbc_scsi_set_zones(zbc_device_t *dev,
+static int zbc_scsi_set_zones(struct zbc_device *dev,
 			      uint64_t conv_sz, uint64_t zone_sz)
 {
 	uint64_t conv_lba = zbc_dev_sect2lba(dev, conv_sz);
 	uint64_t zone_lba = zbc_dev_sect2lba(dev, zone_sz);
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Allocate and intialize set zone command */
@@ -508,8 +508,8 @@ static int zbc_scsi_set_zones(zbc_device_t *dev,
 	 */
 	cmd.cdb[0] = ZBC_SG_SET_ZONES_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_SET_ZONES_CDB_SA;
-	zbc_sg_cmd_set_bytes(&cmd.cdb[2], &conv_lba, 7);
-	zbc_sg_cmd_set_bytes(&cmd.cdb[9], &zone_lba, 7);
+	zbc_sg_set_bytes(&cmd.cdb[2], &conv_lba, 7);
+	zbc_sg_set_bytes(&cmd.cdb[9], &zone_lba, 7);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -523,12 +523,12 @@ static int zbc_scsi_set_zones(zbc_device_t *dev,
 /**
  * Change the value of a zone write pointer ("emulated" ZBC devices only).
  */
-static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
+static int zbc_scsi_set_write_pointer(struct zbc_device *dev,
 				      uint64_t sector, uint64_t wp_sector)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	uint64_t wp_lba = zbc_dev_sect2lba(dev, wp_sector);
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Allocate and intialize set zone command */
@@ -558,8 +558,8 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
 	 */
 	cmd.cdb[0] = ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_SET_WRITE_POINTER_CDB_SA;
-	zbc_sg_cmd_set_bytes(&cmd.cdb[2], &lba, 7);
-	zbc_sg_cmd_set_bytes(&cmd.cdb[9], &wp_lba, 7);
+	zbc_sg_set_bytes(&cmd.cdb[2], &lba, 7);
+	zbc_sg_set_bytes(&cmd.cdb[9], &wp_lba, 7);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -573,10 +573,10 @@ static int zbc_scsi_set_write_pointer(zbc_device_t *dev,
 /**
  * Get a device capacity information (total sectors & sector sizes).
  */
-static int zbc_scsi_get_capacity(zbc_device_t *dev)
+static int zbc_scsi_get_capacity(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
-	zbc_zone_t *zones = NULL;
+	struct zbc_sg_cmd cmd;
+	struct zbc_zone *zones = NULL;
 	int logical_per_physical;
 	unsigned int nr_zones = 0;
 	uint64_t max_lba;
@@ -593,7 +593,7 @@ static int zbc_scsi_get_capacity(zbc_device_t *dev)
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
+	zbc_sg_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -601,7 +601,7 @@ static int zbc_scsi_get_capacity(zbc_device_t *dev)
 		goto out;
 
 	/* Logical block size */
-	dev->zbd_info.zbd_lblock_size = zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+	dev->zbd_info.zbd_lblock_size = zbc_sg_get_int32(&cmd.out_buf[8]);
 	if (dev->zbd_info.zbd_lblock_size == 0) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
@@ -639,7 +639,7 @@ static int zbc_scsi_get_capacity(zbc_device_t *dev)
 
 		/* The disk last LBA was reported */
 		dev->zbd_info.zbd_lblocks =
-			zbc_sg_cmd_get_int64(&cmd.out_buf[0]) + 1;
+			zbc_sg_get_int64(&cmd.out_buf[0]) + 1;
 
 		break;
 
@@ -681,9 +681,9 @@ out:
  * Get zoned block device characteristics VPD page information
  * (Maximum or optimum number of open zones).
  */
-int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev)
+int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* READ CAPACITY 16 */
@@ -698,7 +698,7 @@ int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev)
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
 	cmd.cdb[1] = 0x01;
 	cmd.cdb[2] = 0xB6;
-	zbc_sg_cmd_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -711,11 +711,11 @@ int zbc_scsi_get_zbd_characteristics(zbc_device_t *dev)
 
 	/* Resource of handling zones */
 	dev->zbd_info.zbd_opt_nr_open_seq_pref =
-		zbc_sg_cmd_get_int32(&cmd.out_buf[8]);
+		zbc_sg_get_int32(&cmd.out_buf[8]);
 	dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
-		zbc_sg_cmd_get_int32(&cmd.out_buf[12]);
+		zbc_sg_get_int32(&cmd.out_buf[12]);
 	dev->zbd_info.zbd_max_nr_open_seq_req =
-		zbc_sg_cmd_get_int32(&cmd.out_buf[16]);
+		zbc_sg_get_int32(&cmd.out_buf[16]);
 
 	if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) &&
 	     (dev->zbd_info.zbd_max_nr_open_seq_req <= 0) ) {
@@ -734,12 +734,12 @@ out:
 /**
  * Get a device information (capacity & sector sizes).
  */
-static int zbc_scsi_get_dev_info(zbc_device_t *dev)
+static int zbc_scsi_get_dev_info(struct zbc_device *dev)
 {
 	int ret;
 
 	/* Make sure the device is ready */
-	ret = zbc_sg_cmd_test_unit_ready(dev);
+	ret = zbc_sg_test_unit_ready(dev);
 	if (ret != 0)
 		return ret;
 
@@ -841,7 +841,7 @@ out:
 /**
  * Close a disk.
  */
-static int zbc_scsi_close(zbc_device_t *dev)
+static int zbc_scsi_close(struct zbc_device *dev)
 {
 
 	if (close(dev->zbd_fd))
@@ -856,11 +856,11 @@ static int zbc_scsi_close(zbc_device_t *dev)
 /**
  * Read from a ZBC device
  */
-static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
+static ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 			      size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
 	/* READ 16 */
@@ -873,8 +873,8 @@ static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
 	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
+	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -889,11 +889,11 @@ static ssize_t zbc_scsi_pread(zbc_device_t *dev, void *buf,
 /**
  * Write to a ZBC device
  */
-static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
+static ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 			       size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
 	/* WRITE 16 */
@@ -906,8 +906,8 @@ static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
 	cmd.cdb[1] = 0x10;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
+	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -922,9 +922,9 @@ static ssize_t zbc_scsi_pwrite(zbc_device_t *dev, const void *buf,
 /**
  * Flush a ZBC device cache.
  */
-static int zbc_scsi_flush(zbc_device_t *dev)
+static int zbc_scsi_flush(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* SYNCHRONIZE CACHE 16 */
@@ -937,8 +937,8 @@ static int zbc_scsi_flush(zbc_device_t *dev)
 	/* Fill command CDB (immediate flush) */
 	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
 	cmd.cdb[1] = 0x02;
-	zbc_sg_cmd_set_int64(&cmd.cdb[2], 0);
-	zbc_sg_cmd_set_int32(&cmd.cdb[10], 0);
+	zbc_sg_set_int64(&cmd.cdb[2], 0);
+	zbc_sg_set_int32(&cmd.cdb[10], 0);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -951,7 +951,7 @@ static int zbc_scsi_flush(zbc_device_t *dev)
 /**
  * ZBC with SCSI I/O device operations.
  */
-zbc_ops_t zbc_scsi_ops =
+struct zbc_ops zbc_scsi_ops =
 {
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,

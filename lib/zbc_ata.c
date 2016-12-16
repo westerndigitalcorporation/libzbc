@@ -61,6 +61,7 @@
 #define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
 #define ZBC_ATA_CAPACITY_PAGE			0x02
 #define ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE	0x03
+#define ZBC_ATA_STRINGS_PAGE			0x05
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
 /**
@@ -94,11 +95,11 @@ static inline uint64_t zbc_ata_get_qword(uint8_t *buf)
 /**
  * Read a log page.
  */
-static int zbc_ata_read_log(zbc_device_t *dev, uint8_t log,
+static int zbc_ata_read_log(struct zbc_device *dev, uint8_t log,
 			    int page, uint8_t *buf, size_t bufsz)
 {
 	unsigned int lba_count = bufsz / 512;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Intialize command */
@@ -171,10 +172,10 @@ static int zbc_ata_read_log(zbc_device_t *dev, uint8_t log,
 /**
  * Set features
  */
-static int zbc_ata_set_features(zbc_device_t *dev, uint8_t feature,
+static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 				uint8_t count)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Intialize command */
@@ -248,7 +249,7 @@ static int zbc_ata_set_features(zbc_device_t *dev, uint8_t feature,
 /**
  * Set features.
  */
-static int zbc_ata_enable_sense_data(zbc_device_t *dev)
+static int zbc_ata_enable_sense_data(struct zbc_device *dev)
 {
 	return zbc_ata_set_features(dev,
 				    ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 1);
@@ -257,7 +258,7 @@ static int zbc_ata_enable_sense_data(zbc_device_t *dev)
 /**
  * Sense data is enabled.
  */
-static inline int zbc_ata_sense_data_enabled(zbc_sg_cmd_t *cmd)
+static inline int zbc_ata_sense_data_enabled(struct zbc_sg_cmd *cmd)
 {
 	/* Descriptor code and status including sense data flag */
 	return cmd->io_hdr.sb_len_wr > 8 &&
@@ -268,9 +269,9 @@ static inline int zbc_ata_sense_data_enabled(zbc_sg_cmd_t *cmd)
 /**
  * Request sense data.
  */
-static int zbc_ata_request_sense_data_ext(zbc_device_t *dev)
+static int zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Intialize command */
@@ -374,39 +375,79 @@ out:
 }
 
 /**
+ * Get an ATA string.
+ */
+static int zbc_ata_strcpy(char *dst, char *buf, int buf_len,
+			  int skip)
+{
+	int slen = 0;
+	int len;
+
+	if (skip) {
+		buf_len -= skip;
+		buf += skip;
+	}
+	len = buf_len >> 1;
+
+	while (len) {
+
+		if (buf[slen + 1] == 0)
+			break;
+		dst[slen] = buf[slen + 1];
+		slen++;
+
+		if (buf[slen - 1] == 0)
+			break;
+		dst[slen] = buf[slen - 1];
+		slen++;
+
+		len--;
+	}
+
+	dst[slen] = ' ';
+	dst[slen + 1] = '\0';
+
+	return slen + 1;
+}
+
+/**
  * Get disk vendor, product ID and revision.
  */
-static void zbc_ata_vendor_id(zbc_device_t *dev)
+static void zbc_ata_vendor_id(struct zbc_device *dev)
 {
 	uint8_t buf[512];
 	int n, ret;
 
-	/* Use inquiry. We could use log 30h page 05h (ATA strings) here... */
-	ret = zbc_sg_cmd_inquiry(dev, buf);
+	/* Get log 30h page 05h (ATA strings) */
+	ret = zbc_ata_read_log(dev,
+			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
+			       ZBC_ATA_STRINGS_PAGE,
+			       buf,
+			       sizeof(buf));
 	if (ret != 0) {
-		zbc_debug("Device inquiry failed %d\n", ret);
+		zbc_debug("Get strings log page failed %d\n", ret);
 		strcpy(&dev->zbd_info.zbd_vendor_id[0], "UNKNOWN");
 		return;
 	}
 
-        /* Vendor identification */
-        n = zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[0],
-			      (char *)&buf[8], 8);
+        /* Vendor = "ATA" */
+        strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
+	n = 4;
 
-        /* Product identification */
-        n += zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			       (char *)&buf[16], 16);
+        /* Model number */
+        n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+			    (char *)&buf[48], 16, 0);
 
-        /* Product revision */
-        zbc_sg_cmd_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			  (char *)&buf[32], 4);
+        /* Firmware revision */
+        zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+		       (char *)&buf[32], 8, 4);
 }
 
 /**
  * Get zoned device information (maximum or optimal number of open zones,
  * read restriction, etc)). Data log 30h, page 09h.
  */
-static int zbc_ata_get_zoned_device_info(zbc_device_t *dev)
+static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 {
 	uint8_t buf[512];
 	int ret;
@@ -447,13 +488,13 @@ static int zbc_ata_get_zoned_device_info(zbc_device_t *dev)
  * Read from a ZAC device using READ DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
+static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
 			     size_t count, uint64_t offset)
 {
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
 	size_t sz = count << 9;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
 	/* Check */
@@ -545,13 +586,13 @@ static ssize_t zbc_ata_pread(zbc_device_t *dev, void *buf,
  * Write to a ZAC device using WRITE DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
+static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
 			      size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Check */
@@ -642,9 +683,9 @@ static ssize_t zbc_ata_pwrite(zbc_device_t *dev, const void *buf,
 /**
  * Flush a ZAC device cache.
  */
-static int zbc_ata_flush(zbc_device_t *dev)
+static int zbc_ata_flush(struct zbc_device *dev)
 {
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Initialize the command */
@@ -673,15 +714,15 @@ static int zbc_ata_flush(zbc_device_t *dev)
 /**
  * Get device zone information.
  */
-static int zbc_ata_report_zones(zbc_device_t *dev, uint64_t sector,
+static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 				enum zbc_reporting_options ro,
-				zbc_zone_t *zones, unsigned int *nr_zones)
+				struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	size_t max_bufsz;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	uint8_t *buf;
 	int ret;
 
@@ -831,12 +872,12 @@ out:
 /**
  * Zone(s) operation.
  */
-static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t sector,
+static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 			   enum zbc_zone_op op, unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int af;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	int ret;
 
 	switch (op) {
@@ -939,11 +980,11 @@ static int zbc_ata_zone_op(zbc_device_t *dev, uint64_t sector,
 /**
  * Test device signature (return device model detected).
  */
-static int zbc_ata_classify(zbc_device_t *dev)
+static int zbc_ata_classify(struct zbc_device *dev)
 {
 	uint8_t buf[512];
 	uint64_t zoned;
-	zbc_sg_cmd_t cmd;
+	struct zbc_sg_cmd cmd;
 	unsigned int sig;
 	uint8_t *desc;
 	int ret;
@@ -1093,7 +1134,7 @@ out:
 /**
  * Get a device capacity information (total blocks & block size).
  */
-static int zbc_ata_get_capacity(zbc_device_t *dev)
+static int zbc_ata_get_capacity(struct zbc_device *dev)
 {
 	uint8_t buf[512];
 	uint64_t qword;
@@ -1136,7 +1177,7 @@ static int zbc_ata_get_capacity(zbc_device_t *dev)
 	else
 		/* 512B */
 		dev->zbd_info.zbd_lblock_size = 512;
-	if (dev->zbd_info.zbd_lblock_size == 0) {
+	if (dev->zbd_info.zbd_lblock_size < 512) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
 		return -EINVAL;
@@ -1168,12 +1209,12 @@ static int zbc_ata_get_capacity(zbc_device_t *dev)
 /**
  * Get a device information (capacity & sector sizes).
  */
-static int zbc_ata_get_dev_info(zbc_device_t *dev)
+static int zbc_ata_get_dev_info(struct zbc_device *dev)
 {
 	int ret;
 
 	/* Make sure the device is ready */
-	ret = zbc_sg_cmd_test_unit_ready(dev);
+	ret = zbc_sg_test_unit_ready(dev);
 	if (ret != 0)
 		return ret;
 
@@ -1283,7 +1324,7 @@ out:
 	return ret;
 }
 
-static int zbc_ata_close(zbc_device_t *dev)
+static int zbc_ata_close(struct zbc_device *dev)
 {
 
 	if (close(dev->zbd_fd))
@@ -1298,7 +1339,7 @@ static int zbc_ata_close(zbc_device_t *dev)
 /**
  * ZAC with ATA HDIO operations.
  */
-zbc_ops_t zbc_ata_ops =
+struct zbc_ops zbc_ata_ops =
 {
 	.zbd_open		= zbc_ata_open,
 	.zbd_close		= zbc_ata_close,
