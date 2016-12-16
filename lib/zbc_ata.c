@@ -247,15 +247,6 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 }
 
 /**
- * Set features.
- */
-static int zbc_ata_enable_sense_data(struct zbc_device *dev)
-{
-	return zbc_ata_set_features(dev,
-				    ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 1);
-}
-
-/**
  * Sense data is enabled.
  */
 static inline int zbc_ata_sense_data_enabled(struct zbc_sg_cmd *cmd)
@@ -269,16 +260,20 @@ static inline int zbc_ata_sense_data_enabled(struct zbc_sg_cmd *cmd)
 /**
  * Request sense data.
  */
-static int zbc_ata_request_sense_data_ext(struct zbc_device *dev)
+static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
 
+	zbc_debug("######## REQUEST SENSE DATA: %x %x\n",
+		  dev->zbd_errno.sk,
+		  dev->zbd_errno.asc_ascq);
+
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
-		return ret;
+		zbc_error("Get sense data zbc_sg_cmd_init failed\n");
+		return;
 	}
 
 	/* Fill command CDB:
@@ -337,20 +332,25 @@ static int zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret != 0) {
+		zbc_debug("######## REQUEST SENSE DATA failed\n");
 		zbc_error("REQUEST SENSE DATA command failed\n");
 		goto out;
 	}
 
 	if (!cmd.io_hdr.sb_len_wr) {
-		zbc_debug("%s: No sense data\n", dev->zbd_filename);
+		zbc_debug("######## NO SENSE DATA\n");
+		zbc_error("%s: No sense data\n", dev->zbd_filename);
 		goto out;
 	}
 
-	zbc_debug("%s: Sense data (%d B):\n",
-		  dev->zbd_filename, cmd.io_hdr.sb_len_wr);
-	zbc_sg_print_bytes(dev, cmd.sense_buf, cmd.io_hdr.sb_len_wr);
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		zbc_debug("%s: Sense data (%d B):\n",
+			  dev->zbd_filename, cmd.io_hdr.sb_len_wr);
+		zbc_sg_print_bytes(dev, cmd.sense_buf, cmd.io_hdr.sb_len_wr);
+	}
 
 	if (cmd.io_hdr.sb_len_wr <= 8) {
+		zbc_debug("######## NOT enough SENSE DATA\n");
 		zbc_debug("%s: Sense buffer length is %d (less than 8B)\n",
 			  dev->zbd_filename,
 			  cmd.io_hdr.sb_len_wr);
@@ -363,15 +363,18 @@ static int zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 		  dev->zbd_filename, cmd.sense_buf[17]);
 	zbc_debug("%s: Additional sense code qualifier is 0x%02x\n",
 		  dev->zbd_filename, cmd.sense_buf[15]);
+
 	dev->zbd_errno.sk = cmd.sense_buf[19] & 0xF;
 	dev->zbd_errno.asc_ascq =
 			((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15];
+	zbc_debug("######## GOT REQUEST SENSE DATA: %x %x\n",
+	       dev->zbd_errno.sk,
+	       dev->zbd_errno.asc_ascq);
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
 
-	return ret;
-
+	return;
 }
 
 /**
@@ -1294,7 +1297,8 @@ static int zbc_ata_open(const char *filename,
 		goto out_free_filename;
 
 	/* Set sense data reporting */
-	ret = zbc_ata_enable_sense_data(dev);
+	ret = zbc_ata_set_features(dev,
+			ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 0x01);
 	if (ret != 0) {
 		zbc_error("%s: Enable sense data reporting failed\n",
 			  filename);
