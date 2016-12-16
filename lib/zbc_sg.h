@@ -208,7 +208,6 @@ struct zbc_sg_cmd {
 	size_t		cdb_sz;
 	uint8_t		cdb[ZBC_SG_CDB_MAX_LENGTH];
 
-	size_t		sense_bufsz;
 	uint8_t		sense_buf[ZBC_SG_SENSE_MAX_LENGTH];
 
 	int		out_buf_needfree;
