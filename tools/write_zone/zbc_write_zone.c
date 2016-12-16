@@ -233,16 +233,16 @@ usage:
 	       (double)(info.zbd_sectors << 9) / 1000000000);
 
 	if (zbc_zone_conventional(iozone))
-		printf("Target zone: Conventional zone %d / %d, sector %llu, "
-		       "%llu sectors, wp %llu\n",
+		printf("Target zone: Conventional zone %d / %d, "
+		       "sector %llu, %llu sectors\n",
 		       zidx,
 		       nr_zones,
 		       zbc_zone_start(iozone),
-		       zbc_zone_length(iozone),
-		       zbc_zone_wp(iozone));
+		       zbc_zone_length(iozone));
 	else
-		printf("Target zone: Zone %d / %d, type 0x%x (%s), cond 0x%x (%s), rwp %d, "
-		       "non_seq %d, LBA %llu, %llu sectors, wp %llu\n",
+		printf("Target zone: Zone %d / %d, type 0x%x (%s), "
+		       "cond 0x%x (%s), rwp %d, non_seq %d, "
+		       "sector %llu, %llu sectors, wp %llu\n",
 		       zidx,
 		       nr_zones,
 		       zbc_zone_type(iozone),
