@@ -189,10 +189,18 @@ static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 /**
  * Set ASC, ASCQ.
  */
-static void zbc_sg_set_sense(struct zbc_device *dev, uint8_t *sense_buf)
+static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
+	unsigned int sense_buf_len = 0;
+	uint8_t *sense_buf = NULL;
 
-	if (sense_buf == NULL) {
+	if (cmd) {
+		sense_buf = cmd->sense_buf;
+		sense_buf_len = cmd->io_hdr.sb_len_wr;
+	}
+
+	if (sense_buf == NULL ||
+	    sense_buf_len < 13) {
 		dev->zbd_errno.sk = 0x00;
 		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
@@ -233,12 +241,9 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 
 	if (!out_buf) {
 
-		int ret;
-
 		/* Allocate a buffer */
-		ret = posix_memalign((void **) &cmd->out_buf,
-				     sysconf(_SC_PAGESIZE), out_bufsz);
-		if (ret != 0) {
+		if (posix_memalign((void **) &cmd->out_buf,
+				   sysconf(_SC_PAGESIZE), out_bufsz) != 0) {
 			zbc_error("No memory for output buffer (%zu B)\n",
 				  out_bufsz);
 			return -ENOMEM;
@@ -249,7 +254,7 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 
 	} else {
 
-		/* Use spzecified buffer */
+		/* Use specified buffer */
 		cmd->out_buf = out_buf;
 
 	}
@@ -333,14 +338,14 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 		/* ATA command status */
 		if (cmd->io_hdr.status != ZBC_SG_CHECK_CONDITION) {
-			zbc_sg_set_sense(dev, cmd->sense_buf);
+			zbc_sg_set_sense(dev, cmd);
 			return -EIO;
 		}
 
-		if ((zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE) &&
-		    (cmd->io_hdr.sb_len_wr > 21) &&
-		    (cmd->sense_buf[21] != 0x50) ) {
-			zbc_sg_set_sense(dev, cmd->sense_buf);
+		if (zbc_sg_cmd_driver_status(cmd) == ZBC_SG_DRIVER_SENSE &&
+		    cmd->io_hdr.sb_len_wr > 21 &&
+		    cmd->sense_buf[21] != 0x50) {
+			zbc_sg_set_sense(dev, cmd);
 			return -EIO;
 		}
 
@@ -379,7 +384,7 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 		}
 
-		zbc_sg_set_sense(dev, cmd->sense_buf);
+		zbc_sg_set_sense(dev, cmd);
 
 		return -EIO;
 	}
