@@ -224,12 +224,6 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 	 * +=============================================================================+
 	 */
 
-	/*
-	 * Note: According to SAT-3r07, the protocol should be 0x8.
-	 * But if it is used, the SG/SCSI driver returns an error.
-	 * So use non-data protocol... Also note that to get the
-	 * device signature, the "check condition" bit must be set.
-	 */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
 	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
 	/* Non-Data protocol */
@@ -315,12 +309,6 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	 * +=============================================================================+
 	 */
 
-	/*
-	 * Note: According to SAT-3r07, the protocol should be 0x8.
-	 * But if it is used, the SG/SCSI driver returns an error.
-	 * So use non-data protocol... Also note that to get the
-	 * device signature, the "check condition" bit must be set.
-	 */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
 	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
 	/* Non-Data protocol, ext=1 */
