@@ -350,6 +350,9 @@ function zbc_test_print_passed() {
 
     width=`tput cols`
     width=$(($width-9))
+    if [ ${width} -gt 90 ]; then
+	width=90
+    fi
 
     echo "" >> ${log_file} 2>&1
     echo "Passed" >> ${log_file} 2>&1
@@ -364,6 +367,9 @@ function zbc_test_print_failed_sk() {
 
     width=`tput cols`
     width=$(($width-9))
+    if [ ${width} -gt 90 ]; then
+	width=90
+    fi
 
     echo "" >> ${log_file} 2>&1
     echo "Failed" >> ${log_file} 2>&1
