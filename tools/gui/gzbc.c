@@ -347,7 +347,7 @@ dz_dev_t *dz_open(char *path)
 
 	/* Open device file */
 	strncpy(dzd->path, path, sizeof(dzd->path) - 1);
-	ret = zbc_open(dzd->path, O_RDONLY, &dzd->dev);
+	ret = zbc_open(dzd->path, O_RDWR, &dzd->dev);
 	if (ret != 0)
 		return NULL;
 
