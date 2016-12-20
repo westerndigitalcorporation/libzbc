@@ -309,7 +309,7 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	}
 
 	/* Send the SG_IO command */
-	ret = ioctl(dev->zbd_fd, SG_IO, &cmd->io_hdr);
+	ret = ioctl(dev->zbd_sg_fd, SG_IO, &cmd->io_hdr);
 	if (ret != 0) {
 		ret = -errno;
 		zbc_debug("%s: SG_IO ioctl failed %d (%s)\n",
@@ -445,7 +445,7 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 	int ret;
 
 	/* Get device stats */
-	if (fstat(dev->zbd_fd, &st) < 0) {
+	if (fstat(dev->zbd_sg_fd, &st) < 0) {
 		zbc_debug("%s: stat failed %d (%s)\n",
 			  dev->zbd_filename,
 			  errno, strerror(errno));
@@ -453,7 +453,7 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 	}
 
 	if (S_ISCHR(st.st_mode)) {
-		ret = ioctl(dev->zbd_fd, SG_GET_SG_TABLESIZE, &sgsz);
+		ret = ioctl(dev->zbd_sg_fd, SG_GET_SG_TABLESIZE, &sgsz);
 		if (ret != 0) {
 			zbc_debug("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
 				  dev->zbd_filename,

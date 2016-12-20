@@ -810,6 +810,7 @@ static int zbc_scsi_open(const char *filename,
 		goto out;
 
 	dev->zbd_fd = fd;
+	dev->zbd_sg_fd = fd;
 	dev->zbd_filename = strdup(filename);
 	if (!dev->zbd_filename)
 		goto out_free_dev;

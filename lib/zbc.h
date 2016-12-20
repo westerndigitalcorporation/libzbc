@@ -103,6 +103,12 @@ struct zbc_device {
 	int			zbd_fd;
 
 	/**
+	 * File descriptor used for SG_IO. For block devices, this
+	 * may be different from zbd_fd.
+	 */
+	int			zbd_sg_fd;
+
+	/**
 	 * Device operations.
 	 */
 	struct zbc_ops		*zbd_ops;
