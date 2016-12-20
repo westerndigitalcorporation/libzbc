@@ -1042,8 +1042,11 @@ static int zbc_ata_classify(struct zbc_device *dev)
 
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
+	if (ret != 0) {
+		/* Probably not an ATA device */
+		ret = -ENXIO;
 		goto out;
+	}
 
 	/* It worked, so we can safely assume that this is an ATA device */
 	dev->zbd_info.zbd_type = ZBC_DT_ATA;
