@@ -11,7 +11,7 @@
  * with libzbc. If not, see <http://opensource.org/licenses/BSD-2-Clause>.
  *
  * Authors: Damien Le Moal (damien.lemoal@wdc.com)
- *          Christophe Louargant (christophe.louargant@hgst.com)
+ *          Christophe Louargant (christophe.louargant@wdc.com)
  */
 
 #include "zbc.h"
@@ -35,24 +35,36 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /**
+ * SCSI commands reply length.
+ */
+#define ZBC_SCSI_INQUIRY_BUF_LEN	96
+#define ZBC_SCSI_VPD_PAGE_B1_LEN	64
+#define ZBC_SCSI_VPD_PAGE_B6_LEN	64
+#define ZBC_SCSI_READ_CAPACITY_BUF_LEN	32
+
+/**
  * ZBC Device types.
  */
 #define ZBC_DEV_TYPE_STANDARD		0x00
 #define ZBC_DEV_TYPE_HOST_MANAGED	0x14
 
 /**
- * Get information (model, vendor, ...) from a SCSI device.
+ * Fill the buffer with the result of INQUIRY command.
+ * @buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
-static int zbc_scsi_classify(struct zbc_device *dev)
+static int zbc_scsi_inquiry(struct zbc_device *dev,
+			    uint8_t page,
+			    void *buf,
+			    uint16_t buf_len)
 {
 	struct zbc_sg_cmd cmd;
-	int dev_type;
-	int n, ret;
+	int ret;
 
 	/* Allocate and intialize inquiry command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+		zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
+			  dev->zbd_filename);
 		return ret;
 	}
 
@@ -75,43 +87,64 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	 * +=============================================================================+
 	 */
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
+	if (page) {
+		cmd.cdb[1] = 0x01;
+		cmd.cdb[2] = page;
+	}
+	zbc_sg_set_int16(&cmd.cdb[3], buf_len);
 
 	/* Execute the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
-		goto out;
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Get information (model, vendor, ...) from a SCSI device.
+ */
+static int zbc_scsi_classify(struct zbc_device *dev)
+{
+	uint8_t buf[ZBC_SCSI_INQUIRY_BUF_LEN];
+	int dev_type;
+	int n, ret;
+
+	/* Get device info */
+	ret = zbc_scsi_inquiry(dev, 0, buf, ZBC_SCSI_INQUIRY_BUF_LEN);
+	if (ret != 0) {
+		zbc_error("zbc_scsi_inquiry failed\n");
+		return ret;
+	}
 
 	/* Make sure we are not dealing with an ATA device */
-	if (strncmp((char *)&cmd.out_buf[8], "ATA", 3) == 0) {
-		ret = -ENXIO;
-		goto out;
-	}
+	if (strncmp((char *)&buf[8], "ATA", 3) == 0)
+		return -ENXIO;
 
 	/* This is a SCSI device */
 	dev->zbd_info.zbd_type = ZBC_DT_SCSI;
 
 	/* Vendor identification */
 	n = zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[0],
-			  (char *)&cmd.out_buf[8], 8);
+			  (char *)&buf[8], 8);
 
 	/* Product identification */
 	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			   (char *)&cmd.out_buf[16], 16);
+			   (char *)&buf[16], 16);
 
 	/* Product revision */
 	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			   (char *)&cmd.out_buf[32], 4);
+			   (char *)&buf[32], 4);
 
 	/* Now check the device type */
-	dev_type = (int)(cmd.out_buf[0] & 0x1f);
+	dev_type = (int)(buf[0] & 0x1f);
 	switch (dev_type) {
 
 	case ZBC_DEV_TYPE_HOST_MANAGED:
 		/* Host-managed device */
 		zbc_debug("Host-managed ZBC disk signature detected\n");
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		goto out;
+		return 0;
 
 	case ZBC_DEV_TYPE_STANDARD:
 		zbc_debug("Standard SCSI disk signature detected\n");
@@ -119,38 +152,31 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 
 	default:
 		/* Unsupported device */
-		ret = -ENXIO;
-		goto out;
-
+		return -ENXIO;
 	}
 
 	/*
 	 * This may be a host-aware device: look at VPD
 	 * page B1h (block device characteristics)
 	 */
-	memset(cmd.cdb, 0, sizeof(cmd.cdb));
-	memset(cmd.out_buf, 0, ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
-	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	cmd.cdb[1] = 0x01;
-	cmd.cdb[2] = 0xB1;
-	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1);
+	memset(buf, 0, sizeof(buf));
+	ret = zbc_scsi_inquiry(dev, 0xB1, buf, ZBC_SCSI_VPD_PAGE_B1_LEN);
+	if (ret != 0) {
+		zbc_error("zbc_scsi_inquiry VPD page 0xB1 failed\n");
+		return ret;
+	}
 
-	/* Execute the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
-		goto out;
+	if ((buf[1] == 0xB1) &&
+	    (buf[2] == 0x00) &&
+	    (buf[3] == 0x3C)) {
 
-	if ((cmd.out_buf[1] == 0xB1) &&
-	    (cmd.out_buf[2] == 0x00) &&
-	    (cmd.out_buf[3] == 0x3C)) {
-
-		switch ((cmd.out_buf[8] & 0x30) >> 4) {
+		switch ((buf[8] & 0x30) >> 4) {
 
 		case 0x00:
 			zbc_debug("Standard SCSI block device detected\n");
 			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
-			ret = -ENXIO;
-			break;
+			return -ENXIO;
+
 		case 0x01:
 			/* Host aware device */
 			zbc_debug("Host-aware ZBC block device detected\n");
@@ -161,23 +187,17 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 			/* Device-managed device */
 			zbc_debug("Device-managed SCSI block device detected\n");
 			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
-			ret = -ENXIO;
-			break;
+			return -ENXIO;
 
 		default:
 			zbc_debug("Unknown device type\n");
 			dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
-			ret = -ENXIO;
-			break;
-
+			return -ENXIO;
 		}
 
 	}
 
-out:
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -186,7 +206,8 @@ out:
 static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 				    enum zbc_reporting_options ro,
 				    uint64_t *max_lba,
-				    struct zbc_zone *zones, unsigned int *nr_zones)
+				    struct zbc_zone *zones,
+				    unsigned int *nr_zones)
 {
 	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
@@ -584,7 +605,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 
 	/* READ CAPACITY 16 */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
-			      NULL, ZBC_SG_READ_CAPACITY_REPLY_LEN);
+			      NULL, ZBC_SCSI_READ_CAPACITY_BUF_LEN);
 	if (ret != 0) {
 		zbc_error("zbc_sg_cmd_init failed\n");
 		return ret;
@@ -593,7 +614,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_READ_CAPACITY_CDB_SA;
-	zbc_sg_set_int32(&cmd.cdb[10], ZBC_SG_READ_CAPACITY_REPLY_LEN);
+	zbc_sg_set_int32(&cmd.cdb[10], ZBC_SCSI_READ_CAPACITY_BUF_LEN);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -683,52 +704,35 @@ out:
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
-	struct zbc_sg_cmd cmd;
+	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	int ret;
 
-	/* READ CAPACITY 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL,
-			      ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
+	ret = zbc_scsi_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+		zbc_error("zbc_scsi_inquiry VPD page 0xB6 failed\n");
 		return ret;
 	}
 
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	cmd.cdb[1] = 0x01;
-	cmd.cdb[2] = 0xB6;
-	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
-		goto out;
-
 	/* URSWRZ (unrestricted read in sequential write required zone) flag */
-	dev->zbd_info.zbd_flags |= (cmd.out_buf[4] & 0x01) ?
-		ZBC_UNRESTRICTED_READ : 0;
+	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 
 	/* Resource of handling zones */
 	dev->zbd_info.zbd_opt_nr_open_seq_pref =
-		zbc_sg_get_int32(&cmd.out_buf[8]);
+		zbc_sg_get_int32(&buf[8]);
 	dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
-		zbc_sg_get_int32(&cmd.out_buf[12]);
+		zbc_sg_get_int32(&buf[12]);
 	dev->zbd_info.zbd_max_nr_open_seq_req =
-		zbc_sg_get_int32(&cmd.out_buf[16]);
+		zbc_sg_get_int32(&buf[16]);
 
 	if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) &&
 	     (dev->zbd_info.zbd_max_nr_open_seq_req <= 0) ) {
 		zbc_error("%s: invalid maximum number of open sequential "
 			  "write required zones for host-managed device\n",
 			  dev->zbd_filename);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-out:
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
+	return 0;
 }
 
 /**

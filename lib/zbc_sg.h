@@ -24,7 +24,7 @@
 #include <scsi/sg.h>
 
 /**
- * SG SCSI command names.
+ * SG SCSI command id.
  */
 enum {
 	ZBC_SG_TEST_UNIT_READY = 0,
@@ -56,9 +56,6 @@ enum {
  */
 #define ZBC_SG_INQUIRY_CDB_OPCODE		0x12
 #define ZBC_SG_INQUIRY_CDB_LENGTH		6
-#define ZBC_SG_INQUIRY_REPLY_LEN		96
-#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B1	64
-#define ZBC_SG_INQUIRY_REPLY_LEN_VPD_PAGE_B6	64
 
 /**
  * Read capacity command definition.
@@ -66,7 +63,6 @@ enum {
 #define ZBC_SG_READ_CAPACITY_CDB_OPCODE		0x9E
 #define ZBC_SG_READ_CAPACITY_CDB_SA		0x10
 #define ZBC_SG_READ_CAPACITY_CDB_LENGTH		16
-#define ZBC_SG_READ_CAPACITY_REPLY_LEN		32
 
 /**
  * Read command definition.
@@ -249,12 +245,6 @@ extern int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd);
  * returns "UNIT ATTENTION".
  */
 extern int zbc_sg_test_unit_ready(struct zbc_device *dev);
-
-/**
- * Fill the buffer with the result of INQUIRY command.
- * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
- */
-extern int zbc_sg_inquiry(struct zbc_device *dev, void *buf);
 
 /**
  * Get information string from inquiry output.

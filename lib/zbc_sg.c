@@ -523,54 +523,6 @@ int zbc_sg_test_unit_ready(struct zbc_device *dev)
 }
 
 /**
- * Fill the buffer with the result of INQUIRY command.
- * buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
- */
-int zbc_sg_inquiry(struct zbc_device *dev, void *buf)
-{
-	struct zbc_sg_cmd cmd;
-	int ret;
-
-	/* Allocate and intialize inquiry command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, NULL, ZBC_SG_INQUIRY_REPLY_LEN);
-	if (ret != 0) {
-		zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
-			  dev->zbd_filename);
-		return ret;
-	}
-
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+=======================================================================|
-	 * | 0   |                           Operation Code (12h)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |                           Page Code                                   |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   | (MSB)                                                                 |
-	 * |- - -+---                    Allocation Length                            ---|
-	 * | 4   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 5   |                           Control                                     |
-	 * +=============================================================================+
-	 */
-	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	zbc_sg_set_int16(&cmd.cdb[3], ZBC_SG_INQUIRY_REPLY_LEN);
-
-	/* Execute the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret == 0)
-		memcpy(buf, cmd.out_buf, ZBC_SG_INQUIRY_REPLY_LEN);
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
  * Set bytes in a command cdb.
  */
 void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes)
