@@ -27,6 +27,7 @@
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
+	bool do_fake = false;
 	int ret, i;
 
 	/* Check command line */
@@ -34,7 +35,8 @@ int main(int argc, char **argv)
 usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
-		       "    -v : Verbose mode\n",
+		       "    -v : Verbose mode\n"
+		       "    -e : Print information for an emulated device\n",
 		       argv[0]);
 		return 1;
 	}
@@ -48,6 +50,10 @@ usage:
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-e") == 0) {
+
+			do_fake = true;
 
 		} else if (argv[i][0] == '-') {
 
@@ -67,33 +73,18 @@ usage:
 		goto usage;
 
 	/* Open device */
-	ret = zbc_device_is_zoned(argv[i], &info);
-	if (ret < 0) {
+	ret = zbc_device_is_zoned(argv[i], do_fake, &info);
+	if (ret == 1) {
+		zbc_print_device_info(&info, argv[i], stdout);
+		ret = 0;
+	} else if (ret == 0) {
+		printf("%s is not a zoned block device\n", argv[i]);
+	} else {
 		fprintf(stderr,
 			"zbc_device_is_zoned failed %d (%s)\n",
 			ret, strerror(-ret));
-		return 1;
+		ret = 1;
 	}
 
-	if (ret) {
-		printf("Device %s: %s\n",
-		       argv[i], info.zbd_vendor_id);
-		printf("    %s interface, %s disk model\n",
-		       zbc_disk_type_str(info.zbd_type),
-		       zbc_disk_model_str(info.zbd_model));
-		printf("    %llu 512-bytes sectors\n",
-		       (unsigned long long) info.zbd_sectors);
-		printf("    %llu logical blocks of %u B\n",
-		       (unsigned long long) info.zbd_lblocks,
-		       (unsigned int) info.zbd_lblock_size);
-		printf("    %llu physical blocks of %u B\n",
-		       (unsigned long long) info.zbd_pblocks,
-		       (unsigned int) info.zbd_pblock_size);
-		printf("    %.03F GB capacity\n",
-		       (double)(info.zbd_sectors << 9) / 1000000000);
-	} else {
-		printf("%s is not a zoned block device\n", argv[i]);
-	}
-
-	return 0;
+	return ret;
 }

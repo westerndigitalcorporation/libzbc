@@ -211,23 +211,7 @@ usage:
 		return 1;
 
 	zbc_get_device_info(dev, &info);
-
-	printf("Device %s: %s\n",
-	       path,
-	       info.zbd_vendor_id);
-	printf("    %s interface, %s disk model\n",
-	       zbc_disk_type_str(info.zbd_type),
-	       zbc_disk_model_str(info.zbd_model));
-	printf("    %llu 512-bytes sectors\n",
-	       (unsigned long long) info.zbd_sectors);
-	printf("    %llu logical blocks of %u B\n",
-	       (unsigned long long)info.zbd_lblocks,
-	       (unsigned int)info.zbd_lblock_size);
-	printf("    %llu physical blocks of %u B\n",
-	       (unsigned long long)info.zbd_pblocks,
-	       (unsigned int)info.zbd_pblock_size);
-	printf("    %.03F GB capacity\n",
-	       (double)(info.zbd_sectors << 9) / 1000000000);
+	zbc_print_device_info(&info, path, stdout);
 
 	/* Get the number of zones */
 	if (lba_unit)
@@ -247,15 +231,6 @@ usage:
 	       nr_zones,
 	       (nr_zones > 1) ? "s" : "",
 	       start, ro);
-	if (info.zbd_model == ZBC_DM_HOST_MANAGED) {
-		printf("    Maximum number of open sequential write required zones: %u\n",
-		       (unsigned int) info.zbd_max_nr_open_seq_req);
-	} else {
-		printf("    Optimal number of open sequential write preferred zones: %u\n",
-		       (unsigned int) info.zbd_opt_nr_open_seq_pref);
-		printf("    Optimal number of non-sequentially written sequential write preferred zones: %u\n",
-		       (unsigned int) info.zbd_opt_nr_non_seq_write_seq_pref);
-	}
 
 	if (num)
 		goto out;

@@ -198,6 +198,7 @@ usage:
 		return 1;
 
 	zbc_get_device_info(dev, &info);
+	zbc_print_device_info(&info, path, stdout);
 
 	/* Get zone list */
 	ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
@@ -214,23 +215,6 @@ usage:
 		goto out;
 	}
 	iozone = &zones[zidx];
-
-	printf("Device %s: %s\n",
-	       path,
-	       info.zbd_vendor_id);
-	printf("    %s interface, %s disk model\n",
-	       zbc_disk_type_str(info.zbd_type),
-	       zbc_disk_model_str(info.zbd_model));
-	printf("    %llu 512-bytes sectors\n",
-	       (unsigned long long) info.zbd_sectors);
-	printf("    %llu logical blocks of %u B\n",
-	       (unsigned long long) info.zbd_lblocks,
-	       (unsigned int) info.zbd_lblock_size);
-	printf("    %llu physical blocks of %u B\n",
-	       (unsigned long long) info.zbd_pblocks,
-	       (unsigned int) info.zbd_pblock_size);
-	printf("    %.03F GB capacity\n",
-	       (double)(info.zbd_sectors << 9) / 1000000000);
 
 	if (zbc_zone_conventional(iozone))
 		printf("Target zone: Conventional zone %d / %d, "
