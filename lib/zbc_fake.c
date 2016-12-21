@@ -228,7 +228,10 @@ static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 
 	fdev->zbd_meta_fd = open(meta_path, O_RDWR);
 	if (fdev->zbd_meta_fd < 0) {
-		/* Metadata does not exist yet, we'll have to wait for a set_zones call */
+		/*
+		 * Metadata does not exist yet, we'll have to wait
+		 * for a set_zones call.
+		 */
 		if (errno == ENOENT)
 			return 0;
 		ret = -errno;
@@ -241,12 +244,12 @@ static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 	}
 
 	if (fstat(fdev->zbd_meta_fd, &st) < 0) {
+		ret = -errno;
 		zbc_error("%s: fstat metadata file %s failed %d (%s)\n",
 			  fdev->dev.zbd_filename,
 			  meta_path,
 			  errno,
 			  strerror(errno));
-		ret = -errno;
 		goto out;
 	}
 
