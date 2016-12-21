@@ -251,6 +251,7 @@ const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq)
  * zbc_device_is_zoned - Test if a physical device is zoned.
  */
 int zbc_device_is_zoned(const char *filename,
+			bool fake,
 			struct zbc_device_info *info)
 {
 	struct zbc_device *dev = NULL;
@@ -267,13 +268,13 @@ int zbc_device_is_zoned(const char *filename,
 	}
 
 	if (dev && dev->zbd_ops) {
-		if (dev->zbd_ops != &zbc_fake_ops) {
+		if (dev->zbd_ops == &zbc_fake_ops && !fake) {
+			ret = 0;
+		} else {
 			ret = 1;
 			if (info)
 				memcpy(info, &dev->zbd_info,
 				       sizeof(zbc_device_info_t));
-		} else {
-			ret = 0;
 		}
 		dev->zbd_ops->zbd_close(dev);
 	} else {

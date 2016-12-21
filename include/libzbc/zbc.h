@@ -18,6 +18,7 @@
 #ifndef _LIBZBC_H_
 #define _LIBZBC_H_
 
+#include <stdio.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -540,23 +541,25 @@ extern const char *zbc_sk_str(enum zbc_sk sk);
 extern const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
 
 /**
- * zbc_device_is_zoned - Test if a physical device is zoned
+ * zbc_device_is_zoned - Test if a device is a zoned block device
  * @filename:	(IN) path to the device file
+ * @fake:	(IN) If true, also test emulated devices
  * @info:	(IN) Address where to store the device information
  *
  * Description:
- * Test if a physical device supports the ZBC/ZAC command set.
- * This excludes libzbc emulation mode showing a regular block device
- * or regular file as a ZBC host-managed block device. If @info is not
- * NULL and the device is identified as a zoned block device, the device
- * information is returned at the address specified by @info.
+ * Test if a device supports the ZBC/ZAC command set. If @fake is false,
+ * only test physical devices. Otherwise, also test regular files and
+ * regular block devices that may be in use with the fake backend driver
+ * to create an emulated host-managed zoned block device.
+ * If @info is not NULL and the device is identified as a zoned block device,
+ * the device information is returned at the address specified by @info.
  *
  * Returns a negative error code if the device test failed. 1 is returned
- * if the device is identified as zoned. Otherwise, 0 is returned.
- * In this case, the application can use stat/fstat to get more
- * details about the device.
+ * if the device is identified as a zoned zoned block device. Otherwise, 0
+ * is returned.
  */
 extern int zbc_device_is_zoned(const char *filename,
+			       bool fake,
 			       struct zbc_device_info *info);
 
 /**
@@ -971,7 +974,7 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			  size_t count, uint64_t offset);
 
 /**
- * zbc_flush - flush a device write cache
+ * zbc_flush - Flush a device write cache
  * @dev:	(IN) Device handle obtained with zbc_open
  *
  * This an the equivalent to fsync/fdatasunc but operates at the
@@ -980,5 +983,62 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  * Returns 0 on success and -EIO in case of error.
  */
 extern int zbc_flush(struct zbc_device *dev);
+
+/**
+ * zbc_print_info - Print a device information
+ * @info:	(IN) The information to print
+ * @dev_name:	(IN) Device path or name
+ * @out:	(IN) File stream to print to
+ *
+ * Print the content of @info to the file stream @out.
+ */
+static inline void zbc_print_device_info(struct zbc_device_info *info,
+					 const char *dev_name, FILE *out)
+{
+	fprintf(out,
+		"Device %s: %s\n",
+		dev_name,
+		info->zbd_vendor_id);
+	fprintf(out,
+		"    %s interface, %s disk model\n",
+		zbc_disk_type_str(info->zbd_type),
+		zbc_disk_model_str(info->zbd_model));
+	fprintf(out,
+		"    %llu 512-bytes sectors\n",
+		(unsigned long long) info->zbd_sectors);
+	fprintf(out,
+		"    %llu logical blocks of %u B\n",
+		(unsigned long long) info->zbd_lblocks,
+		(unsigned int) info->zbd_lblock_size);
+	fprintf(out,
+		"    %llu physical blocks of %u B\n",
+		(unsigned long long) info->zbd_pblocks,
+		(unsigned int) info->zbd_pblock_size);
+	fprintf(out,
+		"    %.03F GB capacity\n",
+		(double)(info->zbd_sectors << 9) / 1000000000);
+
+	if (info->zbd_model == ZBC_DM_HOST_MANAGED ||
+	    info->zbd_model == ZBC_DM_HOST_AWARE)
+		fprintf(out,
+			"    Read commands are %s\n",
+			(info->zbd_flags & ZBC_UNRESTRICTED_READ) ?
+			"unrestricted" : "restricted");
+
+	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
+		fprintf(out,
+			"    Maximum number of open sequential write required zones: %u\n",
+		       (unsigned int) info->zbd_max_nr_open_seq_req);
+	} else if (info->zbd_model == ZBC_DM_HOST_AWARE) {
+		fprintf(out,
+			"    Optimal number of open sequential write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_open_seq_pref);
+		fprintf(out,
+			"    Optimal number of non-sequentially written sequential write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
+	}
+
+	fflush(out);
+}
 
 #endif /* _LIBZBC_H_ */
