@@ -1037,6 +1037,7 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
+	size_t nr_sectors;
 	ssize_t ret = -EIO;
 
 	if (!fdev->zbd_meta)
@@ -1044,7 +1045,7 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 
 	zbc_fake_lock(fdev);
 
-	/* Find the target zone */
+	/* Find the zone containing offset */
 	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
@@ -1053,7 +1054,64 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 		goto out;
 	}
 
-	/* XXX: check for overflows, zero read unwritten data */
+	/*
+	 * We are simulated a host-managed device with restricted reads
+	 * so check the access alignement against zones and zone write pointer.
+	 */
+	nr_sectors = offset + count - zbc_zone_start(zone);
+
+	if (zbc_zone_conventional(zone)) {
+
+		/*
+		 * Reading accross conventional zones is OK.
+		 */
+		while (nr_sectors > zbc_zone_length(zone)) {
+
+			nr_sectors -= zbc_zone_length(zone);
+
+			zone = zbc_fake_find_zone(fdev,
+						  zbc_zone_start(zone) +
+						  zbc_zone_length(zone),
+						  true);
+			if (!zone) {
+				dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+				dev->zbd_errno.asc_ascq =
+					ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+				goto out;
+			}
+
+			if (!zbc_zone_conventional(zone)) {
+				dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+				dev->zbd_errno.asc_ascq =
+					ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA;
+				goto out;
+			}
+
+		}
+
+	} else {
+
+		/*
+		 * Reading after the zone write pointer or
+		 * accross zones is not allowed.
+		 */
+		if (nr_sectors > zbc_zone_length(zone)) {
+			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+			dev->zbd_errno.asc_ascq =
+				ZBC_ASC_READ_BOUNDARY_VIOLATION;
+			goto out;
+		}
+
+		if (nr_sectors > zbc_zone_wp(zone) - zbc_zone_start(zone)) {
+			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+			dev->zbd_errno.asc_ascq =
+				ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA;
+			goto out;
+		}
+
+	}
+
+	/* Do read */
 	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0)
 		ret = -errno;
@@ -1091,8 +1149,8 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 		goto out;
 	}
 
-	/* Writes cannot span zones */
-	next_sector = zone->zbz_start + zone->zbz_length;
+	/* Write cannot span zones */
+	next_sector = zbc_zone_start(zone) + zbc_zone_length(zone);
 	next_zone = zbc_fake_find_zone(fdev, next_sector, true);
 	if (offset + count > next_sector) {
 		if (next_zone) {
@@ -1110,7 +1168,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 	if (zbc_zone_sequential_req(zone)) {
 
 		/* Can only write at the write pointer */
-		if (offset != zone->zbz_write_pointer) {
+		if (offset != zbc_zone_wp(zone)) {
 			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 			dev->zbd_errno.asc_ascq =
 				ZBC_ASC_UNALIGNED_WRITE_COMMAND;
@@ -1150,7 +1208,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 
 	}
 
-	/* XXX: check for overflows */
+	/* Do write */
 	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
 	if (ret < 0) {
 		ret = -errno;
