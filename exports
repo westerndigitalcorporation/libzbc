@@ -18,6 +18,7 @@ global:
 	zbc_open;
 	zbc_close;
 	zbc_get_device_info;
+	zbc_print_device_info;
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;

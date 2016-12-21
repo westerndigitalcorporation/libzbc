@@ -198,7 +198,9 @@ usage:
 		return 1;
 
 	zbc_get_device_info(dev, &info);
-	zbc_print_device_info(&info, path, stdout);
+
+	printf("Device %s:\n", path);
+	zbc_print_device_info(&info, stdout);
 
 	/* Get zone list */
 	ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);

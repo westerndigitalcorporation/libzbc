@@ -324,6 +324,56 @@ void zbc_get_device_info(struct zbc_device *dev, struct zbc_device_info *info)
 }
 
 /**
+ * zbc_print_device_info - Print a device information
+ */
+void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
+{
+	fprintf(out,
+		"    Vendor ID: %s\n",
+		info->zbd_vendor_id);
+	fprintf(out,
+		"    %s interface, %s disk model\n",
+		zbc_disk_type_str(info->zbd_type),
+		zbc_disk_model_str(info->zbd_model));
+	fprintf(out,
+		"    %llu 512-bytes sectors\n",
+		(unsigned long long) info->zbd_sectors);
+	fprintf(out,
+		"    %llu logical blocks of %u B\n",
+		(unsigned long long) info->zbd_lblocks,
+		(unsigned int) info->zbd_lblock_size);
+	fprintf(out,
+		"    %llu physical blocks of %u B\n",
+		(unsigned long long) info->zbd_pblocks,
+		(unsigned int) info->zbd_pblock_size);
+	fprintf(out,
+		"    %.03F GB capacity\n",
+		(double)(info->zbd_sectors << 9) / 1000000000);
+
+	if (info->zbd_model == ZBC_DM_HOST_MANAGED ||
+	    info->zbd_model == ZBC_DM_HOST_AWARE)
+		fprintf(out,
+			"    Read commands are %s\n",
+			(info->zbd_flags & ZBC_UNRESTRICTED_READ) ?
+			"unrestricted" : "restricted");
+
+	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
+		fprintf(out,
+			"    Maximum number of open sequential write required zones: %u\n",
+		       (unsigned int) info->zbd_max_nr_open_seq_req);
+	} else if (info->zbd_model == ZBC_DM_HOST_AWARE) {
+		fprintf(out,
+			"    Optimal number of open sequential write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_open_seq_pref);
+		fprintf(out,
+			"    Optimal number of non-sequentially written sequential write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
+	}
+
+	fflush(out);
+}
+
+/**
  * zbc_report_zones - Get zone information
  */
 int zbc_report_zones(struct zbc_device *dev, uint64_t sector,

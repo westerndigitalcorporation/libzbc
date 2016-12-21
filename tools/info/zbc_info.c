@@ -75,7 +75,8 @@ usage:
 	/* Open device */
 	ret = zbc_device_is_zoned(argv[i], do_fake, &info);
 	if (ret == 1) {
-		zbc_print_device_info(&info, argv[i], stdout);
+		printf("Device %s:\n", argv[i]);
+		zbc_print_device_info(&info, stdout);
 		ret = 0;
 	} else if (ret == 0) {
 		printf("%s is not a zoned block device\n", argv[i]);

@@ -211,7 +211,9 @@ usage:
 		return 1;
 
 	zbc_get_device_info(dev, &info);
-	zbc_print_device_info(&info, path, stdout);
+
+	printf("Device %s:\n", path);
+	zbc_print_device_info(&info, stdout);
 
 	/* Get the number of zones */
 	if (lba_unit)
