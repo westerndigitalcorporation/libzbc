@@ -113,9 +113,6 @@ usage:
 
 	while (nio) {
 
-		printf("##### %d: Write %u at %llu\n",
-		       nio, sector_count, sector);
-
 		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
 		if (ret <= 0) {
 			zbc_errno_t zbc_err;
