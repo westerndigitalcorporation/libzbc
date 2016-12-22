@@ -1082,7 +1082,7 @@ static void dz_if_zblock_set_cb(GtkEntry *entry, gpointer user_data)
 	if (block >= 0 &&
 	    block < dz_if_sect2block(dzd, dzd->info.zbd_lblocks)) {
 		/* Search zone */
-		for(i = 0; i < dzd->max_nr_zones; i++) {
+		for (i = 0; i < dzd->max_nr_zones; i++) {
 			z = &dzd->zones[i].info;
 			if (block >= dz_if_sect2block(dzd, zbc_zone_start(z)) &&
 			    block < dz_if_sect2block(dzd, zbc_zone_start(z) + zbc_zone_length(z))) {

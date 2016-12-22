@@ -90,7 +90,7 @@ usage:
 
 	/* Open device */
 	ret = zbc_open(path, O_WRONLY, &dev);
-	if ( ret != 0 ) {
+	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed\n");
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");

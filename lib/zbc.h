@@ -205,7 +205,7 @@ extern int zbc_log_level;
 	do {						\
 		fprintf((stream), format, ## args);     \
 		fflush(stream);                         \
-	} while(0)
+	} while (0)
 
 /**
  * Log level controlled messages.
@@ -215,7 +215,7 @@ extern int zbc_log_level;
 		if ((l) <= zbc_log_level)			\
 			zbc_print((stream), "(libzbc) " format,	\
 				  ## args);			\
-	} while( 0 )
+	} while (0)
 
 #define zbc_info(format,args...)	\
 	zbc_print_level(ZBC_LOG_INFO, stdout, format, ##args)
@@ -236,14 +236,14 @@ extern int zbc_log_level;
 				"[PANIC] " format,      \
 				##args);                \
 		assert(0);                              \
-	} while( 0 )
+	} while (0)
 
 #define zbc_assert(cond)					\
 	do {							\
 		if (!(cond))					\
 			zbc_panic("Condition %s failed\n",	\
 				  # cond);			\
-	} while( 0 )
+	} while (0)
 
 #endif
 

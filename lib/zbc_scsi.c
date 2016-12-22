@@ -230,7 +230,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
 	if (ret != 0) {
 		zbc_error("zbc_sg_cmd_init failed\n");
-		return( ret );
+		return ret;
 	}
 
 	/* Fill command CDB:
@@ -724,8 +724,8 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	dev->zbd_info.zbd_max_nr_open_seq_req =
 		zbc_sg_get_int32(&buf[16]);
 
-	if ( (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) &&
-	     (dev->zbd_info.zbd_max_nr_open_seq_req <= 0) ) {
+	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED &&
+	    dev->zbd_info.zbd_max_nr_open_seq_req <= 0) {
 		zbc_error("%s: invalid maximum number of open sequential "
 			  "write required zones for host-managed device\n",
 			  dev->zbd_filename);

@@ -630,7 +630,7 @@ static void zbc_zone_do_close(struct zbc_fake_device *fdev, struct zbc_zone *zon
 
 	if (zbc_zone_imp_open(zone))
 		fdev->zbd_meta->zbd_nr_imp_open_zones--;
-	else if ( zbc_zone_exp_open(zone))
+	else if (zbc_zone_exp_open(zone))
 		fdev->zbd_meta->zbd_nr_exp_open_zones--;
 
 	if (zone->zbz_write_pointer == zone->zbz_start)

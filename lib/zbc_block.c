@@ -229,12 +229,12 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 	fscanf(file, "%s", str);
 	fclose(file);
 
-	if ( strcmp(str, "host-aware") == 0 ) {
+	if (strcmp(str, "host-aware") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 		return 1;
 	}
 
-	if ( strcmp(str, "host-managed") == 0 ) {
+	if (strcmp(str, "host-managed") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		return 1;
 	}
@@ -253,11 +253,11 @@ zbc_block_get_str(FILE *file, char *str)
 
 	if (fgets(str, 128, file)) {
 		len = strlen(str) - 1;
-		while( len > 0 ) {
-			if ( (str[len] == ' ')
-			     || (str[len] == '\t')
-			     || (str[len] == '\r')
-			     || (str[len] == '\n') ) {
+		while (len > 0) {
+			if (str[len] == ' ' ||
+			    str[len] == '\t' ||
+			    str[len] == '\r' ||
+			    str[len] == '\n') {
 				str[len] = '\0';
 				len--;
 			} else {
@@ -627,10 +627,10 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
 			goto out;
 		}
 
-		for(i = 0; i < rep->nr_zones; i++) {
+		for (i = 0; i < rep->nr_zones; i++) {
 
 			if ((*nr_zones && (n >= *nr_zones)) ||
-			    (sector >= dev->zbd_info.zbd_sectors) )
+			    (sector >= dev->zbd_info.zbd_sectors))
 				break;
 
 			memset(&zone, 0, sizeof(struct zbc_zone));
@@ -749,7 +749,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 			range.sector = zones[i].zbz_start;
 			range.nr_sectors = zones[i].zbz_length;
 			ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
-			if ( ret != 0 ) {
+			if (ret != 0) {
 				ret = -errno;
 				zbc_error("%s: ioctl BLKRESETZONE failed %d (%s)\n",
 					  dev->zbd_filename,

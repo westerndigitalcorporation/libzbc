@@ -117,7 +117,7 @@ usage:
 		       "                    \"rdonly\", \"offline\", \"rwp\", \"non_seq\" or \"not_wp\".\n"
 		       "                    Default is \"all\"\n",
 		       argv[0]);
-		return( 1 );
+		return 1;
 	}
 
 	/* Parse options */

@@ -99,7 +99,7 @@ usage:
 	}
 
 	/* Parse options */
-	for(i = 1; i < (argc - 1); i++) {
+	for (i = 1; i < (argc - 1); i++) {
 
 		if (strcmp(argv[i], "-v") == 0) {
 

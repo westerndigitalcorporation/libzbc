@@ -830,7 +830,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 
         /* Get zone descriptors */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
-        for(i = 0; i < nz; i++) {
+        for (i = 0; i < nz; i++) {
 
 		zones[i].zbz_type = buf[0] & 0x0f;
 

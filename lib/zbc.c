@@ -129,13 +129,13 @@ const char *zbc_disk_type_str(enum zbc_dev_type type)
 {
 	switch (type) {
 	case ZBC_DT_BLOCK:
-		return( "Zoned block device" );
+		return "Zoned block device";
 	case ZBC_DT_SCSI:
-		return( "SCSI ZBC device" );
+		return "SCSI ZBC device";
 	case ZBC_DT_ATA:
-		return( "ATA ZAC device" );
+		return "ATA ZAC device";
 	case ZBC_DT_FAKE:
-		return( "Emulated zoned block device" );
+		return "Emulated zoned block device";
 	case ZBC_DT_UNKNOWN:
 	default:
 		return "Unknown-disk-type";
@@ -149,13 +149,13 @@ const char *zbc_disk_model_str(enum zbc_dev_model model)
 {
 	switch (model) {
 	case ZBC_DM_HOST_AWARE:
-		return( "Host-aware" );
+		return "Host-aware";
 	case ZBC_DM_HOST_MANAGED:
-		return( "Host-managed" );
+		return "Host-managed";
 	case ZBC_DM_DEVICE_MANAGED:
-		return( "Device-managed" );
+		return "Device-managed";
 	case ZBC_DM_STANDARD:
-		return( "Regular" );
+		return "Regular";
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
 		return "Unknown-disk-model";
@@ -169,11 +169,11 @@ const char *zbc_zone_type_str(enum zbc_zone_type type)
 {
 	switch (type) {
 	case ZBC_ZT_CONVENTIONAL:
-		return( "Conventional" );
+		return "Conventional";
 	case ZBC_ZT_SEQUENTIAL_REQ:
-		return( "Sequential-write-required" );
+		return "Sequential-write-required";
 	case ZBC_ZT_SEQUENTIAL_PREF:
-		return( "Sequential-write-preferred" );
+		return "Sequential-write-preferred";
 	case ZBC_ZT_UNKNOWN:
 	default:
 		return "Unknown-zone-type";
@@ -187,21 +187,21 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 {
 	switch (cond) {
 	case ZBC_ZC_NOT_WP:
-		return( "Not-write-pointer" );
+		return "Not-write-pointer";
 	case ZBC_ZC_EMPTY:
-		return( "Empty" );
+		return "Empty";
 	case ZBC_ZC_IMP_OPEN:
-		return( "Implicit-open" );
+		return "Implicit-open";
 	case ZBC_ZC_EXP_OPEN:
-		return( "Explicit-open" );
+		return "Explicit-open";
 	case ZBC_ZC_CLOSED:
-		return( "Closed" );
+		return "Closed";
 	case ZBC_ZC_RDONLY:
-		return( "Read-only" );
+		return "Read-only";
 	case ZBC_ZC_FULL:
-		return( "Full" );
+		return "Full";
 	case ZBC_ZC_OFFLINE:
-		return( "Offline" );
+		return "Offline";
 	default:
 		return "Unknown-zone-condition";
 	}

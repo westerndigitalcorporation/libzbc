@@ -108,7 +108,7 @@ usage:
 
 	/* Get the number of zones */
 	ret = zbc_report_nr_zones(dev, zbc_lba2sect(&info, lba), ro, &nr_zones);
-	if ( ret != 0 ) {
+	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],zbc_report_nr_zones at lba %llu, ro 0x%02x failed %d\n",
 			(unsigned long long)lba,
 			(unsigned int)ro,
@@ -135,7 +135,7 @@ usage:
 		goto out;
 	}
 
-	for(i = 0; i < (int)nr_zones; i++) {
+	for (i = 0; i < (int)nr_zones; i++) {
 		z = &zones[i];
 		if (zbc_zone_conventional(z))
 			printf("[ZONE_INFO],%05d,0x%x,0x%x,%llu,%llu,N/A\n",
@@ -155,7 +155,7 @@ usage:
 	}
 
 out:
-	if ( ret ) {
+	if (ret != 0) {
 
 		zbc_errno_t zbc_err;
 		const char *sk_name;
