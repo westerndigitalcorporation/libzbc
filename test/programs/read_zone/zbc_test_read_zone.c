@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 	unsigned long long sector;
 	unsigned int sector_count;
 	char *path;
-	int ret;
+	ssize_t ret;
 
 	/* Check command line */
 	if (argc < 4 || argc > 5) {
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 		const char *ascq_name;
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_read_zone failed\n");
+			"[TEST][ERROR],zbc_read_zone failed %zd\n", ret);
 
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);
