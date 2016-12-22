@@ -216,7 +216,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	}
 
 	if ((sense_buf[0] & 0x7F) == 0x70 ||
-		   (sense_buf[0] & 0x7F) == 0x71) {
+	    (sense_buf[0] & 0x7F) == 0x71) {
 		/* store sense key, ASC/ASCQ */
 		dev->zbd_errno.sk = sense_buf[2] & 0x0F;
 		dev->zbd_errno.asc_ascq =
