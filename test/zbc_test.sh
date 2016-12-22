@@ -84,16 +84,27 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
 fi
 
 # Binary check
-for bin_name in zbc_test_close_zone zbc_test_finish_zone zbc_test_open_zone zbc_test_print_devinfo zbc_test_read_zone zbc_test_report_zones zbc_test_reset_zone zbc_test_write_zone; do
-   bin_path=${ZBC_TEST_BIN_PATH}/${bin_name}
-   if [ ! -e ${bin_path} ]; then
-       echo "Test program ${bin_name} not found in directory ${ZBC_TEST_BIN_PATH}"
+test_progs=( \
+    zbc_test_print_devinfo \
+    zbc_test_report_zones \
+    zbc_test_reset_zone \
+    zbc_test_open_zone \
+    zbc_test_close_zone \
+    zbc_test_finish_zone \
+    zbc_test_read_zone \
+    zbc_test_write_zone \
+)
+
+for p in ${test_progs[@]}; do
+   path=${ZBC_TEST_BIN_PATH}/${p}
+   if [ ! -e ${path} ]; then
+       echo "Test program ${p} not found in directory ${ZBC_TEST_BIN_PATH}"
        exit
    fi
 done
 
 # Run tests
-echo "Executing command completion tests..."
+echo "00 - Executing command completion tests..."
 declare -i terminate_mode=1
 zbc_run_test 00_command_completion_check ${termination_mode}
 zbc_test_ret=$?
@@ -103,11 +114,11 @@ if [ ${zbc_test_ret} -gt 0 ]; then
     exit 1
 fi
 
-echo "Executing sense key, sense code tests..."
+echo "01 - Executing sense key, sense code tests..."
 termination_mode=0
 zbc_run_test 01_sk_ascq_check ${termination_mode}
 
-echo "Executing zone state machine tests..."
+echo "02 - Executing zone state machine tests..."
 termination_mode=0
 zbc_run_test 02_state_machine_check ${termination_mode}
 
