@@ -157,7 +157,7 @@ enum zbc_zone_attributes {
 
 	/**
 	 * Non-Sequential Write Resources Active: indicates that a
-	 * sequential write preferred zone (host-aware disks only) was
+	 * sequential write preferred zone (host-aware devices only) was
 	 * written at a random LBA (not at the write pointer position).
 	 * The drive may reset this attribute at any time after the random
 	 * write operation completion.
@@ -286,13 +286,13 @@ enum zbc_dev_type {
 };
 
 /**
- * zbc_disk_type_str - Returns a disk type name
+ * zbc_device_type_str - Returns a device type name
  * @type:	(IN) Device type
  *
  * Description:
- * Returns a string describing the device type of a disk.
+ * Returns a string describing the interface type of a device.
  */
-extern const char *zbc_disk_type_str(enum zbc_dev_type type);
+extern const char *zbc_device_type_str(enum zbc_dev_type type);
 
 /**
  * Device model.
@@ -331,7 +331,7 @@ enum zbc_dev_model {
 	ZBC_DM_DEVICE_MANAGED	= 0x03,
 
 	/**
-	 * Standard disk: the device type/signature is 0x00
+	 * Standard block device: the device type/signature is 0x00
 	 * and the ZONED field of the block device characteristics VPD
 	 * page B1h is 00b.
 	 */
@@ -340,13 +340,13 @@ enum zbc_dev_model {
 };
 
 /**
- * zbc_disk_model_str - Returns a disk model name
+ * zbc_device_model_str - Returns a device zone model name
  * @model:	(IN) Device model
  *
  * Description:
  * Returns a string describing a device model.
  */
-extern const char *zbc_disk_model_str(enum zbc_dev_model model);
+extern const char *zbc_device_model_str(enum zbc_dev_model model);
 
 /**
  * Device handle.
@@ -422,9 +422,8 @@ struct zbc_device_info {
 	uint64_t		zbd_pblocks;
 
 	/**
-	 * For an I/O buffer aligned on the system memory page size,
-	 * this defines the maximum number of 512B sectors that can be
-	 * transferred with a single call to zbc_pread and zbc_pwrite.
+	 * The maximum number of 512B sectors that can be
+	 * transferred with a single command to the device.
 	 */
 	uint64_t		zbd_max_rw_sectors;
 
@@ -936,7 +935,7 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  *
  * This an the equivalent of the standard system call pread(2) that
  * operates on a ZBC device handle and uses 512B sector unit addressing
- * for the amount of data and the position on disk of the data to read.
+ * for the amount of data and the position on the device of the data to read.
  * Attempting to read data across zone boundaries or after the write pointer
  * position of a write pointer zone is possible only if the device allows
  * unrestricted reads. This is indicated by the device information structure
@@ -944,9 +943,6 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  * The range of 512B sectors to read, starting at @offset and spanning @count
  * 512B sectors must be aligned on logical blocks boundaries. That is, for a
  * 4K logical block size device, @count and @offset must be multiples of 8.
- * If @buf is page aligned, @count must be smaller than or equal to the vale
- * indicated by the field zbd_max_rw_sectors of the device information
- * structure.
  *
  * Any error returned by pread(2) can be returned. On success, the number of
  * 512B sectors read is returned.
@@ -963,7 +959,7 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  *
  * This an the equivalent of the standard system call pwrite(2) that
  * operates on a ZBC device handle, and uses 512B sector unit addressing
- * for the amount of data and the position on disk of the data to
+ * for the amount of data and the position on the device of the data to
  * write. On a host-aware device, any range of 512B sector is acceptable.
  * On a host-managed device, the range os sectors to write can span several
  * conventional zones but cannot span conventional and sequential write
@@ -972,9 +968,6 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  * The range of 512B sectors to write, starting at @offset and spanning @count
  * 512B sectors must be aligned on physical blocks boundaries. That is, for a
  * 4K physical block size device, @count and @offset must be multiples of 8.
- * If @buf is page aligned, @count must be smaller than or equal to the vale
- * indicated by the field zbd_max_rw_sectors of the device information
- * structure.
  *
  * Any error returned by write(2) can be returned. On success, the number of
  * logical blocks written is returned.

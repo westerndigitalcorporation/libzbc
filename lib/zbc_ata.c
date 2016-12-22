@@ -402,7 +402,7 @@ static int zbc_ata_strcpy(char *dst, char *buf, int buf_len,
 }
 
 /**
- * Get disk vendor, product ID and revision.
+ * Get device vendor, product ID and revision.
  */
 static void zbc_ata_vendor_id(struct zbc_device *dev)
 {
@@ -1107,7 +1107,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 			break;
 		}
 
-		/* Fall through (unknown disk) */
+		/* Fall through (unknown device) */
 
 	default:
 
@@ -1234,7 +1234,7 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 }
 
 /**
- * Open a disk.
+ * Open a device.
  */
 static int zbc_ata_open(const char *filename,
 			int flags, struct zbc_device **pdev)

@@ -142,12 +142,11 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 
 	case ZBC_DEV_TYPE_HOST_MANAGED:
 		/* Host-managed device */
-		zbc_debug("Host-managed ZBC disk signature detected\n");
+		zbc_debug("Host-managed ZBC block device detected\n");
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		return 0;
 
 	case ZBC_DEV_TYPE_STANDARD:
-		zbc_debug("Standard SCSI disk signature detected\n");
 		break;
 
 	default:
@@ -642,9 +641,9 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 
 		/*
 		 * The capacity represents only the space used by
-		 * conventional zones at the beginning of the disk. To get
+		 * conventional zones at the beginning of the device. To get
 		 * the entire device capacity, we need to get the last LBA
-		 * of the last zone of the disk.
+		 * of the last zone of the device.
 		 */
 		ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL, &max_lba,
 					       NULL, &nr_zones);
@@ -658,7 +657,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 
 	case 0x01:
 
-		/* The disk last LBA was reported */
+		/* The device last LBA was reported */
 		dev->zbd_info.zbd_lblocks =
 			zbc_sg_get_int64(&cmd.out_buf[0]) + 1;
 
@@ -766,7 +765,7 @@ static int zbc_scsi_get_dev_info(struct zbc_device *dev)
 }
 
 /**
- * Open a disk.
+ * Open a device.
  */
 static int zbc_scsi_open(const char *filename,
 			 int flags, struct zbc_device **pdev)
@@ -844,7 +843,7 @@ out:
 }
 
 /**
- * Close a disk.
+ * Close a device.
  */
 static int zbc_scsi_close(struct zbc_device *dev)
 {

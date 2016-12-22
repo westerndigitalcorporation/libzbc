@@ -33,10 +33,10 @@
 
 /**
  * Logical and physical sector size for emulation on top of a regular file.
- * For emulation on top of a raw disk, the disk logical and physical
- * sector sizes are used.
+ * For emulation on top of a raw block device, the device actual logical and
+ * physical block sizes are used.
  */
-#define ZBC_FAKE_FILE_SECTOR_SIZE	512
+#define ZBC_FAKE_FILE_BLOCK_SIZE	512
 
 /**
  * Maximum number of open zones (implicit + explicit).
@@ -380,9 +380,9 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 
 		/* Default value for files */
 		dev->zbd_info.zbd_lblock_size =
-			ZBC_FAKE_FILE_SECTOR_SIZE;
+			ZBC_FAKE_FILE_BLOCK_SIZE;
 		dev->zbd_info.zbd_lblocks =
-			st.st_size / ZBC_FAKE_FILE_SECTOR_SIZE;
+			st.st_size / ZBC_FAKE_FILE_BLOCK_SIZE;
 		dev->zbd_info.zbd_pblock_size =
 			dev->zbd_info.zbd_lblock_size;
 		dev->zbd_info.zbd_pblocks =

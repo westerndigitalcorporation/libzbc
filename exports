@@ -7,8 +7,8 @@ global:
 ZBC_GLOBAL {
 global:
 	zbc_set_log_level;
-	zbc_disk_type_str;
-	zbc_disk_model_str;
+	zbc_device_type_str;
+	zbc_device_model_str;
 	zbc_zone_type_str;
 	zbc_zone_condition_str;
 	zbc_errno;

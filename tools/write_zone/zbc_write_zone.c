@@ -399,7 +399,7 @@ usage:
 	}
 
 	if (flush) {
-		printf("Flushing disk...\n");
+		printf("Flushing device...\n");
 		ret = zbc_flush(dev);
 		if (ret != 0) {
 			fprintf(stderr, "zbc_flush failed %zd (%s)\n",

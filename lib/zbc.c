@@ -123,9 +123,9 @@ zbc_set_log_level(char *log_level)
 }
 
 /**
- * zbc_disk_type_str - Returns a disk type name
+ * zbc_device_type_str - Returns a devicetype name
  */
-const char *zbc_disk_type_str(enum zbc_dev_type type)
+const char *zbc_device_type_str(enum zbc_dev_type type)
 {
 	switch (type) {
 	case ZBC_DT_BLOCK:
@@ -138,14 +138,14 @@ const char *zbc_disk_type_str(enum zbc_dev_type type)
 		return "Emulated zoned block device";
 	case ZBC_DT_UNKNOWN:
 	default:
-		return "Unknown-disk-type";
+		return "Unknown-device-type";
 	}
 }
 
 /**
- * zbc_disk_model_str - Returns a disk model name
+ * zbc_device_model_str - Returns a device zone model name
  */
-const char *zbc_disk_model_str(enum zbc_dev_model model)
+const char *zbc_device_model_str(enum zbc_dev_model model)
 {
 	switch (model) {
 	case ZBC_DM_HOST_AWARE:
@@ -158,7 +158,7 @@ const char *zbc_disk_model_str(enum zbc_dev_model model)
 		return "Regular";
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
-		return "Unknown-disk-model";
+		return "Unknown-device-model";
 	}
 }
 
@@ -332,9 +332,9 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 		"    Vendor ID: %s\n",
 		info->zbd_vendor_id);
 	fprintf(out,
-		"    %s interface, %s disk model\n",
-		zbc_disk_type_str(info->zbd_type),
-		zbc_disk_model_str(info->zbd_model));
+		"    %s interface, %s zone model\n",
+		zbc_device_type_str(info->zbd_type),
+		zbc_device_model_str(info->zbd_model));
 	fprintf(out,
 		"    %llu 512-bytes sectors\n",
 		(unsigned long long) info->zbd_sectors);
@@ -485,14 +485,19 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		  size_t count, uint64_t offset)
 {
+	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
+	size_t sz, rd_count = 0;
 	ssize_t ret;
 
-	if (!zbc_dev_sect_laligned(dev, count) ||
-	    !zbc_dev_sect_laligned(dev, offset))
-		return -EINVAL;
+	zbc_debug("Read %zu sectors at sector %llu\n",
+		  count, (unsigned long long) offset);
 
-	if (count > dev->zbd_info.zbd_max_rw_sectors)
+	if (!zbc_dev_sect_laligned(dev, count) ||
+	    !zbc_dev_sect_laligned(dev, offset)) {
+		zbc_error("Unaligned read %zu sectors at sector %llu\n",
+			  count, (unsigned long long) offset);
 		return -EINVAL;
+	}
 
 	if ((offset + count) > dev->zbd_info.zbd_sectors)
 		count = dev->zbd_info.zbd_sectors - offset;
@@ -500,13 +505,31 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	    offset >= dev->zbd_info.zbd_sectors)
 		return 0;
 
-	ret = (dev->zbd_ops->zbd_pread)(dev, buf, count, offset);
-	if (ret < 0)
-		zbc_error("Read %zu sectors at sector %llu failed %zd (%s)\n",
-			  count, (unsigned long long) offset,
-			  -ret, strerror(-ret));
+	while (count) {
 
-	return ret;
+		if (count > max_count)
+			sz = max_count;
+		else
+			sz = count;
+
+		zbc_debug("  Read %zu sectors at sector %llu\n",
+			  sz, (unsigned long long) offset);
+
+		ret = (dev->zbd_ops->zbd_pread)(dev, buf, sz, offset);
+		if (ret <= 0) {
+			zbc_error("Read %zu sectors at sector %llu failed %zd (%s)\n",
+				  sz, (unsigned long long) offset,
+				  -ret, strerror(-ret));
+			return ret ? ret : -EIO;
+		}
+
+		offset += ret;
+		count -=ret;
+		rd_count +=ret;
+
+	}
+
+	return rd_count;
 }
 
 /**
@@ -515,14 +538,16 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 		   size_t count, uint64_t offset)
 {
+	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
+	size_t sz, wr_count = 0;
 	ssize_t ret;
 
 	if (!zbc_dev_sect_paligned(dev, count) ||
-	    !zbc_dev_sect_paligned(dev, offset))
+	    !zbc_dev_sect_paligned(dev, offset)) {
+		zbc_error("Unaligned write %zu sectors at sector %llu\n",
+			  count, (unsigned long long) offset);
 		return -EINVAL;
-
-	if (count > dev->zbd_info.zbd_max_rw_sectors)
-		return -EINVAL;
+	}
 
 	if ((offset + count) > dev->zbd_info.zbd_sectors)
 		count = dev->zbd_info.zbd_sectors - offset;
@@ -530,13 +555,31 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	    offset >= dev->zbd_info.zbd_sectors)
 		return 0;
 
-	ret = (dev->zbd_ops->zbd_pwrite)(dev, buf, count, offset);
-	if (ret < 0)
-		zbc_error("Write %zu sectors at sector %llu failed %zd (%s)\n",
-			  count, (unsigned long long) offset,
-			  -ret, strerror(-ret));
+	while (count) {
 
-	return ret;
+		if (count > max_count)
+			sz = max_count;
+		else
+			sz = count;
+
+		zbc_debug("  Write %zu sectors at sector %llu\n",
+			  sz, (unsigned long long) offset);
+
+		ret = (dev->zbd_ops->zbd_pwrite)(dev, buf, sz, offset);
+		if (ret <= 0) {
+			zbc_error("Write %zu sectors at sector %llu failed %zd (%s)\n",
+				  sz, (unsigned long long) offset,
+				  -ret, strerror(-ret));
+			return ret ? ret : -EIO;
+		}
+
+		offset += ret;
+		count -=ret;
+		wr_count +=ret;
+
+	}
+
+	return wr_count;
 }
 
 /**

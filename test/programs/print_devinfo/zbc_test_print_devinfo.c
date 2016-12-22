@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 
 	fprintf(stdout,
 		"[TEST][INFO][DEVICE_MODEL],%s\n",
-		zbc_disk_model_str(info.zbd_model));
+		zbc_device_model_str(info.zbd_model));
 
 	fprintf(stdout,
 		"[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",

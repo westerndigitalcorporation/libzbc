@@ -59,8 +59,7 @@ zbc_dev_to_block(struct zbc_device *dev)
 }
 
 /**
- * Test if the block device is a partition.
- * If yes, find out the holder disk name and get the partition start offset.
+ * Get the start sector offset of a partition device.
  */
 static int
 zbc_block_get_partition_start(struct zbc_device *dev)
@@ -122,7 +121,7 @@ zbc_block_open_holder(struct zbc_device *dev)
 
 /**
  * Test if the block device is a partition.
- * If yes, find out the holder disk name and get the partition start offset.
+ * If yes, find out the holder device name and get the partition start offset.
  */
 static int
 zbc_block_handle_partition(struct zbc_device *dev)
@@ -130,7 +129,7 @@ zbc_block_handle_partition(struct zbc_device *dev)
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	unsigned long long size;
 	unsigned int major, minor = 0;
-	unsigned int disk_minor;
+	unsigned int dev_minor;
 	char *dev_name = basename(dev->zbd_filename);
 	char str[128];
 	char part_name[128];
@@ -173,7 +172,7 @@ not_part:
 	}
 
 	/* Get the partition holder name */
-	disk_minor = minor & ~15U;
+	dev_minor = minor & ~15U;
 	rewind(file);
 	fgets(str, sizeof(str), file);
 	fgets(str, sizeof(str), file);
@@ -185,7 +184,7 @@ not_part:
 		if (ret != 4)
 			continue;
 
-		if (minor == disk_minor) {
+		if (minor == dev_minor) {
 			zbd->holder_name = strdup(part_name);
 			break;
 		}
