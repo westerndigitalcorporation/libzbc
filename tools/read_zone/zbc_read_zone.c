@@ -92,7 +92,7 @@ usage:
 		       "    -f <file>  : Write the content of the zone to <file>\n"
 		       "                 If <file> is \"-\", the zone content is\n"
 		       "                 written to the standard output\n"
-		       "    -ofst      : sector offset from the start sector of "
+		       "    -ofst      : sector offset from the start sector of\n"
 		       "                 the zone (default 0 or write pointer)\n",
 		       argv[0]);
 		return 1;
