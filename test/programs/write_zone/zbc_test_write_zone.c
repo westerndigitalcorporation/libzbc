@@ -31,7 +31,8 @@ int main(int argc, char **argv)
 	unsigned int lba_count;
 	unsigned long long sector;
 	unsigned int sector_count;
-	int i, nio = 1, ret;
+	int i, nio = 1;
+	ssize_t ret;
 	char *path;
 
 	/* Check command line */
@@ -89,7 +90,8 @@ usage:
 	/* Open device */
 	ret = zbc_open(path, O_WRONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed\n");
+		fprintf(stderr, "[TEST][ERROR],open device failed %zd\n",
+			ret);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -118,7 +120,8 @@ usage:
 			const char *ascq_name;
 
 			fprintf(stderr,
-				"[TEST][ERROR],zbc_write_zone failed\n");
+				"[TEST][ERROR],zbc_write_zone failed %zd\n",
+				ret);
 
 			zbc_errno(dev, &zbc_err);
 			sk_name = zbc_sk_str(zbc_err.sk);
