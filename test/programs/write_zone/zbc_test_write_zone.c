@@ -86,8 +86,6 @@ usage:
 	lba = atoll(argv[i+1]);
 	lba_count = (uint32_t)atoi(argv[i+2]);
 
-	zbc_set_log_level("debug");
-
 	/* Open device */
 	ret = zbc_open(path, O_WRONLY, &dev);
 	if (ret != 0) {
