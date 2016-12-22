@@ -98,7 +98,8 @@ usage:
 	/* Open device */
 	ret = zbc_open(argv[i], O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed\n");
+		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
+			ret);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -109,7 +110,7 @@ usage:
 	/* Get the number of zones */
 	ret = zbc_report_nr_zones(dev, zbc_lba2sect(&info, lba), ro, &nr_zones);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],zbc_report_nr_zones at lba %llu, ro 0x%02x failed %d\n",
+		fprintf(stderr, "[TEST][ERROR],zbc_report_nr_zones lba %llu, ro 0x%02x failed %d\n",
 			(unsigned long long)lba,
 			(unsigned int)ro,
 			ret);
@@ -130,7 +131,8 @@ usage:
 	ret = zbc_report_zones(dev, lba, ro, zones, &nr_zones);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_report_zones failed %d\n", ret);
+			"[TEST][ERROR],zbc_report_zones failed %d\n",
+			ret);
 		ret = 1;
 		goto out;
 	}

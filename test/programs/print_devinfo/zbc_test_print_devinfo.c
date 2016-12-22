@@ -35,8 +35,9 @@ static int zbc_get_last_zone(struct zbc_device *dev, zbc_zone_t *z)
 	ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_list_zones failed\n");
-		return -1;
+			"[TEST][ERROR],zbc_list_zones failed %d\n",
+			ret);
+		return ret;
 	}
 
 	memcpy(z, &zones[nr_zones - 1], sizeof(zbc_zone_t));
@@ -62,7 +63,8 @@ int main(int argc, char **argv)
 	/* Open device */
 	ret = zbc_open(argv[1], O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed\n");
+		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
+			ret);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -72,8 +74,6 @@ int main(int argc, char **argv)
 
 	ret = zbc_get_last_zone(dev, &last_zone);
 	if (ret != 0) {
-		fprintf(stderr,
-			"[TEST][ERROR],zbc_get_last_zone failed\n");
 		ret = 1;
 		goto out;
 	}

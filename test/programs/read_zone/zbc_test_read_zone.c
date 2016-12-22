@@ -63,7 +63,8 @@ int main(int argc, char **argv)
 	/* Open device */
 	ret = zbc_open(path, O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed\n");
+		fprintf(stderr, "[TEST][ERROR],open device failed %zd\n",
+			ret);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -90,7 +91,8 @@ int main(int argc, char **argv)
 		const char *ascq_name;
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_read_zone failed %zd\n", ret);
+			"[TEST][ERROR],zbc_read_zone failed %zd\n",
+			ret);
 
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);
