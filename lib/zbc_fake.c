@@ -666,7 +666,7 @@ static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 		}
 		if ((fdev->zbd_meta->zbd_nr_exp_open_zones + need_open) >
 		    fdev->dev.zbd_info.zbd_max_nr_open_seq_req) {
-			dev->zbd_errno.sk = ZBC_SK_ABORTED_COMMAND;
+			dev->zbd_errno.sk = ZBC_SK_DATA_PROTECT;
 			dev->zbd_errno.asc_ascq =
 				ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES;
 			ret = -EIO;
@@ -733,7 +733,7 @@ static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 	    > fdev->dev.zbd_info.zbd_max_nr_open_seq_req) {
 
 		if (!fdev->zbd_meta->zbd_nr_imp_open_zones) {
-			dev->zbd_errno.sk = ZBC_SK_ABORTED_COMMAND;
+			dev->zbd_errno.sk = ZBC_SK_DATA_PROTECT;
 			dev->zbd_errno.asc_ascq =
 				ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES;
 			ret = -EIO;
@@ -1181,7 +1181,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 			if (fdev->zbd_meta->zbd_nr_exp_open_zones >=
 			    fdev->dev.zbd_info.zbd_max_nr_open_seq_req) {
 				/* Too many explicit open on-going */
-				dev->zbd_errno.sk = ZBC_SK_ABORTED_COMMAND;
+				dev->zbd_errno.sk = ZBC_SK_DATA_PROTECT;
 				dev->zbd_errno.asc_ascq =
 					ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES;
 				ret = -EIO;
