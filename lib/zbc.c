@@ -220,6 +220,7 @@ void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
  */
 const char *zbc_sk_str(enum zbc_sk sk)
 {
+	static char sk_buf[64];
 	int i = 0;
 
 	while (zbc_sg_sk_list[i].sk != 0) {
@@ -228,7 +229,9 @@ const char *zbc_sk_str(enum zbc_sk sk)
 		i++;
 	}
 
-	return "Unknown-sense-key";
+	sprintf(sk_buf, "Unknown-sense-key 0x%02X", (int)sk);
+
+	return sk_buf;
 }
 
 /**
@@ -236,6 +239,7 @@ const char *zbc_sk_str(enum zbc_sk sk)
  */
 const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq)
 {
+	static char asc_buf[64];
 	int i = 0;
 
 	while (zbc_sg_asc_ascq_list[i].asc_ascq != 0) {
@@ -244,7 +248,11 @@ const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq)
 		i++;
 	}
 
-	return "Unknown-additional-sense-code-qualifier";
+	sprintf(asc_buf,
+		"Unknown-additional-sense-code-qualifier 0x%02X",
+		(int)asc_ascq);
+
+	return asc_buf;
 }
 
 /**
