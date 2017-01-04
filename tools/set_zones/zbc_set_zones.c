@@ -140,7 +140,6 @@ usage:
 			ret = 1;
 			goto out;
 		}
-		conv_sz = (long long)((double) info.zbd_sectors * (double) conv_p) / 100;
 
 		zone_sz = (strtoll(argv[i + 2], NULL, 10) * 1024ULL * 1024ULL)
 			>> 9;
@@ -150,6 +149,10 @@ usage:
 			ret = 1;
 			goto out;
 		}
+
+		conv_sz = (long long)((double) info.zbd_sectors * (double) conv_p) / 100;
+		if (conv_p && conv_sz < zone_sz)
+			conv_sz = zone_sz;
 
 	} else {
 
