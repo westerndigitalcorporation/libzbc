@@ -16,7 +16,7 @@
 zbc_test_init $0 $*
 
 # Set expected error code
-expected_sk="Aborted-command"
+expected_sk="Data-protect"
 expected_asc="Insufficient-zone-resources"
 
 zbc_test_info "WRITE insufficient zone resources..."

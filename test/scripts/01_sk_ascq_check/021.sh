@@ -18,7 +18,7 @@ zbc_test_init $0 $*
 zbc_test_info "OPEN_ZONE insufficient zone resources..."
 
 # Set expected error code
-expected_sk="Aborted-command"
+expected_sk="Data-protect"
 expected_asc="Insufficient-zone-resources"
 
 # Get drive information
