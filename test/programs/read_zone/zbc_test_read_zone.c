@@ -19,7 +19,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include <libzbc/zbc.h>
+#include "libzbc/zbc.h"
+#include "zbc_private.h"
 
 int main(int argc, char **argv)
 {
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 	sector = zbc_lba2sect(&info, lba);
 	sector_count = zbc_lba2sect(&info, lba_count);

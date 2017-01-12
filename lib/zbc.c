@@ -479,7 +479,8 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 		       enum zbc_zone_op op, unsigned int flags)
 {
 
-	if ((!(flags & ZBC_OP_ALL_ZONES)) &&
+	if (!zbc_test_mode(dev) &&
+	    (!(flags & ZBC_OP_ALL_ZONES)) &&
 	    !zbc_dev_sect_laligned(dev, sector))
 		return -EINVAL;
 
@@ -500,11 +501,13 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	zbc_debug("Read %zu sectors at sector %llu\n",
 		  count, (unsigned long long) offset);
 
-	if (!zbc_dev_sect_laligned(dev, count) ||
-	    !zbc_dev_sect_laligned(dev, offset)) {
-		zbc_error("Unaligned read %zu sectors at sector %llu\n",
-			  count, (unsigned long long) offset);
-		return -EINVAL;
+	if (!zbc_test_mode(dev)) {
+		if (!zbc_dev_sect_laligned(dev, count) ||
+		    !zbc_dev_sect_laligned(dev, offset)) {
+			zbc_error("Unaligned read %zu sectors at sector %llu\n",
+				  count, (unsigned long long) offset);
+			return -EINVAL;
+		}
 	}
 
 	if ((offset + count) > dev->zbd_info.zbd_sectors)
@@ -550,11 +553,13 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	size_t sz, wr_count = 0;
 	ssize_t ret;
 
-	if (!zbc_dev_sect_paligned(dev, count) ||
-	    !zbc_dev_sect_paligned(dev, offset)) {
-		zbc_error("Unaligned write %zu sectors at sector %llu\n",
-			  count, (unsigned long long) offset);
-		return -EINVAL;
+	if (!zbc_test_mode(dev)) {
+		if (!zbc_dev_sect_paligned(dev, count) ||
+		    !zbc_dev_sect_paligned(dev, offset)) {
+			zbc_error("Unaligned write %zu sectors at sector %llu\n",
+				  count, (unsigned long long) offset);
+			return -EINVAL;
+		}
 	}
 
 	if ((offset + count) > dev->zbd_info.zbd_sectors)
@@ -570,7 +575,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 		else
 			sz = count;
 
-		zbc_debug("  Write %zu sectors at sector %llu\n",
+		zbc_debug("Write %zu sectors at sector %llu\n",
 			  sz, (unsigned long long) offset);
 
 		ret = (dev->zbd_ops->zbd_pwrite)(dev, buf, sz, offset);
@@ -636,3 +641,12 @@ zbc_set_write_pointer(struct zbc_device *dev,
 	return (dev->zbd_ops->zbd_set_wp)(dev, sector, wp_sector);
 }
 
+#ifdef HAVE_DEVTEST
+/**
+ * zbc_set_test_mode - Set library calls to test mode for the device
+ */
+void zbc_set_test_mode(struct zbc_device *dev)
+{
+	dev->zbd_flags |= ZBC_DEVTEST;
+}
+#endif

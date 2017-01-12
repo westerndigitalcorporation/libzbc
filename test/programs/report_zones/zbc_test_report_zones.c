@@ -20,7 +20,8 @@
 #include <string.h>
 #include <errno.h>
 
-#include <libzbc/zbc.h>
+#include "libzbc/zbc.h"
+#include "zbc_private.h"
 
 int main(int argc, char **argv)
 {
@@ -105,6 +106,7 @@ usage:
 		return 1;
 	}
 
+	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 
 	/* Get the number of zones */

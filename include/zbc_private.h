@@ -11,6 +11,7 @@
  * with libzbc. If not, see <http://opensource.org/licenses/BSD-2-Clause>.
  *
  * Authors: Christoph Hellwig (hch@infradead.org)
+ *          Damien Le Moal (damien.lemoal@wdc.com)
  */
 
 #ifndef _LIBZBC_PRIVATE_H_
@@ -51,5 +52,16 @@ extern int zbc_set_zones(struct zbc_device *dev,
  */
 extern int zbc_set_write_pointer(struct zbc_device *dev,
 				 uint64_t sector, uint64_t wp_sector);
+
+/**
+ * zbc_set_test_mode - Set library calls to test mode for the device
+ * @dev:	(IN) Device handle obtained with zbc_open
+ *
+ * Description:
+ * Set the specified device in test mode to reduce libaray internal API
+ * arguments checks so that invalid commands can also be sent to the device.
+ * For testing the device with zbc_test.sh only.
+ */
+extern void zbc_set_test_mode(struct zbc_device *dev);
 
 #endif /* _LIBZBC_PRIVATE_H_ */

@@ -131,6 +131,23 @@ struct zbc_device {
 };
 
 /**
+ * Internal device flag: Indicates that the device is in test mode,
+ * resulting in reduced argument value checks to allow invalid commands
+ * to be sent to the device. This flag should not be used outside of
+ * the execution of libzbc test suite (test/zbc_test.sh)
+ */
+#define ZBC_DEVTEST	0x80000000
+
+/**
+ * Test if a device is in test mode.
+ */
+#ifdef HAVE_DEVTEST
+#define zbc_test_mode(dev)	((dev)->zbd_flags & ZBC_DEVTEST)
+#else
+#define zbc_test_mode(dev)	(false)
+#endif
+
+/**
  * Block device operations (requires kernel support).
  */
 extern struct zbc_ops zbc_block_ops;

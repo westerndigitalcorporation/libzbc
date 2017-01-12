@@ -20,7 +20,8 @@
 #include <string.h>
 #include <errno.h>
 
-#include <libzbc/zbc.h>
+#include "libzbc/zbc.h"
+#include "zbc_private.h"
 
 /**
  * Get last zone information (start LBA and size)
@@ -70,6 +71,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 
 	ret = zbc_get_last_zone(dev, &last_zone);

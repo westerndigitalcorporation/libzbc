@@ -26,10 +26,24 @@
 #include <errno.h>
 
 /**
- * zbc_set_log_level - Set the library log level
- * @log_level:	(IN) library log level.
+ * @mainpage
  *
- * Description:
+ * libzbc is a simple library  providing functions for manipulating disks
+ * supporting the Zoned Block Command  (ZBC) and Zoned-device ATA command
+ * set (ZAC)  disks.  libzbc  implemention is  compliant with  the latest
+ * drafts  of the  ZBC  and  ZAC standards  defined  by INCITS  technical
+ * committee T10 and T13 (respectively).
+ */
+
+/**
+ * \addtogroup libzbc
+ *  @{
+ */
+
+/**
+ * @brief zbc_set_log_level - Set the library log level
+ * @param log_level:	(IN) library log level.
+ *
  * Set the library log level using the level name specified by @log_level.
  * Valid level names are: "none", "error", "info", "debug" or "vdebug".
  * The default level is "none".
@@ -68,16 +82,15 @@ enum zbc_zone_type {
 };
 
 /**
- * zbc_zone_type_str - returns a string describing a zone type
- * @type:	(IN) Zone type
+ * @brief zbc_zone_type_str - returns a string describing a zone type
+ * @param type:	(IN) Zone type
  *
- * Description:
- * Returns a string describing a zone type.
+ * @return A string describing a zone type.
  */
 extern const char *zbc_zone_type_str(enum zbc_zone_type type);
 
 /**
- * enum zbc_zone_condition - Zone condition
+ * @brief enum zbc_zone_condition - Zone condition
  *
  * A zone condition is determined by the zone type and the ZBC zone state
  * machine, i.e. the operations performed on the zone.
@@ -130,16 +143,15 @@ enum zbc_zone_condition {
 };
 
 /**
- * zbc_zone_cond_str - Returns a string describing a zone condition
- * @cond:	(IN) Zone condition
+ * @brief zbc_zone_cond_str - Returns a string describing a zone condition
+ * @param cond:	(IN) Zone condition
  *
- * Description:
- * Returns a string describing a zone condition.
+ * @return A string describing a zone condition.
  */
 extern const char *zbc_zone_condition_str(enum zbc_zone_condition cond);
 
 /**
- * enum zbc_zone_attributes - Zone attributes
+ * @brief enum zbc_zone_attributes - Zone attributes
  *
  * Defines the attributes of a zone. Attributes validity depend on the
  * zone type and device model.
@@ -166,7 +178,7 @@ enum zbc_zone_attributes {
 };
 
 /**
- * struct zbc_zone - Zone descriptor data structure.
+ * @brief struct zbc_zone - Zone descriptor data structure.
  *
  * Provide all information of a zone (position and size, condition and
  * attributes). This data structure is updated using the zbc_report_zones
@@ -365,7 +377,7 @@ enum zbc_dev_flags {
 	 * i.e. that read commands spanning a zone write pointer or two
 	 * consecutive zones of the same type will not result in an error.
 	 */
-	ZBC_UNRESTRICTED_READ = 0x01,
+	ZBC_UNRESTRICTED_READ = 0x00000001,
 
 };
 
@@ -985,5 +997,9 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  * Returns 0 on success and -EIO in case of error.
  */
 extern int zbc_flush(struct zbc_device *dev);
+
+/**
+ * @}
+ */
 
 #endif /* _LIBZBC_H_ */
