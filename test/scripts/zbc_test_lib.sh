@@ -381,7 +381,7 @@ function zbc_test_print_passed()
 	return 0
 }
 
-function zbc_test_not_applicable()
+function zbc_test_print_not_applicable()
 {
 
 	zbc_test_print_res "" " N/A  "
@@ -435,17 +435,6 @@ function zbc_test_print_failed_zc()
 	echo -e "\r\e[120C[${red}Failed${end}]"
 	echo "        => Expected zone_condition ${expected_cond}"
 	echo "           Got ${target_cond}"
-
-	return 0
-}
-
-function zbc_test_print_not_applicable()
-{
-
-	echo "" >> ${log_file} 2>&1
-	echo "N/A" >> ${log_file} 2>&1
-
-	echo -e "\r\e[120C[${green} N/A  ${end}]"
 
 	return 0
 }
