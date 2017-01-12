@@ -34,7 +34,6 @@ func_ret=$?
 
 if [ ${func_ret} -gt 0 ]; then
     zbc_test_print_not_applicable
-    exit
 fi
 
 target_lba=$(( ${target_slba} ))

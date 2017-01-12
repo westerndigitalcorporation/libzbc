@@ -36,7 +36,6 @@ func_ret=$?
 
 if [ ${func_ret} -gt 0 ]; then
     zbc_test_print_not_applicable
-    exit
 fi
 
 next_zone_slba=$(( ${target_slba} + ${target_size} ))
@@ -53,7 +52,6 @@ func_ret=$?
 
 if [ ${func_ret} -gt 0 -o ${next_zone_slba} != ${target_slba} ]; then
     zbc_test_print_not_applicable
-    exit
 fi
 
 target_lba=$(( ${target_slba} - 1 ))
