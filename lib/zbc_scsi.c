@@ -107,6 +107,7 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 static int zbc_scsi_classify(struct zbc_device *dev)
 {
 	uint8_t buf[ZBC_SCSI_INQUIRY_BUF_LEN];
+	uint8_t zoned;
 	int dev_type;
 	int n, ret;
 
@@ -144,7 +145,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		/* Host-managed device */
 		zbc_debug("Host-managed ZBC block device detected\n");
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		return 0;
+		break;
 
 	case ZBC_DEV_TYPE_STANDARD:
 		break;
@@ -155,8 +156,10 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	}
 
 	/*
-	 * This may be a host-aware device: look at VPD
-	 * page B1h (block device characteristics)
+	 * If we got ZBC_DEV_TYPE_STANDARD, the device may be a
+	 * host-aware one. So look at the block device characteristics
+	 * VPD page (B1h) to be sure. Also check that no weird value is
+	 * reported by the zoned field for host-managed devices.
 	 */
 	memset(buf, 0, sizeof(buf));
 	ret = zbc_scsi_inquiry(dev, 0xB1, buf, ZBC_SCSI_VPD_PAGE_B1_LEN);
@@ -165,35 +168,46 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return ret;
 	}
 
-	if ((buf[1] == 0xB1) &&
-	    (buf[2] == 0x00) &&
-	    (buf[3] == 0x3C)) {
+	if ((buf[1] != 0xB1) ||
+	    (buf[2] != 0x00) ||
+	    (buf[3] != 0x3C)) {
+		zbc_error("Invalid zbc_scsi_inquiry VPD page 0xB1 result\n");
+		return -EIO;
+	}
 
-		switch ((buf[8] & 0x30) >> 4) {
-
-		case 0x00:
-			zbc_debug("Standard SCSI block device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
-			return -ENXIO;
-
-		case 0x01:
-			/* Host aware device */
-			zbc_debug("Host-aware ZBC block device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-			break;
-
-		case 0x02:
-			/* Device-managed device */
-			zbc_debug("Device-managed SCSI block device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
-			return -ENXIO;
-
-		default:
-			zbc_debug("Unknown device type\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
-			return -ENXIO;
+	zoned = (buf[8] & 0x30) >> 4;
+	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
+		if (zoned != 0) {
+			zbc_error("Invalid host-managed device ZONED field 0x%02x\n",
+				  zoned);
+			return -EIO;
 		}
+		return 0;
+	}
 
+	switch (zoned) {
+
+	case 0x00:
+		zbc_debug("Standard SCSI block device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+		return -ENXIO;
+
+	case 0x01:
+		/* Host aware device */
+		zbc_debug("Host-aware ZBC block device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+		break;
+
+	case 0x02:
+		/* Device-managed device */
+		zbc_debug("Device-managed SCSI block device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
+		return -ENXIO;
+
+	default:
+		zbc_debug("Unknown device type\n");
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+		return -ENXIO;
 	}
 
 	return 0;
