@@ -45,8 +45,14 @@
  * @param log_level:	(IN) library log level.
  *
  * Set the library log level using the level name specified by @log_level.
- * Valid level names are: "none", "error", "info", "debug" or "vdebug".
- * The default level is "none".
+ * Log level are incremental: each level includes the levels preceding it.
+ * Valid log level names are:
+ *   "none"    : Silent operation (no messages)
+ *   "warning" : Print device level standard compliance problems
+ *   "error"   : Print messages related to unexpected errors
+ *   "info"    : Print normal information messages
+ *   "debug"   : Verbose output decribing internally executed commands
+ * The default level is "warning".
  */
 extern void zbc_set_log_level(char *log_level);
 

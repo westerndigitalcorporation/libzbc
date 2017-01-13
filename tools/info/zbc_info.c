@@ -41,9 +41,6 @@ usage:
 		return 1;
 	}
 
-	/* Be silent by default */
-	zbc_set_log_level("none");
-
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
 

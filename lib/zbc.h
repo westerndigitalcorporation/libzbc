@@ -131,6 +131,13 @@ struct zbc_device {
 };
 
 /**
+ * Test if a device is zoned.
+ */
+#define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
+#define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
+				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+
+/**
  * Internal device flag: Indicates that the device is in test mode,
  * resulting in reduced argument value checks to allow invalid commands
  * to be sent to the device. This flag should not be used outside of
@@ -206,10 +213,10 @@ extern int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_lba,
  */
 enum {
 	ZBC_LOG_NONE = 0,
+	ZBC_LOG_WARNING,
 	ZBC_LOG_ERROR,
 	ZBC_LOG_INFO,
 	ZBC_LOG_DEBUG,
-	ZBC_LOG_VDEBUG,
 	ZBC_LOG_MAX
 };
 
@@ -234,17 +241,17 @@ extern int zbc_log_level;
 				  ## args);			\
 	} while (0)
 
-#define zbc_info(format,args...)	\
-	zbc_print_level(ZBC_LOG_INFO, stdout, format, ##args)
+#define zbc_warning(format,args...)	\
+	zbc_print_level(ZBC_LOG_WARNING, stderr, "[WARNING] " format, ##args)
 
 #define zbc_error(format,args...)	\
 	zbc_print_level(ZBC_LOG_ERROR, stderr, "[ERROR] " format, ##args)
 
+#define zbc_info(format,args...)	\
+	zbc_print_level(ZBC_LOG_INFO, stdout, format, ##args)
+
 #define zbc_debug(format,args...)	\
 	zbc_print_level(ZBC_LOG_DEBUG, stdout, format, ##args)
-
-#define zbc_vdebug(format,args...)	\
-	zbc_print_level(ZBC_LOG_VDEBUG, stdout, format, ##args)
 
 #define zbc_panic(format,args...)	\
 	do {						\

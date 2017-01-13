@@ -153,10 +153,13 @@ zbc_block_handle_partition(struct zbc_device *dev)
 		ret = fscanf(file,
 			     " %u %u %llu %s",
 			     &major, &minor, &size, part_name);
-		if (ret != 4)
-			continue;
+		if (ret != 4) {
+			ret = 0;
+			break;
+		}
 
-		if (strcmp(dev_name, part_name) == 0) {
+		if (strcmp(dev_name, part_name) == 0 &&
+		    minor & 15U) {
 			zbd->is_part = 1;
 			break;
 		}
@@ -210,7 +213,7 @@ out:
  * Test if the block device is zoned.
  */
 static int
-zbc_block_device_is_zoned(struct zbc_device *dev)
+zbc_block_device_classify(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
@@ -222,7 +225,11 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 		 zbd->holder_name);
 	file = fopen(str, "r");
 	if (!file)
-		return 0;
+		/*
+		 * Cannot determine type: go on with SCSI,
+		 * ATA or fake backends.
+		 */
+		return -ENXIO;
 
 	memset(str, 0, sizeof(str));
 	fscanf(file, "%s", str);
@@ -230,12 +237,16 @@ zbc_block_device_is_zoned(struct zbc_device *dev)
 
 	if (strcmp(str, "host-aware") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-		return 1;
-	}
-
-	if (strcmp(str, "host-managed") == 0) {
+	} else if (strcmp(str, "host-managed") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		return 1;
+	} else if (strcmp(str, "none") == 0) {
+		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+		return -ENXIO;
+	} else {
+		zbc_debug("Unknown device model \"%s\"\n",
+			  str);
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+		return -ENXIO;
 	}
 
 	return 0;
@@ -352,10 +363,10 @@ zbc_block_get_info(struct zbc_device *dev)
 	if (ret)
 		return ret;
 
-	/* Is this a zoned device ? And do we have kernel support ? */
-	if (!zbc_block_device_is_zoned(dev))
-		/* Not a zoned block device: ignore */
-		return -ENXIO;
+	/* Is this a zoned device */
+	ret = zbc_block_device_classify(dev);
+	if (ret != 0)
+		return ret;
 
 	/* Get logical block size */
 	ret = ioctl(dev->zbd_fd, BLKSSZGET, &size32);

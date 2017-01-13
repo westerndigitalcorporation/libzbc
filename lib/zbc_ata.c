@@ -443,6 +443,9 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	uint8_t buf[512];
 	int ret;
 
+	if (!zbc_dev_is_zoned(dev))
+		return 0;
+
 	/* Get zoned block device information */
 	ret = zbc_ata_read_log(dev,
 			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
@@ -1067,55 +1070,75 @@ static int zbc_ata_classify(struct zbc_device *dev)
 		break;
 
 	case 0x0000:
-
-		/*
-		 * Normal device signature: this may be a host-aware device.
-		 * So check the zoned field in the supported capabilities.
-		 */
-		ret = zbc_ata_read_log(dev,
-				       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
-				       ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE,
-				       buf,
-				       sizeof(buf));
-		if (ret != 0) {
-			zbc_error("Get supported capabilities page failed\n");
-			goto out;
-		}
-
-		zoned = zbc_ata_get_qword(&buf[104]);
-		if (!(zoned  & (1ULL << 63)))
-			zoned = 0;
-
-		switch (zoned & 0x03) {
-
-		case 0x00:
-			zbc_debug("Standard ATA device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
-			ret = -ENXIO;
-			goto out;
-		case 0x01:
-			zbc_debug("Host-aware ATA device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-			ret = 0;
-			goto out;
-		case 0x02:
-			zbc_debug("Device-managed ATA device detected\n");
-			dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
-			ret = -ENXIO;
-			goto out;
-		default:
-			break;
-		}
-
-		/* Fall through (unknown device) */
+		/* Standard block device */
+		break;
 
 	default:
-
 		/* Unsupported device */
 		zbc_debug("Unsupported device (signature %02x:%02x)\n",
 			  desc[9], desc[11]);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		ret = -ENXIO;
+		goto out;
+	}
+
+	/*
+	 * If the device has a standard block device type, the device
+	 * may be a host-aware one. So look at the block device characteristics
+	 * VPD page (B1h) to be sure. Also check that no weird value is
+	 * reported by the zoned field for host-managed devices.
+	 */
+	ret = zbc_ata_read_log(dev,
+			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
+			       ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE,
+			       buf,
+			       sizeof(buf));
+	if (ret != 0) {
+		zbc_error("Get supported capabilities page failed\n");
+		goto out;
+	}
+
+	zoned = zbc_ata_get_qword(&buf[104]);
+	if (!(zoned  & (1ULL << 63)))
+		zoned = 0;
+
+	zoned = zoned & 0x03;
+	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
+		if (zbc_test_mode(dev) && zoned != 0) {
+			zbc_error("Invalid host-managed device ZONED field 0x%02x\n",
+				  (unsigned int)zoned);
+			ret = -EIO;
+		} else if (zoned != 0) {
+			zbc_warning("Invalid host-managed device ZONED field 0x%02x\n",
+				    (unsigned int)zoned);
+		}
+		goto out;
+	}
+
+	switch (zoned) {
+
+	case 0x00:
+		zbc_debug("Standard ATA device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+		ret = -ENXIO;
+		break;
+
+	case 0x01:
+		zbc_debug("Host-aware ATA device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
+		break;
+
+	case 0x02:
+		zbc_debug("Device-managed ATA device detected\n");
+		dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
+		ret = -ENXIO;
+		break;
+
+	default:
+		zbc_debug("Unknown device model 0x%02x\n",
+			  (unsigned int)zoned);
+		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+		ret = -EIO;
 		break;
 	}
 

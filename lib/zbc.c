@@ -21,7 +21,7 @@
 /*
  * Log level.
  */
-int zbc_log_level = ZBC_LOG_ERROR;
+int zbc_log_level = ZBC_LOG_WARNING;
 
 /*
  * Backend drivers.
@@ -109,14 +109,14 @@ zbc_set_log_level(char *log_level)
 
 	if (strcmp(log_level, "none") == 0)
 		zbc_log_level = ZBC_LOG_NONE;
+	else if (strcmp(log_level, "warning") == 0)
+		zbc_log_level = ZBC_LOG_WARNING;
 	else if (strcmp(log_level, "error") == 0)
 		zbc_log_level = ZBC_LOG_ERROR;
 	else if (strcmp(log_level, "info") == 0)
 		zbc_log_level = ZBC_LOG_INFO;
 	else if (strcmp(log_level, "debug") == 0)
 		zbc_log_level = ZBC_LOG_DEBUG;
-	else if (strcmp(log_level, "vdebug") == 0)
-		zbc_log_level = ZBC_LOG_VDEBUG;
 	else
 		fprintf(stderr, "Unknown log level \"%s\"\n",
 			log_level);
@@ -155,7 +155,7 @@ const char *zbc_device_model_str(enum zbc_dev_model model)
 	case ZBC_DM_DEVICE_MANAGED:
 		return "Device-managed";
 	case ZBC_DM_STANDARD:
-		return "Regular";
+		return "Standard block device";
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
 		return "Unknown-device-model";
@@ -273,6 +273,8 @@ int zbc_device_is_zoned(const char *filename,
 			dev->zbd_ops = zbc_ops[i];
 			break;
 		}
+		if (ret != -ENXIO)
+			return ret;
 	}
 
 	if (dev && dev->zbd_ops) {
@@ -304,11 +306,16 @@ int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 	/* Test all backends until one accepts the drive */
 	for (i = 0; zbc_ops[i] != NULL; i++) {
 		ret = zbc_ops[i]->zbd_open(filename, flags, &dev);
-		if (ret == 0) {
+		switch (ret) {
+		case 0:
 			/* This backend accepted the drive */
 			dev->zbd_ops = zbc_ops[i];
 			*pdev = dev;
 			return 0;
+		case -ENXIO:
+			continue;
+		default:
+			return ret;
 		}
 	}
 
@@ -339,10 +346,16 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	fprintf(out,
 		"    Vendor ID: %s\n",
 		info->zbd_vendor_id);
-	fprintf(out,
-		"    %s interface, %s zone model\n",
-		zbc_device_type_str(info->zbd_type),
-		zbc_device_model_str(info->zbd_model));
+	if (info->zbd_model == ZBC_DM_STANDARD) {
+		fprintf(out,
+			"    %s interface, standard block device\n",
+			zbc_device_type_str(info->zbd_type));
+	} else {
+		fprintf(out,
+			"    %s interface, %s zone model\n",
+			zbc_device_type_str(info->zbd_type),
+			zbc_device_model_str(info->zbd_model));
+	}
 	fprintf(out,
 		"    %llu 512-bytes sectors\n",
 		(unsigned long long) info->zbd_sectors);

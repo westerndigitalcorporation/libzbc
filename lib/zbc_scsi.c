@@ -43,12 +43,6 @@
 #define ZBC_SCSI_READ_CAPACITY_BUF_LEN	32
 
 /**
- * ZBC Device types.
- */
-#define ZBC_DEV_TYPE_STANDARD		0x00
-#define ZBC_DEV_TYPE_HOST_MANAGED	0x14
-
-/**
  * Fill the buffer with the result of INQUIRY command.
  * @buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
@@ -141,23 +135,26 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	dev_type = (int)(buf[0] & 0x1f);
 	switch (dev_type) {
 
-	case ZBC_DEV_TYPE_HOST_MANAGED:
+	case 0x14:
 		/* Host-managed device */
 		zbc_debug("Host-managed ZBC block device detected\n");
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		break;
 
-	case ZBC_DEV_TYPE_STANDARD:
+	case 0x00:
+		/* Standard block device */
 		break;
 
 	default:
 		/* Unsupported device */
+		zbc_error("Unsupported device type 0x%02X\n",
+			  dev_type);
 		return -ENXIO;
 	}
 
 	/*
-	 * If we got ZBC_DEV_TYPE_STANDARD, the device may be a
-	 * host-aware one. So look at the block device characteristics
+	 * If the device has a standard block device type, the device
+	 * may be a host-aware one. So look at the block device characteristics
 	 * VPD page (B1h) to be sure. Also check that no weird value is
 	 * reported by the zoned field for host-managed devices.
 	 */
@@ -177,11 +174,14 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 
 	zoned = (buf[8] & 0x30) >> 4;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
-		if (zoned != 0) {
+		if (zbc_test_mode(dev) && zoned != 0) {
 			zbc_error("Invalid host-managed device ZONED field 0x%02x\n",
 				  zoned);
 			return -EIO;
 		}
+		if (zoned != 0)
+			zbc_warning("Invalid host-managed device ZONED field 0x%02x\n",
+				    zoned);
 		return 0;
 	}
 
@@ -205,9 +205,10 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -ENXIO;
 
 	default:
-		zbc_debug("Unknown device type\n");
+		zbc_debug("Unknown device model 0x%02x\n",
+			  zoned);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
-		return -ENXIO;
+		return -EIO;
 	}
 
 	return 0;
@@ -644,49 +645,48 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	}
 
 	logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
+	max_lba = zbc_sg_get_int64(&cmd.out_buf[0]);
 
 	/* Get maximum command size */
 	zbc_sg_get_max_cmd_blocks(dev);
 
-	/* Check RC_BASIS field */
-	switch ((cmd.out_buf[12] & 0x30) >> 4) {
+	if (zbc_dev_is_zoned(dev)) {
 
-	case 0x00:
+		/* Check RC_BASIS field */
+		switch ((cmd.out_buf[12] & 0x30) >> 4) {
 
-		/*
-		 * The capacity represents only the space used by
-		 * conventional zones at the beginning of the device. To get
-		 * the entire device capacity, we need to get the last LBA
-		 * of the last zone of the device.
-		 */
-		ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL, &max_lba,
-					       NULL, &nr_zones);
-		if (ret != 0)
+		case 0x00:
+			/*
+			 * The capacity represents only the space used by
+			 * conventional zones at the beginning of the device.
+			 * To get the entire device capacity, we need to get
+			 * the last LBA of the last zone of the device.
+			 */
+			ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL,
+						       &max_lba,
+						       NULL, &nr_zones);
+			if (ret != 0)
+				goto out;
+
+			break;
+
+		case 0x01:
+			/* The device max LBA was reported */
+			break;
+
+		default:
+			zbc_error("%s: invalid RC_BASIS field encountered "
+				  "in READ CAPACITY result\n",
+				  dev->zbd_filename);
+			ret = -EIO;
 			goto out;
 
-		/* Set the drive capacity to the reported max LBA */
-		dev->zbd_info.zbd_lblocks = max_lba + 1;
-
-		break;
-
-	case 0x01:
-
-		/* The device last LBA was reported */
-		dev->zbd_info.zbd_lblocks =
-			zbc_sg_get_int64(&cmd.out_buf[0]) + 1;
-
-		break;
-
-	default:
-
-		zbc_error("%s: invalid RC_BASIS field encountered "
-			  "in READ CAPACITY result\n",
-			  dev->zbd_filename);
-		ret = -EIO;
-
-		goto out;
+		}
 
 	}
+
+	/* Set the drive capacity using the reported max LBA */
+	dev->zbd_info.zbd_lblocks = max_lba + 1;
 
 	if (!dev->zbd_info.zbd_lblocks) {
 		zbc_error("%s: invalid capacity (logical blocks)\n",
@@ -719,6 +719,9 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	int ret;
+
+	if (!zbc_dev_is_zoned(dev))
+		return 0;
 
 	ret = zbc_scsi_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
