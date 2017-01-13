@@ -27,10 +27,9 @@ zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zbc_test_print_not_applicable
-    exit
-else
-    zone_type="0x2"
 fi
+
+zone_type="0x2"
 
 # Get zone information
 zbc_test_get_zone_info

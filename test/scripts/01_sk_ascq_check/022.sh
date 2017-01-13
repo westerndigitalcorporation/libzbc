@@ -27,7 +27,6 @@ zbc_test_get_device_info
 
 if [ ${device_model} != "Host-managed" ]; then
     zbc_test_print_not_applicable
-    exit
 fi
 
 zone_type="0x2"

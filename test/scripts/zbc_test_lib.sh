@@ -356,37 +356,45 @@ function zbc_test_get_sk_ascq()
 	return 0
 }
 
-function zbc_test_print_passed()
+function zbc_test_print_res()
 {
 
-	width=`tput cols`
+	local width=`tput cols`
+
 	width=$(($width-9))
 	if [ ${width} -gt 90 ]; then
 		width=90
 	fi
 
 	echo "" >> ${log_file} 2>&1
-	echo "Passed" >> ${log_file} 2>&1
-
-	echo -e "\r\e[${width}C[${green}Passed${end}]"
+	echo $1 >> ${log_file} 2>&1
+	echo -e "\r\e[${width}C[$1$2${end}]"
 
 	return 0
+}
+
+function zbc_test_print_passed()
+{
+
+	zbc_test_print_res "${green}" "Passed"
+
+	return 0
+}
+
+function zbc_test_print_not_applicable()
+{
+
+	zbc_test_print_res "" " N/A  "
+
+	exit
 }
 
 function zbc_test_print_failed_sk()
 {
 
-	width=`tput cols`
-	width=$(($width-9))
-	if [ ${width} -gt 90 ]; then
-		width=90
-	fi
+	zbc_test_print_res "${red}" "Failed"
 
-	echo "" >> ${log_file} 2>&1
-	echo "Failed" >> ${log_file} 2>&1
 	echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
-
-	echo -e "\r\e[${width}C[${red}Failed${end}]"
 	echo "        => Expected ${expected_sk} / ${expected_asc}"
 	echo "           Got ${sk} / ${asc}"
 
@@ -427,17 +435,6 @@ function zbc_test_print_failed_zc()
 	echo -e "\r\e[120C[${red}Failed${end}]"
 	echo "        => Expected zone_condition ${expected_cond}"
 	echo "           Got ${target_cond}"
-
-	return 0
-}
-
-function zbc_test_print_not_applicable()
-{
-
-	echo "" >> ${log_file} 2>&1
-	echo "N/A" >> ${log_file} 2>&1
-
-	echo -e "\r\e[120C[${green} N/A  ${end}]"
 
 	return 0
 }
