@@ -14,13 +14,11 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "RESET_WRITE_PTR conventional zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
-
-zbc_test_info "RESET_WRITE_PTR conventional zone..."
 
 # Get drive information
 zbc_test_get_device_info

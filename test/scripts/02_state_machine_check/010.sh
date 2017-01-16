@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "CLOSE_ZONE empty to explicit open to empty..."
+zbc_test_init $0 "CLOSE_ZONE empty to explicit open to empty" $*
 
 # Set expected error code
 expected_sk=""

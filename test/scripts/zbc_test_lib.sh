@@ -17,50 +17,48 @@ red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
 
+sect_num=""
+case_num=""
+
 # For test script creation:
 
 function zbc_test_init()
 {
 
-
-	if [ $# -ne 3 -a $# -ne 4 ]; then
-	    echo "Usage: $1 <target device> <test program path> [test log file path]"
-	    echo "  target_device:      path to the target device file (e.g. /dev/sg3)"
-	    echo "  test program path:  Path to the directory containing the compiled test programs"
-	    echo "  test log file path: Path to the directory where to output the test log file"
-	    echo "                      (the default is the current working directory)"
-	    exit 1
+	if [ $# -ne 5 -a $# -ne 6 ]; then
+		echo "Usage$#: $1 <description> <program path> <log path> <section number> <device>"
+		exit 1
 	fi
 
 	# Store argument
-	device=$2
-	device_base=`basename ${device}`
-	bin_path=$3
+	_cmd_base=${1##*/}
+	desc="$2"
+	bin_path="$3"
+	log_path="$4"
+	sect_num="$5"
+	device="$6"
 
-	# Test name
-	local _cmd_base=${1##*/}
-	test_name="${_cmd_base%.*}"
+	# Case number within section
+	case_num="${_cmd_base%.*}"
 
-	# Log file
-	if [ $# -eq 4 ]; then
-		log_path="$4"
-	else
-		log_path="`pwd`"
+	if [ -z ${device} ]; then
+		# Print description only
+		echo "    ${sect_num}.${case_num}: ${desc}"
+		exit 0
 	fi
-	log_file="${log_path}/${test_name}.log"
+
+	echo -n "    ${sect_num}.${case_num}: ${desc}..."
+
+	# Test log file
+	log_file="${log_path}/${case_num}.log"
 	rm -f ${log_file}
 
 	# Zone info file
-	zone_info_file="/tmp/${test_name}_zone_info.${device_base}.log"
+	zone_info_file="/tmp/${case_num}_zone_info.`basename ${device}`.log"
 	rm -f ${zone_info_file}
 
 	# Dump zone info file
-	dump_zone_info_file="${log_path}/${test_name}_zone_info.log"
-}
-
-function zbc_test_info()
-{
-	echo -n "    ${test_name}: $1 "
+	dump_zone_info_file="${log_path}/${case_num}_zone_info.log"
 }
 
 function zbc_test_run()
@@ -88,8 +86,11 @@ function zbc_check_string()
 
 function zbc_test_get_device_info()
 {
-
 	zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
+	if [ $? != 0 ]; then
+		echo "Failed to get device info"
+		exit 1
+	fi
 
 	_IFS="${IFS}"
 	IFS=','
@@ -112,21 +113,19 @@ function zbc_test_get_device_info()
 	unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
 	unrestricted_read=${2}
-	zbc_check_string "Failed to get unrestricted read" $unrestricted_read}
+	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
 	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
 	last_zone_lba=${2}
-	zbc_check_string "Failed to get last zone start LBA" $last_zone_lba}
+	zbc_check_string "Failed to get last zone start LBA" ${last_zone_lba}
 
 	last_zone_size_line=`cat ${log_file} | grep -F "[LAST_ZONE_SIZE]"`
 	set -- ${last_zone_size_line}
 	last_zone_size=${2}
-	zbc_check_string "Failed to get last zone size" $last_zone_size}
+	zbc_check_string "Failed to get last zone size" ${last_zone_size}
 
 	IFS="$_IFS"
-
-	return 0
 }
 
 function zbc_test_get_zone_info()
@@ -336,7 +335,6 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 
 function zbc_test_get_sk_ascq()
 {
-
 	sk=""
 	asc=""
 
@@ -352,13 +350,10 @@ function zbc_test_get_sk_ascq()
 	asc=${2}
 
 	IFS="$_IFS"
-
-	return 0
 }
 
 function zbc_test_print_res()
 {
-
 	local width=`tput cols`
 
 	width=$(($width-9))
@@ -367,67 +362,50 @@ function zbc_test_print_res()
 	fi
 
 	echo "" >> ${log_file} 2>&1
-	echo $1 >> ${log_file} 2>&1
+	echo "TESTRESULT==$2" >> ${log_file} 2>&1
 	echo -e "\r\e[${width}C[$1$2${end}]"
-
-	return 0
 }
 
 function zbc_test_print_passed()
 {
-
 	zbc_test_print_res "${green}" "Passed"
-
-	return 0
 }
 
 function zbc_test_print_not_applicable()
 {
-
 	zbc_test_print_res "" " N/A  "
-
 	exit
 }
 
 function zbc_test_print_failed_sk()
 {
-
 	zbc_test_print_res "${red}" "Failed"
 
 	echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
 	echo "        => Expected ${expected_sk} / ${expected_asc}"
 	echo "           Got ${sk} / ${asc}"
-
-	return 0
 }
 
 function zbc_test_check_sk_ascq()
 {
-
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
 		zbc_test_print_passed
 	else
 		zbc_test_print_failed_sk
 	fi
-
-	return 0
 }
 
 function zbc_test_check_no_sk_ascq()
 {
-
 	if [ -z "${sk}" -a -z "${asc}" ]; then
 		zbc_test_print_passed
 	else
 		zbc_test_print_failed_sk
 	fi
-
-	return 0
 }
 
 function zbc_test_print_failed_zc()
 {
-
 	echo "" >> ${log_file} 2>&1
 	echo "Failed" >> ${log_file} 2>&1
 	echo "=> Expected zone_condition ${expected_cond}, Got ${target_cond}" >> ${log_file} 2>&1
@@ -435,40 +413,29 @@ function zbc_test_print_failed_zc()
 	echo -e "\r\e[120C[${red}Failed${end}]"
 	echo "        => Expected zone_condition ${expected_cond}"
 	echo "           Got ${target_cond}"
-
-	return 0
 }
 
 function zbc_test_check_zone_cond()
 {
-
 	if [ ${target_cond} == ${expected_cond} ]; then
 		zbc_test_check_no_sk_ascq
 	else
 		zbc_test_print_failed_zc
 	fi
-
-	return 0
 }
 
 function zbc_test_check_zone_cond_sk_ascq()
 {
-
 	if [ ${target_cond} == ${expected_cond} ]; then
 		zbc_test_check_sk_ascq
 	else
 		zbc_test_print_failed_zc
 	fi
-
-	return 0
 }
 
 function zbc_test_dump_zone_info()
 {
-
 	zbc_report_zones ${device} > ${dump_zone_info_file}
-
-	return 0
 }
 
 function zbc_test_check_failed()

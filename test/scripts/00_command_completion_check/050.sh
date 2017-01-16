@@ -14,12 +14,10 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "RESET_WRITE_PTR command completion" $*
 
 expected_sk=""
 expected_asc=""
-
-zbc_test_info "RESET_WRITE_PTR command completion..."
 
 # Get drive information
 zbc_test_get_device_info

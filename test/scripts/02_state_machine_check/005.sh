@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE implicit open to explicit open..."
+zbc_test_init $0 "OPEN_ZONE implicit open to explicit open" $*
 
 # Set expected error code
 expected_sk=""

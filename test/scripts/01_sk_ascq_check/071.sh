@@ -14,13 +14,11 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "WRITE sequential zone boundary violation" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"
-
-zbc_test_info "WRITE sequential zone boundary violation..."
 
 # Get drive information
 zbc_test_get_device_info

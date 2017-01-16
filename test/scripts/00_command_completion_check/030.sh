@@ -14,12 +14,10 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "CLOSE_ZONE command completion" $*
 
 expected_sk=""
 expected_asc=""
-
-zbc_test_info "CLOSE_ZONE command completion..."
 
 # Get drive information
 zbc_test_get_device_info

@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE empty to empty (ALL bit set)..."
+zbc_test_init $0 "OPEN_ZONE empty to empty (ALL bit set)" $*
 
 # Set expected error code
 expected_sk=""

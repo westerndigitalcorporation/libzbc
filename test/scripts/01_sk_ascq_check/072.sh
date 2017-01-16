@@ -14,13 +14,11 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "WRITE insufficient zone resources" $*
 
 # Set expected error code
 expected_sk="Data-protect"
 expected_asc="Insufficient-zone-resources"
-
-zbc_test_info "WRITE insufficient zone resources..."
 
 # Get drive information
 zbc_test_get_device_info

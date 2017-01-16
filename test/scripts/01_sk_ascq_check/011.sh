@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "REPORT_ZONES invalid reporting option..."
+zbc_test_init $0 "REPORT_ZONES invalid reporting option" $*
 
 # Set expected error code
 expected_sk="Illegal-request"

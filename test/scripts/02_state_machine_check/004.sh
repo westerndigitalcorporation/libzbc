@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "RESET_WRITE_PTR empty to empty..."
+zbc_test_init $0 "RESET_WRITE_PTR empty to empty" $*
 
 # Set expected error code
 expected_sk=""

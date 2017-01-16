@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "REPORT_ZONES (reporting option 0x10) command completion..."
+zbc_test_init $0 "REPORT_ZONES (reporting option 0x10) command completion" $*
 
 # Set expected error code
 expected_sk=""

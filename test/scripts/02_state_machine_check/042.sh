@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "CLOSE_ZONE closed to closed (ALL bit set)..."
+zbc_test_init $0 "CLOSE_ZONE closed to closed (ALL bit set)" $*
 
 # Set expected error code
 expected_sk=""

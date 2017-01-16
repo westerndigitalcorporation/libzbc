@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE full to full..."
+zbc_test_init $0 "OPEN_ZONE full to full" $*
 
 # Set expected error code
 expected_sk=""

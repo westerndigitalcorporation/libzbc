@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE invalid zone start lba..."
+zbc_test_init $0 "OPEN_ZONE invalid zone start lba" $*
 
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"

@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE command completion..."
+zbc_test_init $0 "OPEN_ZONE command completion" $*
 
 expected_sk=""
 expected_asc=""

@@ -14,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "REPORT_ZONES logical block out of range..."
+zbc_test_init $0 "REPORT_ZONES logical block out of range" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
