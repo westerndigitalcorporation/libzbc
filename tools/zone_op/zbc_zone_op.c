@@ -43,7 +43,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	zbc_zone_t *zones = NULL, *tgt = NULL;;
+	struct zbc_zone *zones = NULL, *tgt = NULL;;
 	long long start = 0;
 	unsigned long long start_sector;
 	unsigned int flags = 0;

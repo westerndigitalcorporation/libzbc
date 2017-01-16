@@ -117,7 +117,7 @@ usage:
 
 		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
 		if (ret <= 0) {
-			zbc_errno_t zbc_err;
+			struct zbc_errno zbc_err;
 			const char *sk_name;
 			const char *ascq_name;
 

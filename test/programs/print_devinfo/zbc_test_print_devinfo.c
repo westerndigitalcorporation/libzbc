@@ -26,10 +26,10 @@
 /**
  * Get last zone information (start LBA and size)
  */
-static int zbc_get_last_zone(struct zbc_device *dev, zbc_zone_t *z)
+static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z)
 {
 	unsigned int nr_zones;
-	zbc_zone_t *zones;
+	struct zbc_zone *zones;
 	int ret;
 
 	/* Get zone list */
@@ -41,7 +41,7 @@ static int zbc_get_last_zone(struct zbc_device *dev, zbc_zone_t *z)
 		return ret;
 	}
 
-	memcpy(z, &zones[nr_zones - 1], sizeof(zbc_zone_t));
+	memcpy(z, &zones[nr_zones - 1], sizeof(struct zbc_zone));
 
 	free(zones);
 
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	zbc_zone_t last_zone;
+	struct zbc_zone last_zone;
 	int ret;
 
 	/* Check command line */

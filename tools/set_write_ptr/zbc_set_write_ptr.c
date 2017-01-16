@@ -28,7 +28,7 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	zbc_zone_t *zones = NULL;
+	struct zbc_zone *zones = NULL;
 	unsigned int nr_zones;
 	long long sector;
 	int i, z, ret = 1;

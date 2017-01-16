@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 	enum zbc_reporting_options ro = ZBC_RO_ALL;
 	enum zbc_reporting_options partial = 0;
 	int i, ret = 1;
-	zbc_zone_t *z, *zones = NULL;
+	struct zbc_zone *z, *zones = NULL;
 	unsigned int nr_zones;
 
 	/* Check command line */
@@ -121,7 +121,7 @@ usage:
 	}
 
 	/* Allocate zone array */
-	zones = (zbc_zone_t *) calloc(nr_zones, sizeof(struct zbc_zone));
+	zones = (struct zbc_zone *) calloc(nr_zones, sizeof(struct zbc_zone));
 	if (!zones) {
 		fprintf(stderr,
 			"[TEST][ERROR],No memory\n");
@@ -160,8 +160,7 @@ usage:
 
 out:
 	if (ret != 0) {
-
-		zbc_errno_t zbc_err;
+		struct zbc_errno zbc_err;
 		const char *sk_name;
 		const char *ascq_name;
 

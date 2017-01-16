@@ -284,7 +284,7 @@ int zbc_device_is_zoned(const char *filename,
 			ret = 1;
 			if (info)
 				memcpy(info, &dev->zbd_info,
-				       sizeof(zbc_device_info_t));
+				       sizeof(struct zbc_device_info));
 		}
 		dev->zbd_ops->zbd_close(dev);
 	} else {
@@ -335,7 +335,7 @@ int zbc_close(struct zbc_device *dev)
  */
 void zbc_get_device_info(struct zbc_device *dev, struct zbc_device_info *info)
 {
-	memcpy(info, &dev->zbd_info, sizeof(zbc_device_info_t));
+	memcpy(info, &dev->zbd_info, sizeof(struct zbc_device_info));
 }
 
 /**

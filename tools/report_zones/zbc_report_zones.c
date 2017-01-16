@@ -92,7 +92,7 @@ int main(int argc, char **argv)
 	unsigned long long sector = 0, nr_sectors = 0;
 	enum zbc_reporting_options ro = ZBC_RO_ALL;
 	unsigned int nr_zones = 0, nz = 0;
-	zbc_zone_t *z, *zones = NULL;
+	struct zbc_zone *z, *zones = NULL;
 	unsigned int lba_unit = 0;
 	unsigned long long start = 0;
 	int i, ret = 1;
@@ -243,7 +243,7 @@ usage:
 		goto out;
 
 	/* Allocate zone array */
-	zones = (zbc_zone_t *) calloc(nz, sizeof(zbc_zone_t));
+	zones = (struct zbc_zone *) calloc(nz, sizeof(struct zbc_zone));
 	if (!zones) {
 		fprintf(stderr, "No memory\n");
 		ret = 1;

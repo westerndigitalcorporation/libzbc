@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	/* Finish zone(s) */
 	ret = zbc_finish_zone(dev, zbc_lba2sect(&info, lba), flags);
 	if (ret != 0) {
-		zbc_errno_t zbc_err;
+		struct zbc_errno zbc_err;
 		const char *sk_name;
 		const char *ascq_name;
 
