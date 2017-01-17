@@ -276,11 +276,14 @@ function zbc_run_section()
         	if [ ${batch_mode} -eq 1 ]; then
 			continue
 		fi
-		res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
-		if [ ${ret} -ne 0 -o "${res}" = "TESTRESULT==Failed" ]; then
-			ret=1
-        		break
-        	fi
+
+		if [ ${print_list} -ne 1 ]; then
+			res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
+			if [ ${ret} -ne 0 -o "${res}" = "TESTRESULT==Failed" ]; then
+				ret=1
+        			break
+        		fi
+		fi
 
 	done
 
