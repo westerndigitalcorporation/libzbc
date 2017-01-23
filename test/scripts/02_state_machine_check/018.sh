@@ -2,7 +2,8 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (C) 2016, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -13,9 +14,7 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "CLOSE_ZONE closed to closed..."
+zbc_test_init $0 "CLOSE_ZONE closed to closed" $*
 
 # Set expected error code
 expected_sk=""
@@ -23,7 +22,7 @@ expected_asc=""
 expected_cond="0x4"
 
 # Get drive information
-zbc_test_get_drive_info
+zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
@@ -56,6 +55,6 @@ zbc_test_search_vals_from_slba ${target_lba}
 zbc_test_check_zone_cond
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
 rm -f ${zone_info_file}
 

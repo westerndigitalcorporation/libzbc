@@ -2,7 +2,8 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (C) 2016, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -13,16 +14,14 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "REPORT_ZONES (reporting option 0x3F) command completion..."
+zbc_test_init $0 "REPORT_ZONES (reporting option 0x3F) command completion" $*
 
 # Set expected error code
 expected_sk=""
 expected_asc=""
 
 # Get drive information
-zbc_test_get_drive_info
+zbc_test_get_device_info
 
 # Set target LBA
 target_lba="0"

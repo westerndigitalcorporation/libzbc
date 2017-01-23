@@ -2,35 +2,30 @@ ZBC_PRIVATE {
 global:
 	zbc_set_write_pointer;
 	zbc_set_zones;
+	zbc_set_test_mode;
 };
 
 ZBC_GLOBAL {
 global:
 	zbc_set_log_level;
-	zbc_disk_type_str;
-	zbc_disk_model_str;
+	zbc_device_type_str;
+	zbc_device_model_str;
 	zbc_zone_type_str;
 	zbc_zone_condition_str;
+	zbc_errno;
+	zbc_sk_str;
+	zbc_asc_ascq_str;
 	zbc_device_is_zoned;
 	zbc_open;
 	zbc_close;
 	zbc_get_device_info;
-	zbc_report_nr_zones;
+	zbc_print_device_info;
 	zbc_report_zones;
-	zbc_report_nr_zones;
 	zbc_list_zones;
-	zbc_open_zone;
-	zbc_close_zone;
-	zbc_finish_zone;
-	zbc_reset_write_pointer;
-	zbc_reset_all_write_pointers;
+	zbc_zone_operation;
 	zbc_pread;
 	zbc_pwrite;
-	zbc_write;
 	zbc_flush;
-	zbc_errno;
-	zbc_sk_str;
-	zbc_asc_ascq_str;
 
 local:
 	*;

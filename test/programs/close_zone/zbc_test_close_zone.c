@@ -1,116 +1,101 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  This software is distributed
- * under the terms of the GNU Lesser General Public License version 3,
- * or any later version, "as is," without technical support, and WITHOUT
- * ANY WARRANTY, without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  You should have received a copy
- * of the GNU Lesser General Public License along with libzbc.  If not,
- * see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
- * Authors: Damien Le Moal (damien.lemoal@hgst.com)
- *          Christophe Louargant (christophe.louargant@hgst.com)
+ * This software is distributed under the terms of the BSD 2-clause license,
+ * "as is," without technical support, and WITHOUT ANY WARRANTY, without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE. You should have received a copy of the BSD 2-clause license along
+ * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+ *
+ * Author: Masato Suzuki (masato.suzuki@wdc.com)
+ *         Damien Le Moal (damien.lemoal@wdc.com)
  */
-
-/***** Including files *****/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
-#include <libzbc/zbc.h>
+#include "libzbc/zbc.h"
+#include "zbc_private.h"
 
-/***** Main *****/
-
-int main(int argc,
-         char **argv)
+int main(int argc, char **argv)
 {
-    long long z;
-    struct zbc_device *dev;
-    int i, ret = 1;
-    zbc_zone_t *zones = NULL;
-    char *path;
+	struct zbc_device_info info;
+	struct zbc_device *dev;
+	unsigned int flags = 0;
+	long long lba;
+	char *path;
+	int ret;
 
-    /* Check command line */
-    if ( argc < 2 ) {
-usage:
-        printf("Usage: %s [option] <dev> <lba>\n"
-               "   lba -1 is to set all bit flag\n"
-               "Options:\n"
-               "    -v   : Verbose mode\n",
-               argv[0]);
-        return( 1 );
-    }
+	/* Check command line */
+	if (argc < 3 || argc > 4) {
+		printf("Usage: %s [-v] <dev> <lba>\n"
+		       "  If lba is -1, then close all zones\n"
+		       "Options:\n"
+		       "  -v : Verbose mode\n",
+		       argv[0]);
+		return 1;
+	}
 
-    /* Parse options */
-    for(i = 1; i < (argc - 1); i++) {
+	if (argc == 4) {
+		if (strcmp(argv[1], "-v") == 0) {
+			zbc_set_log_level("debug");
+		} else {
+			printf("Unknown option \"%s\"\n", argv[1]);
+			return 1;
+		}
+		path = argv[2];
+		lba = atoll(argv[3]);
+	} else {
+		path = argv[1];
+		lba = atoll(argv[2]);
+	}
 
-        if ( strcmp(argv[i], "-v") == 0 ) {
+	/* Open device */
+	ret = zbc_open(path, O_RDWR, &dev);
+	if (ret != 0) {
+		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
+			ret);
+		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
+		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
+		return 1;
+	}
 
-            zbc_set_log_level("debug");
+	zbc_set_test_mode(dev);
+	zbc_get_device_info(dev, &info);
 
-        } else if ( argv[i][0] == '-' ) {
+	if (lba == -1) {
+		flags = ZBC_OP_ALL_ZONES;
+		lba = 0;
+	}
 
-            printf("Unknown option \"%s\"\n",
-                   argv[i]);
-            goto usage;
+	/* Close zone(s) */
+	ret = zbc_close_zone(dev, zbc_lba2sect(&info, lba), flags);
+	if (ret != 0) {
+		struct zbc_errno zbc_err;
+		const char *sk_name;
+		const char *ascq_name;
 
-        } else {
+		fprintf(stderr,
+			"[TEST][ERROR],zbc_test_close_zone failed %d\n",
+			ret);
 
-            break;
+		zbc_errno(dev, &zbc_err);
+		sk_name = zbc_sk_str(zbc_err.sk);
+		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 
-        }
+		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+		ret = 1;
+	}
 
-    }
+	/* Close device file */
+	zbc_close(dev);
 
-    if ( i != (argc - 2) ) {
-        goto usage;
-    }
-
-    /* Open device */
-    path = argv[i];
-    z = atoll(argv[i+1]);
-
-    ret = zbc_open(path, O_RDONLY, &dev);
-    if ( ret != 0 ) {
-	fprintf(stderr, "[TEST][ERROR],open device failed\n");
-	printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
-	printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
-        return( 1 );
-    }
-
-    /* Close zone */
-    ret = zbc_close_zone(dev, (uint64_t)z);
-    if ( ret != 0 ) {
-        fprintf(stderr,
-                "[TEST][ERROR],zbc_test_close_zone failed\n");
-
-        {
-            zbc_errno_t zbc_err;
-            const char *sk_name;
-            const char *ascq_name;
-
-            zbc_errno(dev, &zbc_err);
-            sk_name = zbc_sk_str(zbc_err.sk);
-            ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
-
-            printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-            printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-        }
-
-        ret = 1;
-    }
-
-    if ( zones ) {
-        free(zones);
-    }
-
-    /* Close device file */
-    zbc_close(dev);
-
-    return( ret );
-
+	return ret;
 }
 

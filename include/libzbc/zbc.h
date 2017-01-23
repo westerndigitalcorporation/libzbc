@@ -1,623 +1,1053 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the BSD 2-clause license,
  * "as is," without technical support, and WITHOUT ANY WARRANTY, without
  * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE. You should have received a copy of the BSD 2-clause license along
- * with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+ * with libzbc. If not, see <http://opensource.org/licenses/BSD-2-Clause>.
  *
- * Authors: Damien Le Moal (damien.lemoal@hgst.com)
+ * Authors: Damien Le Moal (damien.lemoal@wdc.com)
  *          Christoph Hellwig (hch@infradead.org)
- *          Christophe Louargant (christophe.louargant@hgst.com)
+ *          Christophe Louargant (christophe.louargant@wdc.com)
  */
 
 #ifndef _LIBZBC_H_
 #define _LIBZBC_H_
 
-/***** Including files *****/
-
+#include <stdio.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <fcntl.h>
 #include <errno.h>
 
-/***** Macro definitions *****/
-
 /**
- * zbc_open flag to force the use of ATA read and write
- * commands through ATA16 SCSI command (ATA PASSTHROUGH).
- * Otherwise, for ATA drives, native SCSI read and write
- * commands are used and either the kernel or the drive HBA
- * translaet these command to ATA commands.
- * This flag is ignored if the target device is not an ATA device.
+ * @mainpage
  *
- * This is defined as bit 30 of the standard fcntl flags.
+ * libzbc is a simple library  providing functions for manipulating disks
+ * supporting the Zoned Block Command  (ZBC) and Zoned-device ATA command
+ * set (ZAC)  disks.  libzbc  implemention is  compliant with  the latest
+ * drafts  of the  ZBC  and  ZAC standards  defined  by INCITS  technical
+ * committee T10 and T13 (respectively).
  */
-#define ZBC_FORCE_ATA_RW       	0x40000000
 
 /**
- * Device info flags.
+ * \addtogroup libzbc
+ *  @{
+ */
+
+/**
+ * @brief Set the library log level
+ * @param[in] log_level	Library log level
  *
- * ZBC_UNRESTRICTED_READ: indicates that a device has unrestricted
- *                        read operation, i.e. that read commands
- *                        spanning a zone write pointer or 2 zones
- *                        of the same type will not result in an error.
+ * Set the library log level using the level name specified by \a log_level.
+ * Log level are incremental: each level includes the levels preceding it.
+ * Valid log level names are:
+ * "none"    : Silent operation (no messages)
+ * "warning" : Print device level standard compliance problems
+ * "error"   : Print messages related to unexpected errors
+ * "info"    : Print normal information messages
+ * "debug"   : Verbose output decribing internally executed commands
+ * The default level is "warning".
  */
-#define ZBC_UNRESTRICTED_READ   0x00000001
+extern void zbc_set_log_level(char *log_level);
 
 /**
- * Device type: BLOCK, SCSI, ATA or fake (emulation).
+ * @brief Zone type definitions
+ *
+ * Indicates the type of a zone.
+ */
+enum zbc_zone_type {
+
+	/**
+	 * Unknown zone type.
+	 */
+	ZBC_ZT_UNKNOWN		= 0x00,
+
+	/**
+	 * Conventional zone.
+	 */
+	ZBC_ZT_CONVENTIONAL	= 0x01,
+
+	/**
+	 * Sequential write required zone: a write pointer zone
+	 * that must be written sequentially (host-managed drives only).
+	 */
+	ZBC_ZT_SEQUENTIAL_REQ	= 0x02,
+
+	/**
+	 * Sequential write preferred zone: a write pointer zone
+	 * that can be written randomly (host-aware drives only).
+	 */
+	ZBC_ZT_SEQUENTIAL_PREF	= 0x03,
+
+};
+
+/**
+ * @brief returns a string describing a zone type
+ * @param[in] type	Zone type
+ *
+ * @return A string describing a zone type.
+ */
+extern const char *zbc_zone_type_str(enum zbc_zone_type type);
+
+/**
+ * @brief Zone condition definitions
+ *
+ * A zone condition is determined by the zone type and the ZBC zone state
+ * machine, i.e. the operations performed on the zone.
+ */
+enum zbc_zone_condition {
+
+	/**
+	 * Not a write pointer zone (i.e. a conventional zone).
+	 */
+	ZBC_ZC_NOT_WP		= 0x00,
+
+	/**
+	 * Empty sequential zone (zone not written too since last reset).
+	 */
+	ZBC_ZC_EMPTY		= 0x01,
+
+	/**
+	 * Implicitely open zone (i.e. a write command was issued to
+	 * the zone).
+	 */
+	ZBC_ZC_IMP_OPEN		= 0x02,
+
+	/**
+	 * Explicitly open zone (a write pointer zone was open using
+	 * the OPEN ZONE command).
+	 */
+	ZBC_ZC_EXP_OPEN		= 0x03,
+
+	/**
+	 * Closed zone (a write pointer zone that was written to and closed
+	 * using the CLOSE ZONE command).
+	 */
+	ZBC_ZC_CLOSED		= 0x04,
+
+	/**
+	 * Read-only zone: any zone that can only be read.
+	 */
+	ZBC_ZC_RDONLY		= 0x0d,
+
+	/**
+	 * Full zone (a write pointer zones only).
+	 */
+	ZBC_ZC_FULL		= 0x0e,
+
+	/**
+	 * Offline zone: unuseable zone.
+	 */
+	ZBC_ZC_OFFLINE		= 0x0f,
+
+};
+
+/**
+ * @brief Returns a string describing a zone condition
+ * @param[in] cond	Zone condition
+ *
+ * @return A string describing a zone condition.
+ */
+extern const char *zbc_zone_condition_str(enum zbc_zone_condition cond);
+
+/**
+ * @brief Zone attributes definitions
+ *
+ * Defines the attributes of a zone. Attributes validity depend on the
+ * zone type and device model.
+ */
+enum zbc_zone_attributes {
+
+	/**
+	 * Reset write pointer recommended: a write pointer zone for which
+	 * the device determined that a RESET WRITE POINTER command execution
+	 * is recommended. The drive level condition resulting in this
+	 * attribute being set depend on the drive model/vendor and not
+	 * defined by the ZBC/ZAC specifications.
+	 */
+	ZBC_ZA_RWP_RECOMMENDED	= 0x0001,
+
+	/**
+	 * Non-Sequential Write Resources Active: indicates that a
+	 * sequential write preferred zone (host-aware devices only) was
+	 * written at a random LBA (not at the write pointer position).
+	 * The drive may reset this attribute at any time after the random
+	 * write operation completion.
+	 */
+	ZBC_ZA_NON_SEQ		= 0x0002,
+};
+
+/**
+ * @brief Zone information data structure
+ *
+ * Provide all information of a zone (position and size, condition and
+ * attributes). This data structure is updated using the zbc_report_zones
+ * function.
+ * In order to unifies handling of zone information for devices with different
+ * logical block sizes, zone start, length and write pointer position are
+ * reported in unit of 512B sectors, regardless of the actual drive logical
+ * block size.
+ */
+struct zbc_zone {
+
+	/**
+	 * Zone length in number of 512B sectors.
+	 */
+	uint64_t		zbz_length;
+
+	/**
+	 * First sector of the zone (512B sector unit).
+	 */
+	uint64_t		zbz_start;
+
+	/**
+	 * Zone write pointer sector position (512B sector unit).
+	 */
+	uint64_t		zbz_write_pointer;
+
+	/**
+	 * Zone type (enum zbc_zone_type).
+	 */
+	uint8_t			zbz_type;
+
+	/**
+	 * Zone condition (enum zbc_zone_condition).
+	 */
+	uint8_t			zbz_condition;
+
+	/**
+	 * Zone attributes (enum zbc_zone_attributes).
+	 */
+	uint8_t			zbz_attributes;
+
+	/**
+	 * Padding to 64 Bytes.
+	 */
+	uint8_t			__pad[5];
+
+};
+
+/** @brief Get a zone type */
+#define zbc_zone_type(z)	((int)(z)->zbz_type)
+
+/** @brief Test if a zone type is conventional */
+#define zbc_zone_conventional(z) ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
+
+/** @brief Test if a zone type is sequential write required */
+#define zbc_zone_sequential_req(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if a zone type is sequential write preferred */
+#define zbc_zone_sequential_pref(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+/** @brief Test if a zone type is sequential write required or preferred */
+#define zbc_zone_sequential(z) 	(zbc_zone_sequential_req(z) || \
+				 zbc_zone_sequential_pref(z))
+
+/** @brief Get a zone condition */
+#define zbc_zone_condition(z)	((int)(z)->zbz_condition)
+
+/** @brief Test if a zone condition is "not write pointer zone" */
+#define zbc_zone_not_wp(z)	((z)->zbz_condition == ZBC_ZC_NOT_WP)
+
+/** @brief Test if a zone condition is empty */
+#define zbc_zone_empty(z)	((z)->zbz_condition == ZBC_ZC_EMPTY)
+
+/** @brief Test if a zone condition is implicit open */
+#define zbc_zone_imp_open(z)	((z)->zbz_condition == ZBC_ZC_IMP_OPEN)
+
+/** @brief Test if a zone condition is explicit open */
+#define zbc_zone_exp_open(z)	((z)->zbz_condition == ZBC_ZC_EXP_OPEN)
+
+/** @brief Test if a zone condition is explicit or implicit open */
+#define zbc_zone_is_open(z)	(zbc_zone_imp_open(z) || \
+				 zbc_zone_exp_open(z))
+
+/** @brief Test if a zone condition is closed */
+#define zbc_zone_closed(z)	((z)->zbz_condition == ZBC_ZC_CLOSED)
+
+/** @brief Test if a zone condition is full */
+#define zbc_zone_full(z)	((z)->zbz_condition == ZBC_ZC_FULL)
+
+/** @brief Test if a zone condition is read-only */
+#define zbc_zone_rdonly(z)	((z)->zbz_condition == ZBC_ZC_RDONLY)
+
+/** @brief Test if a zone condition is offline */
+#define zbc_zone_offline(z)	((z)->zbz_condition == ZBC_ZC_OFFLINE)
+
+/** @brief Test if a zone has the reset recommended flag set */
+#define zbc_zone_rwp_recommended(z) ((z)->zbz_attributes & \
+				     ZBC_ZA_RWP_RECOMMENDED)
+
+/** @brief Test if a zone has the non sequential write resource allocated flag set */
+#define zbc_zone_non_seq(z)	((z)->zbz_attributes & ZBC_ZA_NON_SEQ)
+
+/** @brief Get a zone start 512B sector */
+#define zbc_zone_start(z)	((unsigned long long)(z)->zbz_start)
+
+/** @brief Get a zone number of 512B sectors */
+#define zbc_zone_length(z)	((unsigned long long)(z)->zbz_length)
+
+/** @brief Get a zone write pointer 512B sector position */
+#define zbc_zone_wp(z)		((unsigned long long)(z)->zbz_write_pointer)
+
+/**
+ * Vendor ID string maximum length.
+ */
+#define ZBC_DEVICE_INFO_LENGTH  32
+
+/**
+ * @brief Device type definitions
+ *
  * Each type correspond to a different internal backend driver.
  */
 enum zbc_dev_type {
-    ZBC_DT_SCSI                 = 0x01,
-    ZBC_DT_ATA                  = 0x02,
-    ZBC_DT_FAKE                 = 0x03,
-    ZBC_DT_BLOCK                = 0x04,
+
+	/**
+	 * Unknown drive type.
+	 */
+	ZBC_DT_UNKNOWN	= 0x00,
+
+	/**
+	 * Zoned block device (for kernels supporting ZBC/ZAC).
+	 */
+	ZBC_DT_BLOCK	= 0x01,
+
+	/**
+	 * SCSI device.
+	 */
+	ZBC_DT_SCSI	= 0x02,
+
+	/**
+	 * ATA device.
+	 */
+	ZBC_DT_ATA	= 0x03,
+
+	/**
+	 * Fake device (emulation mode).
+	 */
+	ZBC_DT_FAKE	= 0x04,
+
 };
 
 /**
- * Device model:
- *   - Host aware: device type 0h & HAW_ZBC bit 1b
- *   - Host managed: device type 14h & HAW_ZBC bit 0b
- *   - Regular: device type 0h (standard block device)
+ * @brief Returns a device type name
+ * @param[in] type	Device type
+ *
+ * @return A string describing the interface type of a device.
+ */
+extern const char *zbc_device_type_str(enum zbc_dev_type type);
+
+/**
+ * @brief Device model definitions
+ *
+ * Indicates the ZBC/ZAC device zone model, i.e host-aware, host-managed,
+ * device-managed or standard. Note that these last two models are not
+ * handled by libzbc (the device will be treated as a regular block device
+ * as it should).
+ *   - Host-managed: device type 14h
+ *   - Host-aware: device type 0h and zoned field equal to 01b
+ *   - Device-managed: device type 0h and zoned field equal to 10b
+ *   - Standard: device type 0h (standard block device)
  */
 enum zbc_dev_model {
-    ZBC_DM_DRIVE_UNKNOWN        = 0x00,
-    ZBC_DM_HOST_AWARE           = 0x01,
-    ZBC_DM_HOST_MANAGED         = 0x02,
-    ZBC_DM_DRIVE_MANAGED        = 0x03,
+
+	/**
+	 * Unknown drive model.
+	 */
+	ZBC_DM_DRIVE_UNKNOWN	= 0x00,
+
+	/**
+	 * Host-aware drive model: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 01b.
+	 */
+	ZBC_DM_HOST_AWARE	= 0x01,
+
+	/**
+	 * Host-managed drive model: the device type/signature is 0x14/0xabcd.
+	 */
+	ZBC_DM_HOST_MANAGED	= 0x02,
+
+	/**
+	 * Drive-managed drive model: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 10b.
+	 */
+	ZBC_DM_DEVICE_MANAGED	= 0x03,
+
+	/**
+	 * Standard block device: the device type/signature is 0x00
+	 * and the ZONED field of the block device characteristics VPD
+	 * page B1h is 00b.
+	 */
+	ZBC_DM_STANDARD		= 0x04,
+
 };
 
 /**
- * Zone type.
+ * @brief Returns a device zone model name
+ * @param[in] model	Device model
+ *
+ * @return A string describing a device model.
  */
-enum zbc_zone_type {
-    ZBC_ZT_CONVENTIONAL         = 0x01,
-    ZBC_ZT_SEQUENTIAL_REQ       = 0x02,
-    ZBC_ZT_SEQUENTIAL_PREF      = 0x03,
-};
+extern const char *zbc_device_model_str(enum zbc_dev_model model);
 
 /**
- * Zone condition.
- */
-enum zbc_zone_condition {
-    ZBC_ZC_NOT_WP               = 0x00,
-    ZBC_ZC_EMPTY                = 0x01,
-    ZBC_ZC_IMP_OPEN             = 0x02,
-    ZBC_ZC_EXP_OPEN             = 0x03,
-    ZBC_ZC_CLOSED               = 0x04,
-    ZBC_ZC_RDONLY               = 0x0d,
-    ZBC_ZC_FULL                 = 0x0e,
-    ZBC_ZC_OFFLINE              = 0x0f,
-};
-
-/**
- * Zone flags: need reset, and non-seq write.
- */
-enum zbc_zone_flags {
-    ZBC_ZF_NEED_RESET           = 0x0001,
-    ZBC_ZF_NON_SEQ              = 0x0002,
-};
-
-/**
- * Report zone reporting options: filters zone information
- * returned by the REPORT ZONES command based on the condition
- * of zones. Note that ZBC_RO_PARTIAL is not a filter: this
- * option can be combined (or'ed) with any other option to limit
- * the number of reported zone information to the size of the
- * REPORT ZONE command buffer.
- */
-enum zbc_reporting_options {
-    ZBC_RO_ALL                  = 0x00,
-    ZBC_RO_EMPTY                = 0x01,
-    ZBC_RO_IMP_OPEN             = 0x02,
-    ZBC_RO_EXP_OPEN             = 0x03,
-    ZBC_RO_CLOSED               = 0x04,
-    ZBC_RO_FULL                 = 0x05,
-    ZBC_RO_RDONLY               = 0x06,
-    ZBC_RO_OFFLINE              = 0x07,
-    ZBC_RO_RESET                = 0x10,
-    ZBC_RO_NON_SEQ              = 0x11,
-    ZBC_RO_NOT_WP               = 0x3f,
-    ZBC_RO_PARTIAL              = 0x80,
-};
-
-/**
- * Sense key.
- */
-enum zbc_sk {
-    ZBC_E_ILLEGAL_REQUEST         = 0x5,
-    ZBC_E_DATA_PROTECT            = 0x7,
-    ZBC_E_ABORTED_COMMAND         = 0xB,
-};
-
-/**
- * Additional sense code/Additional sense code qualifier.
- */
-enum zbc_asc_ascq {
-    ZBC_E_INVALID_FIELD_IN_CDB                  = 0x2400,
-    ZBC_E_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE    = 0x2100,
-    ZBC_E_UNALIGNED_WRITE_COMMAND               = 0x2104,
-    ZBC_E_WRITE_BOUNDARY_VIOLATION              = 0x2105,
-    ZBC_E_ATTEMPT_TO_READ_INVALID_DATA          = 0x2106,
-    ZBC_E_READ_BOUNDARY_VIOLATION               = 0x2107,
-    ZBC_E_ZONE_IS_READ_ONLY                     = 0x2708,
-    ZBC_E_INSUFFICIENT_ZONE_RESOURCES           = 0x550E,
-};
-
-/***** Type definitions *****/
-
-/**
- * Empty forward declaration, structure is private to the library.
+ * @brief Device handle (opaque data structure).
  */
 struct zbc_device;
 
 /**
- * Zone descriptor.
+ * @brief Device flags definitions.
+ *
+ * Defines device information flags.
  */
-struct zbc_zone {
+enum zbc_dev_flags {
 
-    uint64_t                    zbz_length;
-    uint64_t                    zbz_start;
-    uint64_t                    zbz_write_pointer;
-
-    uint8_t                     zbz_type;
-    uint8_t                     zbz_condition;
-    uint8_t                     zbz_flags;
-
-    uint8_t                     __pad[5];
+	/**
+	 * Indicates that a device has unrestricted read operation,
+	 * i.e. that read commands spanning a zone write pointer or two
+	 * consecutive zones of the same type will not result in an error.
+	 */
+	ZBC_UNRESTRICTED_READ = 0x00000001,
 
 };
-typedef struct zbc_zone zbc_zone_t;
 
 /**
- * Detailed error descriptor.
+ * @brief Device information data structure
+ *
+ * Provide information on a device open using the \a zbc_open function.
+ */
+struct zbc_device_info {
+
+	/**
+	 * Device type.
+	 */
+	enum zbc_dev_type	zbd_type;
+
+	/**
+	 * Device model.
+	 */
+	enum zbc_dev_model	zbd_model;
+
+	/**
+	 * Device vendor, model and firmware revision string.
+	 */
+	char			zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
+
+	/**
+	 * Device flags (enum zbc_dev_flags).
+	 */
+	uint32_t		zbd_flags;
+
+	/**
+	 * Total number of 512B sectors of the device.
+	 */
+	uint64_t		zbd_sectors;
+
+	/**
+	 * Size in bytes of the device logical blocks.
+	 */
+	uint32_t		zbd_lblock_size;
+
+	/**
+	 * Total number of logical blocks of the device.
+	 */
+	uint64_t		zbd_lblocks;
+
+	/**
+	 * Size in bytes of the device physical blocks.
+	 */
+	uint32_t		zbd_pblock_size;
+
+	/**
+	 * Total number of physical blocks of the device.
+	 */
+	uint64_t		zbd_pblocks;
+
+	/**
+	 * The maximum number of 512B sectors that can be
+	 * transferred with a single command to the device.
+	 */
+	uint64_t		zbd_max_rw_sectors;
+
+	/**
+	 * Optimal maximum number of explicitly open sequential write
+	 * preferred zones (host-aware device models only).
+	 */
+	uint32_t		zbd_opt_nr_open_seq_pref;
+
+	/**
+	 * Optimal maximum number of sequential write preferred zones
+	 * with the ZBC_ZA_NON_SEQ zone attribute set
+	 * (host-aware device models only).
+	 */
+	uint32_t		zbd_opt_nr_non_seq_write_seq_pref;
+
+	/**
+	 * Maximum number of explicitly open sequential write required
+	 * zones (host-managed device models only).
+	 */
+	uint32_t		zbd_max_nr_open_seq_req;
+
+};
+
+/**
+ * @brief Convert LBA value to 512-bytes sector
+ *
+ * @return A number of 512B sectors.
+ */
+#define zbc_lba2sect(info, lba)	(((lba) * (info)->zbd_lblock_size) >> 9)
+
+/**
+ * @brief Convert 512-bytes sector value to LBA
+ *
+ * @return A number of logical blocks.
+ */
+#define zbc_sect2lba(info, sect) (((sect) << 9) / (info)->zbd_lblock_size)
+
+/**
+ * @brief SCSI Sense keys definitions
+ *
+ * SCSI sense keys inspected in case of command error.
+ */
+enum zbc_sk {
+
+	/** Illegal request */
+	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
+
+	/** Data protect */
+	ZBC_SK_DATA_PROTECT	= 0x7,
+
+	/** Aborted command */
+	ZBC_SK_ABORTED_COMMAND	= 0xB,
+};
+
+/**
+ * @brief SCSI Additional sense codes and qualifiers definitions
+ *
+ * SCSI Additional sense codes and additional sense code qualifiers
+ * inspected in case of command error.
+ */
+enum zbc_asc_ascq {
+
+	/** Invalid field in CDB */
+	ZBC_ASC_INVALID_FIELD_IN_CDB			= 0x2400,
+
+	/** Logical block address out of range */
+	ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE	= 0x2100,
+
+	/** Unaligned write command */
+	ZBC_ASC_UNALIGNED_WRITE_COMMAND			= 0x2104,
+
+	/** write boundary violation */
+	ZBC_ASC_WRITE_BOUNDARY_VIOLATION		= 0x2105,
+
+	/** Attempt to read invalid data */
+	ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA		= 0x2106,
+
+	/** Read boundary violation */
+	ZBC_ASC_READ_BOUNDARY_VIOLATION			= 0x2107,
+
+	/** Zone is in the read-only condition */
+	ZBC_ASC_ZONE_IS_READ_ONLY			= 0x2708,
+
+	/** Insufficient zone resources */
+	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
+};
+
+/**
+ * @brief Detailed error information data structure
+ *
  * Standard and ZBC defined SCSI sense key and additional
  * sense codes are used to describe the error.
  */
 struct zbc_errno {
 
-    enum zbc_sk                 sk;
-    enum zbc_asc_ascq           asc_ascq;
+	/** Sense code */
+	enum zbc_sk		sk;
+
+	/** Additional sense code and sense code qualifier */
+	enum zbc_asc_ascq	asc_ascq;
 
 };
-typedef struct zbc_errno zbc_errno_t;
 
 /**
- * Some handy accessor macros.
+ * @brief Get detailed error code of last operation
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[out] err	Address where to return the error report
+ *
+ * Returns at the address specified by \a err a detailed error report
+ * of the last command execued. The error report is composed of the
+ * SCSI sense key, sense code and sense code qualifier.
+ * For successsful commands, all three information are set to 0.
  */
-#define zbc_zone_type(z)                ((int)(z)->zbz_type)
-#define zbc_zone_conventional(z)        ((z)->zbz_type == ZBC_ZT_CONVENTIONAL)
-#define zbc_zone_sequential_req(z)      ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_REQ)
-#define zbc_zone_sequential_pref(z)     ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
-#define zbc_zone_sequential(z)     	(zbc_zone_sequential_req(z) || zbc_zone_sequential_pref(z))
-
-#define zbc_zone_condition(z)           ((int)(z)->zbz_condition)
-#define zbc_zone_not_wp(z)              ((z)->zbz_condition == ZBC_ZC_NOT_WP)
-#define zbc_zone_empty(z)               ((z)->zbz_condition == ZBC_ZC_EMPTY)
-#define zbc_zone_imp_open(z)            ((z)->zbz_condition == ZBC_ZC_IMP_OPEN)
-#define zbc_zone_exp_open(z)            ((z)->zbz_condition == ZBC_ZC_EXP_OPEN)
-#define zbc_zone_is_open(z)             (zbc_zone_imp_open(z) || zbc_zone_exp_open(z))
-#define zbc_zone_closed(z)              ((z)->zbz_condition == ZBC_ZC_CLOSED)
-#define zbc_zone_full(z)                ((z)->zbz_condition == ZBC_ZC_FULL)
-#define zbc_zone_rdonly(z)              ((z)->zbz_condition == ZBC_ZC_RDONLY)
-#define zbc_zone_offline(z)             ((z)->zbz_condition == ZBC_ZC_OFFLINE)
-
-#define zbc_zone_need_reset(z)          (((z)->zbz_flags & ZBC_ZF_NEED_RESET) != 0)
-#define zbc_zone_non_seq(z)          	(((z)->zbz_flags & ZBC_ZF_NON_SEQ) != 0)
-
-#define zbc_zone_start_lba(z)           ((unsigned long long)((z)->zbz_start))
-#define zbc_zone_length(z)              ((unsigned long long)((z)->zbz_length))
-#define zbc_zone_next_lba(z)            (zbc_zone_start_lba(z) + zbc_zone_length(z))
-#define zbc_zone_last_lba(z)            (zbc_zone_next_lba(z) - 1)
-#define zbc_zone_wp_lba(z)              ((unsigned long long)((z)->zbz_write_pointer))
-
-#define zbc_zone_wp_within_zone(z)      ((zbc_zone_wp_lba(z) >= zbc_zone_start_lba(z)) \
-                                         && (zbc_zone_wp_lba(z) <= zbc_zone_last_lba(z)))
-
-#define zbc_zone_wp_lba_reset(z)                        	\
-    do {                                                	\
-        if ( zbc_zone_sequential(z) ) {                         \
-            (z)->zbz_write_pointer = zbc_zone_start_lba(z); 	\
-            (z)->zbz_condition = ZBC_ZC_EMPTY;                  \
-        }                                                       \
-    } while( 0 )
-
-#define zbc_zone_wp_lba_inc(z, count)                           \
-    do {                                                        \
-        if ( zbc_zone_sequential(z) ) {                         \
-            (z)->zbz_write_pointer += (count);                  \
-            if ( zbc_zone_wp_lba(z) > zbc_zone_last_lba(z) ) {	\
-                (z)->zbz_write_pointer = zbc_zone_next_lba(z);  \
-                (z)->zbz_condition = ZBC_ZC_FULL;               \
-            }                                                   \
-        }                                                       \
-    } while( 0 )
+extern void zbc_errno(struct zbc_device *dev, struct zbc_errno  *err);
 
 /**
- * Vendor ID string length.
+ * @brief Returns a string describing a sense key
+ * @param[in] sk	Sense key
+ *
+ * @return A string describing a sense key.
  */
-#define ZBC_DEVICE_INFO_LENGTH  32
+extern const char *zbc_sk_str(enum zbc_sk sk);
 
 /**
- * Misc information about ZBC device.
+ * @brief Returns a string describing a sense code
+ * @param[in] asc_ascq	Sense code and sense code qualifier
+ *
+ * @return A string describing a sense code and sense code qualifier.
  */
-struct zbc_device_info {
+extern const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
 
-    enum zbc_dev_type           zbd_type;
+/**
+ * @brief Test if a device is a zoned block device
+ * @param[in] filename	Path to the device file
+ * @param[in] fake	If true, also test emulated devices
+ * @param[in] info	Address where to store the device information
+ *
+ * Test if a device supports the ZBC/ZAC command set. If \a fake is false,
+ * only test physical devices. Otherwise, also test regular files and
+ * regular block devices that may be in use with the fake backend driver
+ * to create an emulated host-managed zoned block device.
+ * If \a info is not NULL and the device is identified as a zoned
+ * block device, the device information is returned at the address
+ * specified by \a info.
+ *
+ * @return Returns a negative error code if the device test failed.
+ * 1 is returned if the device is identified as a zoned zoned block device.
+ * Otherwise, 0 is returned.
+ */
+extern int zbc_device_is_zoned(const char *filename,
+			       bool fake,
+			       struct zbc_device_info *info);
 
-    enum zbc_dev_model          zbd_model;
+/**
+ * @brief Open a ZBC device
+ * @param[in] filename	Path to a device file
+ * @param[in] flags	Intended access mode: O_RDONLY, O_WRONLY or O_RDWR
+ * @param[out] dev	Opaque ZBC device handle
+ *
+ * Opens the device pointed by \a filename, and returns a handle to it
+ * at the address specified by \a dev if the device is a zoned block device
+ * supporting the ZBC or ZAC command set. \a filename may specify the path to
+ * a regular block device file or a regular file to be used with libzbc
+ * emulation mode (ZBC_DT_FAKE device type).
+ *
+ * @return If the device is not a zoned block device, -ENXIO will be returned.
+ * Any other error code returned by open(2) can be returned as well.
+ */
+extern int zbc_open(const char *filename, int flags, struct zbc_device **dev);
 
-    char                        zbd_vendor_id[ZBC_DEVICE_INFO_LENGTH];
+/**
+ * @brief Close a ZBC device
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ *
+ * Performs the equivalent to close(2) for a ZBC device open
+ * using \a zbc_open.
+ *
+ * @return Can return any error that close(2) may return.
+ */
+extern int zbc_close(struct zbc_device *dev);
 
-    uint32_t                    zbd_logical_block_size;
-    uint64_t                    zbd_logical_blocks;
+/**
+ * @brief Get a ZBC device information
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] info	Address of the information structure to fill
+ *
+ * Get information about an open device. The \a info parameter is used to
+ * return a device information. \a info must be allocated by the caller.
+ */
+extern void zbc_get_device_info(struct zbc_device *dev,
+				struct zbc_device_info *info);
 
-    uint32_t                    zbd_physical_block_size;
-    uint64_t                    zbd_physical_blocks;
+/**
+ * @brief Print a device information
+ * @param[in] info	The information to print
+ * @param[in] out	File stream to print to
+ *
+ * Print the content of \a info to the file stream \a out.
+ */
+extern void zbc_print_device_info(struct zbc_device_info *info, FILE *out);
 
-    uint64_t                    zbd_max_rw_logical_blocks;
+/**
+ * @brief Reporting options definitions
+ *
+ * Used to filter the zone information returned by the execution of a
+ * REPORT ZONES command. Filtering is based on the value of the reporting
+ * option and on the condition of the zones at the time of the execution of
+ * the REPORT ZONES command.
+ *
+ * ZBC_RO_PARTIAL is not a filter: this reporting option can be combined
+ * (or'ed) with any other filter option to limit the number of reported
+ * zone information to the size of the REPORT ZONES command buffer.
+ */
+enum zbc_reporting_options {
 
-    uint32_t                    zbd_opt_nr_open_seq_pref;
-    uint32_t                    zbd_opt_nr_non_seq_write_seq_pref;
-    uint32_t                    zbd_max_nr_open_seq_req;
+	/**
+	 * List all of the zones in the device.
+	 */
+	ZBC_RO_ALL		= 0x00,
 
-    uint32_t                    zbd_flags;
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_EMPTY.
+	 */
+	ZBC_RO_EMPTY		= 0x01,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_IMP_OPEN.
+	 */
+	 ZBC_RO_IMP_OPEN	= 0x02,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_EXP_OPEN.
+	 */
+	ZBC_RO_EXP_OPEN		= 0x03,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_CLOSED.
+	 */
+	ZBC_RO_CLOSED		= 0x04,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_FULL.
+	 */
+	ZBC_RO_FULL		= 0x05,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_RDONLY.
+	 */
+	ZBC_RO_RDONLY		= 0x06,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
+	 */
+	ZBC_RO_OFFLINE		= 0x07,
+
+	/* 08h to 0Fh Reserved */
+
+	/**
+	 * List the zones with a zone attribute ZBC_ZA_RWP_RECOMMENDED set.
+	 */
+	ZBC_RO_RWP_RECOMMENDED	= 0x10,
+
+	/**
+	 * List the zones with a zone attribute ZBC_ZA_NON_SEQ set.
+	 */
+	ZBC_RO_NON_SEQ		= 0x11,
+
+	/* 12h to 3Eh Reserved */
+
+	/**
+	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
+	 */
+	ZBC_RO_NOT_WP		= 0x3f,
+
+	/**
+	 * Partial report flag.
+	 */
+	ZBC_RO_PARTIAL		= 0x80,
 
 };
-typedef struct zbc_device_info zbc_device_info_t;
-
-/***** Library API *****/
 
 /**
- * Set the library log level.
- * log_level can be: "none", "error", "info", "debug" or "vdebug".
+ * @brief Get zone information
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	Sector from which to report zones
+ * @param[in] ro	Reporting options
+ * @param[in] zones	Pointer to the array of zone information to fill
+ * @param[out] nr_zones	Number of zones in the array \a zones
+ *
+ * Get zone information matching the \a sector and \a ro arguments and
+ * return the information obtained in the array \a zones and the number of
+ * zone information obtained at the address specified by \a nr_zones.
+ * The array \a zones must be allocated by the caller and \a nr_zones
+ * must point to the size of the allocated array (number of zone information
+ * structures in the array). The first zone reported will be the zone
+ * containing or after \a sector.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern void
-zbc_set_log_level(char *log_level);
+extern int zbc_report_zones(struct zbc_device *dev,
+			    uint64_t sector , enum zbc_reporting_options ro,
+			    struct zbc_zone *zones, unsigned int *nr_zones);
 
 /**
- * zbc_device_is_zoned - test if a physical device is zoned.
- * @filename:        (IN) path to the device file
- * @info:            (IN) Address where to store the device information
+ * @brief Get the number of zones matches
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	Sector from which to report zones
+ * @param[in] ro	Reporting options
+ * @param[out] nr_zones	The number of matching zones
  *
- * Test if a physical device supports the ZBC/ZAC command set.
- * This excludes libzbc emulation mode showing a regular block device
- * or regular file as a ZBC host-managed block device. If @info is not
- * NULL and the device is identified as a zoned device, the device
- * information is returned at the address specified by @info.
+ * Similar to \a zbc_report_zones, but returns only the number of zones that
+ * \a zbc_report_zones would have returned. This is useful to determine the
+ * total number of zones of a device to allocate an array of zone information
+ * structures for use with \a zbc_report_zones.
  *
- * Returns a negative error code if the device test failed. 1 is returned
- * if the device is identified as zoned. Otherwise, 0 is returned.
- * In this case, the application can use stat/fstat to get more
- * details about the device.
+ * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int
-zbc_device_is_zoned(const char *filename,
-		    zbc_device_info_t *info);
-
-static inline int __attribute__((deprecated))
-    zbc_device_is_smr(const char *filename,
-		      zbc_device_info_t *info)
+static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
+				      enum zbc_reporting_options ro,
+				      unsigned int *nr_zones)
 {
-    return zbc_device_is_zoned(filename, info);
+	return zbc_report_zones(dev, sector, ro, NULL, nr_zones);
 }
 
 /**
- * zbc_open - open a (device)file for ZBC access.
- * @filename:           (IN) Path to the ZBC device file
- * @flags:              (IN) open mode: O_RDONLY, O_WRONLY or O_RDWR
- * @dev:                (OUT) opaque ZBC handle
+ * @brief Get zone information
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	Sector from which to report zones
+ * @param[in] ro	Reporting options
+ * @param[out] zones	The array of zone information filled
+ * @param[out] nr_zones	Number of zones in the array \a zones
  *
- * Opens the file pointed to by @filename, and returns a handle to it
- * in @dev if it the file is a device special file for a ZBC-capable
- * device.  If the device does not support ZBC this calls returns -EINVAL.
- * Any other error code returned from open(2) can be returned as well.
+ * Similar to \a zbc_report_zones, but also allocates an appropriatly sized
+ * array of zone information structures and return the address of the array
+ * at the address specified by \a zones. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_zones. Freeing of the
+ * memory used by the array of zone information strcutrues allocated by this
+ * function is the responsability of the caller.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENOMEM if memory could not be allocated for \a zones.
  */
-extern int
-zbc_open(const char *filename,
-         int flags,
-         struct zbc_device **dev);
+extern int zbc_list_zones(struct zbc_device *dev,
+			  uint64_t sector, enum zbc_reporting_options ro,
+			  struct zbc_zone **zones, unsigned int *nr_zones);
 
 /**
- * zbc_close - close a ZBC file handle.
- * @dev:                (IN) ZBC device handle to close
+ * @brief Zone operation codes definitions
  *
- * Performs the equivalent to close(2) for a ZBC handle.  Can return any
- * error that close could return.
+ * Encode the operation to perform on a zone.
  */
-extern int
-zbc_close(struct zbc_device *dev);
+enum zbc_zone_op {
+
+	/**
+	 * Reset zone write pointer.
+	 */
+	ZBC_OP_RESET_ZONE	= 0x01,
+
+	/**
+	 * Open a zone.
+	 */
+	ZBC_OP_OPEN_ZONE	= 0x02,
+
+	/**
+	 * Close a zone.
+	 */
+	ZBC_OP_CLOSE_ZONE	= 0x03,
+
+	/**
+	 * Finish a zone.
+	 */
+	ZBC_OP_FINISH_ZONE	= 0x04,
+
+};
 
 /**
- * zbc_get_device_info - report misc device information
- * @dev:                (IN) ZBC device handle to report on
- * @info:               (IN) structure that contains ZBC device information
+ * @brief Zone operation flag definitions
  *
- * Reports information about a ZBD device.  The @info parameter is used to
- * return a device information structure which must be allocated by the caller.
- *
- * Returns -EFAULT if an invalid NULL pointer was specified.
+ * Control the behavior of zone operations.
+ * Flags defined here can be or'ed together and passed to the functions
+ * \a zbc_open_zone, \a zbc_close_zone, \a zbc_finish_zone and
+ * \a link zbc_reset_zone.
  */
-extern int
-zbc_get_device_info(struct zbc_device *dev,
-                    struct zbc_device_info *info);
+enum zbc_zone_op_flags {
+
+	/**
+ 	 * Operate on all possible zones.
+	 */
+	ZBC_OP_ALL_ZONES = 0x0000001,
+
+};
 
 /**
- * zbc_report_zones - Update a list of zone information
- * @dev:                (IN) ZBC device handle to report on
- * @start_lba:          (IN) Start LBA for the first zone to be reported.
- *                           This parameter is ignored for ZAC devices.
- * @ro:                 (IN) Reporting options
- * @zones:              (IN) Pointer to array of zone information
- * @nr_zones:           (IN/OUT) Number of zones int the array @zones
+ * @brief Execute an operation on a zone
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the target zone
+ * @param[in] op	The operation to perform
+ * @param[in] flags	Zone operation flags
  *
- * Update an array of zone information previously obtained using zbc_report_zones,
+ * Exexcute an operation on the zone of \a dev starting at the sector
+ * specified by \a sector. The target zone must be a write pointer zone,
+ * that is, its type must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The validity of the operation (reset, open, close or finish) depends on the
+ * condition of the target zone. See \a zbc_reset_zone, \a zbc_open_zone,
+ * \a zbc_close_zone and \a zbc_finish_zone for details.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * the operation is executed on all possible zones.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
+			      enum zbc_zone_op op, unsigned int flags);
+
+/**
+ * @brief Explicitly open a zone
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to open
+ * @param[in] flags	Zone operation flags
+ *
+ * Explicitly open the zone of \a dev starting at the sector specified by
+ * \a sector. The target zone must be a write pointer zone, that is, its type
+ * must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The condition of the target zone must be ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN or
+ * ZBC_ZC_CLOSED. Otherwise, an error will be returned. Opening a zone with
+ * the condition ZBC_ZC_EXP_OPEN has no effect (the zone condition is
+ * unchanged).
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * all possible zones that can be explictly open will be (see ZBC/ZAC
+ * specifications regarding the result of such operation).
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_open_zone(struct zbc_device *dev,
+				uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_OPEN_ZONE, flags);
+}
+
+/**
+ * @brief Close an open zone
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to close
+ * @param[in] flags	Zone operation flags
+ *
+ * Close an implictly or explictly open zone. The zone to close is identified
+ * by its first sector specified by \a sector. The target zone must be a write
+ * pointer zone, that is, of type ZBC_ZT_SEQUENTIAL_REQ or
+ * ZBC_ZT_SEQUENTIAL_PREF. Attempting to close a zone that is empty, full or
+ * already closed will succeed and the zone condition will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * implicitly and explicitly open zones are closed.
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int
-zbc_report_zones(struct zbc_device *dev,
-                 uint64_t start_lba,
-                 enum zbc_reporting_options ro,
-                 struct zbc_zone *zones,
-                 unsigned int *nr_zones);
+static inline int zbc_close_zone(struct zbc_device *dev,
+				 uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_CLOSE_ZONE, flags);
+}
 
 /**
- * zbc_report_nr_zones - Get number of zones of a ZBC device
- * @dev:                (IN) ZBC device handle to report on
- * @start_lba:          (IN) Start LBA of the first zone looked at
- * @ro:                 (IN) Reporting options (filter)
- * @nr_zones:           (OUT) Address where to return the number of matching zones
+ * @brief Finish a write pointer zone
+ * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to finish
+ * @param[in] flags	Zone operation flags
+ *
+ * Transition a write pointer zone to the full condition. The target zone is
+ * identified by its first sector specified by \a sector. The target zone must
+ * be a write pointer zone, that is, of type ZBC_ZT_SEQUENTIAL_REQ or
+ * ZBC_ZT_SEQUENTIAL_PREF. Attempting to finish a zone that is already full
+ * will succeed and the zone condition will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * implicitly and explicitly open zones as well as all closed zones are
+ * transitioned to the full condition.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int
-zbc_report_nr_zones(struct zbc_device *dev,
-                    uint64_t start_lba,
-                    enum zbc_reporting_options ro,
-                    unsigned int *nr_zones);
+static inline int zbc_finish_zone(struct zbc_device *dev,
+				  uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_FINISH_ZONE, flags);
+}
 
 /**
- * zbc_list_zones - report zones for a ZBC device
- * @dev:                (IN) ZBC device handle to report on
- * @start_lba:          (IN) start LBA for the first zone to reported
- * @ro:                 (IN) Reporting options
- * @zones:              (OUT) Pointer for reported zones
- * @nr_zones:           (OUT) number of returned zones
+ * @brief Reset the write pointer of a zone
+ * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to reset
+ * @param[in] flags	Zone operation flags
  *
- * Reports the number and details of available zones.  The @zones
- * parameter is used to return an array of zones which is allocated using
- * malloc(3) internally and needs to be freed using free(3).  The number
- * of zones in @zones is returned in @nr_zones.
- *
- * Returns -EIO if an error happened when communicating with the device.
- * Returns -ENOMEM if memory could not be allocated for @zones.
- */
-extern int
-zbc_list_zones(struct zbc_device *dev,
-               uint64_t start_lba,
-               enum zbc_reporting_options ro,
-               struct zbc_zone **zones,
-               unsigned int *nr_zones);
-
-/**
- * zbc_open_zone - open the zone for a ZBC zone
- * @dev:                (IN) ZBC device handle to reset on
- * @start_lba:          (IN) Start LBA for the zone to be opened or -1 to open all zones
- *
- * Opens the zone for a ZBC zone if @start_lba is a valid zone start LBA.
- * If @start_lba specifies -1, the all zones are opened.
- * The start LBA for a zone is reported by zbc_report_zones().
- *
- * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- * and be in the ZBC_ZC_EMPTY or ZBC_ZC_IMP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_EXP_OPEN state,
- * otherwise -EINVAL will be returned.
+ * Resets the write pointer of the zone identified by its first sector
+ * specified by \a sector. The target zone must be a write pointer zone,
+ * that is, of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * Attempting to reset a write pointer zone that is already empty
+ * will succeed and the zone condition will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * write pointer zones that are not empty will be resetted.
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
-extern int
-zbc_open_zone(struct zbc_device *dev,
-              uint64_t start_lba);
+static inline int zbc_reset_zone(struct zbc_device *dev,
+				 uint64_t sector, unsigned int flags)
+{
+	return zbc_zone_operation(dev, sector,
+				  ZBC_OP_RESET_ZONE, flags);
+}
 
 /**
- * zbc_close_zone - close the zone for a ZBC zone
- * @dev:                (IN) ZBC device handle to reset on
- * @start_lba:          (IN) Start LBA for the zone to be closed or -1 to close all zones
+ * @brief Read sectors form a device
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] buf	Caller supplied buffer to read into
+ * @param[in] count	Number of 512B sectors to read
+ * @param[in] offset	Offset where to start reading (512B sector unit)
  *
- * Closes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
- * If @start_lba specifies -1, the all zones are closed.
- * The start LBA for a zone is reported by zbc_report_zones().
+ * This an the equivalent of the standard system call pread(2) that
+ * operates on a ZBC device handle and uses 512B sector unit addressing
+ * for the amount of data and the position on the device of the data to read.
+ * Attempting to read data across zone boundaries or after the write pointer
+ * position of a write pointer zone is possible only if the device allows
+ * unrestricted reads. This is indicated by the device information structure
+ * flags field, using the flag ZBC_UNRESTRICTED_READ.
+ * The range of 512B sectors to read, starting at \a offset and spanning
+ * \a count 512B sectors must be aligned on logical blocks boundaries.
+ * That is, for a 4K logical block size device, \a count and \a offset
+ * must be multiples of 8.
  *
- * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED or ZBC_ZC_FULL state,
- * otherwise -EINVAL will be returned. If write pointer is at start LBA of the zone,
- * the zone state changes to ZBC_ZC_EMPTY. And if the zone status is ZBC_ZC_FULL,
- * the zone state doesn't change.
- *
- * Returns -EIO if an error happened when communicating with the device.
+ * @return Any error returned by pread(2) can be returned. On success,
+ * the number of 512B sectors read is returned.
  */
-extern int
-zbc_close_zone(struct zbc_device *dev,
-               uint64_t start_lba);
+extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
+			 size_t count, uint64_t offset);
 
 /**
- * zbc_finish_zone - finish the zone for a ZBC zone
- * @dev:                (IN) ZBC device handle to reset on
- * @start_lba:          (IN) Start LBA for the zone to be finished or -1 to finish all zones
+ * @brief Write sectors to a device
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] buf	Caller supplied buffer to write from
+ * @param[in] count	Number of 512B sectors to write
+ * @param[in] offset	Offset where to start writing (512B sector unit)
  *
- * Finishes the zone for a ZBC zone if @start_lba is a valid zone start LBA.
- * If @start_lba specifies -1, the all zones are finished.
- * The start LBA for a zone is reported by zbc_report_zones().
+ * This an the equivalent of the standard system call pwrite(2) that
+ * operates on a ZBC device handle, and uses 512B sector unit addressing
+ * for the amount of data and the position on the device of the data to
+ * write. On a host-aware device, any range of 512B sector is acceptable.
+ * On a host-managed device, the range os sectors to write can span several
+ * conventional zones but cannot span conventional and sequential write
+ * required zones. When writing to a sequential write required zone, \a offset
+ * must specify the current write pointer position of the zone.
+ * The range of 512B sectors to write, starting at \a offset and spanning
+ * \a count 512B sectors must be aligned on physical blocks boundaries.
+ * That is, for a 4K physical block size device, \a count and \a offset
+ * must be multiples of 8.
  *
- * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- * and be in the ZBC_ZC_IMP_OPEN or ZBC_ZC_EXP_OPEN or ZBC_ZC_CLOSED state,
- * otherwise -EINVAL will be returned. If zone is in ZBC_ZC_CLOSED state,
- * the zone state changes to ZBC_ZC_IMP_OPEN exceptionally.
- *
- * Returns -EIO if an error happened when communicating with the device.
+ * @return Any error returned by write(2) can be returned. On success,
+ * the number of logical blocks written is returned.
  */
-extern int
-zbc_finish_zone(struct zbc_device *dev,
-                uint64_t start_lba);
+extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
+			  size_t count, uint64_t offset);
 
 /**
- * zbc_reset_write_pointer - reset the write pointer for a ZBC zone
- * @dev:                (IN) ZBC device handle to reset on
- * @start_lba:          (IN) Start LBA for the zone to be reset or -1 to reset all zones
+ * @brief Flush a device write cache
+ * @param[in] dev	Device handle obtained with \a zbc_open
  *
- * Resets the write pointer for a ZBC zone if @start_lba is a valid
- * zone start LBA. If @start_lba specifies -1, the write pointer of all zones
- * is reset. The start LBA for a zone is reported by zbc_report_zones().
+ * This an the equivalent to fsync/fdatasunc but operates at the
+ * device cache level.
  *
- * The zone must be of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- * and be in the ZBC_ZC_OPEN or ZBC_ZC_FULL state, otherwise -EINVAL
- * will be returned.
- *
- * Returns -EIO if an error happened when communicating with the device.
+ * @return Returns 0 on success and -EIO in case of error.
  */
-extern int
-zbc_reset_write_pointer(struct zbc_device *dev,
-                        uint64_t start_lba);
+extern int zbc_flush(struct zbc_device *dev);
 
 /**
- * zbc_read - read from a ZBC device
- * @dev:                (IN) ZBC device handle to read from
- * @zone:               (IN) The zone to read in
- * @buf:                (IN) Caller supplied buffer to read into
- * @lba_count:          (IN) Number of LBAs to read
- * @lba_ofst:           (IN) LBA offset where to start reading in @zone
- *
- * This an the equivalent to pread(2) that operates on a ZBC device handle,
- * and uses LBA addressing for the buffer length and I/O offset.
- *
- * All errors returned by pread(2) can be returned. On success, the number of
- * logical blocks read is returned.
+ * @}
  */
-extern int32_t
-zbc_pread(struct zbc_device *dev,
-          struct zbc_zone *zone,
-          void *buf,
-          uint32_t lba_count,
-          uint64_t lba_ofst);
-
-/**
- * zbc_pwrite - write to a ZBC device
- * @dev:                (IN) ZBC device handle to write to
- * @zone:               (IN) The zone to write to
- * @buf:                (IN) Caller supplied buffer to write from
- * @lba_count:          (IN) Number of LBAs to write
- * @lba_ofst:           (IN) LBA Offset where to start writing in @zone
- *
- * This an the equivalent to pwrite(2) that operates on a ZBC device handle,
- * and uses LBA addressing for the buffer length. It attempts to writes in the
- * zone (@zone) at the offset (@lba_ofst).
- * The disk write pointer may be updated in case of a succesful call, but this function
- * does not updates the write pointer value of @zone.
- *
- * All errors returned by write(2) can be returned. On success, the number of
- * logical blocks written is returned.
- */
-extern int32_t
-zbc_pwrite(struct zbc_device *dev,
-           struct zbc_zone *zone,
-           const void *buf,
-           uint32_t lba_count,
-           uint64_t lba_ofst);
-
-/**
- * zbc_write - write to a ZBC device
- * @dev:                (IN) ZBC device handle to write to
- * @zone:               (IN) The zone to write to (at the zone write pointer LBA)
- * @buf:                (IN) Caller supplied buffer to write from
- * @lba_count:          (IN) Number of LBAs to write
- *
- * This an the equivalent to write(2) that operates on a ZBC device handle,
- * and uses LBA addressing for the buffer length. Instead of writing at
- * the current file offset it writes at the write pointer for the zone
- * identified by @zone, which is advanced if the write operation succeeds.
- * This function thus cannot be used for a conventional zone, which is not
- * a write pointer zone.
- *
- * All errors returned by write(2) can be returned. On success, the number of
- * logical blocks written is returned.
- */
-extern int32_t
-zbc_write(struct zbc_device *dev,
-          struct zbc_zone *zone,
-          const void *buf,
-          uint32_t lba_count);
-
-/**
- * zbc_flush - flush to a ZBC device cache
- * @dev:                (IN) ZBC device handle to flush
- *
- * This an the equivalent to fsync/fdatasunc but operates at the device cache level.
- */
-extern int
-zbc_flush(struct zbc_device *dev);
-
-/**
- * zbc_disk_type_str - returns a disk type name
- * @type: (IN) ZBC_DT_SCSI, ZBC_DT_ATA, or ZBC_DT_FAKE
- *
- * Returns a string describing the interface type of a disk.
- */
-extern const char *
-zbc_disk_type_str(int type);
-
-/**
- * zbc_disk_model_str - returns a disk model name
- * @model: (IN) ZBC_DM_DRIVE_MANAGED, ZBC_DM_HOST_AWARE, or ZBC_DM_HOST_MANAGED
- *
- * Returns a string describing a model type.
- */
-extern const char *
-zbc_disk_model_str(int model);
-
-/**
- * zbc_zone_type_str - returns a string describing a zone type.
- * @type: (IN)  ZBC_ZT_CONVENTIONAL, ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF
- *
- * Returns a string describing a zone type.
- */
-extern const char *
-zbc_zone_type_str(enum zbc_zone_type type);
-
-/**
- * zbc_zone_cond_str - returns a string describing a zone condition.
- * @cond: (IN)  ZBC_ZC_NOT_WP, ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN, ZBC_ZC_EXP_OPEN,
- *              ZBC_ZC_CLOSED, ZBC_ZC_RDONLY, ZBC_ZC_FULL or ZBC_ZC_OFFLINE
- *
- * Returns a string describing a zone condition.
- */
-extern const char *
-zbc_zone_condition_str(enum zbc_zone_condition cond);
-
-/**
- * zbc_errno - returns detailed error report (sense key, sense code and sense code qualifier) of the last executed command.
- * @dev: (IN) ZBC device handle
- * @err: (OUT) Address where to return the error report
- */
-extern void
-zbc_errno(struct zbc_device *dev,
-          struct zbc_errno  *err);
-
-/**
- * zbc_sk_str - returns a string describing a sense key.
- * @sk:    (IN)  Sense key
- */
-extern const char *
-zbc_sk_str(enum zbc_sk sk);
-
-/**
- * zbc_asc_ascq_str - returns a string describing a sense code and sense code qualifier.
- * @asc_ascq:    (IN)  Sense code and sense code qualifier
- */
-extern const char *
-zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
 
 #endif /* _LIBZBC_H_ */

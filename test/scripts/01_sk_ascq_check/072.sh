@@ -2,7 +2,8 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (C) 2016, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -13,16 +14,14 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
+zbc_test_init $0 "WRITE insufficient zone resources" $*
 
 # Set expected error code
-expected_sk="Aborted-command"
+expected_sk="Data-protect"
 expected_asc="Insufficient-zone-resources"
 
-zbc_test_info "WRITE insufficient zone resources..."
-
 # Get drive information
-zbc_test_get_drive_info
+zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
@@ -56,7 +55,7 @@ else
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_write_ptr ${device} -1
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
 rm -f ${zone_info_file}
 

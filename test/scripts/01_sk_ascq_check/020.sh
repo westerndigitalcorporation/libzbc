@@ -2,7 +2,8 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc.  All rights reserved.
+# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (C) 2016, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -13,15 +14,13 @@
 
 . ../zbc_test_lib.sh
 
-zbc_test_init $0 $*
-
-zbc_test_info "OPEN_ZONE invalid zone start lba..."
+zbc_test_init $0 "OPEN_ZONE invalid zone start lba" $*
 
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 # Get drive information
-zbc_test_get_drive_info
+zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"

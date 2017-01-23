@@ -1,5 +1,5 @@
 
-AC_INIT([libzbc], [4.3.4], [damien.lemoal@wdc.com, adam.manzanares@wdc.com])
+AC_INIT([libzbc], [5.0.0], [damien.lemoal@wdc.com, adam.manzanares@wdc.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])
@@ -41,15 +41,16 @@ AC_ARG_WITH([test],
             [AS_HELP_STRING([--with-test], [Build compatibility test suite [default=no]])],
             [WITH_TEST=1],
             [WITH_TEST=0])
-AM_CONDITIONAL([BUILD_TEST], [test "$WITH_TEST" -eq 1])
+AS_IF([test "$WITH_TEST" -eq 1],
+[
+	AM_CONDITIONAL([BUILD_TEST], true)
+	AC_DEFINE([HAVE_DEVTEST], [1], ["Enable API test mode"])
+])
 
 AC_CONFIG_FILES([
 	libzbc.pc
 	Makefile
 ])
-
-# Build lkvs
-#AC_CONFIG_SUBDIRS([tools/lkvs])
 
 AC_OUTPUT
 
