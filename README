@@ -181,11 +181,11 @@ of a zoned  device. Other functions will allow  changing the condition
 of a zone or multiple zones. These changes in a zone condition as well
 as  changes to  a zone  attributes (such  as a  sequential zone  write
 pointer) are not internally tracked  by libzbc. The functions provided
-to obtain the  zone information only provide a "snapshot"  of the zone
-condition  and state  when executed.  It is  the responsability  of an
-application to implement tracking of  the device zone changes (such as
-increment to a sequential zone write pointer as writes to the zone are
-executed) if necessary.
+to obtain the device zone information only provide a "snapshot" of the
+zone condition and  state when executed.  It is  the responsability of
+an application to implement tracking  of the device zone changes (such
+as increment to a sequential zone  write pointer as writes to the zone
+are executed) if necessary.
 
 The main functions provided are as follows.
 
@@ -220,12 +220,12 @@ The main functions provided are as follows.
 | zbc_flush              | Flush data to disk                        |
 +------------------------+-------------------------------------------+
 
-The current implementation of these functions is NOT thread safe. In
-particular, concurrent write operations by multiple threads to the
-same zone may result in write errors without write ordering control
-by the application.
+The current implementation  of these functions is NOT  thread safe. In
+particular,  concurrent write  operations by  multiple threads  to the
+same zone may result in write errors without write ordering control by
+the application.
 
-Additionally, the following functions are also provided to facilitate
+Additionally, the following functions  are also provided to facilitate
 application development and tests.
 
 +------------------------+-------------------------------------------+
@@ -246,6 +246,10 @@ application development and tests.
 +------------------------+-------------------------------------------+
 | zbc_zone_condition_str | Get a string description of a zone        |
 |                        | condition                                 |
++------------------------+-------------------------------------------+
+| zbc_errno              | Return sense key anbd sense code for the  |
+|                        | last failed call to any function          |
+|                        | accessing the disk                        |
 +------------------------+-------------------------------------------+
 | zbc_sk_str             | Get a string description of a sense key   |
 +------------------------+-------------------------------------------+
