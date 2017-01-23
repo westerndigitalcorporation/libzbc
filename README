@@ -21,8 +21,17 @@ storage.
 Several  example applications  using  libzbc are  available under  the
 tools directory.
 
-I.2. Standards Versions Supported
----------------------------------
+I.2. Library version
+--------------------
+
+libzbc  current  version is  5.0.0.  Due  to interface  changes,  this
+version  is  not compatible  with  previous  libzbc versions  (version
+4.x). Overall, the library operation does not change, but applications
+written for  previous libzbc versions must  be updated to use  the new
+API.
+
+I.3. ZBC/ZAC Standards Versions Supported
+-----------------------------------------
 
 The  "master"  code  branch  implements libzbc  v5.0.0  which  provide
 supports for the latest ZBC and ZAC standards (Rev 05).
@@ -31,7 +40,7 @@ Support  for the  older draft  standards are  available with  previous
 releases and pre-releases (see https://github.com/hgst/libzbc/releases
 for details).
 
-I.3. License
+I.4. License
 ------------
 
 libzbc  is distributed  under the  terms of  the of  the BSD  2-clause
@@ -52,7 +61,7 @@ BSD 2-clause license and of the GNU Lesser General Public License.  If
 not,  please   see  <http://opensource.org/licenses/BSD-2-Clause>  and
 <http://www.gnu.org/licenses/>.
 
-I.4. Contact and Bug Reports
+I.5. Contact and Bug Reports
 ----------------------------
 
 To report problems, please contact:
@@ -176,16 +185,28 @@ target file or block device as a host-managed zoned block device.
 III.2 Library Functions
 -----------------------
 
-libzbc provides  the functions for discovering  the zone configuration
-of a zoned  device. Other functions will allow  changing the condition
-of a zone or multiple zones. These changes in a zone condition as well
-as  changes to  a zone  attributes (such  as a  sequential zone  write
-pointer) are not internally tracked  by libzbc. The functions provided
-to obtain the device zone information only provide a "snapshot" of the
-zone condition and  state when executed.  It is  the responsability of
-an application to implement tracking  of the device zone changes (such
-as increment to a sequential zone  write pointer as writes to the zone
-are executed) if necessary.
+libzbc provides functions for discovering  the zone configuration of a
+zoned device and for accessing the  device. Accesses to the device may
+result in changes  to the device zones condition,  attributes or state
+(such as a sequential zone  write pointer location). These changes are
+not internally tracked by libzbc. The functions provided to obtain the
+device  zone  information  only  provide  a  "snapshot"  of  the  zone
+condition and  state when  executed.  It is  the responsability  of an
+application to implement tracking of  the device zone changes (such as
+increment to a sequential zone write pointer as writes to the zone are
+executed) if necessary.
+
+All libzbc  functions, since version  5.0.0, use 512B sector  unit for
+reporting  zone information  and  as the  addressing  unit for  device
+accesses, independently of the actual  device logical block size. This
+unification  in  the unit  used  by  all  API functions  can  simplify
+application  development by  hiding potential  differences in  logical
+block sizes between devices.  However, application programmers must be
+careful to always implement accesses (read  or write) to the device in
+multiple  of  the  logical  block  size  for  reading  and  writing  a
+zone.  Furthermore,  on  host-managed  devices,  write  operations  to
+sequential zones must be aligned on  a multiple of the device physical
+block size.
 
 The main functions provided are as follows.
 
