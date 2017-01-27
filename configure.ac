@@ -45,6 +45,9 @@ AS_IF([test "$WITH_TEST" -eq 1],
 [
 	AM_CONDITIONAL([BUILD_TEST], true)
 	AC_DEFINE([HAVE_DEVTEST], [1], ["Enable API test mode"])
+],
+[
+	AM_CONDITIONAL([BUILD_TEST], false)
 ])
 
 AC_CONFIG_FILES([
