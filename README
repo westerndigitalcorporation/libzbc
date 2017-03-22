@@ -15,8 +15,7 @@ committee T10 and T13 (respectively).
 
 In addition to supporting ZBC and ZAC disks, libzbc also implements an
 emulation mode allowing emulating the behavior of a host-managed zoned
-disks using a  regular file or a raw standard  block device as backing
-storage.
+disk using a regular file or a standard block device as backing store.
 
 Several  example applications  using  libzbc are  available under  the
 tools directory.
