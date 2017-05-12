@@ -637,6 +637,9 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
 			goto out;
 		}
 
+		if (!rep->nr_zones)
+			break;
+
 		for (i = 0; i < rep->nr_zones; i++) {
 
 			if ((*nr_zones && (n >= *nr_zones)) ||
