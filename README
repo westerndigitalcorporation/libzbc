@@ -171,7 +171,7 @@ For host-managed devices, the different device type/signature requires
 kernel  support for  block device  files to  be created.  Kernel level
 support for host-managed block devices  has been added to Linux kernel
 4.10. For older kernels, host-managed  devices will be accessible only
-through  there  SG node  device  file.   Kernel  support for  the  ZAC
+through  their  SG node  device  files.  Kernel  support for  the  ZAC
 host-managed  device  signature  (0xabcd)  was  introduced  in  kernel
 3.19. Any  kernel older than this  version will not create  an SG node
 device file for  ZAC host-managed devices connected to a  SATA port on
@@ -281,7 +281,7 @@ III.3 Native Mode Operation
 ---------------------------
 
 Linux kernel older than version 4.10 do not create a block device file
-for host-managed ZBC and ZAC dsevices.  As a result, these devices can
+for host-managed ZBC and ZAC devices.   As a result, these devices can
 only be  accessed through  their associated  SG node  (/dev/sgx device
 file).  For  these older kernels,  opening a  ZBC or ZAC  host managed
 disk  with libzbc  must thus  be done  using the  device SG  node. For
@@ -294,7 +294,7 @@ can both be used to open the device.
 Once the device is open, accesses to the device are done transparantly
 using    the   device    handle    returned    by   libzbc    zbc_open
 function. Operations such  as report zones, reset  zone write pointer,
-etc only need the device handle.
+etc. only need the device handle.
 
 III.4 Emulation Mode Operation
 ------------------------------
@@ -313,7 +313,7 @@ III.3 Documentation
 
 More  detailed  information on  libzbc  functions  and data  types  is
 available through the comments  in the file include/libzbc/zbc.h. This
-file comments  are formatted with  the doxygen convention.  HTML files
+file  has comments formatted with  the doxygen convention.  HTML files
 documenting libzbc API can be generated using the doxygen project file
 documentation/libzbc.doxygen.
 
