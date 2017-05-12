@@ -271,7 +271,8 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 
 	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
 	cmd->io_hdr.dxfer_len       = cmd->out_bufsz;
-	cmd->io_hdr.dxferp          = cmd->out_buf;
+	if (cmd->out_bufsz)
+		cmd->io_hdr.dxferp  = cmd->out_buf;
 
 	cmd->io_hdr.mx_sb_len       = ZBC_SG_SENSE_MAX_LENGTH;
 	cmd->io_hdr.sbp             = cmd->sense_buf;
