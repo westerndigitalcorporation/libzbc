@@ -762,17 +762,18 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 				sector = zones[i].zbz_start +
 					zones[i].zbz_length;
 
-				if (zbc_zone_conventional(&zones[i])
-				    || zbc_zone_empty(&zones[i])) {
-					if (nr_seq_sectors)
-						break;
-					i++;
-					continue;
+				if (!zbc_zone_conventional(&zones[i]) &&
+				    !zbc_zone_empty(&zones[i])) {
+					if (!nr_seq_sectors)
+						seq_sector = zones[i].zbz_start;
+					nr_seq_sectors += zones[i].zbz_length;
 				}
 
-				if (!nr_seq_sectors)
-					seq_sector = zones[i].zbz_start;
-				nr_seq_sectors += zones[i].zbz_length;
+				if ((zbc_zone_conventional(&zones[i]) ||
+				     zbc_zone_empty(&zones[i])) &&
+				    nr_seq_sectors)
+						break;
+
 				i++;
 
 			}
