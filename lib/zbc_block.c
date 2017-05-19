@@ -730,7 +730,8 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 	struct zbc_zone *zones;
 	unsigned int i, nr_zones;
 	struct blk_zone_range range;
-	uint64_t sector = 0;
+	uint64_t sector = 0, seq_sector;
+	uint64_t nr_seq_sectors;
 	int ret;
 
 	zones = calloc(ZBC_BLOCK_ZONE_REPORT_NR_ZONES,
@@ -750,17 +751,38 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 		if (ret || !nr_zones)
 			break;
 
-		for (i = 0; i < nr_zones; i++) {
+		i = 0;
 
-			sector = zones[i].zbz_start + zones[i].zbz_length;
+		while (i < nr_zones) {
 
-			if (zbc_zone_conventional(&zones[i])
-			    || zbc_zone_empty(&zones[i]))
+			nr_seq_sectors = 0;
+
+			while (i < nr_zones) {
+
+				sector = zones[i].zbz_start +
+					zones[i].zbz_length;
+
+				if (zbc_zone_conventional(&zones[i])
+				    || zbc_zone_empty(&zones[i])) {
+					if (nr_seq_sectors)
+						break;
+					i++;
+					continue;
+				}
+
+				if (!nr_seq_sectors)
+					seq_sector = zones[i].zbz_start;
+				nr_seq_sectors += zones[i].zbz_length;
+				i++;
+
+			}
+
+			if (!nr_seq_sectors)
 				continue;
 
-			/* Reset zone */
-			range.sector = zones[i].zbz_start;
-			range.nr_sectors = zones[i].zbz_length;
+			/* Reset zones */
+			range.sector = seq_sector;
+			range.nr_sectors = nr_seq_sectors;
 			ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
 			if (ret != 0) {
 				ret = -errno;
