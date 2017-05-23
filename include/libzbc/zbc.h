@@ -631,7 +631,7 @@ extern int zbc_device_is_zoned(const char *filename,
 /**
  * @brief Open a ZBC device
  * @param[in] filename	Path to a device file
- * @param[in] flags	Intended access mode: O_RDONLY, O_WRONLY or O_RDWR
+ * @param[in] flags	Access mode (O_RDONLY, O_WRONLY, O_RDWR, ...)
  * @param[out] dev	Opaque ZBC device handle
  *
  * Opens the device pointed by \a filename, and returns a handle to it
