@@ -96,6 +96,65 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 }
 
 /**
+ * Test is ZBC/ZAC SAT is working.
+ */
+static int zbc_scsi_test_sat(struct zbc_device *dev)
+{
+	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+	struct zbc_sg_cmd cmd;
+	int ret;
+
+	/* Allocate and intialize report zones command */
+	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
+	if (ret != 0) {
+		zbc_error("zbc_sg_cmd_init failed\n");
+		return ret;
+	}
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (00h)                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---                        Zone Start LBA                           ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                        Allocation Length                        ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |Partial |Reserved|                 Reporting Options                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                           Control                                     |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
+	zbc_sg_set_int64(&cmd.cdb[2], 0);
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
+	cmd.cdb[14] = 0;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	if (ret != 0)
+		zbc_debug("%s: ZBC/ZAC SAT not supported\n",
+			  dev->zbd_filename);
+	else
+		zbc_debug("%s: ZBC/ZAC SAT supported: treating ATA device as SCSI\n",
+			  dev->zbd_filename);
+
+	return ret;
+}
+
+/**
  * Get information (model, vendor, ...) from a SCSI device.
  */
 static int zbc_scsi_classify(struct zbc_device *dev)
@@ -112,9 +171,15 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* Make sure we are not dealing with an ATA device */
-	if (strncmp((char *)&buf[8], "ATA", 3) == 0)
-		return -ENXIO;
+	/*
+	 * If this is an ATA drive, try to see if SAT is working.
+	 * If SAT is working, treat the disk as SCSI.
+	 */
+	if (strncmp((char *)&buf[8], "ATA", 3) == 0) {
+		ret = zbc_scsi_test_sat(dev);
+		if (ret != 0)
+			return -ENXIO;
+	}
 
 	/* This is a SCSI device */
 	dev->zbd_info.zbd_type = ZBC_DT_SCSI;
