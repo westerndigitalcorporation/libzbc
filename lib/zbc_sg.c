@@ -244,7 +244,7 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 		/* Allocate a buffer */
 		if (posix_memalign((void **) &cmd->out_buf,
 				   sysconf(_SC_PAGESIZE), out_bufsz) != 0) {
-			zbc_error("No memory for output buffer (%zu B)\n",
+			zbc_error("No memory for command output buffer (%zu B)\n",
 				  out_bufsz);
 			return -ENOMEM;
 		}

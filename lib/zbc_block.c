@@ -243,8 +243,8 @@ zbc_block_device_classify(struct zbc_device *dev)
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		return -ENXIO;
 	} else {
-		zbc_debug("Unknown device model \"%s\"\n",
-			  str);
+		zbc_debug("%s: Unknown device model \"%s\"\n",
+			  dev->zbd_filename, str);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		return -ENXIO;
 	}
@@ -833,7 +833,8 @@ zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 		return zbc_scsi_zone_op(dev, sect, op, flags);
 
 	default:
-		zbc_error("Invalid operation code 0x%x\n", op);
+		zbc_error("%s: Invalid operation code 0x%x\n",
+			  dev->zbd_filename, op);
 		return -EINVAL;
 	}
 }

@@ -56,11 +56,8 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 
 	/* Allocate and intialize inquiry command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, buf, buf_len);
-	if (ret != 0) {
-		zbc_error("%s: zbc_sg_cmd_init INQUIRY failed\n",
-			  dev->zbd_filename);
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -106,10 +103,8 @@ static int zbc_scsi_test_sat(struct zbc_device *dev)
 
 	/* Allocate and intialize report zones command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -167,7 +162,8 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	/* Get device info */
 	ret = zbc_scsi_inquiry(dev, 0, buf, ZBC_SCSI_INQUIRY_BUF_LEN);
 	if (ret != 0) {
-		zbc_error("zbc_scsi_inquiry failed\n");
+		zbc_error("%s: zbc_scsi_inquiry failed\n",
+			  dev->zbd_filename);
 		return ret;
 	}
 
@@ -202,7 +198,8 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 
 	case 0x14:
 		/* Host-managed device */
-		zbc_debug("Host-managed ZBC block device detected\n");
+		zbc_debug("%s: Host-managed ZBC block device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		break;
 
@@ -212,8 +209,8 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 
 	default:
 		/* Unsupported device */
-		zbc_error("Unsupported device type 0x%02X\n",
-			  dev_type);
+		zbc_error("%s: Unsupported device type 0x%02X\n",
+			  dev->zbd_filename, dev_type);
 		return -ENXIO;
 	}
 
@@ -226,52 +223,57 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	memset(buf, 0, sizeof(buf));
 	ret = zbc_scsi_inquiry(dev, 0xB1, buf, ZBC_SCSI_VPD_PAGE_B1_LEN);
 	if (ret != 0) {
-		zbc_error("zbc_scsi_inquiry VPD page 0xB1 failed\n");
+		zbc_error("%s: zbc_scsi_inquiry VPD page 0xB1 failed\n",
+			  dev->zbd_filename);
 		return ret;
 	}
 
 	if ((buf[1] != 0xB1) ||
 	    (buf[2] != 0x00) ||
 	    (buf[3] != 0x3C)) {
-		zbc_error("Invalid zbc_scsi_inquiry VPD page 0xB1 result\n");
+		zbc_error("%s: Invalid zbc_scsi_inquiry VPD page 0xB1 result\n",
+			  dev->zbd_filename);
 		return -EIO;
 	}
 
 	zoned = (buf[8] & 0x30) >> 4;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 		if (zbc_test_mode(dev) && zoned != 0) {
-			zbc_error("Invalid host-managed device ZONED field 0x%02x\n",
-				  zoned);
+			zbc_error("%s: Invalid host-managed device ZONED field 0x%02x\n",
+				  dev->zbd_filename, zoned);
 			return -EIO;
 		}
 		if (zoned != 0)
-			zbc_warning("Invalid host-managed device ZONED field 0x%02x\n",
-				    zoned);
+			zbc_warning("%s: Invalid host-managed device ZONED field 0x%02x\n",
+				    dev->zbd_filename, zoned);
 		return 0;
 	}
 
 	switch (zoned) {
 
 	case 0x00:
-		zbc_debug("Standard SCSI block device detected\n");
+		zbc_debug("%s: Standard SCSI block device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		return -ENXIO;
 
 	case 0x01:
 		/* Host aware device */
-		zbc_debug("Host-aware ZBC block device detected\n");
+		zbc_debug("%s: Host-aware ZBC block device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 		break;
 
 	case 0x02:
 		/* Device-managed device */
-		zbc_debug("Device-managed SCSI block device detected\n");
+		zbc_debug("%s: Device-managed SCSI block device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 		return -ENXIO;
 
 	default:
-		zbc_debug("Unknown device model 0x%02x\n",
-			  zoned);
+		zbc_debug("%s: Unknown device model 0x%02x\n",
+			  dev->zbd_filename, zoned);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		return -EIO;
 	}
@@ -307,10 +309,8 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 
 	/* Allocate and intialize report zones command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -346,8 +346,8 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 		goto out;
 
 	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
-		zbc_error("Not enough data received "
-			  "(need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
 			  cmd.out_bufsz);
 		ret = -EIO;
@@ -519,16 +519,15 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 		cmdsa = ZBC_SG_FINISH_ZONE_CDB_SA;
 		break;
 	default:
-		zbc_error("Invalid operation code 0x%x\n", op);
+		zbc_error("%s: Invalid operation code 0x%x\n",
+			  dev->zbd_filename, op);
 		return -EINVAL;
 	}
 
 	/* Allocate and intialize zone command */
 	ret = zbc_sg_cmd_init(&cmd, cmdid, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -583,10 +582,8 @@ static int zbc_scsi_set_zones(struct zbc_device *dev,
 
 	/* Allocate and intialize set zone command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_ZONES, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -633,10 +630,8 @@ static int zbc_scsi_set_write_pointer(struct zbc_device *dev,
 
 	/* Allocate and intialize set zone command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_WRITE_POINTER, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -685,10 +680,8 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	/* READ CAPACITY 16 */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
 			      NULL, ZBC_SCSI_READ_CAPACITY_BUF_LEN);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CAPACITY_CDB_OPCODE;
@@ -740,8 +733,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			break;
 
 		default:
-			zbc_error("%s: invalid RC_BASIS field encountered "
-				  "in READ CAPACITY result\n",
+			zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
 				  dev->zbd_filename);
 			ret = -EIO;
 			goto out;
@@ -790,7 +782,8 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 
 	ret = zbc_scsi_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
-		zbc_error("zbc_scsi_inquiry VPD page 0xB6 failed\n");
+		zbc_error("%s: zbc_scsi_inquiry VPD page 0xB6 failed\n",
+			  dev->zbd_filename);
 		return ret;
 	}
 
@@ -863,7 +856,7 @@ static int zbc_scsi_open(const char *filename,
 	fd = open(filename, flags);
 	if (fd < 0) {
 		ret = -errno;
-		zbc_error("Open device file %s failed %d (%s)\n",
+		zbc_error("%s: Open device file failed %d (%s)\n",
 			  filename,
 			  errno, strerror(errno));
 		goto out;
@@ -872,7 +865,7 @@ static int zbc_scsi_open(const char *filename,
 	/* Check device */
 	if (fstat(fd, &st) != 0) {
 		ret = -errno;
-		zbc_error("Stat device %s failed %d (%s)\n",
+		zbc_error("%s: Stat device file failed %d (%s)\n",
 			  filename,
 			  errno, strerror(errno));
 		goto out;
@@ -951,10 +944,8 @@ static ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 
 	/* READ 16 */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ, buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
@@ -984,10 +975,8 @@ static ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 
 	/* WRITE 16 */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
@@ -1015,10 +1004,8 @@ static int zbc_scsi_flush(struct zbc_device *dev)
 
 	/* SYNCHRONIZE CACHE 16 */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SYNC_CACHE, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB (immediate flush) */
 	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;

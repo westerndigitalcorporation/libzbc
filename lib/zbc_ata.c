@@ -104,10 +104,8 @@ static int zbc_ata_read_log(struct zbc_device *dev, uint8_t log,
 
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, buf, bufsz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -180,10 +178,8 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -259,14 +255,11 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	zbc_debug("######## REQUEST SENSE DATA: %x %x\n",
-		  dev->zbd_errno.sk,
-		  dev->zbd_errno.asc_ascq);
-
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0) {
-		zbc_error("Get sense data zbc_sg_cmd_init failed\n");
+		zbc_error("%s: Get sense data zbc_sg_cmd_init failed\n",
+			  dev->zbd_filename);
 		return;
 	}
 
@@ -320,13 +313,12 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret != 0) {
-		zbc_debug("######## REQUEST SENSE DATA failed\n");
-		zbc_error("REQUEST SENSE DATA command failed\n");
+		zbc_error("%s: REQUEST SENSE DATA command failed\n",
+			  dev->zbd_filename);
 		goto out;
 	}
 
 	if (!cmd.io_hdr.sb_len_wr) {
-		zbc_debug("######## NO SENSE DATA\n");
 		zbc_error("%s: No sense data\n", dev->zbd_filename);
 		goto out;
 	}
@@ -338,7 +330,6 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	}
 
 	if (cmd.io_hdr.sb_len_wr <= 8) {
-		zbc_debug("######## NOT enough SENSE DATA\n");
 		zbc_debug("%s: Sense buffer length is %d (less than 8B)\n",
 			  dev->zbd_filename,
 			  cmd.io_hdr.sb_len_wr);
@@ -355,9 +346,6 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	dev->zbd_errno.sk = cmd.sense_buf[19] & 0xF;
 	dev->zbd_errno.asc_ascq =
 			((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15];
-	zbc_debug("######## GOT REQUEST SENSE DATA: %x %x\n",
-	       dev->zbd_errno.sk,
-	       dev->zbd_errno.asc_ascq);
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
@@ -416,7 +404,8 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
 			       buf,
 			       sizeof(buf));
 	if (ret != 0) {
-		zbc_debug("Get strings log page failed %d\n", ret);
+		zbc_debug("%s: Get strings log page failed %d\n",
+			  dev->zbd_filename, ret);
 		strcpy(&dev->zbd_info.zbd_vendor_id[0], "UNKNOWN");
 		return;
 	}
@@ -493,17 +482,15 @@ static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
 
 	/* Check */
 	if (count > 65536) {
-		zbc_error("Read operation too large "
-			  "(limited to 65536 x 512 B sectors)\n");
+		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
+			  dev->zbd_filename);
 		return -EINVAL;
 	}
 
 	/* Initialize the command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -591,17 +578,15 @@ static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
 
 	/* Check */
 	if (count > 65536) {
-		zbc_error("Write operation too large "
-			  "(limited to 65536 x 512 B sectors)\n");
+		zbc_error("%s: Write operation too large (limited to 65536 x 512 B sectors)\n",
+			  dev->zbd_filename);
 		return -EINVAL;
 	}
 
 	/* Initialize the command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, (uint8_t *)buf, sz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -684,10 +669,8 @@ static int zbc_ata_flush(struct zbc_device *dev)
 
 	/* Initialize the command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
@@ -730,10 +713,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 
 	/* Allocate and intialize report zones command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, bufsz);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -807,7 +788,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	}
 
 	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET ) {
-		zbc_error("Not enough data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
 			  cmd.out_bufsz);
 		ret = -EIO;
@@ -888,16 +870,15 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 		af = ZBC_ATA_RESET_WRITE_POINTER_EXT_AF;
 		break;
 	default:
-		zbc_error("Invalid operation code 0x%x\n", op);
+		zbc_error("%s: Invalid operation code 0x%x\n",
+			  dev->zbd_filename, op);
 		return -EINVAL;
 	}
 
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -985,10 +966,8 @@ static int zbc_ata_classify(struct zbc_device *dev)
 
 	/* Intialize command */
 	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
-	if (ret != 0) {
-		zbc_error("zbc_sg_cmd_init failed\n");
+	if (ret != 0)
 		return ret;
-	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -1057,15 +1036,16 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	/* Test device signature */
 	desc = &cmd.sense_buf[8];
 
-	zbc_debug("Device signature is %02x:%02x\n",
-		  desc[9], desc[11]);
+	zbc_debug("%s: Device signature is %02x:%02x\n",
+		  dev->zbd_filename, desc[9], desc[11]);
 
 	sig = (unsigned int)desc[11] << 8 | desc[9];
 	switch (sig) {
 
 	case 0xABCD:
 		/* ZAC host-managed signature */
-		zbc_debug("Host-managed ZAC signature detected\n");
+		zbc_debug("%s: Host-managed ZAC signature detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		break;
 
@@ -1075,8 +1055,8 @@ static int zbc_ata_classify(struct zbc_device *dev)
 
 	default:
 		/* Unsupported device */
-		zbc_debug("Unsupported device (signature %02x:%02x)\n",
-			  desc[9], desc[11]);
+		zbc_debug("%s: Unsupported device (signature %02x:%02x)\n",
+			  dev->zbd_filename, desc[9], desc[11]);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		ret = -ENXIO;
 		goto out;
@@ -1094,7 +1074,8 @@ static int zbc_ata_classify(struct zbc_device *dev)
 			       buf,
 			       sizeof(buf));
 	if (ret != 0) {
-		zbc_error("Get supported capabilities page failed\n");
+		zbc_error("%s: Get supported capabilities page failed\n",
+			  dev->zbd_filename);
 		goto out;
 	}
 
@@ -1105,12 +1086,12 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	zoned = zoned & 0x03;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 		if (zbc_test_mode(dev) && zoned != 0) {
-			zbc_error("Invalid host-managed device ZONED field 0x%02x\n",
-				  (unsigned int)zoned);
+			zbc_error("%s: Invalid host-managed device ZONED field 0x%02x\n",
+				  dev->zbd_filename, (unsigned int)zoned);
 			ret = -EIO;
 		} else if (zoned != 0) {
-			zbc_warning("Invalid host-managed device ZONED field 0x%02x\n",
-				    (unsigned int)zoned);
+			zbc_warning("%s: Invalid host-managed device ZONED field 0x%02x\n",
+				    dev->zbd_filename, (unsigned int)zoned);
 		}
 		goto out;
 	}
@@ -1118,25 +1099,28 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	switch (zoned) {
 
 	case 0x00:
-		zbc_debug("Standard ATA device detected\n");
+		zbc_debug("%s: Standard ATA device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		ret = -ENXIO;
 		break;
 
 	case 0x01:
-		zbc_debug("Host-aware ATA device detected\n");
+		zbc_debug("%s: Host-aware ATA device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 		break;
 
 	case 0x02:
-		zbc_debug("Device-managed ATA device detected\n");
+		zbc_debug("%s: Device-managed ATA device detected\n",
+			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 		ret = -ENXIO;
 		break;
 
 	default:
-		zbc_debug("Unknown device model 0x%02x\n",
-			  (unsigned int)zoned);
+		zbc_debug("%s: Unknown device model 0x%02x\n",
+			  dev->zbd_filename, (unsigned int)zoned);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		ret = -EIO;
 		break;
@@ -1165,7 +1149,8 @@ static int zbc_ata_get_capacity(struct zbc_device *dev)
 			       buf,
 			       sizeof(buf));
 	if (ret != 0) {
-		zbc_error("Get supported capabilities page failed\n");
+		zbc_error("%s: Get supported capabilities page failed\n",
+			  dev->zbd_filename);
 		return ret;
 	}
 
@@ -1273,7 +1258,7 @@ static int zbc_ata_open(const char *filename,
 	fd = open(filename, flags);
 	if (fd < 0 ) {
 		ret = -errno;
-		zbc_error("Open device file %s failed %d (%s)\n",
+		zbc_error("%s: Open device file failed %d (%s)\n",
 			  filename,
 			  errno,
 			  strerror(errno));
@@ -1283,7 +1268,7 @@ static int zbc_ata_open(const char *filename,
 	/* Check device */
 	if (fstat(fd, &st) != 0) {
 		ret = -errno;
-		zbc_error("Stat device %s failed %d (%s)\n",
+		zbc_error("%s: Stat device file failed %d (%s)\n",
 			  filename,
 			  errno,
 			  strerror(errno));
