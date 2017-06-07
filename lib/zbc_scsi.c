@@ -97,7 +97,7 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
  */
 static int zbc_scsi_test_sat(struct zbc_device *dev)
 {
-	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
+	size_t bufsz = 512;
 	struct zbc_sg_cmd cmd;
 	int ret;
 
