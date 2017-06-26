@@ -407,16 +407,18 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 }
 
 /**
- * Default maximum number of SG segments (128KB for 4K pages).
+ * SG command maximum transfer length in number of 4KB pages.
+ * This may limits the SG reported value to a smaller value
+ * likely to work with most HBAs.
  */
-#define ZBC_SG_MAX_SGSZ		32
+#define ZBC_SG_MAX_SEGMENTS	128
 
 /**
  * Get the maximum allowed command size of a block device.
  */
 static int zbc_sg_max_segments(struct zbc_device *dev)
 {
-	unsigned int max_segs = ZBC_SG_MAX_SGSZ;
+	unsigned int max_segs = ZBC_SG_MAX_SEGMENTS;
 	FILE *fmax_segs;
 	char str[128];
 	int ret;
@@ -429,7 +431,7 @@ static int zbc_sg_max_segments(struct zbc_device *dev)
 	if (fmax_segs) {
 		ret = fscanf(fmax_segs, "%u", &max_segs);
 		if (ret != 1)
-			max_segs = ZBC_SG_MAX_SGSZ;
+			max_segs = ZBC_SG_MAX_SEGMENTS;
 		fclose(fmax_segs);
 	}
 
@@ -442,7 +444,7 @@ static int zbc_sg_max_segments(struct zbc_device *dev)
 void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 {
 	struct stat st;
-	size_t sgsz = ZBC_SG_MAX_SGSZ;
+	size_t sgsz = 0;
 	int ret;
 
 	/* Get device stats */
@@ -460,20 +462,17 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 				  dev->zbd_filename,
 				  errno,
 				  strerror(errno));
-			sgsz = ZBC_SG_MAX_SGSZ;
+			sgsz = 0;
 		}
-		if (!sgsz)
-			sgsz = 1;
 	} else if (S_ISBLK(st.st_mode)) {
 		sgsz = zbc_sg_max_segments(dev);
-	} else {
-		/* Files for fake backend */
-		sgsz = 128;
 	}
 
 out:
+	if (!sgsz || sgsz > ZBC_SG_MAX_SEGMENTS)
+		sgsz = ZBC_SG_MAX_SEGMENTS;
 	dev->zbd_info.zbd_max_rw_sectors =
-		(uint32_t)sgsz * sysconf(_SC_PAGESIZE) >> 9;
+		((uint64_t)sgsz * sysconf(_SC_PAGESIZE)) >> 9;
 
 	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
 		  dev->zbd_filename,

@@ -194,7 +194,7 @@ enum {
 
 /**
  * SG command descriptor. Used to process SCSI commands.
-*/
+ */
 struct zbc_sg_cmd {
 
 	int		code;
