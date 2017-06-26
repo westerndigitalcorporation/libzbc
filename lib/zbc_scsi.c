@@ -571,102 +571,6 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Configure zones of a "emulated" ZBC device
- */
-static int zbc_scsi_set_zones(struct zbc_device *dev,
-			      uint64_t conv_sz, uint64_t zone_sz)
-{
-	uint64_t conv_lba = zbc_dev_sect2lba(dev, conv_sz);
-	uint64_t zone_lba = zbc_dev_sect2lba(dev, zone_sz);
-	struct zbc_sg_cmd cmd;
-	int ret;
-
-	/* Allocate and intialize set zone command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_ZONES, NULL, 0);
-	if (ret != 0)
-		return ret;
-
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
-	 * | 0   |                           Operation Code (9Fh)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |       Service Action (15h)                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---             Conventional Zone Sise (LBA)                        ---|
-	 * | 8   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 9   | (MSB)                                                                 |
-	 * |- - -+---                   Zone Sise (LBA)                               ---|
-	 * | 15  |                                                                 (LSB) |
-	 * +=============================================================================+
-	 */
-	cmd.cdb[0] = ZBC_SG_SET_ZONES_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_SET_ZONES_CDB_SA;
-	zbc_sg_set_bytes(&cmd.cdb[2], &conv_lba, 7);
-	zbc_sg_set_bytes(&cmd.cdb[9], &zone_lba, 7);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-
-	/* Cleanup */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Change the value of a zone write pointer ("emulated" ZBC devices only).
- */
-static int zbc_scsi_set_write_pointer(struct zbc_device *dev,
-				      uint64_t sector, uint64_t wp_sector)
-{
-	uint64_t lba = zbc_dev_sect2lba(dev, sector);
-	uint64_t wp_lba = zbc_dev_sect2lba(dev, wp_sector);
-	struct zbc_sg_cmd cmd;
-	int ret;
-
-	/* Allocate and intialize set zone command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SET_WRITE_POINTER, NULL, 0);
-	if (ret != 0)
-		return ret;
-
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
-	 * | 0   |                           Operation Code (9Fh)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |       Service Action (16h)                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                   Start LBA                                     ---|
-	 * | 8   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 9   | (MSB)                                                                 |
-	 * |- - -+---               Write pointer LBA                                 ---|
-	 * | 15  |                                                                 (LSB) |
-	 * +=============================================================================+
-	 */
-	cmd.cdb[0] = ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_SET_WRITE_POINTER_CDB_SA;
-	zbc_sg_set_bytes(&cmd.cdb[2], &lba, 7);
-	zbc_sg_set_bytes(&cmd.cdb[9], &wp_lba, 7);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-
-	/* Cleanup */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
  * Get a device capacity information (total sectors & sector sizes).
  */
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
@@ -1034,7 +938,5 @@ struct zbc_ops zbc_scsi_ops =
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
-	.zbd_set_zones		= zbc_scsi_set_zones,
-	.zbd_set_wp		= zbc_scsi_set_write_pointer,
 };
 
