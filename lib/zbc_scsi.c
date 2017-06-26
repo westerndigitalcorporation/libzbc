@@ -171,7 +171,8 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	 * If this is an ATA drive, try to see if SAT is working.
 	 * If SAT is working, treat the disk as SCSI.
 	 */
-	if (strncmp((char *)&buf[8], "ATA", 3) == 0) {
+	if (strncmp((char *)&buf[8], "ATA", 3) == 0 &&
+	    !zbc_test_mode(dev)) {
 		ret = zbc_scsi_test_sat(dev);
 		if (ret != 0)
 			return -ENXIO;
