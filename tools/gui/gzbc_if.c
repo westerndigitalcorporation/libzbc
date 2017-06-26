@@ -51,7 +51,6 @@ void dz_if_create(void)
 	dz.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_title(GTK_WINDOW(dz.window), "ZBC Device Zone State");
 	gtk_container_set_border_width(GTK_CONTAINER(dz.window), 10);
-	gtk_window_resize(GTK_WINDOW(dz.window), 1024, 768);
 
 	g_signal_connect((gpointer) dz.window, "delete-event",
 			 G_CALLBACK(dz_if_delete_cb),
@@ -114,6 +113,7 @@ void dz_if_create(void)
 	g_signal_connect((gpointer) dz.window, "configure-event",
 			 G_CALLBACK(dz_if_resize_cb), NULL);
 
+	gtk_window_set_default_size(GTK_WINDOW(dz.window), 1024, 768);
 	gtk_widget_show_all(dz.window);
 }
 
