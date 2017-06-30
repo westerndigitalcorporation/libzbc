@@ -37,6 +37,7 @@ function zbc_print_usage()
 	echo "  -s | --skip <test number>: Skip execution of the specified test."
 	echo "                             This option may be repeated multiple times"
 	echo "                             to skip the execution of multiple tests."
+	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -104,6 +105,7 @@ exec_list=()
 skip_list=()
 print_list=0
 batch_mode=0
+force_ata=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -127,6 +129,9 @@ for (( i=0; i<${argc}; i++ )); do
 		i=$((i+1))
 		skip_list+=(${argv[$i]})
 		;;
+	-a | --ata )
+		force_ata=1
+		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
 		zbc_print_usage
@@ -140,6 +145,12 @@ for (( i=0; i<${argc}; i++ )); do
 	esac
 
 done
+
+if [ ${force_ata} -eq 1 ]; then
+	export ZBC_TEST_FORCE_ATA="ATA"
+else
+	unset ZBC_TEST_FORCE_ATA
+fi
 
 if [ ${print_list} -eq 1 ]; then
 	exec_list=()

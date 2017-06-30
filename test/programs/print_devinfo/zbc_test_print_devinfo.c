@@ -53,6 +53,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	struct zbc_zone last_zone;
+	unsigned int oflags;
 	int ret;
 
 	/* Check command line */
@@ -62,7 +63,12 @@ int main(int argc, char **argv)
 	}
 
 	/* Open device */
-	ret = zbc_open(argv[1], ZBC_O_DEVTEST | O_RDONLY, &dev);
+	oflags = ZBC_O_DEVTEST;
+	oflags |= ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE;
+	if (!getenv("ZBC_TEST_FORCE_ATA"))
+		oflags |= ZBC_O_DRV_SCSI;
+
+	ret = zbc_open(argv[1], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
 			ret);

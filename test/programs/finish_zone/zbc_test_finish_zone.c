@@ -27,6 +27,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	unsigned int flags = 0;
+	unsigned int oflags;
 	long long lba;
 	char *path;
 	int ret;
@@ -56,7 +57,12 @@ int main(int argc, char **argv)
 	}
 
 	/* Open device */
-	ret = zbc_open(path, ZBC_O_DEVTEST | O_RDWR, &dev);
+	oflags = ZBC_O_DEVTEST;
+	oflags |= ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE;
+	if (!getenv("ZBC_TEST_FORCE_ATA"))
+		oflags |= ZBC_O_DRV_SCSI;
+
+	ret = zbc_open(path, oflags | O_RDWR, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
 			ret);
