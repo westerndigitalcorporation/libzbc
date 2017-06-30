@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "libzbc/zbc.h"
+#include "zbc_private.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,9 +28,14 @@
 #include <scsi/sg.h>
 
 /**
- * Device operations.
+ * Backend driver descriptor.
  */
-struct zbc_ops {
+struct zbc_drv {
+
+	/**
+	 * Driver flag.
+	 */
+	unsigned int	flag;
 
 	/**
 	 * Open device.
@@ -111,7 +117,7 @@ struct zbc_device {
 	/**
 	 * Device operations.
 	 */
-	struct zbc_ops		*zbd_ops;
+	struct zbc_drv		*zbd_drv;
 
 	/**
 	 * Device info.
@@ -138,41 +144,41 @@ struct zbc_device {
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
 
 /**
- * Internal device flag: Indicates that the device is in test mode,
- * resulting in reduced argument value checks to allow invalid commands
- * to be sent to the device. This flag should not be used outside of
- * the execution of libzbc test suite (test/zbc_test.sh)
+ * Device open access mode and allowed drivers mask.
  */
-#define ZBC_DEVTEST	0x80000000
+#define ZBC_O_MODE_MASK		(O_RDONLY | O_WRONLY | O_RDWR)
+#define ZBC_O_DMODE_MASK	(ZBC_O_MODE_MASK | O_DIRECT)
+#define ZBC_O_DRV_MASK		(ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
+				 ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE)
 
 /**
  * Test if a device is in test mode.
  */
 #ifdef HAVE_DEVTEST
-#define zbc_test_mode(dev)	((dev)->zbd_flags & ZBC_DEVTEST)
+#define zbc_test_mode(dev)	((dev)->zbd_flags & ZBC_O_DEVTEST)
 #else
 #define zbc_test_mode(dev)	(false)
 #endif
 
 /**
- * Block device operations (requires kernel support).
+ * Block device driver (requires kernel support).
  */
-extern struct zbc_ops zbc_block_ops;
+extern struct zbc_drv zbc_block_drv;
 
 /**
- * ZAC (ATA) device operations (uses SG_IO).
+ * ZAC (ATA) device driver (uses SG_IO).
  */
-extern struct zbc_ops zbc_ata_ops;
+extern struct zbc_drv zbc_ata_drv;
 
 /**
- * ZBC (SCSI) device operations (uses SG_IO).
+ * ZBC (SCSI) device driver (uses SG_IO).
  */
-extern struct zbc_ops zbc_scsi_ops;
+extern struct zbc_drv zbc_scsi_drv;
 
 /**
- * ZBC emulation (file or block device).
+ * ZBC emulation driver (file or block device).
  */
-extern struct zbc_ops zbc_fake_ops;
+extern struct zbc_drv zbc_fake_drv;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))

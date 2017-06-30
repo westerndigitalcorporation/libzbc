@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Open device */
-	ret = zbc_open(path, O_RDONLY, &dev);
+	ret = zbc_open(path, ZBC_O_DEVTEST | O_RDONLY, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %zd\n",
 			ret);
@@ -71,7 +71,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 	sector = zbc_lba2sect(&info, lba);
 	sector_count = zbc_lba2sect(&info, lba_count);

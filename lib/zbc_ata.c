@@ -1255,7 +1255,7 @@ static int zbc_ata_open(const char *filename,
 		  filename);
 
 	/* Open the device file */
-	fd = open(filename, flags);
+	fd = open(filename, flags & ZBC_O_MODE_MASK);
 	if (fd < 0 ) {
 		ret = -errno;
 		zbc_error("%s: Open device file failed %d (%s)\n",
@@ -1288,6 +1288,9 @@ static int zbc_ata_open(const char *filename,
 
 	dev->zbd_fd = fd;
 	dev->zbd_sg_fd = fd;
+#ifdef HAVE_DEVTEST
+	dev->zbd_flags = flags & ZBC_O_DEVTEST;
+#endif
 	dev->zbd_filename = strdup(filename);
 	if (!dev->zbd_filename)
 		goto out_free_dev;
@@ -1341,10 +1344,11 @@ static int zbc_ata_close(struct zbc_device *dev)
 }
 
 /**
- * ZAC with ATA HDIO operations.
+ * ZAC ATA backend driver definition.
  */
-struct zbc_ops zbc_ata_ops =
+struct zbc_drv zbc_ata_drv =
 {
+	.flag			= ZBC_O_DRV_ATA,
 	.zbd_open		= zbc_ata_open,
 	.zbd_close		= zbc_ata_close,
 	.zbd_pread		= zbc_ata_pread,

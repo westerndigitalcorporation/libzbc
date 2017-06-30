@@ -13,8 +13,6 @@
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  */
 
-/***** Including files *****/
-
 #include "zbc.h"
 #include "zbc_sg.h"
 
@@ -52,8 +50,7 @@ struct zbc_block_device {
 /**
  * zbc_dev_to_block - Convert device address to block device address.
  */
-static inline struct zbc_block_device *
-zbc_dev_to_block(struct zbc_device *dev)
+static inline struct zbc_block_device *zbc_dev_to_block(struct zbc_device *dev)
 {
 	return container_of(dev, struct zbc_block_device, dev);
 }
@@ -61,8 +58,7 @@ zbc_dev_to_block(struct zbc_device *dev)
 /**
  * Get the start sector offset of a partition device.
  */
-static int
-zbc_block_get_partition_start(struct zbc_device *dev)
+static int zbc_block_get_partition_start(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
@@ -93,8 +89,7 @@ zbc_block_get_partition_start(struct zbc_device *dev)
  * the holder file descriptor will be used for
  * handling SG_IO calls for open, close and finish zones.
  */
-static int
-zbc_block_open_holder(struct zbc_device *dev)
+static int zbc_block_open_holder(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
@@ -123,8 +118,7 @@ zbc_block_open_holder(struct zbc_device *dev)
  * Test if the block device is a partition.
  * If yes, find out the holder device name and get the partition start offset.
  */
-static int
-zbc_block_handle_partition(struct zbc_device *dev)
+static int zbc_block_handle_partition(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	unsigned long long size;
@@ -212,8 +206,7 @@ out:
 /**
  * Test if the block device is zoned.
  */
-static int
-zbc_block_device_classify(struct zbc_device *dev)
+static int zbc_block_device_classify(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
@@ -256,8 +249,7 @@ zbc_block_device_classify(struct zbc_device *dev)
  * Get a string in a file and strip it of trailing
  * spaces and carriage return.
  */
-static int
-zbc_block_get_str(FILE *file, char *str)
+static int zbc_block_get_str(FILE *file, char *str)
 {
 	int len = 0;
 
@@ -282,8 +274,7 @@ zbc_block_get_str(FILE *file, char *str)
 /**
  * Get vendor ID.
  */
-static int
-zbc_block_get_vendor_id(struct zbc_device *dev)
+static int zbc_block_get_vendor_id(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
@@ -336,8 +327,7 @@ zbc_block_get_vendor_id(struct zbc_device *dev)
  * Test if the device can be handled
  * and get the block device info.
  */
-static int
-zbc_block_get_info(struct zbc_device *dev)
+static int zbc_block_get_info(struct zbc_device *dev)
 {
 	unsigned long long size64;
 	struct stat st;
@@ -463,18 +453,31 @@ static int zbc_block_open(const char *filename, int flags,
 {
 	struct zbc_block_device *zbd;
 	struct zbc_device *dev;
+	struct stat st;
 	int fd, ret;
 
 	zbc_debug("%s: ########## Trying BLOCK driver ##########\n",
 		  filename);
 
 #ifndef HAVE_LINUX_BLKZONED_H
-	zbc_debug("libzbc compiled without block driver support\n");
+	zbc_debug("libzbc compiled without zoned block device driver support\n");
 	return -ENXIO;
 #endif
 
-	/* Open block device: always add write mode for discard (reset zone) */
-	fd = open(filename, flags | O_LARGEFILE);
+	/* Check device */
+	if (stat(filename, &st) != 0) {
+		ret = -errno;
+		zbc_error("%s: Stat device file failed %d (%s)\n",
+			  filename,
+			  errno, strerror(errno));
+		return ret;
+	}
+
+	if (!S_ISBLK(st.st_mode))
+		return -ENXIO;
+
+	/* Open block device */
+	fd = open(filename, (flags & ZBC_O_DMODE_MASK) | O_LARGEFILE);
 	if (fd < 0) {
 		ret = -errno;
 		zbc_error("%s: open failed %d (%s)\n",
@@ -553,9 +556,8 @@ static int zbc_block_close(struct zbc_device *dev)
  * Test if a zone should be reported depending
  * on the specified reporting options.
  */
-static bool
-zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
-		      enum zbc_reporting_options ro)
+static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
+				  enum zbc_reporting_options ro)
 {
 	enum zbc_reporting_options options = zbc_ro_mask(ro);
 
@@ -805,9 +807,8 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 /**
  * Execute an operation on a zone
  */
-static int
-zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
-		  enum zbc_zone_op op, unsigned int flags)
+static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
+			     enum zbc_zone_op op, unsigned int flags)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	uint64_t sect = sector;
@@ -888,40 +889,45 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
 {
-    return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			     enum zbc_zone_op op, unsigned int flags)
 {
-    return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 			       size_t count, uint64_t offset)
 {
-    return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static ssize_t zbc_block_pwrite(struct zbc_device *dev, const void *buf,
 			       size_t count, uint64_t offset)
 {
-    return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int zbc_block_flush(struct zbc_device *dev)
 {
-    return -EOPNOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 #endif /* HAVE_LINUX_BLKZONED_H */
 
-struct zbc_ops zbc_block_ops = {
-    .zbd_open         = zbc_block_open,
-    .zbd_close        = zbc_block_close,
-    .zbd_pread        = zbc_block_pread,
-    .zbd_pwrite       = zbc_block_pwrite,
-    .zbd_flush        = zbc_block_flush,
-    .zbd_report_zones = zbc_block_report_zones,
-    .zbd_zone_op      = zbc_block_zone_op,
+/**
+ * Zoned block device backend driver definition.
+ */
+struct zbc_drv zbc_block_drv =
+{
+	.flag			= ZBC_O_DRV_BLOCK,
+	.zbd_open		= zbc_block_open,
+	.zbd_close		= zbc_block_close,
+	.zbd_pread		= zbc_block_pread,
+	.zbd_pwrite		= zbc_block_pwrite,
+	.zbd_flush		= zbc_block_flush,
+	.zbd_report_zones	= zbc_block_report_zones,
+	.zbd_zone_op		= zbc_block_zone_op,
 };

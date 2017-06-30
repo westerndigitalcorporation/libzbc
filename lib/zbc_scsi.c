@@ -171,8 +171,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	 * If this is an ATA drive, try to see if SAT is working.
 	 * If SAT is working, treat the disk as SCSI.
 	 */
-	if (strncmp((char *)&buf[8], "ATA", 3) == 0 &&
-	    !zbc_test_mode(dev)) {
+	if (strncmp((char *)&buf[8], "ATA", 3) == 0) {
 		ret = zbc_scsi_test_sat(dev);
 		if (ret != 0)
 			return -ENXIO;
@@ -758,7 +757,7 @@ static int zbc_scsi_open(const char *filename,
 		  filename);
 
 	/* Open the device file */
-	fd = open(filename, flags);
+	fd = open(filename, flags & ZBC_O_MODE_MASK);
 	if (fd < 0) {
 		ret = -errno;
 		zbc_error("%s: Open device file failed %d (%s)\n",
@@ -790,6 +789,9 @@ static int zbc_scsi_open(const char *filename,
 
 	dev->zbd_fd = fd;
 	dev->zbd_sg_fd = fd;
+#ifdef HAVE_DEVTEST
+	dev->zbd_flags = flags & ZBC_O_DEVTEST;
+#endif
 	dev->zbd_filename = strdup(filename);
 	if (!dev->zbd_filename)
 		goto out_free_dev;
@@ -927,10 +929,11 @@ static int zbc_scsi_flush(struct zbc_device *dev)
 }
 
 /**
- * ZBC with SCSI I/O device operations.
+ * ZBC SCSI device driver definition.
  */
-struct zbc_ops zbc_scsi_ops =
+struct zbc_drv zbc_scsi_drv =
 {
+	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,
 	.zbd_pread		= zbc_scsi_pread,

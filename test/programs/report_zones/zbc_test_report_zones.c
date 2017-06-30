@@ -97,7 +97,7 @@ usage:
 	ro |= partial;
 
 	/* Open device */
-	ret = zbc_open(argv[i], O_RDONLY, &dev);
+	ret = zbc_open(argv[i], ZBC_O_DEVTEST | O_RDONLY, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
 			ret);
@@ -106,7 +106,6 @@ usage:
 		return 1;
 	}
 
-	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 
 	/* Get the number of zones */

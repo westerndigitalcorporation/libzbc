@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Open device */
-	ret = zbc_open(path, O_RDWR, &dev);
+	ret = zbc_open(path, ZBC_O_DEVTEST | O_RDWR, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
 			ret);
@@ -65,7 +65,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 
 	if (lba == -1) {

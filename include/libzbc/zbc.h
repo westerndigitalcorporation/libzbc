@@ -624,14 +624,37 @@ extern const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
  * 1 is returned if the device is identified as a zoned zoned block device.
  * Otherwise, 0 is returned.
  */
-extern int zbc_device_is_zoned(const char *filename,
-			       bool fake,
+extern int zbc_device_is_zoned(const char *filename, bool fake,
 			       struct zbc_device_info *info);
+
+/**
+ * @brief ZBC device open flags
+ *
+ * These flags can be combined together and passed to \a zbc_open to change
+ * that function default behavior. This is in particular useful for ATA devices
+ * to force using the ATA backend driver to bypass any SAT layer that may
+ * result in the SCSI backend driver being used.
+ */
+enum zbc_oflags {
+
+	/** Allow use of the block device backend driver */
+	ZBC_O_DRV_BLOCK		= 0x01000000,
+
+	/** Allow use of the SCSI backend driver */
+	ZBC_O_DRV_SCSI		= 0x02000000,
+
+	/** Allow use of the ATA backend driver */
+	ZBC_O_DRV_ATA		= 0x04000000,
+
+	/** Allow use of the fake device backend driver */
+	ZBC_O_DRV_FAKE		= 0x08000000,
+
+};
 
 /**
  * @brief Open a ZBC device
  * @param[in] filename	Path to a device file
- * @param[in] flags	Access mode (O_RDONLY, O_WRONLY, O_RDWR, ...)
+ * @param[in] flags	Device access mode flags
  * @param[out] dev	Opaque ZBC device handle
  *
  * Opens the device pointed by \a filename, and returns a handle to it
@@ -639,6 +662,13 @@ extern int zbc_device_is_zoned(const char *filename,
  * supporting the ZBC or ZAC command set. \a filename may specify the path to
  * a regular block device file or a regular file to be used with libzbc
  * emulation mode (ZBC_DT_FAKE device type).
+ * \a flags specifies the device access mode flags.O_RDONLY, O_WRONLY and O_RDWR
+ * can be specified. Other POSIX defined O_xxx flags are ignored. Additionally,
+ * if \a filename specifies the path to a zoned block device file or an emulated
+ * device, O_DIRECT can also be specified (this is mandatory to avoid unaligned
+ * write errors with zoned block device files). \a flags can also be or'ed with
+ * one or more of the ZBC_O_DRV_xxx flags in order to restrict the possible
+ * backend device drivers that libzbc will try when opening the device.
  *
  * @return If the device is not a zoned block device, -ENXIO will be returned.
  * Any other error code returned by open(2) can be returned as well.

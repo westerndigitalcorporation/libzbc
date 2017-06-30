@@ -18,6 +18,16 @@
 #define _LIBZBC_PRIVATE_H_
 
 /**
+ * @brief User hidden ZBC device open flags
+ */
+enum zbc_oflags_internal {
+
+	/** Open device in test mode */
+	ZBC_O_DEVTEST		= 0x80000000,
+
+};
+
+/**
  * zbc_set_zones - Configure zones of an emulated ZBC device
  * @dev:	(IN) Device handle of the device to configure
  * @conv_sz:	(IN) Total size in 512B sectors of conventional zones
@@ -52,16 +62,5 @@ extern int zbc_set_zones(struct zbc_device *dev,
  */
 extern int zbc_set_write_pointer(struct zbc_device *dev,
 				 uint64_t sector, uint64_t wp_sector);
-
-/**
- * zbc_set_test_mode - Set library calls to test mode for the device
- * @dev:	(IN) Device handle obtained with zbc_open
- *
- * Description:
- * Set the specified device in test mode to reduce libaray internal API
- * arguments checks so that invalid commands can also be sent to the device.
- * For testing the device with zbc_test.sh only.
- */
-extern void zbc_set_test_mode(struct zbc_device *dev);
 
 #endif /* _LIBZBC_PRIVATE_H_ */

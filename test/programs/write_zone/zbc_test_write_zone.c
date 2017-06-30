@@ -89,7 +89,7 @@ usage:
 	lba_count = (uint32_t)atoi(argv[i+2]);
 
 	/* Open device */
-	ret = zbc_open(path, O_WRONLY, &dev);
+	ret = zbc_open(path, ZBC_O_DEVTEST | O_WRONLY, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed %zd\n",
 			ret);
@@ -98,7 +98,6 @@ usage:
 		return 1;
 	}
 
-	zbc_set_test_mode(dev);
 	zbc_get_device_info(dev, &info);
 	sector = zbc_lba2sect(&info, lba);
 	sector_count = zbc_lba2sect(&info, lba_count);

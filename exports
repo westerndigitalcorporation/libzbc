@@ -2,7 +2,6 @@ ZBC_PRIVATE {
 global:
 	zbc_set_write_pointer;
 	zbc_set_zones;
-	zbc_set_test_mode;
 };
 
 ZBC_GLOBAL {

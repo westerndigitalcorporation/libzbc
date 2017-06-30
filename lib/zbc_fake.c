@@ -1452,9 +1452,10 @@ out:
 }
 
 /**
- * Fake backend driver operations.
+ * Fake backend driver definition.
  */
-struct zbc_ops zbc_fake_ops = {
+struct zbc_drv zbc_fake_drv = {
+	.flag			= ZBC_O_DRV_FAKE,
 	.zbd_open		= zbc_fake_open,
 	.zbd_close		= zbc_fake_close,
 	.zbd_pread		= zbc_fake_pread,
