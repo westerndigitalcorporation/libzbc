@@ -1103,7 +1103,7 @@ static void dz_if_zblock_set_cb(GtkEntry *entry, gpointer user_data)
 
 static void dz_if_refresh_zlist(dz_dev_t *dzd)
 {
-	char str[128];
+	char str[256];
 
 	/* Update number of zones */
 	snprintf(str, sizeof(str) - 1,

@@ -139,7 +139,7 @@ void dz_if_add_device(char *dev_path)
 	GtkWidget *button;
 	dz_dev_t *dzd;
 	int page_no;
-	char str[128];
+	char str[256];
 
 	/* Open device */
 	dzd = dz_if_dev_open(dev_path);
