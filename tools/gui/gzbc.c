@@ -342,8 +342,10 @@ dz_dev_t *dz_open(char *path)
 		}
 	}
 
-	if (!dzd)
+	if (!dzd) {
+		fprintf(stderr, "Too many open devices\n");
 		return NULL;
+	}
 
 	/* Open device file */
 	strncpy(dzd->path, path, sizeof(dzd->path) - 1);

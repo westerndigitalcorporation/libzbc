@@ -140,7 +140,7 @@ static struct dz_if_zinfo_filter {
         { 0, NULL }
 };
 
-dz_dev_t * dz_if_dev_open(char *path)
+dz_dev_t *dz_if_dev_open(char *path)
 {
 	GtkWidget *top_vbox, *hbox, *ctrl_hbox, *vbox;
 	GtkWidget *combo, *scrolledwindow;
@@ -1075,12 +1075,15 @@ static void dz_if_zblock_set_cb(GtkEntry *entry, gpointer user_data)
 {
 	dz_dev_t *dzd = (dz_dev_t *) user_data;
 	long long block = strtoll(gtk_entry_get_text(entry), NULL, 0);
+	unsigned long long sect = (block * dzd->block_size) >> 9;
 	struct zbc_zone *z;
 	unsigned int i;
 	int zno = -1;
 
+	block = dz_if_sect2block(dzd, sect);
+
 	if (block >= 0 &&
-	    block < dz_if_sect2block(dzd, dzd->info.zbd_lblocks)) {
+	    block < dz_if_sect2block(dzd, dzd->info.zbd_sectors)) {
 		/* Search zone */
 		for (i = 0; i < dzd->max_nr_zones; i++) {
 			z = &dzd->zones[i].info;
@@ -1186,7 +1189,6 @@ static void dz_if_zlist_set_block_size_cb(GtkEntry *entry, gpointer user_data)
 	char *val_str = (char *) gtk_entry_get_text(entry);
 	int block_size = atoi(val_str);
 	char str[32];
-
 
 	if (!val_str || !dzd)
 		return;
