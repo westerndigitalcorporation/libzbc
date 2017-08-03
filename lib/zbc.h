@@ -125,9 +125,14 @@ struct zbc_device {
 	struct zbc_device_info	zbd_info;
 
 	/**
-	 * Device flags set by backend drivers.
+	 * Device open flags.
 	 */
 	unsigned int		zbd_flags;
+
+	/**
+	 * Device backend driver flags.
+	 */
+	unsigned int		zbd_drv_flags;
 
 	/**
 	 * Command execution error info.
@@ -163,22 +168,22 @@ struct zbc_device {
 /**
  * Block device driver (requires kernel support).
  */
-extern struct zbc_drv zbc_block_drv;
+struct zbc_drv zbc_block_drv;
 
 /**
  * ZAC (ATA) device driver (uses SG_IO).
  */
-extern struct zbc_drv zbc_ata_drv;
+struct zbc_drv zbc_ata_drv;
 
 /**
  * ZBC (SCSI) device driver (uses SG_IO).
  */
-extern struct zbc_drv zbc_scsi_drv;
+struct zbc_drv zbc_scsi_drv;
 
 /**
  * ZBC emulation driver (file or block device).
  */
-extern struct zbc_drv zbc_fake_drv;
+struct zbc_drv zbc_fake_drv;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
@@ -210,9 +215,18 @@ extern struct zbc_drv zbc_fake_drv;
  * The block backend driver uses the SCSI backend information and
  * some zone operation.
  */
-extern int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
-extern int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_lba,
-			    enum zbc_zone_op op, unsigned int flags);
+int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
+int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_lba,
+		     enum zbc_zone_op op, unsigned int flags);
+
+/**
+ * The ATA backend driver may use the SCSI backend I/O functions.
+ */
+ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
+		       size_t count, uint64_t offset);
+ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
+			size_t count, uint64_t offset);
+int zbc_scsi_flush(struct zbc_device *dev);
 
 /**
  * Log levels.
@@ -229,7 +243,7 @@ enum {
 /**
  * Library log level.
  */
-extern int zbc_log_level;
+int zbc_log_level;
 
 #define zbc_print(stream,format,args...)		\
 	do {						\

@@ -842,8 +842,8 @@ static int zbc_scsi_close(struct zbc_device *dev)
 /**
  * Read from a ZBC device
  */
-static ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
-			      size_t count, uint64_t offset)
+ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
+		       size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
 	struct zbc_sg_cmd cmd;
@@ -873,8 +873,8 @@ static ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 /**
  * Write to a ZBC device
  */
-static ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
-			       size_t count, uint64_t offset)
+ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
+			size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
 	struct zbc_sg_cmd cmd;
@@ -904,7 +904,7 @@ static ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 /**
  * Flush a ZBC device cache.
  */
-static int zbc_scsi_flush(struct zbc_device *dev)
+int zbc_scsi_flush(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;

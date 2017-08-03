@@ -65,6 +65,16 @@
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
 /**
+ * Driver device flags.
+ */
+enum zbc_ata_drv_flags {
+
+	/** Use SCSI SBC commands for I/O operations */
+	ZBC_ATA_USE_SBC		= 0x00000001,
+
+};
+
+/**
  * Get a word from a command data buffer.
  */
 static inline uint16_t zbc_ata_get_word(uint8_t *buf)
@@ -471,14 +481,17 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
  * Read from a ZAC device using READ DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
-			     size_t count, uint64_t offset)
+static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
+				    size_t count, uint64_t offset)
 {
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
 	size_t sz = count << 9;
 	struct zbc_sg_cmd cmd;
 	ssize_t ret;
+
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_pread(dev, buf, count, offset);
 
 	/* Check */
 	if (count > 65536) {
@@ -564,11 +577,23 @@ static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
 }
 
 /**
+ * Read from a ZAC device.
+ */
+static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
+			     size_t count, uint64_t offset)
+{
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_pread(dev, buf, count, offset);
+
+	return zbc_ata_native_pread(dev, buf, count, offset);
+}
+
+/**
  * Write to a ZAC device using WRITE DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
-			      size_t count, uint64_t offset)
+static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
+				     size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
@@ -660,9 +685,21 @@ static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
 }
 
 /**
+ * Write to a ZAC device.
+ */
+static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
+			      size_t count, uint64_t offset)
+{
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_pwrite(dev, buf, count, offset);
+
+	return zbc_ata_native_pwrite(dev, buf, count, offset);
+}
+
+/**
  * Flush a ZAC device cache.
  */
-static int zbc_ata_flush(struct zbc_device *dev)
+static int zbc_ata_native_flush(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
@@ -686,6 +723,17 @@ static int zbc_ata_flush(struct zbc_device *dev)
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
+}
+
+/**
+ * Flush a ZAC device cache.
+ */
+static int zbc_ata_flush(struct zbc_device *dev)
+{
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_flush(dev);
+
+	return zbc_ata_native_flush(dev);
 }
 
 /**
@@ -1209,6 +1257,22 @@ static int zbc_ata_get_capacity(struct zbc_device *dev)
 }
 
 /**
+ * Test SBC SAT for regular commands (read, write, flush).
+ */
+static void zbc_ata_test_sbc_sat(struct zbc_device *dev)
+{
+	char buf[4096];
+	int ret;
+
+	ret = zbc_scsi_pread(dev, buf, 8, 0);
+	if (ret == 8) {
+		dev->zbd_drv_flags |= ZBC_ATA_USE_SBC;
+		zbc_error("%s: Using SCSI commands for read/write/flush operations\n",
+			  dev->zbd_filename);
+	}
+}
+
+/**
  * Get a device information (capacity & sector sizes).
  */
 static int zbc_ata_get_dev_info(struct zbc_device *dev)
@@ -1237,6 +1301,10 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 	ret = zbc_ata_get_zoned_device_info(dev);
 	if (ret != 0)
 		return ret;
+
+	/* Check if we have a functional SAT for read/write */
+	if (!zbc_test_mode(dev))
+		zbc_ata_test_sbc_sat(dev);
 
 	return 0;
 }
