@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/fs.h>
@@ -47,12 +48,49 @@ struct zbc_block_device {
 
 };
 
+/*
+ * Default values for zoned block device characteristics
+ * used if we are dealing with a device mapper block device.
+ */
+#define ZBC_BLOCK_MAX_OPEN_ZONES		128
+
 /**
  * zbc_dev_to_block - Convert device address to block device address.
  */
 static inline struct zbc_block_device *zbc_dev_to_block(struct zbc_device *dev)
 {
 	return container_of(dev, struct zbc_block_device, dev);
+}
+
+/**
+ * Test if the device is a device mapper target.
+ */
+static int zbc_block_is_dm_dev(struct stat *st)
+{
+	char line[128];
+	char dev_type[32];
+	int ret, dm_major = -1;
+	FILE *file;
+
+	/* Open the start offset file of the partition */
+	file = fopen("/proc/devices", "r");
+	if (!file)
+		return 0;
+
+	while (fgets(line, sizeof(line), file)) {
+		ret = sscanf(line, "%d %s", &dm_major, dev_type);
+		if (ret != 2)
+			continue;
+		if (strcmp(dev_type, "device-mapper") == 0)
+			break;
+	}
+
+	fclose(file);
+
+	if (dm_major == -1)
+		return 0;
+
+	return major(st->st_rdev) == (unsigned int)dm_major;
 }
 
 /**
@@ -327,26 +365,14 @@ static int zbc_block_get_vendor_id(struct zbc_device *dev)
  * Test if the device can be handled
  * and get the block device info.
  */
-static int zbc_block_get_info(struct zbc_device *dev)
+static int zbc_block_get_info(struct zbc_device *dev,
+			      struct stat *st)
 {
 	unsigned long long size64;
-	struct stat st;
 	int size32;
-	int ret;
+	int is_dm_dev, ret;
 
-	/* Get device stats */
-	if (fstat(dev->zbd_fd, &st) < 0) {
-		ret = -errno;
-		zbc_error("%s: stat failed %d (%s)\n",
-			  dev->zbd_filename,
-			  errno,
-			  strerror(errno));
-		return ret;
-	}
-
-	if (!S_ISBLK(st.st_mode))
-		/* Not a block device: ignore */
-		return -ENXIO;
+	is_dm_dev = zbc_block_is_dm_dev(st);
 
 	/* Check if we are dealing with a partition */
 	ret = zbc_block_handle_partition(dev);
@@ -429,11 +455,28 @@ static int zbc_block_get_info(struct zbc_device *dev)
 			"Unknown", ZBC_DEVICE_INFO_LENGTH - 1);
 
 	/*
-	 * Use SG_IO to get zone characteristics
-	 * (maximum number of open zones, etc).
+	 * Use SG_IO to get zone characteristics (maximum number of open
+	 * zones, etc), but not for device mapper targets. For those, SG_IO
+	 * will not work, so use default values.
 	 */
-	if (zbc_scsi_get_zbd_characteristics(dev))
+	if (is_dm_dev) {
+		/* Use defaults */
+		dev->zbd_info.zbd_flags |= ZBC_UNRESTRICTED_READ;
+		if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
+			dev->zbd_info.zbd_max_nr_open_seq_req =
+				ZBC_BLOCK_MAX_OPEN_ZONES;
+			dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
+			dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+		} else {
+			dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+			dev->zbd_info.zbd_opt_nr_open_seq_pref =
+				ZBC_BLOCK_MAX_OPEN_ZONES;
+			dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
+				ZBC_BLOCK_MAX_OPEN_ZONES;
+		}
+	} else if (zbc_scsi_get_zbd_characteristics(dev)) {
 		return -ENXIO;
+	}
 
 	/* Get maximum command size */
 	zbc_sg_get_max_cmd_blocks(dev);
@@ -500,7 +543,7 @@ static int zbc_block_open(const char *filename, int flags,
 		goto out_free_dev;
 
 	/* Get device information */
-	ret = zbc_block_get_info(dev);
+	ret = zbc_block_get_info(dev, &st);
 	if (ret != 0)
 		goto out_free_filename;
 
