@@ -12,7 +12,7 @@
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 #
 
-. ../zbc_test_lib.sh
+. scripts/zbc_test_lib.sh
 
 zbc_test_init $0 "OPEN_ZONE implicit open to explicit open to explicit_open (ALL bit set)" $*
 
