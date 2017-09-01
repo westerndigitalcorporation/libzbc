@@ -56,10 +56,10 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 # Check tests subdirs
-ZBC_TEST_DIR=$(cd $(dirname $0);pwd)
+cd `dirname $0`
 
 # Test programs directory
-ZBC_TEST_BIN_PATH=${ZBC_TEST_DIR}/programs
+ZBC_TEST_BIN_PATH=programs
 if [ ! -d ${ZBC_TEST_BIN_PATH} ]; then
     echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
     exit
@@ -86,15 +86,13 @@ for p in ${test_progs[@]}; do
 	fi
 done
 
-ZBC_TEST_SCR_PATH=${ZBC_TEST_DIR}/scripts
+ZBC_TEST_SCR_PATH=scripts
 if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
     exit
 fi
 
-ZBC_TEST_LOG_PATH=${ZBC_TEST_DIR}/log
-
-cd ${ZBC_TEST_DIR}
+ZBC_TEST_LOG_PATH=log
 
 # Handle arguments
 argv=("$@")
