@@ -258,8 +258,6 @@ function zbc_run_section()
 	log_path=${ZBC_TEST_LOG_PATH}/${dev_name}/${sect_num}
 	mkdir -p ${log_path}
 
-	pushd ${sect_path} > /dev/null 2>&1
-
 	if [ ${print_list} -eq 1 ]; then
 		# Printing test cases only
 		echo "Section ${sect} - ${sect_name} tests"
@@ -279,7 +277,7 @@ function zbc_run_section()
 		fi
 
 		c=`get_case_num ${t}`
-        	./${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${sect_num} ${device}
+        	./${sect_path}/${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${sect_num} ${device}
 		ret=$?
 
         	if [ ${batch_mode} -eq 1 ]; then
@@ -295,8 +293,6 @@ function zbc_run_section()
 		fi
 
 	done
-
-	popd > /dev/null 2>&1
 
 	return ${ret}
 }
