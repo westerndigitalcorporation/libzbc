@@ -17,7 +17,7 @@ red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
 
-sect_num=""
+section_num=""
 case_num=""
 
 # For test script creation:
@@ -35,7 +35,7 @@ function zbc_test_init()
 	desc="$2"
 	bin_path="$3"
 	log_path="$4"
-	sect_num="$5"
+	section_num="$5"
 	device="$6"
 
 	# Case number within section
@@ -43,11 +43,11 @@ function zbc_test_init()
 
 	if [ -z ${device} ]; then
 		# Print description only
-		echo "    ${sect_num}.${case_num}: ${desc}"
+		echo "    ${section_num}.${case_num}: ${desc}"
 		exit 0
 	fi
 
-	echo -n "    ${sect_num}.${case_num}: ${desc}..."
+	echo -n "    ${section_num}.${case_num}: ${desc}..."
 
 	# Test log file
 	log_file="${log_path}/${case_num}.log"
