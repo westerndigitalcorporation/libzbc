@@ -264,7 +264,7 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 	/* Setup SGIO header */
 	cmd->io_hdr.interface_id    = 'S';
 	cmd->io_hdr.timeout         = 20000;
-	cmd->io_hdr.flags           = 0x10; //SG_FLAG_Q_AT_TAIL;
+	cmd->io_hdr.flags           = 0x11; //SG_FLAG_Q_AT_TAIL + DIRECT_IO;
 
 	cmd->io_hdr.cmd_len         = cmd->cdb_sz;
 	cmd->io_hdr.cmdp            = &cmd->cdb[0];
