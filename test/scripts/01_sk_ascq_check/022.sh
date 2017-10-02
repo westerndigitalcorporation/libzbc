@@ -29,6 +29,15 @@ fi
 
 zone_type="0x2"
 
+# Get zone information
+zbc_test_get_zone_info
+
+# Check number of target zones
+zbc_test_count_nr_zones
+if [ ${max_open} -ge ${nr_zones} ]; then
+    zbc_test_print_not_applicable
+fi
+
 # Create closed zones
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do

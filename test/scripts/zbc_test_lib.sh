@@ -149,6 +149,11 @@ function zbc_test_get_zone_info()
 
 # Preparation functions
 
+function zbc_test_count_nr_zones()
+{
+	nr_zones=`cat ${zone_info_file} | wc -l`
+}
+
 function zbc_test_open_nr_zones()
 {
 	local zone_type="0x2"
