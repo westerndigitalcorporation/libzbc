@@ -55,7 +55,7 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 	int ret;
 
 	/* Allocate and intialize inquiry command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_INQUIRY, buf, buf_len);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0)
 		return ret;
 
@@ -102,7 +102,7 @@ static int zbc_scsi_test_sat(struct zbc_device *dev)
 	int ret;
 
 	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -308,7 +308,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 		bufsz = max_bufsz;
 
 	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -525,7 +525,7 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	}
 
 	/* Allocate and intialize zone command */
-	ret = zbc_sg_cmd_init(&cmd, cmdid, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, cmdid, NULL, 0);
 	if (ret != 0)
 		return ret;
 
@@ -582,7 +582,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	int ret;
 
 	/* READ CAPACITY 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ_CAPACITY,
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_READ_CAPACITY,
 			      NULL, ZBC_SCSI_READ_CAPACITY_BUF_LEN);
 	if (ret != 0)
 		return ret;
@@ -790,8 +790,11 @@ static int zbc_scsi_open(const char *filename,
 	dev->zbd_fd = fd;
 	dev->zbd_sg_fd = fd;
 #ifdef HAVE_DEVTEST
-	dev->zbd_flags = flags & ZBC_O_DEVTEST;
+	dev->zbd_o_flags = flags & ZBC_O_DEVTEST;
 #endif
+	if (flags & O_DIRECT)
+		dev->zbd_o_flags |= ZBC_O_DIRECT;
+
 	dev->zbd_filename = strdup(filename);
 	if (!dev->zbd_filename)
 		goto out_free_dev;
@@ -850,7 +853,7 @@ ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 	ssize_t ret;
 
 	/* READ 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_READ, buf, sz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_READ, buf, sz);
 	if (ret != 0)
 		return ret;
 
@@ -881,7 +884,7 @@ ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 	ssize_t ret;
 
 	/* WRITE 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
 	if (ret != 0)
 		return ret;
 
@@ -910,7 +913,7 @@ int zbc_scsi_flush(struct zbc_device *dev)
 	int ret;
 
 	/* SYNCHRONIZE CACHE 16 */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_SYNC_CACHE, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_SYNC_CACHE, NULL, 0);
 	if (ret != 0)
 		return ret;
 

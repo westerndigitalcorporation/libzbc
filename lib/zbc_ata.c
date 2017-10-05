@@ -113,7 +113,7 @@ static int zbc_ata_read_log(struct zbc_device *dev, uint8_t log,
 	int ret;
 
 	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, buf, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -187,7 +187,7 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 	int ret;
 
 	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
 
@@ -266,7 +266,7 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	int ret;
 
 	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0) {
 		zbc_error("%s: Get sense data zbc_sg_cmd_init failed\n",
 			  dev->zbd_filename);
@@ -501,7 +501,7 @@ static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
 	}
 
 	/* Initialize the command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, buf, sz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, sz);
 	if (ret != 0)
 		return ret;
 
@@ -609,7 +609,7 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	/* Initialize the command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, (uint8_t *)buf, sz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, (uint8_t *)buf, sz);
 	if (ret != 0)
 		return ret;
 
@@ -705,7 +705,7 @@ static int zbc_ata_native_flush(struct zbc_device *dev)
 	int ret;
 
 	/* Initialize the command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
 
@@ -760,7 +760,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		bufsz = max_bufsz;
 
 	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -924,7 +924,7 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 	}
 
 	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
 
@@ -1013,7 +1013,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	int ret;
 
 	/* Intialize command */
-	ret = zbc_sg_cmd_init(&cmd, ZBC_SG_ATA16, NULL, 0);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
 
@@ -1357,8 +1357,11 @@ static int zbc_ata_open(const char *filename,
 	dev->zbd_fd = fd;
 	dev->zbd_sg_fd = fd;
 #ifdef HAVE_DEVTEST
-	dev->zbd_flags = flags & ZBC_O_DEVTEST;
+	dev->zbd_o_flags = flags & ZBC_O_DEVTEST;
 #endif
+	if (flags & O_DIRECT)
+		dev->zbd_o_flags |= ZBC_O_DIRECT;
+
 	dev->zbd_filename = strdup(filename);
 	if (!dev->zbd_filename)
 		goto out_free_dev;

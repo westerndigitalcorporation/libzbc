@@ -224,10 +224,14 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	}
 }
 
+#define ZBC_SG_FLAG_Q_AT_TAIL	0x10
+#define ZBC_SG_FLAG_DIRECT_IO	0x01
+
 /**
  * Initialize a command.
  */
-int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
+int zbc_sg_cmd_init(struct zbc_device *dev,
+		    struct zbc_sg_cmd *cmd, int cmd_code,
 		    uint8_t *out_buf, size_t out_bufsz)
 {
 
@@ -262,20 +266,23 @@ int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
 	cmd->out_bufsz = out_bufsz;
 
 	/* Setup SGIO header */
-	cmd->io_hdr.interface_id    = 'S';
-	cmd->io_hdr.timeout         = 20000;
-	cmd->io_hdr.flags           = 0x10; //SG_FLAG_Q_AT_TAIL;
+	cmd->io_hdr.interface_id = 'S';
+	cmd->io_hdr.timeout = 20000;
 
-	cmd->io_hdr.cmd_len         = cmd->cdb_sz;
-	cmd->io_hdr.cmdp            = &cmd->cdb[0];
+	cmd->io_hdr.flags = ZBC_SG_FLAG_Q_AT_TAIL;
+	if (dev->zbd_o_flags & ZBC_O_DIRECT && cmd->out_bufsz)
+		cmd->io_hdr.flags |= ZBC_SG_FLAG_DIRECT_IO;
+
+	cmd->io_hdr.cmd_len = cmd->cdb_sz;
+	cmd->io_hdr.cmdp = &cmd->cdb[0];
 
 	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
-	cmd->io_hdr.dxfer_len       = cmd->out_bufsz;
+	cmd->io_hdr.dxfer_len = cmd->out_bufsz;
 	if (cmd->out_bufsz)
-		cmd->io_hdr.dxferp  = cmd->out_buf;
+		cmd->io_hdr.dxferp = cmd->out_buf;
 
-	cmd->io_hdr.mx_sb_len       = ZBC_SG_SENSE_MAX_LENGTH;
-	cmd->io_hdr.sbp             = cmd->sense_buf;
+	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
+	cmd->io_hdr.sbp = cmd->sense_buf;
 
 	return 0;
 }
@@ -308,6 +315,11 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 			  zbc_sg_cmd_name(cmd));
 		zbc_sg_print_bytes(dev, cmd->cdb, cmd->cdb_sz);
 	}
+
+	zbc_debug("%s: Execute %s command with buffer of %zu B\n",
+		  dev->zbd_filename,
+		  (cmd->io_hdr.flags & ZBC_SG_FLAG_DIRECT_IO) ? "direct" : "normal",
+		  cmd->out_bufsz);
 
 	/* Send the SG_IO command */
 	ret = ioctl(dev->zbd_sg_fd, SG_IO, &cmd->io_hdr);
@@ -493,7 +505,8 @@ int zbc_sg_test_unit_ready(struct zbc_device *dev)
 		retries--;
 
 		/* Intialize command */
-		ret = zbc_sg_cmd_init(&cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_TEST_UNIT_READY,
+				      NULL, 0);
 		if (ret != 0) {
 			zbc_error("%s: init TEST UNIT READY command failed\n",
 				  dev->zbd_filename);

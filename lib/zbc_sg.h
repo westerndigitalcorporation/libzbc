@@ -222,7 +222,8 @@ struct zbc_sg_cmd {
 /**
  * Allocate and initialize a new command.
  */
-extern int zbc_sg_cmd_init(struct zbc_sg_cmd *cmd, int cmd_code,
+extern int zbc_sg_cmd_init(struct zbc_device *dev,
+			   struct zbc_sg_cmd *cmd, int cmd_code,
 			   uint8_t *out_buf, size_t out_bufsz);
 
 /**

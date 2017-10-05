@@ -127,7 +127,7 @@ struct zbc_device {
 	/**
 	 * Device open flags.
 	 */
-	unsigned int		zbd_flags;
+	unsigned int		zbd_o_flags;
 
 	/**
 	 * Device backend driver flags.
@@ -160,7 +160,7 @@ struct zbc_device {
  * Test if a device is in test mode.
  */
 #ifdef HAVE_DEVTEST
-#define zbc_test_mode(dev)	((dev)->zbd_flags & ZBC_O_DEVTEST)
+#define zbc_test_mode(dev)	((dev)->zbd_o_flags & ZBC_O_DEVTEST)
 #else
 #define zbc_test_mode(dev)	(false)
 #endif
