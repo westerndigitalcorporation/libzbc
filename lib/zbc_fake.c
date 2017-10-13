@@ -1308,8 +1308,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	dev->zbd_info.zbd_pblocks = dev->zbd_info.zbd_lblocks /
 		(dev->zbd_info.zbd_pblock_size /
 		 dev->zbd_info.zbd_lblock_size);
-	fmeta.zbd_capacity = dev->zbd_info.zbd_lblocks *
-		dev->zbd_info.zbd_lblock_size;
+	fmeta.zbd_capacity = dev->zbd_info.zbd_lblocks << 9; 
 
 	/* Open metadata file */
 	zbc_fake_dev_meta_path(fdev, meta_path);
