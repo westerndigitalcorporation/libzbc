@@ -457,6 +457,10 @@ static int zbc_fake_open(const char *filename, int flags,
 
 	fdev->dev.zbd_fd = fd;
 	fdev->zbd_meta_fd = -1;
+#ifdef HAVE_DEVTEST
+	fdev->dev.zbd_o_flags = flags & ZBC_O_DEVTEST;
+#endif
+
 	fdev->dev.zbd_filename = strdup(filename);
 	if (!fdev->dev.zbd_filename)
 		goto out_free_dev;
@@ -1170,6 +1174,15 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 
 		/* Can only write at the write pointer */
 		if (offset != zbc_zone_wp(zone)) {
+			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+			dev->zbd_errno.asc_ascq =
+				ZBC_ASC_UNALIGNED_WRITE_COMMAND;
+			goto out;
+		}
+
+		/* Writes must be aligned on the physical block size */
+		if (!zbc_dev_sect_paligned(dev, count) ||
+		    !zbc_dev_sect_paligned(dev, offset)) {
 			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 			dev->zbd_errno.asc_ascq =
 				ZBC_ASC_UNALIGNED_WRITE_COMMAND;

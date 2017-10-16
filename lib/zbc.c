@@ -592,8 +592,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 
 	if ((offset + count) > dev->zbd_info.zbd_sectors)
 		count = dev->zbd_info.zbd_sectors - offset;
-	if (!count ||
-	    offset >= dev->zbd_info.zbd_sectors)
+	if (!count || offset >= dev->zbd_info.zbd_sectors)
 		return 0;
 
 	zbc_debug("%s: Write %zu sectors at sector %llu\n",
