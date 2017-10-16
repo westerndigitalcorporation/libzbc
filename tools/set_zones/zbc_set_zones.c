@@ -73,9 +73,9 @@ usage:
 	if (i > argc - 3)
 		goto usage;
 
-	/* Open device */
+	/* Open device: only allow fake device backend driver */
 	path = argv[i];
-	ret = zbc_open(path, O_RDONLY, &dev);
+	ret = zbc_open(path, O_RDWR, &dev);
 	if (ret < 0) {
 		if (ret == -ENXIO)
 			fprintf(stderr, "Unsupported device type\n");
@@ -88,6 +88,13 @@ usage:
 
 	/* Get device info */
 	zbc_get_device_info(dev, &info);
+	if (info.zbd_type != ZBC_DT_FAKE) {
+		fprintf(stderr,
+			"The fake backend driver is not in use for device %s\n",
+			path);
+		ret = 1;
+		goto out;
+	}
 
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
