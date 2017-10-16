@@ -1122,8 +1122,9 @@ static int zbc_ata_classify(struct zbc_device *dev)
 			       buf,
 			       sizeof(buf));
 	if (ret != 0) {
-		zbc_error("%s: Get supported capabilities page failed\n",
+		zbc_debug("%s: Get supported capabilities page failed\n",
 			  dev->zbd_filename);
+		ret = -ENXIO;
 		goto out;
 	}
 
