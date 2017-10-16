@@ -376,7 +376,7 @@ static int zbc_fake_set_info(struct zbc_device *dev)
 	} else if (S_ISREG(st.st_mode)) {
 
 		/* Default value for files */
-		if (st.st_blksize)
+		if (st.st_blksize == 512 || st.st_blksize == 4096)
 			dev->zbd_info.zbd_pblock_size = st.st_blksize;
 		else
 			dev->zbd_info.zbd_pblock_size =
