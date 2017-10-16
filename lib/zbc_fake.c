@@ -522,7 +522,7 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
 
 	if (zone->zbz_length == 0 ||
-	    zone->zbz_start + zone->zbz_length < start_sector)
+	    zone->zbz_start + zone->zbz_length <= start_sector)
 		return false;
 
 	switch (options) {
