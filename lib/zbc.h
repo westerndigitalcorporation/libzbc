@@ -233,8 +233,8 @@ int zbc_scsi_flush(struct zbc_device *dev);
  */
 enum {
 	ZBC_LOG_NONE = 0,
-	ZBC_LOG_WARNING,
 	ZBC_LOG_ERROR,
+	ZBC_LOG_WARNING,
 	ZBC_LOG_INFO,
 	ZBC_LOG_DEBUG,
 	ZBC_LOG_MAX
