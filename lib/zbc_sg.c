@@ -212,7 +212,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	}
 
 	if (sense_buf == NULL ||
-	    sense_buf_len < 13) {
+	    sense_buf_len < 4) {
 		dev->zbd_errno.sk = 0x00;
 		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
@@ -224,6 +224,12 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		dev->zbd_errno.sk = sense_buf[1] & 0x0F;
 		dev->zbd_errno.asc_ascq =
 			((int)sense_buf[2] << 8) | (int)sense_buf[3];
+		return;
+	}
+
+	if (sense_buf_len < 14) {
+		dev->zbd_errno.sk = 0x00;
+		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
 	}
 
