@@ -246,6 +246,7 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 		    struct zbc_sg_cmd *cmd, int cmd_code,
 		    uint8_t *out_buf, size_t out_bufsz)
 {
+	zbc_assert(cmd_code >= 0 && cmd_code < ZBC_SG_CMD_NUM);
 
 	/* Set command */
 	memset(cmd, 0, sizeof(struct zbc_sg_cmd));
@@ -255,7 +256,7 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 	cmd->cdb_opcode = zbc_sg_cmd_list[cmd_code].cdb_opcode;
 	cmd->cdb_sa = zbc_sg_cmd_list[cmd_code].cdb_sa;
 
-	if (!out_buf) {
+	if (!out_buf && out_bufsz > 0) {
 
 		/* Allocate a buffer */
 		if (posix_memalign((void **) &cmd->out_buf,
