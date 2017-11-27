@@ -615,7 +615,7 @@ void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf, unsigned int len)
 		}
 
 		zbc_debug("%s\n", msg);
-		if (i < (len - 4))
+		if (i + 4 < len)
 			zbc_debug("%s: * |=====+======+======+======+======+\n",
 				  dev->zbd_filename);
 		else
