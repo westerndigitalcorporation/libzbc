@@ -45,7 +45,7 @@ static struct zbc_sg_cmd_s
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
-	/* ZBC_SG_TEST_UNIT_READY */
+	[ZBC_SG_TEST_UNIT_READY] =
 	{
 		"TEST UNIT READY",
 		ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
@@ -54,7 +54,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_INQUIRY */
+	[ZBC_SG_INQUIRY] =
 	{
 		"INQUIRY",
 		ZBC_SG_INQUIRY_CDB_OPCODE,
@@ -63,7 +63,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
-	/* ZBC_SG_READ_CAPACITY */
+	[ZBC_SG_READ_CAPACITY] =
 	{
 		"READ CAPACITY 16",
 		ZBC_SG_READ_CAPACITY_CDB_OPCODE,
@@ -72,7 +72,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
-	/* ZBC_SG_READ */
+	[ZBC_SG_READ] =
 	{
 		"READ 16",
 		ZBC_SG_READ_CDB_OPCODE,
@@ -81,7 +81,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
-	/* ZBC_SG_WRITE */
+	[ZBC_SG_WRITE] =
 	{
 		"WRITE 16",
 		ZBC_SG_WRITE_CDB_OPCODE,
@@ -90,7 +90,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_TO_DEV
 	},
 
-	/* ZBC_SG_SYNC_CACHE */
+	[ZBC_SG_SYNC_CACHE] =
 	{
 		"SYNCHRONIZE CACHE 16",
 		ZBC_SG_SYNC_CACHE_CDB_OPCODE,
@@ -99,7 +99,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_REPORT_ZONES */
+	[ZBC_SG_REPORT_ZONES] =
 	{
 		"REPORT ZONES",
 		ZBC_SG_REPORT_ZONES_CDB_OPCODE,
@@ -108,7 +108,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
-	/* ZBC_SG_RESET_ZONE */
+	[ZBC_SG_RESET_ZONE] =
 	{
 		"RESET WRITE POINTER",
 		ZBC_SG_RESET_ZONE_CDB_OPCODE,
@@ -117,7 +117,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_OPEN_ZONE */
+	[ZBC_SG_OPEN_ZONE] =
 	{
 		"OPEN ZONE",
 		ZBC_SG_OPEN_ZONE_CDB_OPCODE,
@@ -126,7 +126,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_CLOSE_ZONE */
+	[ZBC_SG_CLOSE_ZONE] =
 	{
 		"CLOSE ZONE",
 		ZBC_SG_CLOSE_ZONE_CDB_OPCODE,
@@ -135,7 +135,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_FINISH_ZONE */
+	[ZBC_SG_FINISH_ZONE] =
 	{
 		"FINISH ZONE",
 		ZBC_SG_FINISH_ZONE_CDB_OPCODE,
@@ -144,7 +144,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_SET_ZONES */
+	[ZBC_SG_SET_ZONES] =
 	{
 		"SET ZONES",
 		ZBC_SG_SET_ZONES_CDB_OPCODE,
@@ -153,7 +153,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_SET_WRITE_POINTER */
+	[ZBC_SG_SET_WRITE_POINTER] =
 	{
 		"SET WRITE POINTER",
 		ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE,
@@ -162,7 +162,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_ATA16 */
+	[ZBC_SG_ATA16] =
 	{
 		"ATA 16",
 		ZBC_SG_ATA16_CDB_OPCODE,
