@@ -232,11 +232,11 @@ int zbc_scsi_flush(struct zbc_device *dev);
  * Log levels.
  */
 enum {
-	ZBC_LOG_NONE = 0,
-	ZBC_LOG_WARNING,
-	ZBC_LOG_ERROR,
-	ZBC_LOG_INFO,
-	ZBC_LOG_DEBUG,
+	ZBC_LOG_NONE = 0,	/* Disable all messages */
+	ZBC_LOG_WARNING,	/* Critical errors (invalid drive,...) */
+	ZBC_LOG_ERROR,		/* Normal errors (I/O errors etc) */
+	ZBC_LOG_INFO,		/* Informational */
+	ZBC_LOG_DEBUG,		/* Debug-level messages */
 	ZBC_LOG_MAX
 };
 
