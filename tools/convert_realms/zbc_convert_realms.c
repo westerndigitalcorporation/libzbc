@@ -1,6 +1,7 @@
 /*
  * This file is part of libzbc.
  *
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
  * Copyright (C) 2018, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the
@@ -20,9 +21,6 @@
 
 #include <libzbc/zbc.h>
 
-#define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
-			ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE)
-
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
@@ -34,10 +32,9 @@ int main(int argc, char **argv)
 
 	/* Check command line */
 	if (argc < 5) {
-		fprintf(stderr, "Not enough arguments\n");
 usage:
 		printf("Usage: %s [options] <dev> <start realm> "
-		       "<num realms> <conv | seq> [<fg>]\n"
+		       "<num realms> <zone type>[ <fg>]\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n",
 		       argv[0]);
@@ -46,14 +43,22 @@ usage:
 
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
-		if ( strcmp(argv[i], "-v") == 0 )
+
+		if ( strcmp(argv[i], "-v") == 0 ) {
+
 			zbc_set_log_level("debug");
-		else if ( argv[i][0] == '-' ) {
-			fprintf(stderr, "Unknown option \"%s\"\n", argv[i]);
-			goto usage;
-		}
-		else
+
+		} else if ( argv[i][0] == '-' ) {
+
+			printf("Unknown option \"%s\"\n", argv[i]);
+			return 1;
+
+		} else {
+
 			break;
+
+		}
+
 	}
 
 	if (i >= argc) {
@@ -65,7 +70,6 @@ usage:
 		fprintf(stderr, "Missing starting realm number\n");
 		goto usage;
 	}
-
 	start_realm = atol(argv[i++]);
 	if (i >= argc) {
 		fprintf(stderr, "Missing the number of realms to convert\n");
@@ -76,22 +80,12 @@ usage:
 		fprintf(stderr, "Missing new zone type\n");
 		goto usage;
 	}
-
-	if (strcmp(argv[i], "conv") == 0) {
-		type = ZBC_ZT_CONVENTIONAL;
-	} else if (strcmp(argv[i], "seq") == 0) {
-		type = ZBC_ZT_SEQUENTIAL_REQ;
-	} else {
-		fprintf(stderr, "Invalid new zone type\n");
-		goto usage;
-	}
-
-	i++;
+	type = atoi(argv[i++]);
 	if (i < argc)
 		fg = atoi(argv[i]);
 
 	/* Open device */
-	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDWR, &dev);
+	ret = zbc_open(path, O_RDWR, &dev);
 	if (ret != 0)
 		return 1;
 
@@ -108,7 +102,6 @@ usage:
 			ret, strerror(-ret));
 		ret = 1;
 	}
-
 
 	zbc_close(dev);
 

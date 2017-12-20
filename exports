@@ -25,7 +25,6 @@ global:
 	zbc_report_realms;
 	zbc_list_realms;
 	zbc_convert_realms;
-	zbc_cmr_wp_check;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

@@ -42,7 +42,6 @@ include tools/set_zones/Makemodule.am
 
 include tools/report_realms/Makemodule.am
 include tools/convert_realms/Makemodule.am
-include tools/cmr_wp_check/Makemodule.am
 
 if BUILD_GZBC
 include tools/gui/Makemodule.am

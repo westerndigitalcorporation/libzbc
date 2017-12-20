@@ -310,8 +310,8 @@ struct zbc_zone {
  * Flags that can be set in zbr_convertible field
  * of zbc_realm structure (below).
  */
-#define ZBC_REALM_TO_SEQ		0x20
-#define ZBC_REALM_TO_CONV		0x40
+#define ZBC_REALM_CONV_TO_SEQ_WRITE_REQ		0x20
+#define ZBC_REALM_CONV_TO_CONVENTIONAL		0x40
 
 /**
  * @brief Realm information data structure
@@ -388,7 +388,14 @@ struct zbc_realm {
 #define zbc_realm_conventional(r) ((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
 /** @brief Test if a realm type is sequential write required */
-#define zbc_realm_sequential(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+#define zbc_realm_sequential_req(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if a realm type is sequential write preferred */
+#define zbc_realm_sequential_pref(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+/** @brief Test if a realm type is sequential write required or preferred */
+#define zbc_realm_sequential(r) (zbc_realm_sequential_req(r) || \
+				 zbc_realm_sequential_pref(r))
 
 /** @brief Get a realm start LBA if it is conventional as a 512B sector */
 #define zbc_realm_conv_start(r)	((unsigned long long)(r)->zbr_conv_start)
@@ -406,12 +413,12 @@ struct zbc_realm {
 #define zbc_realm_keep_out(r)	((int)(r)->zbr_keep_out)
 
 /** @brief Test if the realm is convertible to conventional */
-#define zbc_realm_to_conv(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_TO_CONV))
+#define zbc_realm_conv_to_conventional(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_CONVENTIONAL))
 
 /** @brief Test if the realm is convertible to sequential */
-#define zbc_realm_to_seq(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_TO_SEQ))
+#define zbc_realm_conv_to_sequential(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_SEQ_WRITE_REQ))
 
 /**
  * Vendor ID string maximum length.

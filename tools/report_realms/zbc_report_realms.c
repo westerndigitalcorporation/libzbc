@@ -1,7 +1,8 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2018, Western Digital. All rights reserved.
+ * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+ * Copyright (C) 2016, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the
  * GNU Lesser General Public License version 3, "as is," without technical
@@ -21,22 +22,20 @@
 
 #include <libzbc/zbc.h>
 
-#define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
-
 static void zbc_report_print_realm(struct zbc_device_info *info,
 				   struct zbc_realm *r)
 {
 	if (zbc_realm_conventional(r) || zbc_realm_sequential(r)) {
-		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
-		       "%u zones, seq LBA %08llu:%u zones, kpo %u, "
-		       "cvt to conv: %s, cvt to seq: %s\n",
+		printf("Realm %03d: type 0x%x (%s), conv LBA %llu, "
+		       "%u zones, seq LBA %llu, %u zones, keep out %u, "
+		       "conv to conventional: %s, conv to sequential: %s\n",
 		       zbc_realm_number(r), zbc_realm_type(r),
 		       zbc_zone_type_str(zbc_realm_type(r)),
 		       zbc_realm_conv_start(r), zbc_realm_conv_length(r),
 		       zbc_realm_seq_start(r), zbc_realm_seq_length(r),
 		       zbc_realm_keep_out(r),
-		       zbc_realm_to_conv(r) ? "Y" : "N",
-		       zbc_realm_to_seq(r) ? "Y" : "N");
+		       zbc_realm_conv_to_conventional(r) ? "Y" : "N",
+		       zbc_realm_conv_to_sequential(r) ? "Y" : "N");
 		return;
 	}
 
@@ -49,7 +48,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	unsigned int nr_realms = 0, nr = 0;
-	struct zbc_realm *realms = NULL;
+	struct zbc_realm *r, *realms = NULL;
 	int i, ret = 1, num = 0;
 	char *path;
 
@@ -69,10 +68,15 @@ usage:
 	for (i = 1; i < (argc - 1); i++) {
 
 		if (strcmp(argv[i], "-v") == 0) {
+
 			zbc_set_log_level("debug");
+
 		} else if (strcmp(argv[i], "-n") == 0) {
+
 			num = 1;
+
 		} else if (strcmp(argv[i], "-nr") == 0) {
+
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
@@ -80,22 +84,27 @@ usage:
 			nr = strtol(argv[i], NULL, 10);
 			if (nr <= 0)
 				goto usage;
+
 		} else if (argv[i][0] == '-') {
-			fprintf(stderr, "Unknown option \"%s\"\n",
-				argv[i]);
+
+			printf("Unknown option \"%s\"\n",
+			       argv[i]);
 			goto usage;
+
 		} else {
+
 			break;
+
 		}
 
 	}
 
 	if (i != (argc - 1))
 		goto usage;
-	path = argv[i];
 
 	/* Open device */
-	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDONLY, &dev);
+	path = argv[i];
+	ret = zbc_open(path, O_RDONLY, &dev);
 	if (ret != 0)
 		return 1;
 
@@ -106,8 +115,7 @@ usage:
 
 	ret = zbc_report_nr_realms(dev, &nr_realms);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_report_nr_realms failed %d\n",
-			ret);
+		fprintf(stderr, "zbc_report_nr_realms failed %d\n", ret);
 		ret = 1;
 		goto out;
 	}
@@ -137,14 +145,19 @@ usage:
 		goto out;
 	}
 
-	for (i = 0; i < (int)nr; i++)
-		zbc_report_print_realm(&info, &realms[i]);
+	printf("%u / %u realm%s:\n", nr, nr_realms, (nr > 1) ? "s" : "");
+	for (i = 0; i < (int)nr; i++) {
+		r = &realms[i];
+		zbc_report_print_realm(&info, r);
+	}
 
 out:
+
 	if (realms)
 		free(realms);
 	zbc_close(dev);
 
 	return ret;
+
 }
 
