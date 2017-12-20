@@ -227,7 +227,7 @@ struct zbc_zone {
 	uint8_t			zbz_attributes;
 
 	/**
-	 * Padding to 64 Bytes.
+	 * Padding to 32 bytes.
 	 */
 	uint8_t			__pad[5];
 
@@ -295,6 +295,120 @@ struct zbc_zone {
 
 /** @brief Get a zone write pointer 512B sector position */
 #define zbc_zone_wp(z)		((unsigned long long)(z)->zbz_write_pointer)
+
+/**
+ * Flags that can be set in zbr_convertible field
+ * of zbc_realm structure (below).
+ */
+#define ZBC_REALM_CONV_TO_SEQ_WRITE_REQ		0x20
+#define ZBC_REALM_CONV_TO_CONVENTIONAL		0x40
+
+/**
+ * @brief Realm information data structure
+ *
+ * Provide all information about a single realm defined by the device.
+ * This structure is typically populated with the information returned
+ * to the client after succesful execution of REPORT REALMS ZBC SCSI command
+ * or REPORT REALMS DMA ZAC ATA command.
+ */
+struct zbc_realm {
+
+	/**
+	 * Realm start LBA when the realm is CONVENTIONAL. If the realm
+	 * is not convertible to this zone type, then it is set to zero.
+	 */
+	uint64_t		zbr_conv_start;
+
+	/**
+	 * Realm length in zones when the realm is CONVENTIONAL. If the
+	 * realm is not convertible to this zone type, then it's set to zero.
+	 */
+	uint32_t		zbr_conv_length;
+
+	/**
+	 * Realm start LBA when the realm is SEQUENTIAL WRITE REQUIRED.
+	 * If the realm is not convertible to this zone type,
+	 * then it is set to zero.
+	 */
+	uint64_t		zbr_seq_start;
+
+	/**
+	 * Realm length in zones when the realm is SEQUENTIAL WRITE REQUIRED.
+	 * If the realm is not convertible to this zone type,
+	 * then it's set to zero.
+	 */
+	uint32_t		zbr_seq_length;
+
+	/**
+	 * Realm number as returned by REPORT REALMS. The lowest is 0.
+	 */
+	uint16_t		zbr_number;
+
+	/**
+	 * Number of zones required between CONVENTIONAL realms
+	 * when they are converted from SEQUENTIAL WRITE REQUIRED
+	 * to CONVENTIONAL.
+	 */
+	uint16_t		zbr_keep_out;
+
+	/**
+	 * Current realm type. This the type of all zones
+	 * in the realm (enum zbc_zone_type).
+	 */
+	uint8_t			zbr_type;
+
+	/**
+	 * A set of flags indicating how this realm can be converted.
+	 */
+	uint8_t			zbr_convertible;
+
+	/**
+	 * Padding to 32 bytes.
+	 */
+	uint8_t			__pad[2];
+};
+
+/** @brief Get the realm type */
+#define zbc_realm_type(r)	((int)(r)->zbr_type)
+
+/** @brief Get the realm number */
+#define zbc_realm_number(r)	((int)(r)->zbr_number)
+
+/** @brief Test if a realm type is conventional */
+#define zbc_realm_conventional(r) ((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
+
+/** @brief Test if a realm type is sequential write required */
+#define zbc_realm_sequential_req(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if a realm type is sequential write preferred */
+#define zbc_realm_sequential_pref(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+/** @brief Test if a realm type is sequential write required or preferred */
+#define zbc_realm_sequential(r) (zbc_realm_sequential_req(r) || \
+				 zbc_realm_sequential_pref(r))
+
+/** @brief Get a realm start LBA if it is conventional as a 512B sector */
+#define zbc_realm_conv_start(r)	((unsigned long long)(r)->zbr_conv_start)
+
+/** @brief Get a realm number of zones if it is conventional */
+#define zbc_realm_conv_length(r) ((unsigned int)(r)->zbr_conv_length)
+
+/** @brief Get a realm start LBA if it is sequential as a 512B sector */
+#define zbc_realm_seq_start(r)	((unsigned long long)(r)->zbr_seq_start)
+
+/** @brief Get a realm number of 512B sectors if it is sequential */
+#define zbc_realm_seq_length(r) ((unsigned int)(r)->zbr_seq_length)
+
+/** @brief Get the realm "keep out" value */
+#define zbc_realm_keep_out(r)	((int)(r)->zbr_keep_out)
+
+/** @brief Test if the realm is convertible to conventional */
+#define zbc_realm_conv_to_conventional(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_CONVENTIONAL))
+
+/** @brief Test if the realm is convertible to sequential */
+#define zbc_realm_conv_to_sequential(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_SEQ_WRITE_REQ))
 
 /**
  * Vendor ID string maximum length.
@@ -867,12 +981,12 @@ static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
  * @param[out] zones	The array of zone information filled
  * @param[out] nr_zones	Number of zones in the array \a zones
  *
- * Similar to \a zbc_report_zones, but also allocates an appropriatly sized
+ * Similar to \a zbc_report_zones, but also allocates an appropriately sized
  * array of zone information structures and return the address of the array
  * at the address specified by \a zones. The size of the array allocated and
  * filled is returned at the address specified by \a nr_zones. Freeing of the
- * memory used by the array of zone information strcutrues allocated by this
- * function is the responsability of the caller.
+ * memory used by the array of zone information structures allocated by this
+ * function is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  * Returns -ENOMEM if memory could not be allocated for \a zones.
@@ -1043,6 +1157,72 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 	return zbc_zone_operation(dev, sector,
 				  ZBC_OP_RESET_ZONE, flags);
 }
+
+/**
+ * @brief Get realm information
+ * @param[in] dev	 Device handle obtained with \a zbc_open
+ * @param[in] realmss	 Pointer to the array of realm information to fill
+ * @param[out] nr_realms Number of realms in the array \a realms
+ *
+ * Get realm information from a DH-SMR device.
+ * The array \a realms must be allocated by the caller and \a nr_realms
+ * must point to the size of the allocated array (number of realm information
+ * structures in the array). Unlike zone reporting, the entire list of realms
+ * is always reported.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_report_realms(struct zbc_device *dev,
+			     struct zbc_realm *realms, unsigned int *nr_realms);
+
+/**
+ * @brief Get the number of realms
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] nr_realms	The number of realms
+ *
+ * Similar to \a zbc_report_realms, but returns only the number of realms that
+ * \a zbc_report_realms would have returned. This is useful to determine the
+ * total number of realms of a device to allocate an array of realm information
+ * structures for use with \a zbc_report_realms.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_report_nr_realms(struct zbc_device *dev,
+				       unsigned int *nr_realms)
+{
+	return zbc_report_realms(dev, NULL, nr_realms);
+}
+
+/**
+ * @brief Get realm information
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] realms		The array of realm information filled
+ * @param[out] nr_realms	Number of realms in the array \a realms
+ *
+ * Similar to \a zbc_report_realmss, but also allocates an appropriately sized
+ * array of realm information structures and return the address of the array
+ * at the address specified by \a realms. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_realms. Freeing of the
+ * memory used by the array of realm information structures allocated by this
+ * function is the responsibility of the caller.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENOMEM if memory could not be allocated for \a realms.
+ */
+extern int zbc_list_realms(struct zbc_device *dev,
+			   struct zbc_realm **realms, unsigned int *nr_realms);
+
+/**
+ * @brief Convert all zones in one or several realms to a specific type
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] start_realm	The number of the starting realm to convert
+ * @param[in] nr_realms		Device handle obtained with \a zbc_open
+ * @param[in] new_type		The total number of realms to convert
+ * @param[in] fg		Foreground flag (optional)
+ */
+extern int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
+			      unsigned int nr_realms, enum zbc_zone_type new_type,
+			      int fg);
 
 /**
  * @brief Read sectors form a device

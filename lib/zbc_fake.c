@@ -1052,6 +1052,26 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device realm configuration.
+ */
+static int zbc_fake_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				  unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Convert one or several realms from one type to another.
+ */
+static int zbc_fake_convert_realms(struct zbc_device *dev, uint64_t start_realm,
+				   uint32_t count, enum zbc_zone_type new_type, int fg)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
  * zbc_fake_pread - Read from the emulated device/file.
  */
 static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
@@ -1501,4 +1521,6 @@ struct zbc_drv zbc_fake_drv = {
 	.zbd_zone_op		= zbc_fake_zone_op,
 	.zbd_set_zones		= zbc_fake_set_zones,
 	.zbd_set_wp		= zbc_fake_set_write_pointer,
+	.zbd_report_realms	= zbc_fake_report_realms,
+	.zbd_convert_realms	= zbc_fake_convert_realms,
 };

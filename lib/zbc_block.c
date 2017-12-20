@@ -883,6 +883,26 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device realm configuration.
+ */
+static int zbc_block_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				   unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Convert one or several realms from one type to another.
+ */
+static int zbc_block_convert_realms(struct zbc_device *dev, uint64_t start_realm,
+				    uint32_t count, enum zbc_zone_type new_type, int fg)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
  * Read from the block device.
  */
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
@@ -940,6 +960,18 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
+static int zbc_block_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				   unsigned int nr_realms)
+{
+	return -EOPNOTSUPP;
+}
+
+static int zbc_block_convert_realms(*struct zbc_device *dev, uint64_t start_realm,
+				    uint32_t count, uint32_t new_type, int fg)
+{
+	return -EOPNOTSUPP;
+}
+
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 			       size_t count, uint64_t offset)
 {
@@ -972,4 +1004,6 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
+	.zbd_report_realms	= zbc_block_report_realms,
+	.zbd_convert_realms	= zbc_block_convert_realms,
 };
