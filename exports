@@ -22,6 +22,9 @@ global:
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;
+	zbc_report_realms;
+	zbc_list_realms;
+	zbc_convert_realms;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

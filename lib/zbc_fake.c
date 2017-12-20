@@ -48,6 +48,11 @@
  */
 #define ZBC_FAKE_META_DIR		"/var/local"
 
+/*
+ * Meta-data maximum path size.
+ */
+#define ZBC_FAKE_META_PATH_SIZE	512
+
 /**
  * Metadata header.
  */
@@ -189,7 +194,6 @@ static inline void zbc_fake_unlock(struct zbc_fake_device *fdev)
  */
 static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 {
-
 	if (fdev->zbd_meta_fd < 0)
 		return;
 
@@ -198,12 +202,12 @@ static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 		munmap(fdev->zbd_meta, fdev->zbd_meta_size);
 		fdev->zbd_meta = NULL;
 		fdev->zbd_meta_size = 0;
-        }
+	}
 
-        close(fdev->zbd_meta_fd);
-        fdev->zbd_meta_fd = -1;
+	close(fdev->zbd_meta_fd);
+	fdev->zbd_meta_fd = -1;
 
-        pthread_mutexattr_destroy(&fdev->zbd_mutex_attr);
+	pthread_mutexattr_destroy(&fdev->zbd_mutex_attr);
 }
 
 /**
@@ -212,7 +216,7 @@ static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 {
 	uint64_t capacity;
-	char meta_path[512];
+	char meta_path[ZBC_FAKE_META_PATH_SIZE];
 	struct stat st;
 	int ret;
 
@@ -510,8 +514,8 @@ static int zbc_fake_close(struct zbc_device *dev)
 	/* Close device */
 	close(dev->zbd_fd);
 
-        free(dev->zbd_filename);
-        free(dev);
+	free(dev->zbd_filename);
+	free(dev);
 
 	return 0;
 }
@@ -629,7 +633,6 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
  */
 static void zbc_zone_do_close(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
-
 	if (!zbc_zone_is_open(zone))
 		return;
 
@@ -705,35 +708,35 @@ static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
 	if (zbc_zone_conventional(zone)) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_full(zone))
+	if (zbc_zone_full(zone))
 		/* Full zone open: do nothing (condition remains full) */
 		goto out;
 
-        if (zbc_zone_exp_open(zone))
+	if (zbc_zone_exp_open(zone))
 		/* Already open: nothing to do */
 		goto out;
 
-        if (!(zbc_zone_closed(zone) ||
+	if (!(zbc_zone_closed(zone) ||
 	      zbc_zone_imp_open(zone) ||
 	      zbc_zone_empty(zone))) {
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_imp_open(zone))
+	if (zbc_zone_imp_open(zone))
 		zbc_zone_do_close(fdev, zone);
 
-        /* Check limit */
-        if ((fdev->zbd_meta->zbd_nr_exp_open_zones +
+	/* Check limit */
+	if ((fdev->zbd_meta->zbd_nr_exp_open_zones +
 	     fdev->zbd_meta->zbd_nr_imp_open_zones + 1)
 	    > fdev->dev.zbd_info.zbd_max_nr_open_seq_req) {
 
@@ -753,11 +756,11 @@ static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
 			}
 		}
 
-        }
+	}
 
-        /* Open the specified zone */
-        zone->zbz_condition = ZBC_ZC_EXP_OPEN;
-        fdev->zbd_meta->zbd_nr_exp_open_zones++;
+	/* Open the specified zone */
+	zone->zbz_condition = ZBC_ZC_EXP_OPEN;
+	fdev->zbd_meta->zbd_nr_exp_open_zones++;
 
 out:
 	zbc_fake_unlock(fdev);
@@ -784,7 +787,7 @@ static int zbc_fake_close_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
-        struct zbc_zone *zone;
+	struct zbc_zone *zone;
 	unsigned int i;
 	int ret = 0;
 
@@ -802,34 +805,34 @@ static int zbc_fake_close_zone(struct zbc_device *dev, uint64_t sector,
 		goto out;
 	}
 
-        /* Check sector */
-        if (sector >= dev->zbd_info.zbd_sectors) {
+	/* Check sector */
+	if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        /* Close the specified zone */
-        zone = zbc_fake_find_zone(fdev, sector, true);
-        if (!zone) {
+	/* Close the specified zone */
+	zone = zbc_fake_find_zone(fdev, sector, true);
+	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_conventional(zone)) {
+	if (zbc_zone_conventional(zone)) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_close_allowed(zone))
+	if (zbc_zone_close_allowed(zone))
 		zbc_zone_do_close(fdev, zone);
-        else if (!zbc_zone_closed(zone))
+	else if (!zbc_zone_closed(zone))
 		ret = -EIO;
 
 out:
@@ -854,7 +857,6 @@ static bool zbc_zone_finish_allowed(struct zbc_zone *zone)
  */
 static void zbc_zone_do_finish(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
-
 	if (zbc_zone_is_open(zone))
 		zbc_zone_do_close(fdev, zone);
 
@@ -869,8 +871,8 @@ static int zbc_fake_finish_zone(struct zbc_device *dev, uint64_t sector,
 				unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
-        struct zbc_zone *zone;
-        unsigned int i;
+	struct zbc_zone *zone;
+	unsigned int i;
 	int ret = 0;
 
 	if (!fdev->zbd_meta)
@@ -887,32 +889,32 @@ static int zbc_fake_finish_zone(struct zbc_device *dev, uint64_t sector,
 		goto out;
 	}
 
-        /* Check sector */
-        if (sector >= dev->zbd_info.zbd_sectors) {
+	/* Check sector */
+	if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        /* Finish the specified zone */
-        zone = zbc_fake_find_zone(fdev, sector, true);
-        if (!zone) {
+	/* Finish the specified zone */
+	zone = zbc_fake_find_zone(fdev, sector, true);
+	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_conventional(zone)) {
+	if (zbc_zone_conventional(zone)) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_finish_allowed(zone) || zbc_zone_empty(zone))
+	if (zbc_zone_finish_allowed(zone) || zbc_zone_empty(zone))
 		zbc_zone_do_finish(fdev, zone);
         else if (!zbc_zone_full(zone))
             ret = -EIO;
@@ -941,7 +943,6 @@ static bool zbc_zone_reset_allowed(struct zbc_zone *zone)
  */
 static void zbc_zone_do_reset(struct zbc_fake_device *fdev, struct zbc_zone *zone)
 {
-
 	if (zbc_zone_empty(zone))
 		return;
 
@@ -959,8 +960,8 @@ static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
 			       unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
-        struct zbc_zone *zone;
-        unsigned int i;
+	struct zbc_zone *zone;
+	unsigned int i;
 	int ret = 0;
 
 	if (!fdev->zbd_meta)
@@ -977,34 +978,34 @@ static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
 		goto out;
 	}
 
-        /* Check sector */
-        if (sector >= dev->zbd_info.zbd_sectors) {
+	/* Check sector */
+	if (sector >= dev->zbd_info.zbd_sectors) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq =
 			ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        /* Reset the specified zone */
-        zone = zbc_fake_find_zone(fdev, sector, true);
-        if (!zone) {
+	/* Reset the specified zone */
+	zone = zbc_fake_find_zone(fdev, sector, true);
+	if (!zone) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_conventional(zone)) {
+	if (zbc_zone_conventional(zone)) {
 		dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
 		dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
 		ret = -EIO;
 		goto out;
-        }
+	}
 
-        if (zbc_zone_reset_allowed(zone))
+	if (zbc_zone_reset_allowed(zone))
 		zbc_zone_do_reset(fdev, zone);
-        else if (!zbc_zone_empty(zone))
+	else if (!zbc_zone_empty(zone))
 		ret = -EIO;
 
 out:
@@ -1032,6 +1033,26 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 	default:
 		return -EINVAL;
 	}
+}
+
+/**
+ * Report device realm configuration.
+ */
+static int zbc_fake_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				  unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Convert one or several realms from one type to another.
+ */
+static int zbc_fake_convert_realms(struct zbc_device *dev, uint64_t start_realm,
+				   uint32_t count, enum zbc_zone_type new_type, int fg)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
 }
 
 /**
@@ -1229,9 +1250,9 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 		goto out;
 	}
 
-        ret >>= 9;
+	ret >>= 9;
 
-        if (zbc_zone_sequential_req(zone)) {
+	if (zbc_zone_sequential_req(zone)) {
 		/* Advance write pointer */
 		zone->zbz_write_pointer += ret;
 		if (zone->zbz_write_pointer >= next_sector) {
@@ -1241,7 +1262,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 				fdev->zbd_meta->zbd_nr_exp_open_zones--;
 			zone->zbz_condition = ZBC_ZC_FULL;
 		}
-        }
+	}
 
 out:
 	zbc_fake_unlock(fdev);
@@ -1281,7 +1302,7 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 	uint64_t sector = 0, device_size = dev->zbd_info.zbd_sectors;
 	uint64_t capacity_bytes;
 	struct zbc_fake_meta fmeta;
-	char meta_path[512];
+	char meta_path[ZBC_FAKE_META_PATH_SIZE];
 	struct zbc_zone *zone;
 	unsigned int z = 0;
 	int ret;
@@ -1461,7 +1482,7 @@ static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 
 	}
 
-        ret = 0;
+	ret = 0;
 
 out:
 	zbc_fake_unlock(fdev);
@@ -1483,4 +1504,6 @@ struct zbc_drv zbc_fake_drv = {
 	.zbd_zone_op		= zbc_fake_zone_op,
 	.zbd_set_zones		= zbc_fake_set_zones,
 	.zbd_set_wp		= zbc_fake_set_write_pointer,
+	.zbd_report_realms	= zbc_fake_report_realms,
+	.zbd_convert_realms	= zbc_fake_convert_realms,
 };

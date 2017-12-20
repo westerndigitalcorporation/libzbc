@@ -1,0 +1,3 @@
+bin_PROGRAMS += zbc_report_realms
+zbc_report_realms_SOURCES = tools/report_realms/zbc_report_realms.c
+zbc_report_realms_LDADD = $(libzbc_ldadd)

@@ -61,13 +61,25 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
-	 * Read from a ZBC device
+	 * Report device realm configuration.
+	 */
+	int		(*zbd_report_realms)(struct zbc_device *,
+					     struct zbc_realm *, unsigned int *);
+
+	/**
+	 * Convert one or several realms from one type to another.
+	 */
+	int		(*zbd_convert_realms)(struct zbc_device *, uint64_t,
+					     uint32_t, uint32_t, int);
+
+	/**
+	 * Read from a ZBC device.
 	 */
 	ssize_t		(*zbd_pread)(struct zbc_device *, void *,
 				     size_t, uint64_t);
 
 	/**
-	 * Write to a ZBC device
+	 * Write to a ZBC device.
 	 */
 	ssize_t		(*zbd_pwrite)(struct zbc_device *, const void *,
 				      size_t, uint64_t);

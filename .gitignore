@@ -36,6 +36,8 @@ zbc_write_zone
 zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
+zbc_report_realms
+zbc_convert_realms
 gzbc
 
 test/programs/zbc_test_print_devinfo
