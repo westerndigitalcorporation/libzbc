@@ -420,17 +420,17 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
 		return;
 	}
 
-        /* Vendor = "ATA" */
-        strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
+	/* Vendor = "ATA" */
+	strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
 	n = 4;
 
-        /* Model number */
-        n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			    (char *)&buf[48], 16, 0);
+	/* Model number */
+	n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+		    (char *)&buf[48], 16, 0);
 
-        /* Firmware revision */
-        zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-		       (char *)&buf[32], 8, 4);
+	/* Firmware revision */
+	zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+	        (char *)&buf[32], 8, 4);
 }
 
 /**
@@ -835,7 +835,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		goto out;
 	}
 
-	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET ) {
+	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
 		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
@@ -852,18 +852,18 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	if (!zones || !nz)
 		goto out;
 
-        /* Get zone info */
-        if (nz > *nr_zones)
+	/* Get zone info */
+	if (nz > *nr_zones)
 		nz = *nr_zones;
 
 	buf_nz = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
 		/ ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if (nz > buf_nz)
+	if (nz > buf_nz)
 		nz = buf_nz;
 
-        /* Get zone descriptors */
+	/* Get zone descriptors */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
-        for (i = 0; i < nz; i++) {
+	for (i = 0; i < nz; i++) {
 
 		zones[i].zbz_type = buf[0] & 0x0f;
 
@@ -881,7 +881,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 			zones[i].zbz_write_pointer = (uint64_t)-1;
 
 		buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
-        }
+	}
 
 out:
 	/* Return number of zones */
@@ -1001,6 +1001,26 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device realm configuration.
+ */
+static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				 unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Convert one or several realms from one type to another.
+ */
+static int zbc_ata_convert_realms(struct zbc_device *dev, uint64_t start_realm,
+				  uint32_t count, enum zbc_zone_type new_type, int fg)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
  * Test device signature (return device model detected).
  */
 static int zbc_ata_classify(struct zbc_device *dev)
@@ -1086,7 +1106,6 @@ static int zbc_ata_classify(struct zbc_device *dev)
 
 	zbc_debug("%s: Device signature is %02x:%02x\n",
 		  dev->zbd_filename, desc[9], desc[11]);
-
 	sig = (unsigned int)desc[11] << 8 | desc[9];
 	switch (sig) {
 
@@ -1428,5 +1447,7 @@ struct zbc_drv zbc_ata_drv =
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
+	.zbd_report_realms	= zbc_ata_report_realms,
+	.zbd_convert_realms	= zbc_ata_convert_realms,
 };
 

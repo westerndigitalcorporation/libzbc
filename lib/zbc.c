@@ -212,7 +212,7 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
  */
 void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
 {
-        memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
+	memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
 }
 
 /**
@@ -414,7 +414,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
-        unsigned int n, nz = 0;
+	unsigned int n, nz = 0;
 	uint64_t last_sector;
 	int ret;
 
@@ -424,8 +424,8 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 							zbc_ro_mask(ro),
 							NULL, nr_zones);
 
-        /* Get zones information */
-        while (nz < *nr_zones) {
+	/* Get zones information */
+	while (nz < *nr_zones) {
 
 		n = *nr_zones - nz;
 		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
@@ -451,7 +451,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		sector = last_sector;
 
-        }
+	}
 
 	*nr_zones = nz;
 
@@ -504,7 +504,6 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 		       enum zbc_zone_op op, unsigned int flags)
 {
-
 	if (!zbc_test_mode(dev) &&
 	    (!(flags & ZBC_OP_ALL_ZONES)) &&
 	    !zbc_dev_sect_laligned(dev, sector))
@@ -512,6 +511,82 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_zone_op)(dev, sector, op, flags);
+}
+
+/**
+ * zbc_report_realms - Get realm information
+ */
+int zbc_report_realms(struct zbc_device *dev,
+		      struct zbc_realm *realms, unsigned int *nr_realms)
+{
+	int ret;
+
+	if (!realms)
+		/* Just get the number of realms */
+		return (dev->zbd_drv->zbd_report_realms)(dev, NULL, nr_realms);
+
+	/* Get realm information */
+	ret = (dev->zbd_drv->zbd_report_realms)(dev, realms, nr_realms);
+	if (ret != 0) {
+		zbc_error("%s: Get realms failed %d (%s)\n",
+			  dev->zbd_filename,
+			  ret, strerror(-ret));
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * zbc_list_realms - Get realm information
+ */
+int zbc_list_realms(struct zbc_device *dev,
+		    struct zbc_realm **prealms, unsigned int *pnr_realms)
+{
+	struct zbc_realm *realms = NULL;
+	unsigned int nr_realms;
+	int ret;
+
+	/* Get total number of realms */
+	ret = zbc_report_nr_realms(dev, &nr_realms);
+	if (ret < 0)
+		return ret;
+
+	zbc_debug("%s: %d realms\n",
+		  dev->zbd_filename,
+		  nr_realms);
+
+	/* Allocate realm array */
+	realms = (struct zbc_realm *) calloc(nr_realms, sizeof(struct zbc_realm));
+	if (!realms)
+		return -ENOMEM;
+
+	/* Get realm information */
+	ret = zbc_report_realms(dev, realms, &nr_realms);
+	if (ret != 0) {
+		zbc_error("%s: zbc_report_realms failed %d\n",
+			  dev->zbd_filename, ret);
+		free(realms);
+		return ret;
+	}
+
+	*prealms = realms;
+	*pnr_realms = nr_realms;
+
+	return 0;
+}
+
+/**
+ * zbc_convert_realms - Convert all zones in one or several
+ * 			realms to a specific type
+ */
+int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
+		       unsigned int nr_realms, enum zbc_zone_type new_type,
+		       int fg)
+{
+	/* Execute the operation */
+	return (dev->zbd_drv->zbd_convert_realms)(dev, start_realm, nr_realms,
+						  new_type, fg);
 }
 
 /**

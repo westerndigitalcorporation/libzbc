@@ -570,6 +570,26 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device realm configuration.
+ */
+static int zbc_scsi_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+				  unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Convert one or several realms from one type to another.
+ */
+static int zbc_scsi_convert_realms(struct zbc_device *dev, uint64_t start_realm,
+				   uint32_t count, enum zbc_zone_type new_type, int fg)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
  * Get a device capacity information (total sectors & sector sizes).
  */
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
@@ -944,5 +964,7 @@ struct zbc_drv zbc_scsi_drv =
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
+	.zbd_report_realms	= zbc_scsi_report_realms,
+	.zbd_convert_realms	= zbc_scsi_convert_realms,
 };
 
