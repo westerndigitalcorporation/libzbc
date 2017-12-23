@@ -162,7 +162,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_REPORT_REALMS */
+	[ZBC_SG_REPORT_REALMS] =
 	{
 		"REPORT REALMS",
 		ZBC_SG_REPORT_REALMS_CDB_OPCODE,
@@ -171,7 +171,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
-	/* ZBC_SG_CONVERT_REALMS */
+	[ZBC_SG_CONVERT_REALMS] =
 	{
 		"CONVERT REALMS",
 		ZBC_SG_CONVERT_REALMS_CDB_OPCODE,
@@ -180,7 +180,7 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
-	/* ZBC_SG_ATA16 */
+	[ZBC_SG_ATA16] =
 	{
 		"ATA 16",
 		ZBC_SG_ATA16_CDB_OPCODE,
