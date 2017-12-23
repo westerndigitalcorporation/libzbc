@@ -40,6 +40,8 @@ enum {
 	ZBC_SG_FINISH_ZONE,
 	ZBC_SG_SET_ZONES,
 	ZBC_SG_SET_WRITE_POINTER,
+	ZBC_SG_REPORT_REALMS,
+	ZBC_SG_CONVERT_REALMS,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -130,6 +132,20 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE	0x9F
 #define ZBC_SG_SET_WRITE_POINTER_CDB_SA		0x16
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
+
+/**
+ * Report realms command definition.
+ */
+#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_REALMS_CDB_SA		0x01
+#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
+
+/**
+ * Convert realms command definition.
+ */
+#define ZBC_SG_CONVERT_REALMS_CDB_OPCODE	0x94 /* FIXME opcode/SA TBD */
+#define ZBC_SG_CONVERT_REALMS_CDB_SA		0x06
+#define ZBC_SG_CONVERT_REALMS_CDB_LENGTH	16
 
 /**
  * ATA pass through 16.

@@ -34,6 +34,16 @@
  */
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
+/*
+ * REPORT REALMS ouput header size.
+ */
+#define ZBC_REALMS_HEADER_SIZE		64
+
+/*
+ * REPORT REALMS ouput descriptor size.
+ */
+#define ZBC_REALMS_RECORD_SIZE		128
+
 /**
  * SCSI commands reply length.
  */
@@ -575,8 +585,111 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 static int zbc_scsi_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
 				  unsigned int *nr_realms)
 {
-	/* FIXME N/I */
-	return -EOPNOTSUPP;
+	size_t bufsz = ZBC_REALMS_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	struct zbc_sg_cmd cmd;
+	size_t max_bufsz;
+	uint8_t *buf;
+	int ret;
+
+	if (*nr_realms)
+		bufsz += (size_t)*nr_realms * ZBC_REALMS_RECORD_SIZE;
+
+	/* For in kernel ATA translation: align to 512 B */
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize REPORT REALMS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_REALMS, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (01h) FIXME TBD       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---                          Reserved                               ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                       Allocation Length                         ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |                            Reserved                                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                             Control                                   |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_REALMS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_REALMS_CDB_SA;
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_REALMS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get number of realms in result */
+	buf = (uint8_t *)cmd.out_buf;
+	/* FIXME header format TBD */
+	nr = zbc_sg_get_int32(buf) / ZBC_REALMS_RECORD_SIZE;
+
+	if (!realms || !nr)
+		goto out;
+
+	/* Get realm info */
+	if (nr > *nr_realms)
+		nr = *nr_realms;
+
+	bufsz = (cmd.out_bufsz - ZBC_REALMS_HEADER_SIZE) /
+		ZBC_REALMS_RECORD_SIZE;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get realm descriptors */
+	buf += ZBC_REALMS_HEADER_SIZE;
+	for (i = 0; i < nr; i++) {
+		realms[i].zbr_type = buf[0] & 0x0f;
+		realms[i].zbr_convertible = buf[1];
+
+		realms[i].zbr_number = zbc_sg_get_int16(&buf[2]);
+		realms[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
+
+		realms[i].zbr_conv_start =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
+		realms[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
+		realms[i].zbr_seq_start =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
+		realms[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
+
+		buf += ZBC_REALMS_RECORD_SIZE;
+	}
+
+out:
+	/* Return number of realms */
+	*nr_realms = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
 }
 
 /**
@@ -585,8 +698,53 @@ static int zbc_scsi_report_realms(struct zbc_device *dev, struct zbc_realm *real
 static int zbc_scsi_convert_realms(struct zbc_device *dev, uint64_t start_realm,
 				   uint32_t count, enum zbc_zone_type new_type, int fg)
 {
-	/* FIXME N/I */
-	return -EOPNOTSUPP;
+	struct zbc_sg_cmd cmd;
+	int ret;
+
+	/* Allocate and intialize CONVERT REALMS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_CONVERT_REALMS, NULL, 0);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                        Operation Code (94h)                           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |         Service Action (06h) FIXME TBD     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---                       Starting Realm                            ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                         Realm Count                             ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |           New Zone Type           |         Reserved         |   FG   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                              Control                                  |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_CONVERT_REALMS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_CONVERT_REALMS_CDB_SA;
+	/* Fill in the starting realm number and the realm count */
+	zbc_sg_set_int64(&cmd.cdb[2], start_realm);
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)count);
+	/* Init the new zone type and FOREGROUND flag */
+	cmd.cdb[14] = new_type << 4;
+	if (fg)
+		cmd.cdb[14] |= 0x01; /* FIXME FG bit location TBD */
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
 }
 
 /**
