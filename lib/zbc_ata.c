@@ -34,6 +34,16 @@
  */
 #define ZBC_ZONE_DESCRIPTOR_OFFSET		64
 
+/*
+ * REPORT REALMS ouput header size.
+ */
+#define ZBC_REALMS_HEADER_SIZE			64
+
+/*
+ * REPORT REALMS ouput descriptor size.
+ */
+#define ZBC_REALMS_RECORD_SIZE			128
+
 /**
  * ATA commands.
  */
@@ -57,6 +67,9 @@
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
 #define ZBC_ATA_OPEN_ZONE_EXT_AF		0x03
 #define ZBC_ATA_RESET_WRITE_POINTER_EXT_AF	0x04
+#define ZBC_ATA_CONVERT_REALMS_EXT_AF		0x06 /* FIXME value TBD */
+#define ZBC_ATA_REPORT_REALMS_EXT_AF		0x07 /* FIXME value TBD */
+
 
 #define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
 #define ZBC_ATA_CAPACITY_PAGE			0x02
@@ -1006,8 +1019,131 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
 				 unsigned int *nr_realms)
 {
-	/* FIXME N/I */
-	return -EOPNOTSUPP;
+	size_t bufsz = ZBC_REALMS_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	size_t max_bufsz;
+	struct zbc_sg_cmd cmd;
+	uint8_t *buf;
+	int ret;
+
+	if (*nr_realms)
+		bufsz += (size_t)*nr_realms * ZBC_REALMS_RECORD_SIZE;
+
+	bufsz = (bufsz + 4095) & ~4095;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize report realms command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (85h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Multiple count      |              Protocol             |  ext   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                      features (15:8) reserved                         |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   |                  features (7:0), action (01h)  FIXME TBD              |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5-6 |                             count                                     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 7-12|                          LBA reserved                                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 13  |                 Device, bit 6 shall be set to 1                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |                         Command (4Ah)                                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                           Control                                     |
+	 * +=============================================================================+
+	 */
+	cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+	/* DMA protocol, ext=1 */
+	cmd.cdb[1] = (0x06 << 1) | 0x01;
+	/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
+	cmd.cdb[2] = 0x0e;
+	/* Fill AF, Count and Device */
+	cmd.cdb[4] = ZBC_ATA_REPORT_REALMS_EXT_AF;
+	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
+	cmd.cdb[6] = (bufsz / 512) & 0xff;
+	cmd.cdb[13] = 1 << 6;
+	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_IN;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0) {
+		/* Get sense data if enabled */
+		if (ret == -EIO &&
+		    zbc_ata_sense_data_enabled(&cmd) &&
+		    ((dev->zbd_errno.sk != ZBC_SK_ILLEGAL_REQUEST) ||
+		     (dev->zbd_errno.asc_ascq !=
+		      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)))
+			zbc_ata_request_sense_data_ext(dev);
+		goto out;
+	}
+
+	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
+		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_REALMS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get number of realms in result */
+	buf = (uint8_t *)cmd.out_buf;
+	/* FIXME header format TBD */
+	nr = zbc_ata_get_dword(buf) / ZBC_REALMS_RECORD_SIZE;
+
+	if (!realms || !nr)
+		goto out;
+
+	/* Get realm info */
+	if (nr > *nr_realms)
+		nr = *nr_realms;
+
+	bufsz = (cmd.out_bufsz - ZBC_REALMS_HEADER_SIZE) /
+		 ZBC_REALMS_RECORD_SIZE;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get realm descriptors */
+	buf += ZBC_REALMS_HEADER_SIZE;
+	for (i = 0; i < nr; i++) {
+		realms[i].zbr_type = buf[0] & 0x0f;
+		realms[i].zbr_convertible = buf[1];
+
+		realms[i].zbr_number = zbc_ata_get_word(&buf[2]);
+		realms[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
+
+		realms[i].zbr_conv_start =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
+		realms[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
+		realms[i].zbr_seq_start =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[32]));
+		realms[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
+
+		buf += ZBC_REALMS_RECORD_SIZE;
+	}
+
+out:
+	/* Return number of realms */
+	*nr_realms = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
 }
 
 /**
@@ -1016,8 +1152,78 @@ static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realm
 static int zbc_ata_convert_realms(struct zbc_device *dev, uint64_t start_realm,
 				  uint32_t count, enum zbc_zone_type new_type, int fg)
 {
-	/* FIXME N/I */
-	return -EOPNOTSUPP;
+	struct zbc_sg_cmd cmd;
+	int ret;
+
+	/* Intialize command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (85h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Multiple count      |              Protocol             | ext=1  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                          features (15:8)                              |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   |                 features (7:0), action FIXME TBD                      |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5   |                          count (15:8)                                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 6   |                          count (7:0)                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 7-12|                   LBA, starting realm number                          |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 13  |                           Device                                      |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |                         Command (9Fh)                                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                           Control                                     |
+	 * +=============================================================================+
+	 */
+	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+	/* Non-Data protocol, ext=1 */
+	cmd.cdb[1] = (0x3 << 1) | 0x01;
+	/* Enter the new zone type, AF and the FOREGROUND bit */
+	cmd.cdb[3] = new_type;
+	if (fg)
+		cmd.cdb[3] |= 0X10;
+	cmd.cdb[4] = ZBC_ATA_CONVERT_REALMS_EXT_AF;
+	/* Fill the number of realms to convert. Zero means
+	 * all the subsequent realms have to be converted */
+	cmd.cdb[5] = (count >> 8) & 0xff;
+	cmd.cdb[6] = count & 0xff;
+
+	/* Fill in the starting realm */
+	cmd.cdb[8] = start_realm & 0xff;
+	cmd.cdb[10] = (start_realm >> 8) & 0xff;
+	cmd.cdb[12] = (start_realm >> 16) & 0xff;
+	cmd.cdb[7] = (start_realm >> 24) & 0xff;
+	cmd.cdb[9] = (start_realm >> 32) & 0xff;
+	cmd.cdb[11] = (start_realm >> 40) & 0xff;
+
+	cmd.cdb[13] = 1 << 6;
+	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_OUT;
+
+	/* Execute the command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
+	/* Request sense data */
+	if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
+		zbc_ata_request_sense_data_ext(dev);
+
+	/* Done */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
 }
 
 /**
