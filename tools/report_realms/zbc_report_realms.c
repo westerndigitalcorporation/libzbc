@@ -22,6 +22,9 @@
 
 #include <libzbc/zbc.h>
 
+#define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
+			ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE)
+
 static void zbc_report_print_realm(struct zbc_device_info *info,
 				   struct zbc_realm *r)
 {
@@ -49,7 +52,7 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	unsigned int nr_realms = 0, nr = 0;
 	struct zbc_realm *r, *realms = NULL;
-	int i, ret = 1, num = 0;
+	int i, ret = 1, num = 0, flags = 0;
 	char *path;
 
 	/* Check command line */
@@ -58,6 +61,8 @@ usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
 		       "  -v		  : Verbose mode\n"
+		       "  -f <hex mask>   : Use the specified backend mask"
+		       " to open the device\n"
 		       "  -n		  : Get only the number of realms\n"
 		       "  -nr <num>	  : Get at most <num> realms\n",
 		       argv[0]);
@@ -66,17 +71,11 @@ usage:
 
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
-
-		if (strcmp(argv[i], "-v") == 0) {
-
+		if (strcmp(argv[i], "-v") == 0)
 			zbc_set_log_level("debug");
-
-		} else if (strcmp(argv[i], "-n") == 0) {
-
+		else if (strcmp(argv[i], "-n") == 0)
 			num = 1;
-
-		} else if (strcmp(argv[i], "-nr") == 0) {
-
+		else if (strcmp(argv[i], "-nr") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
@@ -84,19 +83,31 @@ usage:
 			nr = strtol(argv[i], NULL, 10);
 			if (nr <= 0)
 				goto usage;
-
-		} else if (argv[i][0] == '-') {
-
-			printf("Unknown option \"%s\"\n",
-			       argv[i]);
-			goto usage;
-
-		} else {
-
-			break;
-
 		}
+		else if (strcmp(argv[i], "-f") == 0) {
+			if (i >= (argc - 1)) {
+				fprintf(stderr, "Missing backend flag value\n");
+				goto usage;
+			}
+			i++;
 
+			flags = strtol(argv[i], NULL, 16);
+			if (flags != 0) {
+				if (flags < 0) {
+					fprintf(stderr, "Invalid backend flag %i\n",
+						flags);
+					goto usage;
+				}
+				flags &= ZBC_O_DRV_MASK;
+			}
+		}
+		else if (argv[i][0] == '-') {
+			fprintf(stderr, "Unknown option \"%s\"\n",
+				argv[i]);
+			goto usage;
+		}
+		else
+			break;
 	}
 
 	if (i != (argc - 1))
@@ -104,7 +115,7 @@ usage:
 
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, O_RDONLY, &dev);
+	ret = zbc_open(path, flags | O_RDONLY, &dev);
 	if (ret != 0)
 		return 1;
 
