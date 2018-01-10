@@ -453,6 +453,7 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
  */
 static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 {
+	uint64_t qwd;
 	uint8_t buf[512];
 	int ret;
 
@@ -488,6 +489,27 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		return -EINVAL;
 	}
 
+	/* Check if Realms command set is supported. If this
+	 * is the case, pick up all the related values */
+	qwd = zbc_ata_get_qword(&buf[56]);
+	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_REALMS_SUPPORT : 0;
+	if ((dev->zbd_info.zbd_flags & ZBC_REALMS_SUPPORT) != 0) {
+		/* FIXME the three flags below are not in
+		 * the current proposal, layout is preliminary */
+		dev->zbd_info.zbd_flags |= (qwd & 0x02ULL) ?
+					   ZBC_FC_SUPPORT : 0;
+		dev->zbd_info.zbd_flags |= (qwd & 0x04ULL) ?
+					   ZBC_CONV_WP_CHECK : 0;
+		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
+					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
+
+		/* FIXME the two following fields are not in
+		* the current proposal, layout TBD */
+		dev->zbd_info.zbd_max_conversion =
+			zbc_ata_get_qword(&buf[64]) & 0xffff;
+		dev->zbd_info.zbd_realm_list_length =
+			zbc_ata_get_qword(&buf[72]) & 0xffff;
+	}
 	return 0;
 }
 
@@ -850,7 +872,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	}
 
 	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
-		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough data received"
+			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
 			  cmd.out_bufsz);
@@ -890,7 +913,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
 		if (zbc_zone_sequential(&zones[i]))
 			zones[i].zbz_write_pointer =
-				zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[24]));
+				zbc_dev_lba2sect(dev,
+						 zbc_ata_get_qword(&buf[24]));
 		else
 			zones[i].zbz_write_pointer = (uint64_t)-1;
 
@@ -1057,13 +1081,13 @@ static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realm
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 5-6 |                             count                                     |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 7-12|                          LBA reserved                                 |
+	 * | 7-12|                           LBA reserved                                |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 13  |                 Device, bit 6 shall be set to 1                       |
+	 * | 13  |                   Device, bit 6 shall be set to 1                     |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                         Command (4Ah)                                 |
+	 * | 14  |                           Command (4Ah)                               |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
+	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
 	 */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
@@ -1093,7 +1117,8 @@ static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realm
 	}
 
 	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
-		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough data received"
+			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_REALMS_HEADER_SIZE,
 			  cmd.out_bufsz);
@@ -1151,7 +1176,8 @@ out:
  * Convert one or several realms from one type to another.
  */
 static int zbc_ata_convert_realms(struct zbc_device *dev, uint64_t start_realm,
-				  uint32_t count, enum zbc_zone_type new_type, int fg)
+				  uint32_t count, enum zbc_zone_type new_type,
+				  int fg)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
@@ -1361,11 +1387,13 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	zoned = zoned & 0x03;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 		if (zbc_test_mode(dev) && zoned != 0) {
-			zbc_error("%s: Invalid host-managed device ZONED field 0x%02x\n",
+			zbc_error("%s: Invalid host-managed device"
+				  " ZONED field 0x%02x\n",
 				  dev->zbd_filename, (unsigned int)zoned);
 			ret = -EIO;
 		} else if (zoned != 0) {
-			zbc_warning("%s: Invalid host-managed device ZONED field 0x%02x\n",
+			zbc_warning("%s: Invalid host-managed device"
+				    " ZONED field 0x%02x\n",
 				    dev->zbd_filename, (unsigned int)zoned);
 		}
 		goto out;

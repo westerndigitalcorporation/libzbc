@@ -886,7 +886,8 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 /**
  * Report device realm configuration.
  */
-static int zbc_block_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+static int zbc_block_report_realms(struct zbc_device *dev,
+				   struct zbc_realm *realms,
 				   unsigned int *nr_realms)
 {
 	/* FIXME N/I */
@@ -896,8 +897,9 @@ static int zbc_block_report_realms(struct zbc_device *dev, struct zbc_realm *rea
 /**
  * Convert one or several realms from one type to another.
  */
-static int zbc_block_convert_realms(struct zbc_device *dev, uint64_t start_realm,
-				    uint32_t count, enum zbc_zone_type new_type, int fg)
+static int zbc_block_convert_realms(struct zbc_device *dev,
+				    uint64_t start_realm, uint32_t count,
+				    enum zbc_zone_type new_type, int fg)
 {
 	/* FIXME N/I */
 	return -EOPNOTSUPP;
@@ -961,14 +963,16 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+static int zbc_block_report_realms(struct zbc_device *dev,
+				   struct zbc_realm *realms,
 				   unsigned int nr_realms)
 {
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_convert_realms(*struct zbc_device *dev, uint64_t start_realm,
-				    uint32_t count, uint32_t new_type, int fg)
+static int zbc_block_convert_realms(*struct zbc_device *dev,
+				    uint64_t start_realm, uint32_t count,
+				    enum zbc_zone_type new_type, int fg)
 {
 	return -EOPNOTSUPP;
 }
