@@ -531,6 +531,31 @@ enum zbc_dev_flags {
 	 */
 	ZBC_UNRESTRICTED_READ = 0x00000001,
 
+	/**
+	 * Indicates that the device supports Realms command set to allow
+	 * zones on the device to be converted from CMR to SMR and vice versa.
+	 */
+	ZBC_REALMS_SUPPORT = 0x00000002,
+
+	/**
+	 * Indicates that foreground realm conversion is supported
+	 * by the device. If it is cleared, CONVERT REALMS command may not
+	 * set FG bit in CDB.
+	 */
+	ZBC_FC_SUPPORT = 0x00000004,
+
+	/**
+	 * Indicates that checking write pointer for conventional zones
+	 * is enabled. It can only be set if ZBC_CONV_WP_CHECK_SUPPORT
+	 * is set.
+	 */
+	ZBC_CONV_WP_CHECK = 0x00000008,
+
+	/**
+	 * Indicates that checking write pointer for conventional zones
+	 * is supported.
+	 */
+	ZBC_CONV_WP_CHECK_SUPPORT = 0x00000010,
 };
 
 /**
@@ -610,6 +635,18 @@ struct zbc_device_info {
 	 */
 	uint32_t		zbd_max_nr_open_seq_req;
 
+	/**
+	 * Maximum allowable value for NUMBER OF REALMS value in
+	 * CONVERT REALMS command. Zero means no maximum.
+	 */
+	uint32_t		zbd_max_conversion;
+
+	/**
+	 * Indicates the number of realm descriptors in the realm list.
+	 * If this field contains zero, REPORT REALMS command needs
+	 * to be issued to obtain this value.
+	 */
+	uint32_t		zbd_realm_list_length;
 };
 
 /**
