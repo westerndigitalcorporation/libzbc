@@ -394,37 +394,45 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			"unrestricted" : "restricted");
 
 	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
-
-		if (info->zbd_max_nr_open_seq_req == ZBC_NO_LIMIT)
-			strcpy(tmp, "unlimited");
-		else
-			sprintf(tmp, "%u",
+		fprintf(out, "    Maximum number of open sequential"
+			     " write required zones: %u\n",
 				(unsigned int) info->zbd_max_nr_open_seq_req);
 		fprintf(out,
 			"    Maximum number of open sequential write "
 			"required zones: %s\n", tmp);
 
 	} else if (info->zbd_model == ZBC_DM_HOST_AWARE) {
+		fprintf(out, "    Optimal number of open sequential"
+			     " write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_open_seq_pref);
+		fprintf(out, "    Optimal number of non-sequentially written"
+			     " sequential write preferred zones: %u\n",
+			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
+	}
 
-		if (info->zbd_opt_nr_open_seq_pref == ZBC_NOT_REPORTED)
-			strcpy(tmp, "not reported");
+	fprintf(out, "    Realms command set is %ssupported\n",
+		(info->zbd_flags & ZBC_REALMS_SUPPORT) ? "" : "NOT ");
+	if (info->zbd_flags & ZBC_REALMS_SUPPORT) {
+		fprintf(out, "    Foreground realm conversion is %ssupported\n",
+			(info->zbd_flags & ZBC_FC_SUPPORT) ? "" : "not ");
+		fprintf(out, "    Conventional zone write pointer check"
+			     " is %ssupported\n",
+			(info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) ?
+			 "" : "not ");
+		fprintf(out, "    Conventional zone write pointer check"
+			     " is %senabled\n",
+			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
+		if (info->zbd_max_conversion != 0)
+			fprintf(out, "    Maximum number of realms to convert: %u\n",
+				info->zbd_max_conversion);
 		else
-			sprintf(tmp, "%u",
-				(unsigned int)info->zbd_opt_nr_open_seq_pref);
-		fprintf(out,
-			"    Optimal number of open sequential write "
-			"preferred zones: %s\n", tmp);
-
-		if (info->zbd_opt_nr_non_seq_write_seq_pref == ZBC_NOT_REPORTED)
-			strcpy(tmp, "not reported");
+			fprintf(out, "    Maximum number of realms"
+				     " to convert is unlimited\n");
+		if (info->zbd_realm_list_length != 0)
+			fprintf(out, "    Realms list length: %u descriptors\n",
+				info->zbd_realm_list_length);
 		else
-			sprintf(tmp, "%u",
-				(unsigned int)info->zbd_opt_nr_non_seq_write_seq_pref);
-
-		fprintf(out,
-			"    Optimal number of non-sequentially written "
-			"sequential write preferred zones: %s\n", tmp);
-
+			fprintf(out, "    Realms list length is not specified\n");
 	}
 
 	fflush(out);
