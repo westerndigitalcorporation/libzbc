@@ -651,15 +651,17 @@ static int zbc_scsi_report_realms(struct zbc_device *dev, struct zbc_realm *real
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 1   |      Reserved            |       Service Action (01h) FIXME TBD       |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                          Reserved                               ---|
-	 * | 9   |                                                                 (LSB) |
+	 * | 2   |                         Reporting Options                             |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  | (MSB)                                                                 |
+	 * | 3   |                             Reserved                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   | (MSB)                                                                 |
 	 * |- - -+---                       Allocation Length                         ---|
-	 * | 13  |                                                                 (LSB) |
+	 * | 7   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                            Reserved                                   |
+	 * | 8   |                                                                       |
+	 * |-----+---                          Reserved                               ---|
+	 * | 14  |                                                                       |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
@@ -674,7 +676,8 @@ static int zbc_scsi_report_realms(struct zbc_device *dev, struct zbc_realm *real
 		goto out;
 
 	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
-		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough report data received"
+			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_REALMS_HEADER_SIZE,
 			  cmd.out_bufsz);
@@ -731,8 +734,9 @@ out:
 /**
  * Convert one or several realms from one type to another.
  */
-static int zbc_scsi_convert_realms(struct zbc_device *dev, uint64_t start_realm,
-				   uint32_t count, enum zbc_zone_type new_type, int fg)
+static int zbc_scsi_convert_realms(struct zbc_device *dev,
+				   uint64_t start_realm, uint32_t count,
+				   enum zbc_zone_type new_type, int fg)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
@@ -749,17 +753,23 @@ static int zbc_scsi_convert_realms(struct zbc_device *dev, uint64_t start_realm,
 	 * |=====+==========================+============================================|
 	 * | 0   |                        Operation Code (94h)                           |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |         Service Action (06h) FIXME TBD     |
+	 * | 1   |  FGND  |    Reserved     |         Service Action (06h) FIXME TBD     |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
+	 * | 2   |           New Zone Type           | Rservd |        Options           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                             Reserved                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   | (MSB)                                                                 |
 	 * |- - -+---                       Starting Realm                            ---|
-	 * | 9   |                                                                 (LSB) |
+	 * | 5   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  | (MSB)                                                                 |
+	 * | 6   | (MSB)                                                                 |
 	 * |- - -+---                         Realm Count                             ---|
-	 * | 13  |                                                                 (LSB) |
+	 * | 7   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |           New Zone Type           |         Reserved         |   FG   |
+	 * | 8   |                                                                       |
+	 * |- - -|---                          Reserved                               ---|
+	 * | 14  |                                                                       |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
@@ -767,12 +777,12 @@ static int zbc_scsi_convert_realms(struct zbc_device *dev, uint64_t start_realm,
 	cmd.cdb[0] = ZBC_SG_CONVERT_REALMS_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_CONVERT_REALMS_CDB_SA;
 	/* Fill in the starting realm number and the realm count */
-	zbc_sg_set_int64(&cmd.cdb[2], start_realm);
-	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)count);
+	zbc_sg_set_int16(&cmd.cdb[4], start_realm);
+	zbc_sg_set_int16(&cmd.cdb[6], (unsigned short)count);
 	/* Init the new zone type and FOREGROUND flag */
-	cmd.cdb[14] = new_type << 4;
+	cmd.cdb[2] = new_type << 4;
 	if (fg)
-		cmd.cdb[14] |= 0x01; /* FIXME FG bit location TBD */
+		cmd.cdb[1] |= 0x80;
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -956,6 +966,9 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	}
 
 	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
+
+	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
+	dev->zbd_info.zbd_realm_list_length = zbc_sg_get_int16(&buf[22]);
 
 	return 0;
 }

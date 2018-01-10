@@ -514,8 +514,6 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		}
 		dev->zbd_info.zbd_max_nr_open_seq_req = val;
 
-	}
-
 	/* Check if Realms command set is supported. If this
 	 * is the case, pick up all the related values */
 	qwd = zbc_ata_get_qword(&buf[56]);
@@ -530,10 +528,12 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
 					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
-		/* FIXME the following field is not in
+		/* FIXME the two following fields are not in
 		* the current proposal, layout TBD */
 		dev->zbd_info.zbd_max_conversion =
 			zbc_ata_get_qword(&buf[64]) & 0xffff;
+		dev->zbd_info.zbd_realm_list_length =
+			zbc_ata_get_qword(&buf[72]) & 0xffff;
 	}
 	return 0;
 }
@@ -897,7 +897,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	}
 
 	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
-		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough data received"
+			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
 			  cmd.out_bufsz);
@@ -1141,7 +1142,8 @@ static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realm
 	}
 
 	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
-		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+		zbc_error("%s: Not enough data received"
+			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_REALMS_HEADER_SIZE,
 			  cmd.out_bufsz);
@@ -1199,7 +1201,8 @@ out:
  * Convert one or several realms from one type to another.
  */
 static int zbc_ata_convert_realms(struct zbc_device *dev, uint64_t start_realm,
-				  uint32_t count, enum zbc_zone_type new_type, int fg)
+				  uint32_t count, enum zbc_zone_type new_type,
+				  int fg)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;

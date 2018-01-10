@@ -666,6 +666,12 @@ struct zbc_device_info {
 	 */
 	uint32_t		zbd_max_conversion;
 
+	/**
+	 * Indicates the number of realm descriptors in the realm list.
+	 * If this field contains zero, REPORT REALMS command needs
+	 * to be issued to obtain this value.
+	 */
+	uint32_t		zbd_realm_list_length;
 };
 
 /**

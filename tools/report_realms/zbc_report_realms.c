@@ -1,8 +1,7 @@
 /*
  * This file is part of libzbc.
  *
- * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
- * Copyright (C) 2016, Western Digital. All rights reserved.
+ * Copyright (C) 2018, Western Digital. All rights reserved.
  *
  * This software is distributed under the terms of the
  * GNU Lesser General Public License version 3, "as is," without technical
@@ -124,12 +123,19 @@ usage:
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
 
-	ret = zbc_report_nr_realms(dev, &nr_realms);
-	if (ret != 0) {
-		fprintf(stderr, "zbc_report_nr_realms failed %d\n", ret);
-		ret = 1;
-		goto out;
+	/* We can skip zbc_report_nr_realms() call if we receive
+	 * the number from SCSI INQUIRY or ATA LOG page */
+	if (info.zbd_realm_list_length == 0) {
+		ret = zbc_report_nr_realms(dev, &nr_realms);
+		if (ret != 0) {
+			fprintf(stderr, "zbc_report_nr_realms failed %d\n",
+				ret);
+			ret = 1;
+			goto out;
+		}
 	}
+	else
+		nr_realms = info.zbd_realm_list_length;
 
         printf("    %u realm%s\n", nr_realms, (nr_realms > 1) ? "s" : "");
 	if (num)
@@ -156,19 +162,16 @@ usage:
 		goto out;
 	}
 
-	printf("%u / %u realm%s:\n", nr, nr_realms, (nr > 1) ? "s" : "");
 	for (i = 0; i < (int)nr; i++) {
 		r = &realms[i];
 		zbc_report_print_realm(&info, r);
 	}
 
 out:
-
 	if (realms)
 		free(realms);
 	zbc_close(dev);
 
 	return ret;
-
 }
 
