@@ -281,6 +281,14 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		dev->zbd_info.zbd_model = ZBC_DM_DEVICE_MANAGED;
 		return -ENXIO;
 
+	case 0x03:
+		/* Realm-based DH-SMR device */
+		zbc_debug("%s: Realm-based DH-SMR SCSI block device detected\n",
+			  dev->zbd_filename);
+		dev->zbd_info.zbd_model = ZBC_DM_HYBRID_REALM;
+		dev->zbd_info.zbd_flags |= ZBC_REALMS_SUPPORT;
+		break;
+
 	default:
 		zbc_debug("%s: Unknown device model 0x%02x\n",
 			  dev->zbd_filename, zoned);
