@@ -158,6 +158,7 @@ struct zbc_device {
  */
 #define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
 #define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
+				 zbc_dev_model(dev) == ZBC_DM_HYBRID_REALM || \
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
 
 /**

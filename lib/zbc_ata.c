@@ -1448,6 +1448,13 @@ static int zbc_ata_classify(struct zbc_device *dev)
 		ret = -ENXIO;
 		break;
 
+	case 0x03:
+		zbc_debug("%s: Realm-based DH-SMR SCSI block device detected\n",
+			  dev->zbd_filename);
+		dev->zbd_info.zbd_model = ZBC_DM_HYBRID_REALM;
+		dev->zbd_info.zbd_flags |= ZBC_REALMS_SUPPORT;
+		break;
+
 	default:
 		zbc_debug("%s: Unknown device model 0x%02x\n",
 			  dev->zbd_filename, (unsigned int)zoned);
