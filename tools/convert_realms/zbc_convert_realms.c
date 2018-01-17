@@ -109,23 +109,37 @@ usage:
 	if (i < argc)
 		fg = atoi(argv[i]);
 
-	/* Open device */
-	ret = zbc_open(path, flags | O_RDWR, &dev);
-	if (ret != 0)
-		return 1;
+	while (1) {
+		/* Open device */
+		ret = zbc_open(path, flags | O_RDWR, &dev);
+		if (ret != 0)
+			return 1;
 
-	zbc_get_device_info(dev, &info);
+		zbc_get_device_info(dev, &info);
 
-	printf("Device %s:\n", path);
-	zbc_print_device_info(&info, stdout);
+		printf("Device %s:\n", path);
+		zbc_print_device_info(&info, stdout);
 
-	/* Convert realms */
-	ret = zbc_convert_realms(dev, start_realm, nr_realms, type, fg);
-	if (ret != 0) {
-		fprintf(stderr,
-			"zbc_convert_realms failed, err %i (%s)\n",
-			ret, strerror(-ret));
-		ret = 1;
+		/* Convert realms */
+		ret = zbc_convert_realms(dev, start_realm, nr_realms, type, fg);
+		if (ret != 0) {
+			if (ret == -EOPNOTSUPP && flags == 0) {
+				/* Retry forcing SCSI backend */
+				printf("zbc_convert_realms returned %i, retrying\n",
+				       ret);
+				flags = ZBC_O_DRV_SCSI;
+				zbc_close(dev);
+				continue;
+			}
+
+			fprintf(stderr,
+				"zbc_convert_realms failed, err %i (%s)\n",
+				ret, strerror(-ret));
+			ret = 1;
+		}
+
+		if (flags != 0)
+			break;
 	}
 
 	zbc_close(dev);

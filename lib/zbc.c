@@ -156,6 +156,8 @@ const char *zbc_device_model_str(enum zbc_dev_model model)
 		return "Device-managed";
 	case ZBC_DM_STANDARD:
 		return "Standard block device";
+	case ZBC_DM_HYBRID_REALM:
+		return "Host-hybrid";
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
 		return "Unknown-device-model";

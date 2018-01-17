@@ -502,6 +502,12 @@ enum zbc_dev_model {
 	 */
 	ZBC_DM_STANDARD		= 0x04,
 
+	/**
+	 * Realms-based DH-SMR drive model: the device type/signature
+	 * is 0x00 and the ZONED field of the block device characteristics
+	 * VPD page B1h is 30b.
+	 */
+	ZBC_DM_HYBRID_REALM	= 0x05,
 };
 
 /**
