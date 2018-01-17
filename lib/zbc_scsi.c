@@ -310,10 +310,10 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -ENXIO;
 
 	case 0x03:
-		/* Realm host-managed device */
-		zbc_debug("%s: Realm host-managed SCSI block device detected\n",
+		/* Realm-based DH-SMR device */
+		zbc_debug("%s: Realm-based DH-SMR SCSI block device detected\n",
 			  dev->zbd_filename);
-		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+		dev->zbd_info.zbd_model = ZBC_DM_HYBRID_REALM;
 		dev->zbd_info.zbd_flags |= ZBC_REALMS_SUPPORT;
 		break;
 

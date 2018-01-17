@@ -28,9 +28,9 @@ static void zbc_report_print_realm(struct zbc_device_info *info,
 				   struct zbc_realm *r)
 {
 	if (zbc_realm_conventional(r) || zbc_realm_sequential(r)) {
-		printf("Realm %03d: type 0x%x (%s), conv LBA %llu, "
-		       "%u zones, seq LBA %llu, %u zones, keep out %u, "
-		       "conv to conventional: %s, conv to sequential: %s\n",
+		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
+		       "%u zones, seq LBA %08llu:%u zones, kpo %u, "
+		       "cvt to conv: %s, cvt to seq: %s\n",
 		       zbc_realm_number(r), zbc_realm_type(r),
 		       zbc_zone_type_str(zbc_realm_type(r)),
 		       zbc_realm_conv_start(r), zbc_realm_conv_length(r),
@@ -114,57 +114,70 @@ usage:
 
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, flags | O_RDONLY, &dev);
-	if (ret != 0)
-		return 1;
+	while (1) {
+		ret = zbc_open(path, flags | O_RDONLY, &dev);
+		if (ret != 0)
+			return 1;
 
-	zbc_get_device_info(dev, &info);
+		zbc_get_device_info(dev, &info);
 
-	printf("Device %s:\n", path);
-	zbc_print_device_info(&info, stdout);
+		printf("Device %s:\n", path);
+		zbc_print_device_info(&info, stdout);
 
-	/* We can skip zbc_report_nr_realms() call if we receive
-	 * the number from SCSI INQUIRY or ATA LOG page */
-	if (info.zbd_realm_list_length == 0) {
-		ret = zbc_report_nr_realms(dev, &nr_realms);
-		if (ret != 0) {
-			fprintf(stderr, "zbc_report_nr_realms failed %d\n",
-				ret);
+		/* We can skip zbc_report_nr_realms() call if we receive
+		 * the number from SCSI INQUIRY or ATA LOG page */
+		if (info.zbd_realm_list_length == 0) {
+			ret = zbc_report_nr_realms(dev, &nr_realms);
+			if (ret != 0) {
+				fprintf(stderr, "zbc_report_nr_realms failed %d\n",
+					ret);
+				ret = 1;
+				goto out;
+			}
+		}
+		else
+			nr_realms = info.zbd_realm_list_length;
+
+		printf("    %u realm%s\n", nr_realms, (nr_realms > 1) ? "s" : "");
+		if (num)
+			goto out;
+
+		if (!nr || nr > nr_realms)
+			nr = nr_realms;
+		if (!nr)
+			goto out;
+
+		/* Allocate realm array */
+		if (!realms)
+			realms = (struct zbc_realm *)calloc(nr, sizeof(struct zbc_realm));
+		if (!realms) {
+			fprintf(stderr, "No memory\n");
 			ret = 1;
 			goto out;
 		}
-	}
-	else
-		nr_realms = info.zbd_realm_list_length;
 
-        printf("    %u realm%s\n", nr_realms, (nr_realms > 1) ? "s" : "");
-	if (num)
-		goto out;
+		/* Get realm information */
+		ret = zbc_report_realms(dev, realms, &nr);
+		if (ret != 0) {
+			if (ret == -EOPNOTSUPP && flags == 0) {
+				/* Retry forcing SCSI backend */
+				printf("zbc_report_realms returned %d, retrying\n", ret);
+				flags = ZBC_O_DRV_SCSI;
+				zbc_close(dev);
+				continue;
+			}
+			fprintf(stderr, "zbc_report_realms failed %d\n", ret);
+			ret = 1;
+			goto out;
+		}
 
-	if (!nr || nr > nr_realms)
-		nr = nr_realms;
-	if (!nr)
-		goto out;
+		for (i = 0; i < (int)nr; i++) {
+			r = &realms[i];
+			zbc_report_print_realm(&info, r);
+		}
 
-	/* Allocate realm array */
-	realms = (struct zbc_realm *)calloc(nr, sizeof(struct zbc_realm));
-	if (!realms) {
-		fprintf(stderr, "No memory\n");
-		ret = 1;
-		goto out;
-	}
-
-	/* Get realm information */
-	ret = zbc_report_realms(dev, realms, &nr);
-	if (ret != 0) {
-		fprintf(stderr, "zbc_report_realms failed %d\n", ret);
-		ret = 1;
-		goto out;
-	}
-
-	for (i = 0; i < (int)nr; i++) {
-		r = &realms[i];
-		zbc_report_print_realm(&info, r);
+		if (flags != 0)
+			break;
 	}
 
 out:
