@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	uint64_t start_realm;
 	unsigned int nr_realms;
-	int i, type, fg = 0, ret = 1, flags = 0;
+	int i, type, fg = 0, ret = 1;
 	char *path;
 
 	/* Check command line */
@@ -43,9 +43,7 @@ usage:
 		       "    2             : sequential write required\n"
 		       "    3             : sequential write preferred\n"
 		       "Options:\n"
-		       "    -v            : Verbose mode\n"
-		       "    -f <hex mask> : Use the specified backend mask"
-		       " to open the device\n",
+		       "    -v            : Verbose mode\n",
 		       argv[0]);
 		return 1;
 	}
@@ -54,23 +52,6 @@ usage:
 	for (i = 1; i < (argc - 1); i++) {
 		if ( strcmp(argv[i], "-v") == 0 )
 			zbc_set_log_level("debug");
-		else if (strcmp(argv[i], "-f") == 0) {
-			if (i >= (argc - 1)) {
-				fprintf(stderr, "Missing backend flag value\n");
-				goto usage;
-			}
-			i++;
-
-			flags = strtol(argv[i], NULL, 16);
-			if (flags != 0) {
-				if (flags < 0) {
-					fprintf(stderr, "Invalid flag value %i\n",
-						flags);
-					goto usage;
-				}
-				flags &= ZBC_O_DRV_MASK;
-			}
-		}
 		else if ( argv[i][0] == '-' ) {
 			fprintf(stderr, "Unknown option \"%s\"\n", argv[i]);
 			goto usage;
@@ -100,8 +81,7 @@ usage:
 	}
 	type = atoi(argv[i++]);
 	if (type != ZBC_ZT_CONVENTIONAL &&
-	    type != ZBC_ZT_SEQUENTIAL_REQ &&
-	    type != ZBC_ZT_SEQUENTIAL_PREF) {
+	    type != ZBC_ZT_SEQUENTIAL_REQ) {
 		fprintf(stderr, "Invalid new zone type %i\n", type);
 		goto usage;
 	}
@@ -109,38 +89,25 @@ usage:
 	if (i < argc)
 		fg = atoi(argv[i]);
 
-	while (1) {
-		/* Open device */
-		ret = zbc_open(path, flags | O_RDWR, &dev);
-		if (ret != 0)
-			return 1;
+	/* Open device */
+	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDWR, &dev);
+	if (ret != 0)
+		return 1;
 
-		zbc_get_device_info(dev, &info);
+	zbc_get_device_info(dev, &info);
 
-		printf("Device %s:\n", path);
-		zbc_print_device_info(&info, stdout);
+	printf("Device %s:\n", path);
+	zbc_print_device_info(&info, stdout);
 
-		/* Convert realms */
-		ret = zbc_convert_realms(dev, start_realm, nr_realms, type, fg);
-		if (ret != 0) {
-			if (ret == -EOPNOTSUPP && flags == 0) {
-				/* Retry forcing SCSI backend */
-				printf("zbc_convert_realms returned %i, retrying\n",
-				       ret);
-				flags = ZBC_O_DRV_SCSI;
-				zbc_close(dev);
-				continue;
-			}
-
-			fprintf(stderr,
-				"zbc_convert_realms failed, err %i (%s)\n",
-				ret, strerror(-ret));
-			ret = 1;
-		}
-
-		if (flags != 0)
-			break;
+	/* Convert realms */
+	ret = zbc_convert_realms(dev, start_realm, nr_realms, type, fg);
+	if (ret != 0) {
+		fprintf(stderr,
+			"zbc_convert_realms failed, err %i (%s)\n",
+			ret, strerror(-ret));
+		ret = 1;
 	}
+
 
 	zbc_close(dev);
 
