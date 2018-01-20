@@ -156,8 +156,6 @@ const char *zbc_device_model_str(enum zbc_dev_model model)
 		return "Device-managed";
 	case ZBC_DM_STANDARD:
 		return "Standard block device";
-	case ZBC_DM_HYBRID_REALM:
-		return "Host-hybrid";
 	case ZBC_DM_DRIVE_UNKNOWN:
 	default:
 		return "Unknown-device-model";
@@ -198,6 +196,10 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 		return "Explicit-open";
 	case ZBC_ZC_CLOSED:
 		return "Closed";
+	case ZBC_ZC_CONV_WP:
+		return "Conv-WP";
+	case ZBC_ZC_STASIS:
+		return "Stasis";
 	case ZBC_ZC_RDONLY:
 		return "Read-only";
 	case ZBC_ZC_FULL:
@@ -556,6 +558,12 @@ int zbc_report_realms(struct zbc_device *dev,
 {
 	int ret;
 
+	if (!zbc_dev_is_realms(dev)) {
+		zbc_error("%s: Not a realms device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
 	if (!realms)
 		/* Just get the number of realms */
 		return (dev->zbd_drv->zbd_report_realms)(dev, NULL, nr_realms);
@@ -581,6 +589,12 @@ int zbc_list_realms(struct zbc_device *dev,
 	struct zbc_realm *realms = NULL;
 	unsigned int nr_realms;
 	int ret;
+
+	if (!zbc_dev_is_realms(dev)) {
+		zbc_error("%s: Not a realms device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
 
 	/* Get total number of realms */
 	ret = zbc_report_nr_realms(dev, &nr_realms);
@@ -619,6 +633,12 @@ int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
 		       unsigned int nr_realms, enum zbc_zone_type new_type,
 		       int fg)
 {
+	if (!zbc_dev_is_realms(dev)) {
+		zbc_error("%s: Not a realms device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_convert_realms)(dev, start_realm, nr_realms,
 						  new_type, fg);

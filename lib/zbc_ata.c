@@ -1451,7 +1451,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	case 0x03:
 		zbc_debug("%s: Realm-based DH-SMR SCSI block device detected\n",
 			  dev->zbd_filename);
-		dev->zbd_info.zbd_model = ZBC_DM_HYBRID_REALM;
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		dev->zbd_info.zbd_flags |= ZBC_REALMS_SUPPORT;
 		break;
 
