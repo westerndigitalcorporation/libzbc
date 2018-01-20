@@ -35,8 +35,8 @@ static void zbc_report_print_realm(struct zbc_device_info *info,
 		       zbc_realm_conv_start(r), zbc_realm_conv_length(r),
 		       zbc_realm_seq_start(r), zbc_realm_seq_length(r),
 		       zbc_realm_keep_out(r),
-		       zbc_realm_conv_to_conventional(r) ? "Y" : "N",
-		       zbc_realm_conv_to_sequential(r) ? "Y" : "N");
+		       zbc_realm_to_conv(r) ? "Y" : "N",
+		       zbc_realm_to_seq(r) ? "Y" : "N");
 		return;
 	}
 
