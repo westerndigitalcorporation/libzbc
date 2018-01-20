@@ -132,6 +132,16 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
+	 * Conventional WP zone (realm devices only).
+	 */
+	ZBC_ZC_CONV_WP		= 0x05,
+
+	/**
+	 * Stasis zone: any zone unmapped zone of a realm device.
+	 */
+	ZBC_ZC_STASIS		= 0x0c,
+
+	/**
 	 * Read-only zone: any zone that can only be read.
 	 */
 	ZBC_ZC_RDONLY		= 0x0d,
@@ -300,8 +310,8 @@ struct zbc_zone {
  * Flags that can be set in zbr_convertible field
  * of zbc_realm structure (below).
  */
-#define ZBC_REALM_CONV_TO_SEQ_WRITE_REQ		0x20
-#define ZBC_REALM_CONV_TO_CONVENTIONAL		0x40
+#define ZBC_REALM_TO_SEQ		0x20
+#define ZBC_REALM_TO_CONV		0x40
 
 /**
  * @brief Realm information data structure
@@ -403,12 +413,12 @@ struct zbc_realm {
 #define zbc_realm_keep_out(r)	((int)(r)->zbr_keep_out)
 
 /** @brief Test if the realm is convertible to conventional */
-#define zbc_realm_conv_to_conventional(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_CONVENTIONAL))
+#define zbc_realm_to_conv(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_TO_CONV))
 
 /** @brief Test if the realm is convertible to sequential */
-#define zbc_realm_conv_to_sequential(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_CONV_TO_SEQ_WRITE_REQ))
+#define zbc_realm_to_seq(r) \
+	((int)((r)->zbr_convertible & ZBC_REALM_TO_SEQ))
 
 /**
  * Vendor ID string maximum length.
@@ -502,12 +512,6 @@ enum zbc_dev_model {
 	 */
 	ZBC_DM_STANDARD		= 0x04,
 
-	/**
-	 * Realms-based DH-SMR drive model: the device type/signature
-	 * is 0x00 and the ZONED field of the block device characteristics
-	 * VPD page B1h is 30b.
-	 */
-	ZBC_DM_HYBRID_REALM	= 0x05,
 };
 
 /**
