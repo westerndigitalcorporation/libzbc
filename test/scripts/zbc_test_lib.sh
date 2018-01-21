@@ -154,6 +154,11 @@ function zbc_test_count_nr_zones()
 	nr_zones=`cat ${zone_info_file} | wc -l`
 }
 
+function zbc_test_count_seq_zones()
+{
+	nr_zones=`cat ${zone_info_file} | grep Sequential | wc -l`
+}
+
 function zbc_test_open_nr_zones()
 {
 	local zone_type="0x2"
