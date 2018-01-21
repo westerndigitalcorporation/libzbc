@@ -270,6 +270,11 @@ function zbc_test_count_seq_zones()
 	nr_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${ZT_SEQ}" | wc -l`
 }
 
+function zbc_test_count_seq_zones()
+{
+	nr_zones=`cat ${zone_info_file} | grep Sequential | wc -l`
+}
+
 function zbc_test_open_nr_zones()
 {
 	local _zone_type="${ZT_SWR}"

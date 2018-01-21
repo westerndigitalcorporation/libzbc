@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 
 	fprintf(stdout,
 		"[TEST][INFO][URSWRZ],%x\n",
-		info.zbd_flags);
+		info.zbd_flags & ZBC_UNRESTRICTED_READ);
 
 	fprintf(stdout,
 		"[TEST][INFO][LAST_ZONE_LBA],%llu\n",
