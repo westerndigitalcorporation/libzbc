@@ -35,7 +35,7 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# Check number of target zones
+# Check number of sequential zones
 zbc_test_count_seq_zones
 if [ ${max_open} -ge ${nr_zones} ]; then
     zbc_test_print_not_applicable
