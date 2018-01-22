@@ -388,14 +388,7 @@ struct zbc_realm {
 #define zbc_realm_conventional(r) ((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
 /** @brief Test if a realm type is sequential write required */
-#define zbc_realm_sequential_req(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
-
-/** @brief Test if a realm type is sequential write preferred */
-#define zbc_realm_sequential_pref(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
-
-/** @brief Test if a realm type is sequential write required or preferred */
-#define zbc_realm_sequential(r) (zbc_realm_sequential_req(r) || \
-				 zbc_realm_sequential_pref(r))
+#define zbc_realm_sequential(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
 
 /** @brief Get a realm start LBA if it is conventional as a 512B sector */
 #define zbc_realm_conv_start(r)	((unsigned long long)(r)->zbr_conv_start)
