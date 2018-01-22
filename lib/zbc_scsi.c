@@ -910,7 +910,6 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	}
 
 	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
-	dev->zbd_info.zbd_realm_list_length = zbc_sg_get_int16(&buf[22]);
 
 	return 0;
 }
