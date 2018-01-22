@@ -530,12 +530,10 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
 					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
-		/* FIXME the two following fields are not in
+		/* FIXME the following field is not in
 		* the current proposal, layout TBD */
 		dev->zbd_info.zbd_max_conversion =
 			zbc_ata_get_qword(&buf[64]) & 0xffff;
-		dev->zbd_info.zbd_realm_list_length =
-			zbc_ata_get_qword(&buf[72]) & 0xffff;
 	}
 	return 0;
 }

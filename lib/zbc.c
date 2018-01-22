@@ -432,11 +432,6 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 		else
 			fprintf(out, "    Maximum number of realms"
 				     " to convert is unlimited\n");
-		if (info->zbd_realm_list_length != 0)
-			fprintf(out, "    Realms list length: %u descriptors\n",
-				info->zbd_realm_list_length);
-		else
-			fprintf(out, "    Realms list length is not specified\n");
 	}
 
 	fflush(out);
