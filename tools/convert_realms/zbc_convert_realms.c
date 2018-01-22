@@ -37,11 +37,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Not enough arguments\n");
 usage:
 		printf("Usage: %s [options] <dev> <start realm> "
-		       "<num realms> <new zone type>[ <fg>]\n"
-		       "New zone types:\n"
-		       "    1             : conventional\n"
-		       "    2             : sequential write required\n"
-		       "    3             : sequential write preferred\n"
+		       "<num realms> <conv | seq> [<fg>]\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n",
 		       argv[0]);
@@ -69,6 +65,7 @@ usage:
 		fprintf(stderr, "Missing starting realm number\n");
 		goto usage;
 	}
+
 	start_realm = atol(argv[i++]);
 	if (i >= argc) {
 		fprintf(stderr, "Missing the number of realms to convert\n");
@@ -79,13 +76,17 @@ usage:
 		fprintf(stderr, "Missing new zone type\n");
 		goto usage;
 	}
-	type = atoi(argv[i++]);
-	if (type != ZBC_ZT_CONVENTIONAL &&
-	    type != ZBC_ZT_SEQUENTIAL_REQ) {
-		fprintf(stderr, "Invalid new zone type %i\n", type);
+
+	if (strcmp(argv[i], "conv") == 0) {
+		type = ZBC_ZT_CONVENTIONAL;
+	} else if (strcmp(argv[i], "seq") == 0) {
+		type = ZBC_ZT_SEQUENTIAL_REQ;
+	} else {
+		fprintf(stderr, "Invalid new zone type\n");
 		goto usage;
 	}
 
+	i++;
 	if (i < argc)
 		fg = atoi(argv[i]);
 
