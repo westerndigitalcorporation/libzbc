@@ -104,18 +104,12 @@ usage:
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
 
-	/* We can skip zbc_report_nr_realms() call if we receive
-	 * the number from SCSI INQUIRY or ATA LOG page */
-	if (info.zbd_realm_list_length == 0) {
-		ret = zbc_report_nr_realms(dev, &nr_realms);
-		if (ret != 0) {
-			fprintf(stderr, "zbc_report_nr_realms failed %d\n",
-				ret);
-			ret = 1;
-			goto out;
-		}
-	} else {
-		nr_realms = info.zbd_realm_list_length;
+	ret = zbc_report_nr_realms(dev, &nr_realms);
+	if (ret != 0) {
+		fprintf(stderr, "zbc_report_nr_realms failed %d\n",
+			ret);
+		ret = 1;
+		goto out;
 	}
 
 	printf("    %u realm%s\n", nr_realms, (nr_realms > 1) ? "s" : "");
