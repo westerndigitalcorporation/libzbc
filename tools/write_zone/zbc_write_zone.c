@@ -318,7 +318,8 @@ usage:
 
 	}
 
-	sector_max_ofst = zbc_zone_start(iozone) + zbc_zone_length(iozone);
+	sector_ofst = zbc_zone_start(iozone);
+	sector_max_ofst = sector_ofst + zbc_zone_length(iozone);
 	if (zbc_zone_sequential(iozone)) {
 		if (zbc_zone_full(iozone))
 			sector_ofst = sector_max_ofst;
