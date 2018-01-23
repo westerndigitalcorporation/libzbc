@@ -149,9 +149,19 @@ function zbc_test_get_zone_info()
 
 # Preparation functions
 
-function zbc_test_count_nr_zones()
+function zbc_test_count_zones()
 {
 	nr_zones=`cat ${zone_info_file} | wc -l`
+}
+
+function zbc_test_count_conv_zones()
+{
+	nr_conv_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x1`
+}
+
+function zbc_test_count_seq_zones()
+{
+	nr_seq_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x2`
 }
 
 function zbc_test_open_nr_zones()

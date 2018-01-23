@@ -32,9 +32,9 @@ zone_type="0x2"
 # Get zone information
 zbc_test_get_zone_info
 
-# Check number of target zones
-zbc_test_count_nr_zones
-if [ ${max_open} -ge ${nr_zones} ]; then
+# Check number of sequential zones
+zbc_test_count_seq_zones
+if [ ${max_open} -ge ${nr_seq_zones} ]; then
     zbc_test_print_not_applicable
 fi
 
