@@ -15,16 +15,26 @@ bad=0
 if [ "$#" -ne 2 ]; then
   bad=1
 elif [ "$1" == "on" ]; then
-  flg="1"
+  wpchk="1"
 elif [ "$1" == "off" ]; then
-  flg="0"
+  wpchk="0"
 else
   bad=1
 fi
 
 if [ $bad -eq 1 ]; then
-  echo "Usage:$0 <on|off> <realms device>"
-  exit
+  echo "Usage:"
+  echo "  $(basename $0) <on|off> <realms device>"
+  echo ""
+  echo "Example:"
+  echo "  $0 on /dev/sdb"
+  echo ""
+else
+  if sg_wr_mode -f -p 0x3d,0x10 -c fd,10,0,11,$wpchk,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 $2; then
+    if ! sg_sync $2; then
+      echo "Sync error on device $2"
+    fi
+    zbc_info $2
+  fi
 fi
 
-sg_wr_mode -f -p 0x3d,0x10 -c fd,10,0,11,$flg,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 $2

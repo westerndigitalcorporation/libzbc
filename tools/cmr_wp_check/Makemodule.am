@@ -1,0 +1,2 @@
+dist_bin_SCRIPTS += tools/cmr_wp_check/zbc_cmr_wp_check
+
