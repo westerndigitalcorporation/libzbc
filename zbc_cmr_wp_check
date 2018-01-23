@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# This file is part of libzbc.
+#
+# Copyright (C) 2018, Western Digital. All rights reserved.
+#
+# This software is distributed under the terms of the BSD 2-clause license,
+# "as is," without technical support, and WITHOUT ANY WARRANTY, without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. You should have received a copy of the BSD 2-clause license along
+# with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
+#
+
+bad=0
+if [ "$#" -ne 2 ]; then
+  bad=1
+elif [ "$1" == "on" ]; then
+  flg="1"
+elif [ "$1" == "off" ]; then
+  flg="0"
+else
+  bad=1
+fi
+
+if [ $bad -eq 1 ]; then
+  echo "Usage:$0 <on|off> <realms device>"
+  exit
+fi
+
+sg_wr_mode -f -p 0x3d,0x10 -c fd,10,0,11,$flg,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 $2
