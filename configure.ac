@@ -1,5 +1,5 @@
 
-AC_INIT([libzbc], [5.4.0], [damien.lemoal@wdc.com, adam.manzanares@wdc.com])
+AC_INIT([libzbc], [5.4.1], [damien.lemoal@wdc.com, adam.manzanares@wdc.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])
