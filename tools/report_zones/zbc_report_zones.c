@@ -38,6 +38,25 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		length = "sectors";
 	}
 
+	if (zbc_zone_conv_wp(z)) {
+		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+		       "%llu %s, wp %llu\n",
+		       zno,
+		       zbc_zone_type(z),
+		       zbc_zone_type_str(zbc_zone_type(z)),
+		       zbc_zone_condition(z),
+		       zbc_zone_condition_str(zbc_zone_condition(z)),
+		       start,
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+				  zbc_zone_start(z),
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+				  zbc_zone_length(z),
+		       length,
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+				  zbc_zone_wp(z));
+		return;
+	}
+
 	if (zbc_zone_conventional(z)) {
 		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
 		       "%llu %s\n",
@@ -48,16 +67,16 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_condition_str(zbc_zone_condition(z)),
 		       start,
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-		       zbc_zone_start(z),
+				  zbc_zone_start(z),
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-		       zbc_zone_length(z),
+				  zbc_zone_length(z),
 		       length);
 		return;
 	}
 
 	if (zbc_zone_sequential(z)) {
-		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset recommended %d, "
-		       "non_seq %d, %s %llu, %llu %s, wp %llu\n",
+		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset "
+		       "recommended %d, non_seq %d, %s %llu, %llu %s, wp %llu\n",
 		       zno,
 		       zbc_zone_type(z),
 		       zbc_zone_type_str(zbc_zone_type(z)),
@@ -66,10 +85,13 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_rwp_recommended(z),
 		       zbc_zone_non_seq(z),
 		       start,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) : zbc_zone_start(z),
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) : zbc_zone_length(z),
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+				  zbc_zone_start(z),
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+				  zbc_zone_length(z),
 		       length,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) : zbc_zone_wp(z));
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+				  zbc_zone_wp(z));
 		return;
 	}
 

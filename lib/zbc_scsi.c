@@ -470,7 +470,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 		zones[i].zbz_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
-		if (zbc_zone_sequential(&zones[i]))
+		if (zbc_zone_sequential(&zones[i]) || zbc_zone_conv_wp(&zones[i]))
 			zones[i].zbz_write_pointer =
 				zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
 		else
