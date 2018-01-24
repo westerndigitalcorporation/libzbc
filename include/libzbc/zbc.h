@@ -265,6 +265,9 @@ struct zbc_zone {
 /** @brief Test if a zone condition is "not write pointer zone" */
 #define zbc_zone_not_wp(z)	((z)->zbz_condition == ZBC_ZC_NOT_WP)
 
+/** @brief Test if a zone condition is "CMR write pointer" */
+#define zbc_zone_conv_wp(z)	((z)->zbz_condition == ZBC_ZC_CONV_WP)
+
 /** @brief Test if a zone condition is empty */
 #define zbc_zone_empty(z)	((z)->zbz_condition == ZBC_ZC_EMPTY)
 
