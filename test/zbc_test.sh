@@ -163,6 +163,14 @@ if [ ! -z ${device} ]; then
 		exit 1
 	fi
 	dev_name=`basename ${device}`
+	if [[ "${dev_name}" =~ "sd" ]]; then
+		sg_dev=$(ls /sys/block/${dev_name}/device/scsi_generic)
+		if [ ! -z "$sg_dev" ]; then
+			echo "Using sg device /dev/${sg_dev} to perform tests for ${device}"
+			dev_name=${sg_dev}
+			device="/dev/${sg_dev}"
+		fi
+	fi
 fi
 
 # Build run list
