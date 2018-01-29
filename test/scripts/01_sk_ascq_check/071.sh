@@ -36,11 +36,14 @@ zbc_test_get_zone_info
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "${ZC_EMPTY}"
 
 # Start testing
-nio=$(( (target_size / lblk_per_pblk) - 1))
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} ${lblk_per_pblk}
+nio=$(( (${target_size} - 7) / 8 ))
+
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} 8
 if [ $? -eq 0 ]; then
-    target_lba=$(( target_slba + nio * lblk_per_pblk ))
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $((lblk_per_pblk * 2))
+    target_lba=$(( ${target_slba} + ${nio} * 8 ))
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 16
+else
+    printf "\nInitial write zone failed"
 fi
 
 # Check result

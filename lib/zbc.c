@@ -44,6 +44,7 @@ static struct zbc_sg_sk_s {
 	{ ZBC_SK_ILLEGAL_REQUEST,	"Illegal-request"	},
 	{ ZBC_SK_DATA_PROTECT,		"Data-protect"		},
 	{ ZBC_SK_ABORTED_COMMAND,	"Aborted-command"	},
+	{ ZBC_SK_MEDIUM_ERROR,		"Medium-error"		},
 	{ 0,				NULL }
 };
 
@@ -82,6 +83,10 @@ static struct zbc_sg_asc_ascq_s {
 	{
 		ZBC_ASC_ZONE_IS_READ_ONLY,
 		"Zone-is-read-only"
+	},
+	{
+		ZBC_ASC_ZONE_IS_OFFLINE,
+		"Zone-is-offline"
 	},
 	{
 		ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
