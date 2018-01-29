@@ -670,6 +670,9 @@ struct zbc_device_info {
  */
 enum zbc_sk {
 
+	/** Medium error */
+	ZBC_SK_MEDIUM_ERROR	= 0x3,
+
 	/** Illegal request */
 	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
 
@@ -708,6 +711,9 @@ enum zbc_asc_ascq {
 
 	/** Zone is in the read-only condition */
 	ZBC_ASC_ZONE_IS_READ_ONLY			= 0x2708,
+
+	/** Zone is offline */
+	ZBC_ASC_ZONE_IS_OFFLINE				= 0x2C0E,
 
 	/** Insufficient zone resources */
 	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,

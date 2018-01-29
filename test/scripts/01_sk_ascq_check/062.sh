@@ -45,7 +45,7 @@ else
     zone_type="0x2"
 fi
 
-zbc_test_search_vals_from_zone_type ${zone_type}
+zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc"
 func_ret=$?
 
 if [ ${func_ret} -gt 0 -o ${next_zone_slba} != ${target_slba} ]; then

@@ -115,6 +115,11 @@ function zbc_test_get_device_info()
 	unrestricted_read=${2}
 	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
+	realms_device_line=`cat ${log_file} | grep -F "[REALMS_DEVICE]"`
+	set -- ${realms_device_line}
+	realms_device=${2}
+	zbc_check_string "Failed to get realms device support" ${realms_device}
+
 	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
 	last_zone_lba=${2}
@@ -162,6 +167,11 @@ function zbc_test_count_conv_zones()
 function zbc_test_count_seq_zones()
 {
 	nr_seq_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x2`
+}
+
+function zbc_test_count_stasis_zones()
+{
+	nr_stasis_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $d; done | grep -c 0xc`
 }
 
 function zbc_test_open_nr_zones()
@@ -276,6 +286,33 @@ function zbc_test_search_vals_from_zone_type_and_cond()
 
 	done
 
+	# If this is a Realms device, and no zone with the specified condition was found,
+	# search for "stasis" zone condition since the drive may not have any zones converted
+	# from conventional.
+	# FIXME It is a hack to put this check in here and it should rather be done in individual
+	# test scripts, but for now it is here to avoid changing multiple test scripts.
+	if [ "${realms_device}" == "0" ]; then
+		return 1;
+	fi
+
+	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},0xc,.*,.*,.*"`; do
+
+		_IFS="${IFS}"
+		IFS=','
+		set -- ${_line}
+
+		target_type=${3}
+		target_cond=${4}
+		target_slba=${5}
+		target_size=${6}
+		target_ptr=${7}
+
+		IFS="$_IFS"
+
+		return 0
+
+	done
+
 	return 1
 }
 
@@ -299,8 +336,10 @@ function zbc_test_search_vals_from_zone_type_and_ignored_cond()
 
 		IFS="$_IFS"
 
-		if [ "${zone_type}" = "${target_type}" -a "${zone_cond}" != "${target_cond}" ]; then
-			return 0
+		if [ "${zone_type}" = "${target_type}" ]; then
+			if ! [[ "${target_cond}" =~ ^(${zone_cond})$ ]]; then
+				return 0
+			fi
 		fi
 
 	done
