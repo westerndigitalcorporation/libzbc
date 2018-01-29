@@ -48,11 +48,13 @@ zbc_test_get_zone_info "3"
 
 # Get target zone condition
 zbc_test_search_vals_from_slba ${target_lba}
+if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+    zbc_test_print_not_applicable
+else
+    # Check result
+    zbc_test_check_zone_cond
 
-# Check result
-zbc_test_check_zone_cond
-
-# Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+    # Post process
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+fi
 rm -f ${zone_info_file}
-
