@@ -418,33 +418,6 @@ function zbc_test_get_target_zone_from_type_and_cond()
 
 	done
 
-	# If this is a Realms device, and no zone with the specified condition was found,
-	# search for "stasis" zone condition since the drive may not have any zones converted
-	# from conventional.
-	# FIXME It is a hack to put this check in here and it should rather be done in individual
-	# test scripts, but for now it is here to avoid changing multiple test scripts.
-	if [ "${realms_device}" == "0" ]; then
-		return 1;
-	fi
-
-	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},0xc,.*,.*,.*"`; do
-
-		_IFS="${IFS}"
-		IFS=','
-		set -- ${_line}
-
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
-		target_ptr=${7}
-
-		IFS="$_IFS"
-
-		return 0
-
-	done
-
 	return 1
 }
 

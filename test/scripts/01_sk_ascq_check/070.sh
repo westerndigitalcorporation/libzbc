@@ -33,7 +33,13 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
+no_zones=0
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc"
+if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+    no_zones=1
+    expected_sk="Medium-error"
+    expected_asc="Zone-is-offline"
+fi
 target_lba=$(( ${target_ptr} + 1 ))
 
 # Start testing
@@ -42,7 +48,9 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_p
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ no_zones != 0 ]; then
+    zbc_test_check_sk_ascq
+elif [ ${device_model} = "Host-aware" ]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq

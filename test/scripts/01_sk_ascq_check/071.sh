@@ -33,7 +33,13 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
+no_zones=0
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "${ZC_EMPTY}"
+if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+    no_zones=1
+    expected_sk="Medium-error"
+    expected_asc="Zone-is-offline"
+fi
 
 # Start testing
 nio=$(( (${target_size} - 7) / 8 ))
@@ -42,14 +48,16 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slb
 if [ $? -eq 0 ]; then
     target_lba=$(( ${target_slba} + ${nio} * 8 ))
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 16
-else
+elif [ no_zones = 0 ]; then
     printf "\nInitial write zone failed"
 fi
 
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ no_zones != 0 ]; then
+    zbc_test_check_sk_ascq
+elif [ ${device_model} = "Host-aware" ]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq
