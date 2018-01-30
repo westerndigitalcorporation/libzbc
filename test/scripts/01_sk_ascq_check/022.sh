@@ -38,6 +38,11 @@ if [ ${max_open} -ge ${nr_zones} ]; then
     zbc_test_print_not_applicable
 fi
 
+# if max_open == -1 then it is "not reported"
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable
+fi
+
 # Create closed zones
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do
