@@ -679,6 +679,7 @@ out:
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
+	uint32_t val;
 	int ret;
 
 	if (!zbc_dev_is_zoned(dev))
@@ -694,20 +695,46 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	/* URSWRZ (unrestricted read in sequential write required zone) flag */
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 
-	/* Resource of handling zones */
-	dev->zbd_info.zbd_opt_nr_open_seq_pref =
-		zbc_sg_get_int32(&buf[8]);
-	dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
-		zbc_sg_get_int32(&buf[12]);
-	dev->zbd_info.zbd_max_nr_open_seq_req =
-		zbc_sg_get_int32(&buf[16]);
+	/* Maximum number of zones for resource management */
+	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE) {
 
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED &&
-	    dev->zbd_info.zbd_max_nr_open_seq_req <= 0) {
-		zbc_error("%s: invalid maximum number of open sequential "
-			  "write required zones for host-managed device\n",
-			  dev->zbd_filename);
-		return -EINVAL;
+		val = zbc_sg_get_int32(&buf[8]);
+		if (!val) {
+			/* Handle this case as "not reported" */
+			zbc_warning("%s: invalid optimal number of open "
+				    "sequential write preferred zones\n",
+				    dev->zbd_filename);
+			val = ZBC_NOT_REPORTED;
+		}
+		dev->zbd_info.zbd_opt_nr_open_seq_pref = val;
+
+		val = zbc_sg_get_int32(&buf[12]);
+		if (!val) {
+			/* Handle this case as "not reported" */
+			zbc_warning("%s: invalid optimal number of randomly "
+				    "writen sequential write preferred zones\n",
+				    dev->zbd_filename);
+			val = ZBC_NOT_REPORTED;
+		}
+		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = val;
+
+		dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+
+	} else {
+
+		dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
+		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+
+		val = zbc_sg_get_int32(&buf[16]);
+		if (!val) {
+			/* Handle this case as "no limit" */
+			zbc_warning("%s: invalid maximum number of open "
+				    "sequential write required zones\n",
+				    dev->zbd_filename);
+			val = ZBC_NO_LIMIT;
+		}
+		dev->zbd_info.zbd_max_nr_open_seq_req = val;
+
 	}
 
 	return 0;
