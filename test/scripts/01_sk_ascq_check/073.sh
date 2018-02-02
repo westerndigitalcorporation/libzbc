@@ -35,6 +35,9 @@ zbc_test_get_zone_info
 
 # Search target zone
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
+if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+    zbc_test_print_not_applicable
+fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
