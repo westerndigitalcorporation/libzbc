@@ -470,9 +470,9 @@ static int zbc_block_get_info(struct zbc_device *dev,
 		} else {
 			dev->zbd_info.zbd_max_nr_open_seq_req = 0;
 			dev->zbd_info.zbd_opt_nr_open_seq_pref =
-				ZBC_BLOCK_MAX_OPEN_ZONES;
+				ZBC_NOT_REPORTED;
 			dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
-				ZBC_BLOCK_MAX_OPEN_ZONES;
+				ZBC_NOT_REPORTED;
 		}
 	} else if (zbc_scsi_get_zbd_characteristics(dev)) {
 		return -ENXIO;

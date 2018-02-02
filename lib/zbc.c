@@ -365,6 +365,8 @@ void zbc_get_device_info(struct zbc_device *dev, struct zbc_device_info *info)
  */
 void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 {
+	char tmp[64];
+
 	fprintf(out,
 		"    Vendor ID: %s\n",
 		info->zbd_vendor_id);
@@ -401,16 +403,37 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			"unrestricted" : "restricted");
 
 	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
-		fprintf(out, "    Maximum number of open sequential"
-			     " write required zones: %u\n",
-		        (unsigned int) info->zbd_max_nr_open_seq_req);
+
+		if (info->zbd_max_nr_open_seq_req == ZBC_NO_LIMIT)
+			strcpy(tmp, "unlimited");
+		else
+			sprintf(tmp, "%u",
+				(unsigned int) info->zbd_max_nr_open_seq_req);
+		fprintf(out,
+			"    Maximum number of open sequential write "
+			"required zones: %s\n", tmp);
+
 	} else if (info->zbd_model == ZBC_DM_HOST_AWARE) {
-		fprintf(out, "    Optimal number of open sequential"
-			     " write preferred zones: %u\n",
-			(unsigned int) info->zbd_opt_nr_open_seq_pref);
-		fprintf(out, "    Optimal number of non-sequentially written"
-			     " sequential write preferred zones: %u\n",
-			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
+
+		if (info->zbd_opt_nr_open_seq_pref == ZBC_NOT_REPORTED)
+			strcpy(tmp, "not reported");
+		else
+			sprintf(tmp, "%u",
+				(unsigned int)info->zbd_opt_nr_open_seq_pref);
+		fprintf(out,
+			"    Optimal number of open sequential write "
+			"preferred zones: %s\n", tmp);
+
+		if (info->zbd_opt_nr_non_seq_write_seq_pref == ZBC_NOT_REPORTED)
+			strcpy(tmp, "not reported");
+		else
+			sprintf(tmp, "%u",
+				(unsigned int)info->zbd_opt_nr_non_seq_write_seq_pref);
+
+		fprintf(out,
+			"    Optimal number of non-sequentially written "
+			"sequential write preferred zones: %s\n", tmp);
+
 	}
 
 	fprintf(out, "    Realms command set is %ssupported\n",

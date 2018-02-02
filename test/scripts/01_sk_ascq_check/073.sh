@@ -14,15 +14,16 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE insufficient zone resources" $*
+zbc_test_init $0 "WRITE full zone" $*
 
-# Set expected error code
-expected_sk="Data-protect"
-expected_asc="Insufficient-zone-resources"
+# Expected error code for host-managed devices
+expected_sk="Illegal-request"
+expected_asc="Invalid-field-in-cdb"
 
 # Get drive information
 zbc_test_get_device_info
 
+# Set target zone type
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
 else
@@ -32,33 +33,13 @@ fi
 # Get zone information
 zbc_test_get_zone_info
 
-# Check the number of stasis zones
-zbc_test_count_stasis_zones
-
-# Check number of sequential zones
-zbc_test_count_seq_zones
-
-if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_stasis_zones})) ]; then
-    zbc_test_print_not_applicable
-fi
-
-# if max_open == -1 then it is "not reported"
-if [ ${max_open} -eq -1 ]; then
-    zbc_test_print_not_applicable
-fi
-
-# Open zones
-zbc_test_open_nr_zones ${max_open}
-
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
+# Search target zone
 zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
-target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} 8
 
 # Check result
 zbc_test_get_sk_ascq
@@ -70,7 +51,5 @@ else
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-
 rm -f ${zone_info_file}
 

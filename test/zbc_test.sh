@@ -51,7 +51,7 @@ fi
 
 # Check credentials
 if [ $(id -u) -ne 0 ]; then
-	echo "Only root can do this."
+	echo "Only root can run tests."
 	exit 1
 fi
 

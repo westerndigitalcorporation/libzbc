@@ -565,6 +565,18 @@ enum zbc_dev_flags {
 };
 
 /**
+ * "not reported" value for the number of zones limits in the device
+ * information (zbd_opt_nr_non_seq_write_seq_pref and zbd_max_nr_open_seq_req).
+ */
+#define ZBC_NOT_REPORTED	((uint32_t)0xFFFFFFFF)
+
+/**
+ * "no limit" value for the number of explicitly open sequential write required
+ * zones in the device information (zbd_max_nr_open_seq_req).
+ */
+#define ZBC_NO_LIMIT		((uint32_t)0xFFFFFFFF)
+
+/**
  * @brief Device information data structure
  *
  * Provide information on a device open using the \a zbc_open function.
@@ -624,20 +636,23 @@ struct zbc_device_info {
 
 	/**
 	 * Optimal maximum number of explicitly open sequential write
-	 * preferred zones (host-aware device models only).
+	 * preferred zones (host-aware device models only). A value
+	 * of "-1" means that the drive did not report any value.
 	 */
 	uint32_t		zbd_opt_nr_open_seq_pref;
 
 	/**
 	 * Optimal maximum number of sequential write preferred zones
 	 * with the ZBC_ZA_NON_SEQ zone attribute set
-	 * (host-aware device models only).
+	 * (host-aware device models only). A value of "-1" means that
+	 * the drive did not report any value.
 	 */
 	uint32_t		zbd_opt_nr_non_seq_write_seq_pref;
 
 	/**
 	 * Maximum number of explicitly open sequential write required
-	 * zones (host-managed device models only).
+	 * zones (host-managed device models only). A value of "-1" means
+	 * that there is no restrictions on the number of open zones.
 	 */
 	uint32_t		zbd_max_nr_open_seq_req;
 

@@ -42,6 +42,11 @@ if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_stasis_zones})) ]; then
     zbc_test_print_not_applicable
 fi
 
+# if max_open == -1 then it is "not reported"
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable
+fi
+
 # Open zones
 zbc_test_open_nr_zones ${max_open}
 
