@@ -57,5 +57,7 @@ include test/programs/close_zone/Makemodule.am
 include test/programs/finish_zone/Makemodule.am
 include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
+include test/programs/report_realms/Makemodule.am
+include test/programs/convert_realms/Makemodule.am
 endif
 

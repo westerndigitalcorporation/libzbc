@@ -2,8 +2,7 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -74,7 +73,8 @@ test_progs=( \
     zbc_test_close_zone \
     zbc_test_finish_zone \
     zbc_test_read_zone \
-    zbc_test_write_zone \
+    zbc_test_report_realms \
+    zbc_test_convert_realms \
 )
 
 for p in ${test_progs[@]}; do
@@ -176,7 +176,7 @@ fi
 # Build run list
 function get_exec_list()
 {
-	for secnum in 00 01 02; do
+	for secnum in 03; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
 			_IFS="${IFS}"
 			IFS='.'
@@ -309,14 +309,8 @@ function zbc_run_section()
 for section in ${section_list[@]}; do
 
 	case "${section}" in
-	"00")
-		section_name="command completion"
-		;;
-	"01")
-		section_name="sense key, sense code"
-		;;
-	"02")
-		section_name="zone state machine"
+	"03")
+		section_name="dh-smr command check"
 		;;
 	* )
 		echo "Unknown test section ${section}"

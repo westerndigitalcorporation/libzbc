@@ -92,8 +92,12 @@ usage:
 
 	/* Open device */
 	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDWR, &dev);
-	if (ret != 0)
+	if (ret != 0) {
+		fprintf(stderr,
+			"zbc_open failed, err %i (%s)\n",
+			ret, strerror(-ret));
 		return 1;
+	}
 
 	zbc_get_device_info(dev, &info);
 

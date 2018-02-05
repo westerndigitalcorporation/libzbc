@@ -57,8 +57,15 @@ function zbc_test_init()
 	zone_info_file="/tmp/${case_num}_zone_info.`basename ${device}`.log"
 	rm -f ${zone_info_file}
 
+	# Realm info file
+	realm_info_file="/tmp/${case_num}_realm_info.`basename ${device}`.log"
+	rm -f ${realm_info_file}
+
 	# Dump zone info file
 	dump_zone_info_file="${log_path}/${case_num}_zone_info.log"
+
+	# Dump realm info file
+	dump_realm_info_file="${log_path}/${case_num}_realm_info.log"
 }
 
 function zbc_test_run()
@@ -358,6 +365,134 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 	return 0
 }
 
+# Realm manipulation functions
+
+function zbc_test_get_realm_info()
+{
+	local _cmd="${bin_path}/zbc_test_report_realms ${device}"
+	echo "" >> ${log_file} 2>&1
+	echo "## Executing: ${_cmd} > ${realm_info_file} 2>&1" >> ${log_file} 2>&1
+	echo "" >> ${log_file} 2>&1
+
+	${_cmd} > ${realm_info_file} 2>&1
+
+	return 0
+}
+
+function zbc_test_count_realms()
+{
+	nr_realms=`cat ${realm_info_file} | wc -l`
+}
+
+function zbc_test_count_conv_realms()
+{
+	nr_conv_realms=`cat ${realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x1`
+}
+
+function zbc_test_count_seq_realms()
+{
+	nr_seq_realms=`cat ${realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x2`
+}
+
+function zbc_test_count_cvt_to_conv_realms()
+{
+	nr_cvt_to_conv_realms=`cat ${realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
+}
+
+function zbc_test_count_cvt_to_seq_realms()
+{
+	nr_cvt_to_seq_realms=`cat ${realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
+}
+
+function zbc_test_search_realm_by_type()
+{
+	realm_type=${1}
+	_skip=$(expr ${2:-0})
+
+	# [REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${realm_info_file} | grep "\[REALM_INFO\],.*,0x${realm_type},.*,.*,.*,.*,.*,.*,.*"`; do
+
+		if [ "${_skip}" -eq "0" ]; then
+
+			_IFS="${IFS}"
+			IFS=','
+			set -- ${_line}
+
+			realm_num=$(expr ${2} + 0)
+			realm_conv_start=${4}
+			realm_conv_len=${5}
+			realm_seq_start=${6}
+			realm_seq_len=${7}
+			realm_cvt_to_conv=${9}
+			realm_cvt_to_seq=${10}
+
+			IFS="$_IFS"
+
+		else
+			_skip=$(expr ${_skip} - 1)
+		fi
+
+		return 0
+
+	done
+
+	return 1
+}
+
+function zbc_test_search_realm_by_type_and_cvt()
+{
+	realm_type=${1}
+	_skip=$(expr ${3:-0})
+
+	case "${2}" in
+	"conv")
+		cvt="Y,.*"
+		;;
+	"seq")
+		cvt=".*,Y"
+		;;
+	"both")
+		cvt="Y,Y"
+		;;
+	"none")
+		cvt="N,N"
+		;;
+	* )
+		exit 1
+		;;
+	esac
+
+	# [REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${realm_info_file} | grep "\[REALM_INFO\],.*,0x${realm_type},.*,.*,.*,.*,.*,${cvt}"`; do
+
+		if [ "${_skip}" -eq "0" ]; then
+
+			_IFS="${IFS}"
+			IFS=','
+			set -- ${_line}
+
+			realm_num=$(expr ${2} + 0)
+			realm_conv_start=${4}
+			realm_conv_len=${5}
+			realm_seq_start=${6}
+			realm_seq_len=${7}
+			realm_cvt_to_conv=${9}
+			realm_cvt_to_seq=${10}
+
+			IFS="$_IFS"
+
+		else
+			_skip=$(expr ${_skip} - 1)
+		fi
+
+		return 0
+
+	done
+
+	return 1
+}
+
+
 # Check result functions
 
 function zbc_test_get_sk_ascq()
@@ -465,6 +600,11 @@ function zbc_test_dump_zone_info()
 	zbc_report_zones ${device} > ${dump_zone_info_file}
 }
 
+function zbc_test_dump_realm_info()
+{
+	zbc_report_realms ${device} > ${dump_realm_info_file}
+}
+
 function zbc_test_check_failed()
 {
 
@@ -472,6 +612,9 @@ function zbc_test_check_failed()
 
 	if [ "Failed" = "${failed}" ]; then
 		zbc_test_dump_zone_info
+		if [ "${realms_device}" != "0" ]; then
+			zbc_test_dump_realm_info
+		fi
 		return 1
 	fi
 
