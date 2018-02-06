@@ -38,6 +38,7 @@ function zbc_print_usage()
 	echo "                             This option may be repeated multiple times"
 	echo "                             to skip the execution of multiple tests."
 	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
+	echo "  -n | --nosechdr          : Don't display section headers"
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -104,6 +105,7 @@ skip_list=()
 print_list=0
 batch_mode=0
 force_ata=0
+no_sec_hdr=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -129,6 +131,9 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-a | --ata )
 		force_ata=1
+		;;
+	-n | --no_sec_hdr )
+		no_sec_hdr=1
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -273,7 +278,9 @@ function zbc_run_section()
 		# Init: Close and reset all zones
 		${ZBC_TEST_BIN_PATH}/zbc_test_close_zone ${device} -1
 		${ZBC_TEST_BIN_PATH}/zbc_test_reset_zone ${device} -1
-		echo "Executing section ${section} - ${section_name} tests..."
+		if [ $no_sec_hdr -ne 1 ]; then
+			echo "Executing section ${section} - ${section_name} tests..."
+		fi
 	fi
 
 	# Execute test cases for this section

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "[TEST][ERROR],Missing new zone type\n");
 		return 1;
 	}
-	if (strcmp(argv[i++], "conv") == 0) {
+	if (strcmp(argv[i], "conv") == 0) {
 		type = ZBC_ZT_CONVENTIONAL;
 	} else if (strcmp(argv[i], "seq") == 0) {
 		type = ZBC_ZT_SEQUENTIAL_REQ;
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (i < argc)
+	if (++i < argc)
 		fg = atoi(argv[i]);
 
 	/* Open device */

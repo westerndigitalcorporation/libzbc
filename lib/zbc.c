@@ -93,6 +93,10 @@ static struct zbc_sg_asc_ascq_s {
 		"Insufficient-zone-resources"
 	},
 	{
+		ZBC_ASC_CONVERSION_TYPE_UNSUPP,
+		"Conversion-type-unsupported"
+	},
+	{
 		0,
 		NULL
 	}
