@@ -81,6 +81,19 @@ function zbc_test_run()
 	return $?
 }
 
+function zbc_test_meta_run()
+{
+	local _cmd="$*"
+
+	echo "" >> ${log_file} 2>&1
+	echo "## Executing: ${_cmd}" >> ${log_file} 2>&1
+	echo "" 2>&1 | tee ${log_file} 2>&1
+
+	${_cmd} 2>&1 | tee ${log_file} 2>&1
+
+	return $?
+}
+
 # Get information functions
 
 function zbc_check_string()
@@ -404,6 +417,34 @@ function zbc_test_count_cvt_to_seq_realms()
 	nr_cvt_to_seq_realms=`cat ${realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
 }
 
+function zbc_test_search_realm_by_number()
+{
+	realm_number=`printf "%03u" "${1}"`
+
+	# [REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${realm_info_file} | grep "\[REALM_INFO\],${realm_number},.*,.*,.*,.*,.*,.*,.*,.*"`; do
+
+		_IFS="${IFS}"
+		IFS=','
+		set -- ${_line}
+
+		realm_type=${3}
+		realm_conv_start=${4}
+		realm_conv_len=${5}
+		realm_seq_start=${6}
+		realm_seq_len=${7}
+		realm_cvt_to_conv=${9}
+		realm_cvt_to_seq=${10}
+
+		IFS="$_IFS"
+
+		return 0
+
+	done
+
+	return 1
+}
+
 function zbc_test_search_realm_by_type()
 {
 	realm_type=${1}
@@ -448,8 +489,14 @@ function zbc_test_search_realm_by_type_and_cvt()
 	"conv")
 		cvt="Y,.*"
 		;;
+	"noconv")
+		cvt="N,.*"
+		;;
 	"seq")
 		cvt=".*,Y"
+		;;
+	"noseq")
+		cvt=".*,N"
 		;;
 	"both")
 		cvt="Y,Y"
@@ -537,6 +584,11 @@ function zbc_test_print_not_applicable()
 {
 	zbc_test_print_res "" " N/A  "
 	exit
+}
+
+function zbc_test_print_failed()
+{
+	zbc_test_print_res "${red}" "Failed"
 }
 
 function zbc_test_print_failed_sk()

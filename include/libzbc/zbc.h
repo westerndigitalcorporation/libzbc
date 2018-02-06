@@ -732,6 +732,10 @@ enum zbc_asc_ascq {
 
 	/** Insufficient zone resources */
 	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
+
+	/** Conversion type unsupported */
+	/* FIXME the exact sense code TBD */
+	ZBC_ASC_CONVERSION_TYPE_UNSUPP			= 0x210A,
 };
 
 /**

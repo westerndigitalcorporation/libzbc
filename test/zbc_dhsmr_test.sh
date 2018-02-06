@@ -37,6 +37,8 @@ function zbc_print_usage()
 	echo "                             This option may be repeated multiple times"
 	echo "                             to skip the execution of multiple tests."
 	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
+	echo "  -f | --format            : Force formatting of the test device. By default, only"
+	echo "                             TCMU emulated device is formatted."
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -104,6 +106,7 @@ skip_list=()
 print_list=0
 batch_mode=0
 force_ata=0
+format_dut=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -129,6 +132,9 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-a | --ata )
 		force_ata=1
+		;;
+	-f | --format )
+		format_dut=1
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -173,10 +179,31 @@ if [ ! -z ${device} ]; then
 	fi
 fi
 
+# Reset the DUT to factory conditions
+function zbc_reset_test_device()
+{
+	vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
+
+	case "${vendor}" in
+	"LIO-ORG TCMU DH-SMR" )
+		echo "Resetting the device..."
+		sg_sanitize -CQw ${device}
+		;;
+	* )
+		if [ ${format_dut} -eq 1 ]; then
+			echo "Formatting the device..."
+			sg_format ${device}
+		fi
+		;;
+	esac
+
+	return $?
+}
+
 # Build run list
 function get_exec_list()
 {
-	for secnum in 03; do
+	for secnum in 03 04; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
 			_IFS="${IFS}"
 			IFS='.'
@@ -305,12 +332,22 @@ function zbc_run_section()
 	return ${ret}
 }
 
+# Reset the device if needed
+zbc_reset_test_device
+if [ $? -ne 0 ]; then
+	echo "Can't reset test device"
+	exit 1
+fi
+
 # Run tests
 for section in ${section_list[@]}; do
 
 	case "${section}" in
 	"03")
-		section_name="dh-smr command check"
+		section_name="DH-SMR command check"
+		;;
+	"04")
+		section_name="DH-SMR device ZBC"
 		;;
 	* )
 		echo "Unknown test section ${section}"
