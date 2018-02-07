@@ -349,6 +349,9 @@ for section in ${section_list[@]}; do
 	"04")
 		section_name="DH-SMR device ZBC"
 		;;
+	"05")
+		section_name="DH-SMR zone checks"
+		;;
 	* )
 		echo "Unknown test section ${section}"
 		exit 1
