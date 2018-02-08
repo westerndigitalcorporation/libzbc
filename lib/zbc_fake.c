@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 
 #include <linux/fs.h>
 
@@ -28,8 +29,6 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <pthread.h>
 
 /**
  * Logical and physical sector size for emulation on top of a regular file.
@@ -88,10 +87,7 @@ struct zbc_fake_meta {
 	 */
 	uint32_t	zbd_nr_imp_open_zones;
 
-	/**
-	 * Process shared mutex.
-	 */
-	pthread_mutex_t	zbd_mutex;
+	uint8_t		reserved[40];
 
 };
 
@@ -105,8 +101,6 @@ struct zbc_fake_device {
 	int			zbd_meta_fd;
 	size_t			zbd_meta_size;
 	struct zbc_fake_meta	*zbd_meta;
-
-	pthread_mutexattr_t	zbd_mutex_attr;
 
 	uint32_t		zbd_nr_zones;
 	struct zbc_zone		*zbd_zones;
@@ -174,7 +168,10 @@ static inline void zbc_fake_clear_errno(struct zbc_device *dev)
  */
 static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
 {
-	pthread_mutex_lock(&fdev->zbd_meta->zbd_mutex);
+	if (flock(fdev->dev.zbd_fd, LOCK_EX) < 0)
+		zbc_error("%s: can't lock metadata, err %d (%s)\n",
+			  fdev->dev.zbd_filename,
+			  errno, strerror(errno));
 
 	/* Clear errno */
 	zbc_fake_clear_errno(&fdev->dev);
@@ -185,7 +182,10 @@ static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
  */
 static inline void zbc_fake_unlock(struct zbc_fake_device *fdev)
 {
-	pthread_mutex_unlock(&fdev->zbd_meta->zbd_mutex);
+	if (flock(fdev->dev.zbd_fd, LOCK_UN) < 0)
+		zbc_error("%s: can't lock metadata, err %d (%s)\n",
+			  fdev->dev.zbd_filename,
+			  errno, strerror(errno));
 }
 
 /**
@@ -205,8 +205,6 @@ static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 
 	close(fdev->zbd_meta_fd);
 	fdev->zbd_meta_fd = -1;
-
-	pthread_mutexattr_destroy(&fdev->zbd_mutex_attr);
 }
 
 /**
@@ -224,10 +222,6 @@ static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 	zbc_debug("%s: using meta file %s\n",
 		  fdev->dev.zbd_filename,
 		  meta_path);
-
-	pthread_mutexattr_init(&fdev->zbd_mutex_attr);
-	pthread_mutexattr_setpshared(&fdev->zbd_mutex_attr,
-				     PTHREAD_PROCESS_SHARED);
 
 	fdev->zbd_meta_fd = open(meta_path, O_RDWR);
 	if (fdev->zbd_meta_fd < 0) {
@@ -1202,7 +1196,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 				goto out;
 			}
 
-			/* Implicitely open the zone */
+			/* Implicitly open the zone */
 			if (fdev->zbd_meta->zbd_nr_imp_open_zones >=
 			    fdev->dev.zbd_info.zbd_max_nr_open_seq_req ) {
 				unsigned int i;
@@ -1292,10 +1286,6 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 
 	memset(&fmeta, 0, sizeof(struct zbc_fake_meta));
 
-	pthread_mutexattr_init(&fdev->zbd_mutex_attr);
-	pthread_mutexattr_setpshared(&fdev->zbd_mutex_attr,
-				     PTHREAD_PROCESS_SHARED);
-
 	/* Calculate zone configuration */
 	if (conv_sz + zone_sz > device_size) {
 		zbc_error("%s: invalid zone sizes (too large)\n",
@@ -1371,13 +1361,6 @@ static int zbc_fake_set_zones(struct zbc_device *dev,
 
 	/* Setup metadata header */
 	memcpy(fdev->zbd_meta, &fmeta, sizeof(struct zbc_fake_meta));
-	ret = pthread_mutex_init(&fdev->zbd_meta->zbd_mutex, &fdev->zbd_mutex_attr);
-	if (ret != 0) {
-		zbc_error("%s: Initialize metadata mutex failed %d (%s)\n",
-			  fdev->dev.zbd_filename,
-			  ret, strerror(ret));
-		goto out;
-	}
 
 	/* Setup conventional zones descriptors */
 	for (z = 0; z < fmeta.zbd_nr_conv_zones; z++) {
