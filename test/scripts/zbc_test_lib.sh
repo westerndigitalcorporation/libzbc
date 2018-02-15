@@ -397,8 +397,8 @@ function zbc_test_print_failed_sk()
 	zbc_test_print_res "${red}" "Failed"
 
 	echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
-	echo "        => Expected ${expected_sk} / ${expected_asc}"
-	echo "           Got ${sk} / ${asc}"
+	echo "            => Expected ${expected_sk} / ${expected_asc}"
+	echo "               Got ${sk} / ${asc}"
 }
 
 function zbc_test_check_sk_ascq()
@@ -426,8 +426,8 @@ function zbc_test_print_failed_zc()
 	echo "=> Expected zone_condition ${expected_cond}, Got ${target_cond}" >> ${log_file} 2>&1
 
 	echo -e "\r\e[120C[${red}Failed${end}]"
-	echo "        => Expected zone_condition ${expected_cond}"
-	echo "           Got ${target_cond}"
+	echo "            => Expected zone_condition ${expected_cond}"
+	echo "               Got ${target_cond}"
 }
 
 function zbc_test_check_zone_cond()
