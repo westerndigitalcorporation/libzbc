@@ -596,7 +596,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 
 	zbc_fake_lock(fdev);
 
-	if (!zones && !max_nr_zones)
+	if (!zones)
 		max_nr_zones = fdev->zbd_nr_zones;
 
 	/* Get matching zones */
