@@ -80,9 +80,8 @@ usage:
 		if (ret == -ENXIO)
 			fprintf(stderr, "Unsupported device type\n");
 		else
-			fprintf(stderr,
-				"zbc_open failed %d (%s)\n",
-				ret, strerror(-ret));
+			fprintf(stderr, "Open %s failed (%s)\n",
+				path, strerror(-ret));
 		return 1;
 	}
 

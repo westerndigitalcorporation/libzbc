@@ -207,8 +207,11 @@ usage:
 	/* Open device */
 	path = argv[i];
 	ret = zbc_open(path, O_RDONLY, &dev);
-	if (ret != 0)
+	if (ret != 0) {
+		fprintf(stderr, "Open %s failed (%s)\n",
+			path, strerror(-ret));
 		return 1;
+	}
 
 	zbc_get_device_info(dev, &info);
 
