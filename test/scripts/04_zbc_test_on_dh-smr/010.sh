@@ -23,9 +23,12 @@ expected_asc=""
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}
+if [ $? -ne 0 ]; then
+    sk="fail"
+    asc="ZBC test failed"
+fi
 
 # Check result
-zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 # Check failed

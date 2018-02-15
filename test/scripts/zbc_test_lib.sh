@@ -134,8 +134,9 @@ function zbc_test_meta_run()
 	echo "" 2>&1 | tee ${log_file} 2>&1
 
 	${_cmd} 2>&1 | tee ${log_file} 2>&1
+	ret=${PIPESTATUS[0]}
 
-	return $?
+	return ${ret}
 }
 
 # Get information functions
@@ -317,10 +318,12 @@ function zbc_test_open_nr_zones()
 
 		IFS="$_IFS"
 
+		if [ "${zone_cond}" == "0x1" -o "${zone_cond}" == "0x4" ]; then
 		zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba}
 		count=${count}+1
 		if [ ${count} -eq $(( ${open_num} )) ]; then
 			return 0
+		fi
 		fi
 
 	done
