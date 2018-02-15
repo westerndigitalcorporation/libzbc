@@ -69,9 +69,12 @@ usage:
 
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, O_RDWR, &dev);
-	if (ret != 0)
+	ret = zbc_open(path, O_RDWR | ZBC_O_DRV_FAKE, &dev);
+	if (ret != 0) {
+		fprintf(stderr, "Open %s failed (%s)\n",
+			path, strerror(-ret));
 		return 1;
+	}
 
 	zbc_get_device_info(dev, &info);
 	if (info.zbd_type != ZBC_DT_FAKE) {

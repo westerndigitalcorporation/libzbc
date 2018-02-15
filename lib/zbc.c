@@ -441,11 +441,13 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 	uint64_t last_sector;
 	int ret;
 
-	if (!zones)
+	if (!zones) {
 		/* Get the number of zones */
+		*nr_zones = 0;
 		return (dev->zbd_drv->zbd_report_zones)(dev, sector,
 							zbc_ro_mask(ro),
 							NULL, nr_zones);
+	}
 
         /* Get zones information */
         while (nz < *nr_zones) {
