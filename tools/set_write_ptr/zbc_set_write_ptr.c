@@ -69,7 +69,7 @@ usage:
 
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, O_RDWR, &dev);
+	ret = zbc_open(path, O_RDWR | ZBC_O_DRV_FAKE, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "Open %s failed (%s)\n",
 			path, strerror(-ret));

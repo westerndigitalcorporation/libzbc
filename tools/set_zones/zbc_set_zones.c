@@ -75,7 +75,7 @@ usage:
 
 	/* Open device: only allow fake device backend driver */
 	path = argv[i];
-	ret = zbc_open(path, O_RDWR, &dev);
+	ret = zbc_open(path, O_RDWR | ZBC_O_DRV_FAKE, &dev);
 	if (ret < 0) {
 		if (ret == -ENXIO)
 			fprintf(stderr, "Unsupported device type\n");
