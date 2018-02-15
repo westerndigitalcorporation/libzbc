@@ -534,6 +534,12 @@ struct zbc_device_info {
  */
 enum zbc_sk {
 
+	/** Not ready */
+	ZBC_SK_NOT_READY	= 0x2,
+
+	/** Medium error */
+	ZBC_SK_MEDIUM_ERROR	= 0x3,
+
 	/** Illegal request */
 	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
 
@@ -575,6 +581,15 @@ enum zbc_asc_ascq {
 
 	/** Insufficient zone resources */
 	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
+
+	/** Read error */
+	ZBC_ASC_READ_ERROR				= 0x1100,
+
+	/** Write error */
+	ZBC_ASC_WRITE_ERROR				= 0x0C00,
+
+	/** Format in progress */
+	ZBC_ASC_FORMAT_IN_PROGRESS			= 0x0404,
 };
 
 /**
