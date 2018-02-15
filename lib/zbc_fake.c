@@ -1166,6 +1166,13 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 
 	if (zbc_zone_sequential_req(zone)) {
 
+		/* Cannot write a full zone */
+		if (zbc_zone_full(zone)) {
+			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
+			dev->zbd_errno.asc_ascq = ZBC_ASC_INVALID_FIELD_IN_CDB;
+			goto out;
+		}
+
 		/* Can only write at the write pointer */
 		if (offset != zbc_zone_wp(zone)) {
 			dev->zbd_errno.sk = ZBC_SK_ILLEGAL_REQUEST;
