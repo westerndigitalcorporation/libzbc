@@ -179,7 +179,7 @@ static inline void zbc_fake_set_errno(struct zbc_device *dev, enum zbc_sk sk,
 static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
 {
 	if (flock(fdev->dev.zbd_fd, LOCK_EX) < 0)
-		zbc_error("%s: can't lock metadata, err %d (%s)\n",
+		zbc_error("%s: lock metadata failed %d (%s)\n",
 			  fdev->dev.zbd_filename,
 			  errno, strerror(errno));
 
@@ -193,7 +193,7 @@ static inline void zbc_fake_lock(struct zbc_fake_device *fdev)
 static inline void zbc_fake_unlock(struct zbc_fake_device *fdev)
 {
 	if (flock(fdev->dev.zbd_fd, LOCK_UN) < 0)
-		zbc_error("%s: can't lock metadata, err %d (%s)\n",
+		zbc_error("%s: unlock metadata failed %d (%s)\n",
 			  fdev->dev.zbd_filename,
 			  errno, strerror(errno));
 }
