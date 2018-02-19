@@ -585,7 +585,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 			return ret ? ret : -EIO;
 		}
 
-		buf += ret;
+		buf += ret << 9;
 		offset += ret;
 		count -= ret;
 		rd_count += ret;
@@ -640,7 +640,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			return ret ? ret : -EIO;
 		}
 
-		buf += ret;
+		buf += ret << 9;
 		offset += ret;
 		count -= ret;
 		wr_count += ret;
