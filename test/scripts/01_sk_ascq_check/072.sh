@@ -35,13 +35,13 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# Check the number of stasis zones
-zbc_test_count_stasis_zones
+# Check the number of inactive zones
+zbc_test_count_inactive_zones
 
 # Check number of sequential zones
 zbc_test_count_seq_zones
 
-if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_stasis_zones})) ]; then
+if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_inactive_zones})) ]; then
     zbc_test_print_not_applicable
 fi
 

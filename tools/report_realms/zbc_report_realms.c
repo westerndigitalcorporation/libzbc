@@ -23,8 +23,8 @@
 
 #define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
-static void zbc_report_print_realm(struct zbc_device_info *info,
-				   struct zbc_realm *r)
+static void zbc_report_print_region(struct zbc_device_info *info,
+				    struct zbc_realm *r)
 {
 	if (zbc_realm_conventional(r) || zbc_realm_sequential(r)) {
 		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
@@ -104,7 +104,7 @@ usage:
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
 
-	ret = zbc_report_nr_realms(dev, &nr_realms);
+	ret = zbc_media_report_nr_regions(dev, &nr_realms);
 	if (ret != 0) {
 		fprintf(stderr, "zbc_report_nr_realms failed %d\n",
 			ret);
@@ -130,15 +130,15 @@ usage:
 	}
 
 	/* Get realm information */
-	ret = zbc_report_realms(dev, realms, &nr);
+	ret = zbc_media_report(dev, realms, &nr);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_report_realms failed %d\n", ret);
+		fprintf(stderr, "zbc_media_report failed %d\n", ret);
 		ret = 1;
 		goto out;
 	}
 
 	for (i = 0; i < (int)nr; i++)
-		zbc_report_print_realm(&info, &realms[i]);
+		zbc_report_print_region(&info, &realms[i]);
 
 out:
 	if (realms)

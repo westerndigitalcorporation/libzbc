@@ -132,14 +132,14 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
-	 * Conventional WP zone (realm devices only).
+	 * Conventional WP zone (for Media Conversion devices only).
 	 */
 	ZBC_ZC_CONV_WP		= 0x05,
 
 	/**
-	 * Stasis zone: any zone unmapped zone of a realm device.
+	 * Inacive zone: an unmapped zone of a Media Conversion device.
 	 */
-	ZBC_ZC_STASIS		= 0x0c,
+	ZBC_ZC_INACTIVE		= 0x0c,
 
 	/**
 	 * Read-only zone: any zone that can only be read.
@@ -415,6 +415,38 @@ struct zbc_realm {
 /** @brief Test if the realm is convertible to sequential */
 #define zbc_realm_to_seq(r) \
 	((int)((r)->zbr_convertible & ZBC_REALM_TO_SEQ))
+
+/**
+ * @brief Media Conversion Results record.
+ *
+ * A list of these descriptors is returned by MEDIA CONVERT command
+ * to provide the caller with LBAs and other information about
+ * the converted zones.
+ */
+struct zbc_conv_rec {
+
+
+	/**
+	 * @brief Starting zone locator (LBA).
+	 */
+	uint64_t		zbe_start_lba;
+
+	/**
+	 * @brief Number of contiguous converted zones.
+	 */
+	uint32_t		zbe_nr_zones;
+
+	/**
+	 * @brief Zone type of all zones in this range.
+	 */
+	uint8_t			zbe_type;
+
+	/**
+	 * @brief Zone condition of all zones in this range.
+	 */
+	uint8_t			zbe_condition;
+
+};
 
 /**
  * Vendor ID string maximum length.
@@ -1204,45 +1236,47 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_report_realms(struct zbc_device *dev,
+extern int zbc_media_report(struct zbc_device *dev,
 			     struct zbc_realm *realms, unsigned int *nr_realms);
 
 /**
- * @brief Get the number of realms
+ * @brief Get the number of media conversion regions
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] nr_realms	The number of realms
+ * @param[out] nr_regions	The number of conversion regions
  *
- * Similar to \a zbc_report_realms, but returns only the number of realms that
- * \a zbc_report_realms would have returned. This is useful to determine the
- * total number of realms of a device to allocate an array of realm information
- * structures for use with \a zbc_report_realms.
+ * Similar to \a zbc_media_report, but returns only the number of media
+ * conversion regions that \a zbc_media_report would have returned.
+ * This is useful to determine the total number of regions of a device
+ * to allocate an array of conversion region information structures
+ * for use with \a zbc_media_report.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-static inline int zbc_report_nr_realms(struct zbc_device *dev,
-				       unsigned int *nr_realms)
+static inline int zbc_media_report_nr_regions(struct zbc_device *dev,
+					      unsigned int *nr_regions)
 {
-	return zbc_report_realms(dev, NULL, nr_realms);
+	return zbc_media_report(dev, NULL, nr_regions);
 }
 
 /**
- * @brief Get realm information
+ * @brief Get conversion region information
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] realms		The array of realm information filled
- * @param[out] nr_realms	Number of realms in the array \a realms
+ * @param[out] regions		Array of convert region descriptors
+ * @param[out] nr_regions	Number of regions in the array \a regions
  *
- * Similar to \a zbc_report_realmss, but also allocates an appropriately sized
- * array of realm information structures and return the address of the array
- * at the address specified by \a realms. The size of the array allocated and
- * filled is returned at the address specified by \a nr_realms. Freeing of the
- * memory used by the array of realm information structures allocated by this
- * function is the responsibility of the caller.
+ * Similar to \a zbc_media_report, but also allocates an appropriately sized
+ * array of conversion region descriptorss and returns the address of the array
+ * at the address specified by \a regions. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_regions. Freeing of the
+ * memory used by the array of region descriptors allocated by this function
+ * is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
- * Returns -ENOMEM if memory could not be allocated for \a realms.
+ * Returns -ENOMEM if memory could not be allocated for \a regions.
  */
-extern int zbc_list_realms(struct zbc_device *dev,
-			   struct zbc_realm **realms, unsigned int *nr_realms);
+extern int zbc_list_conv_regions(struct zbc_device *dev,
+				 struct zbc_realm **regions,
+				 unsigned int *nr_regions);
 
 /**
  * @brief Convert all zones in one or several realms to a specific type

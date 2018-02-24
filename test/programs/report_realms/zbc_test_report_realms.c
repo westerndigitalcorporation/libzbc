@@ -80,10 +80,10 @@ usage:
 
 	zbc_get_device_info(dev, &info);
 
-	/* Get the number of realms */
-	ret = zbc_report_nr_realms(dev, &nr_realms);
+	/* Get the number of conversion regions */
+	ret = zbc_media_report_nr_regions(dev, &nr_realms);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],zbc_report_nr_realms failed %d\n",
+		fprintf(stderr, "[TEST][ERROR],zbc_media_report_nr_regions failed %d\n",
 			ret);
 		return 1;
 	}
@@ -97,10 +97,10 @@ usage:
 	}
 
 	/* Get realm information */
-	ret = zbc_report_realms(dev, realms, &nr_realms);
+	ret = zbc_media_report(dev, realms, &nr_realms);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_report_realms failed %d\n",
+			"[TEST][ERROR],zbc_media_report failed %d\n",
 			ret);
 		return 1;
 	}

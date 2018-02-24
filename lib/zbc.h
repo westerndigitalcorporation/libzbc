@@ -61,9 +61,9 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
-	 * Report device realm configuration.
+	 * Report media conversion configuration.
 	 */
-	int		(*zbd_report_realms)(struct zbc_device *,
+	int		(*zbd_media_report)(struct zbc_device *,
 					     struct zbc_realm *, unsigned int *);
 
 	/**
@@ -71,6 +71,13 @@ struct zbc_drv {
 	 */
 	int		(*zbd_convert_realms)(struct zbc_device *, uint64_t,
 					     uint32_t, uint32_t, int);
+
+	/**
+	 * Convert zones from one CMR/SMR type to the other.
+	 */
+	int		(*zbd_media_convert)(struct zbc_device *, bool,
+					     uint64_t, struct zbc_conv_rec *,
+					     uint32_t *);
 
 	/**
 	 * Read from a ZBC device.

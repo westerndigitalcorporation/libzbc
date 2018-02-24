@@ -207,8 +207,8 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 		return "Closed";
 	case ZBC_ZC_CONV_WP:
 		return "Conv-WP";
-	case ZBC_ZC_STASIS:
-		return "Stasis";
+	case ZBC_ZC_INACTIVE:
+		return "Inactive";
 	case ZBC_ZC_RDONLY:
 		return "Read-only";
 	case ZBC_ZC_FULL:
@@ -423,10 +423,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
 	}
 
-	fprintf(out, "    Realms command set is %ssupported\n",
+	fprintf(out, "    Media Conversion command set is %ssupported\n",
 		(info->zbd_flags & ZBC_REALMS_SUPPORT) ? "" : "NOT ");
 	if (info->zbd_flags & ZBC_REALMS_SUPPORT) {
-		fprintf(out, "    Foreground realm conversion is %ssupported\n",
+		fprintf(out, "    Foreground media conversion is %ssupported\n",
 			(info->zbd_flags & ZBC_FC_SUPPORT) ? "" : "not ");
 		fprintf(out, "    Conventional zone write pointer check"
 			     " is %ssupported\n",
@@ -436,10 +436,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			     " is %senabled\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
 		if (info->zbd_max_conversion != 0)
-			fprintf(out, "    Maximum number of realms to convert: %u\n",
+			fprintf(out, "    Maximum number of regions to convert: %u\n",
 				info->zbd_max_conversion);
 		else
-			fprintf(out, "    Maximum number of realms"
+			fprintf(out, "    Maximum number of regions"
 				     " to convert is unlimited\n");
 	}
 
@@ -555,9 +555,9 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_report_realms - Get realm information
+ * zbc_media_report - Get media conversion information
  */
-int zbc_report_realms(struct zbc_device *dev,
+int zbc_media_report(struct zbc_device *dev,
 		      struct zbc_realm *realms, unsigned int *nr_realms)
 {
 	int ret;
@@ -570,10 +570,10 @@ int zbc_report_realms(struct zbc_device *dev,
 
 	if (!realms)
 		/* Just get the number of realms */
-		return (dev->zbd_drv->zbd_report_realms)(dev, NULL, nr_realms);
+		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_realms);
 
 	/* Get realm information */
-	ret = (dev->zbd_drv->zbd_report_realms)(dev, realms, nr_realms);
+	ret = (dev->zbd_drv->zbd_media_report)(dev, realms, nr_realms);
 	if (ret != 0) {
 		zbc_error("%s: Get realms failed %d (%s)\n",
 			  dev->zbd_filename,
@@ -585,9 +585,9 @@ int zbc_report_realms(struct zbc_device *dev,
 }
 
 /**
- * zbc_list_realms - Get realm information
+ * zbc_list_conv_regions - Get conversion region information
  */
-int zbc_list_realms(struct zbc_device *dev,
+int zbc_list_conv_regions(struct zbc_device *dev,
 		    struct zbc_realm **prealms, unsigned int *pnr_realms)
 {
 	struct zbc_realm *realms = NULL;
@@ -601,7 +601,7 @@ int zbc_list_realms(struct zbc_device *dev,
 	}
 
 	/* Get total number of realms */
-	ret = zbc_report_nr_realms(dev, &nr_realms);
+	ret = zbc_media_report_nr_regions(dev, &nr_realms);
 	if (ret < 0)
 		return ret;
 
@@ -615,9 +615,9 @@ int zbc_list_realms(struct zbc_device *dev,
 		return -ENOMEM;
 
 	/* Get realm information */
-	ret = zbc_report_realms(dev, realms, &nr_realms);
+	ret = zbc_media_report(dev, realms, &nr_realms);
 	if (ret != 0) {
-		zbc_error("%s: zbc_report_realms failed %d\n",
+		zbc_error("%s: zbc_media_report failed %d\n",
 			  dev->zbd_filename, ret);
 		free(realms);
 		return ret;

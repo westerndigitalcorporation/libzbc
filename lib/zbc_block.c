@@ -883,9 +883,9 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device realm configuration.
+ * Report device conversion region configuration.
  */
-static int zbc_block_report_realms(struct zbc_device *dev,
+static int zbc_block_media_report(struct zbc_device *dev,
 				   struct zbc_realm *realms,
 				   unsigned int *nr_realms)
 {
@@ -962,7 +962,7 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_report_realms(struct zbc_device *dev,
+static int zbc_block_media_report(struct zbc_device *dev,
 				   struct zbc_realm *realms,
 				   unsigned int nr_realms)
 {
@@ -1008,6 +1008,6 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
-	.zbd_report_realms	= zbc_block_report_realms,
+	.zbd_media_report	= zbc_block_media_report,
 	.zbd_convert_realms	= zbc_block_convert_realms,
 };

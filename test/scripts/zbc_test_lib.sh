@@ -292,9 +292,9 @@ function zbc_test_count_seq_zones()
 	nr_zones=`cat ${zone_info_file} | grep Sequential | wc -l`
 }
 
-function zbc_test_count_stasis_zones()
+function zbc_test_count_inactive_zones()
 {
-	nr_stasis_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $d; done | grep -c 0xc`
+	nr_inactive_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $d; done | grep -c 0xc`
 }
 
 function zbc_test_open_nr_zones()

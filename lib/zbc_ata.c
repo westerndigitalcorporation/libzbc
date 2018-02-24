@@ -1062,9 +1062,9 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device realm configuration.
+ * Report device conversion region configuration.
  */
-static int zbc_ata_report_realms(struct zbc_device *dev, struct zbc_realm *realms,
+static int zbc_ata_media_report(struct zbc_device *dev, struct zbc_realm *realms,
 				 unsigned int *nr_realms)
 {
 	size_t bufsz = ZBC_REALMS_HEADER_SIZE;
@@ -1712,7 +1712,7 @@ struct zbc_drv zbc_ata_drv =
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
-	.zbd_report_realms	= zbc_ata_report_realms,
+	.zbd_media_report	= zbc_ata_media_report,
 	.zbd_convert_realms	= zbc_ata_convert_realms,
 };
 
