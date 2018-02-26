@@ -883,7 +883,7 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion region configuration.
+ * Report device conversion range configuration.
  */
 static int zbc_block_media_report(struct zbc_device *dev,
 				  struct zbc_cvt_range *ranges,

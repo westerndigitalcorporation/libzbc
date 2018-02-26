@@ -80,7 +80,7 @@ usage:
 
 	zbc_get_device_info(dev, &info);
 
-	/* Get the number of conversion regions */
+	/* Get the number of conversion ranges */
 	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],zbc_media_report_nr_ranges failed %d\n",

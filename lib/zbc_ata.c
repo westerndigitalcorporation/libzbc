@@ -434,17 +434,17 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
 		return;
 	}
 
-        /* Vendor = "ATA" */
-        strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
+	/* Vendor = "ATA" */
+	strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
 	n = 4;
 
-        /* Model number */
-        n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			    (char *)&buf[48], 16, 0);
+	/* Model number */
+	n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+		    (char *)&buf[48], 16, 0);
 
-        /* Firmware revision */
-        zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-		       (char *)&buf[32], 8, 4);
+	/* Firmware revision */
+	zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+	        (char *)&buf[32], 8, 4);
 }
 
 /**
@@ -914,18 +914,18 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	if (!zones || !nz)
 		goto out;
 
-        /* Get zone info */
-        if (nz > *nr_zones)
+	/* Get zone info */
+	if (nz > *nr_zones)
 		nz = *nr_zones;
 
 	buf_nz = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
 		/ ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if (nz > buf_nz)
+	if (nz > buf_nz)
 		nz = buf_nz;
 
-        /* Get zone descriptors */
+	/* Get zone descriptors */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
-        for (i = 0; i < nz; i++) {
+	for (i = 0; i < nz; i++) {
 
 		zones[i].zbz_type = buf[0] & 0x0f;
 
@@ -944,7 +944,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 			zones[i].zbz_write_pointer = (uint64_t)-1;
 
 		buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
-        }
+	}
 
 out:
 	/* Return number of zones */
@@ -1064,7 +1064,7 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion region configuration.
+ * Report device conversion range configuration.
  */
 static int zbc_ata_media_report(struct zbc_device *dev,
 				struct zbc_cvt_range *ranges,
@@ -1107,13 +1107,13 @@ static int zbc_ata_media_report(struct zbc_device *dev,
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 5-6 |                             count                                     |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 7-12|                          LBA reserved                                 |
+	 * | 7-12|                           LBA reserved                                |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 13  |                 Device, bit 6 shall be set to 1                       |
+	 * | 13  |                   Device, bit 6 shall be set to 1                     |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                         Command (4Ah)                                 |
+	 * | 14  |                           Command (4Ah)                               |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
+	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
 	 */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;

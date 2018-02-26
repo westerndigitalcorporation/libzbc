@@ -23,8 +23,8 @@
 
 #define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
-static void zbc_report_print_region(struct zbc_device_info *info,
-				    struct zbc_cvt_range *r)
+static void zbc_report_print_range(struct zbc_device_info *info,
+				   struct zbc_cvt_range *r)
 {
 	if (zbc_cvt_range_conventional(r) || zbc_cvt_range_sequential(r)) {
 		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
@@ -141,7 +141,7 @@ usage:
 	}
 
 	for (i = 0; i < (int)nr; i++)
-		zbc_report_print_region(&info, &ranges[i]);
+		zbc_report_print_range(&info, &ranges[i]);
 
 out:
 	if (ranges)

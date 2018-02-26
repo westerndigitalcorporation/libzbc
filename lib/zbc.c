@@ -436,10 +436,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			     " is %senabled\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
 		if (info->zbd_max_conversion != 0)
-			fprintf(out, "    Maximum number of regions to convert: %u\n",
+			fprintf(out, "    Maximum number of ranges to convert: %u\n",
 				info->zbd_max_conversion);
 		else
-			fprintf(out, "    Maximum number of regions"
+			fprintf(out, "    Maximum number of ranges"
 				     " to convert is unlimited\n");
 	}
 
@@ -585,7 +585,7 @@ int zbc_media_report(struct zbc_device *dev,
 }
 
 /**
- * zbc_list_conv_regions - Get conversion range information
+ * zbc_list_conv_ranges - Get conversion range information
  */
 int zbc_list_conv_ranges(struct zbc_device *dev,
 			 struct zbc_cvt_range **pranges,
