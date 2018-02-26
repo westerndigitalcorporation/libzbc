@@ -19,23 +19,23 @@ zbc_test_init $0 "Run ZBC test on converted back to CMR device" $*
 expected_sk=""
 expected_asc=""
 
-# Get realm information
-zbc_test_get_realm_info
+# Get conversion range information
+zbc_test_get_cvt_range_info
 
-# Find the first SMR realm that is convertible to CMR
-zbc_test_search_realm_by_type_and_cvt "2" "conv"
+# Find the first SMR range that is convertible to CMR
+zbc_test_search_range_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
-# Find the total number of convertible realms
-zbc_test_count_cvt_to_conv_realms
-if [ $nr_cvt_to_conv_realms -eq 0 ]; then
+# Find the total number of convertible ranges
+zbc_test_count_cvt_to_conv_ranges
+if [ $nr_cvt_to_conv_ranges -eq 0 ]; then
     zbc_test_print_failed
 fi
 
-# Convert the realms
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${realm_num} ${nr_cvt_to_conv_realms} "conv"
+# Convert the media
+zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} ${nr_cvt_to_conv_ranges} "conv"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

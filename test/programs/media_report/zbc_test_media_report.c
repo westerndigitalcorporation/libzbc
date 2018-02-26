@@ -25,8 +25,8 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_realm *r, *realms = NULL;
-	unsigned int nr_realms, oflags;
+	struct zbc_cvt_range *r, *ranges = NULL;
+	unsigned int nr_ranges, oflags;
 	int i, ret = 1;
 
 	/* Check command line */
@@ -81,23 +81,23 @@ usage:
 	zbc_get_device_info(dev, &info);
 
 	/* Get the number of conversion regions */
-	ret = zbc_media_report_nr_regions(dev, &nr_realms);
+	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],zbc_media_report_nr_regions failed %d\n",
+		fprintf(stderr, "[TEST][ERROR],zbc_media_report_nr_ranges failed %d\n",
 			ret);
 		return 1;
 	}
 
-	/* Allocate realm array */
-	realms = (struct zbc_realm *) calloc(nr_realms, sizeof(struct zbc_realm));
-	if (!realms) {
+	/* Allocate conversion range descriptor array */
+	ranges = (struct zbc_cvt_range *)calloc(nr_ranges, sizeof(struct zbc_cvt_range));
+	if (!ranges) {
 		fprintf(stderr,
 			"[TEST][ERROR],No memory\n");
 		return 1;
 	}
 
-	/* Get realm information */
-	ret = zbc_media_report(dev, realms, &nr_realms);
+	/* Get conversion range information */
+	ret = zbc_media_report(dev, ranges, &nr_ranges);
 	if (ret != 0) {
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_media_report failed %d\n",
@@ -105,18 +105,18 @@ usage:
 		return 1;
 	}
 
-	for (i = 0; i < (int)nr_realms; i++) {
-		r = &realms[i];
-		printf("[REALM_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
-		       zbc_realm_number(r),
-		       zbc_realm_type(r),
-		       zbc_sect2lba(&info, zbc_realm_conv_start(r)),
-		       zbc_sect2lba(&info, zbc_realm_conv_length(r)),
-		       zbc_sect2lba(&info, zbc_realm_seq_start(r)),
-		       zbc_sect2lba(&info, zbc_realm_seq_length(r)),
-		       zbc_realm_keep_out(r),
-		       zbc_realm_to_conv(r) ? "Y" : "N",
-		       zbc_realm_to_seq(r) ? "Y" : "N");
+	for (i = 0; i < (int)nr_ranges; i++) {
+		r = &ranges[i];
+		printf("[CVT_RANGE_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
+		       zbc_cvt_range_number(r),
+		       zbc_cvt_range_type(r),
+		       zbc_sect2lba(&info, zbc_cvt_range_conv_start(r)),
+		       zbc_sect2lba(&info, zbc_cvt_range_conv_length(r)),
+		       zbc_sect2lba(&info, zbc_cvt_range_seq_start(r)),
+		       zbc_sect2lba(&info, zbc_cvt_range_seq_length(r)),
+		       zbc_cvt_range_keep_out(r),
+		       zbc_cvt_range_to_conv(r) ? "Y" : "N",
+		       zbc_cvt_range_to_seq(r) ? "Y" : "N");
         }
 
 	if (ret != 0) {
@@ -133,8 +133,8 @@ usage:
 
 	}
 
-	if (realms)
-		free(realms);
+	if (ranges)
+		free(ranges);
 	zbc_close(dev);
 
 	return ret;

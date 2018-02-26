@@ -40,7 +40,7 @@ enum {
 	ZBC_SG_FINISH_ZONE,
 	ZBC_SG_SET_ZONES,
 	ZBC_SG_SET_WRITE_POINTER,
-	ZBC_SG_REPORT_REALMS,
+	ZBC_SG_MEDIA_REPORT,
 	ZBC_SG_CONVERT_REALMS,
 	ZBC_SG_MEDIA_CONVERT_16,
 	ZBC_SG_MEDIA_CONVERT_32,
@@ -136,11 +136,11 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
 
 /**
- * Report realms command definition.
+ * Media report command definition.
  */
-#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
-#define ZBC_SG_REPORT_REALMS_CDB_SA		0x01
-#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
+#define ZBC_SG_MEDIA_REPORT_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_MEDIA_REPORT_CDB_SA		0x01
+#define ZBC_SG_MEDIA_REPORT_CDB_LENGTH		16
 
 /**
  * Convert realms command definition.

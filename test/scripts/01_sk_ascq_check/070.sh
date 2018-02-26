@@ -35,7 +35,7 @@ zbc_test_get_zone_info
 # Search target LBA
 no_zones=0
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc"
-if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+if [ $? -ne 0 -a "${media_cvt_device}" != "0" ]; then
     no_zones=1
     expected_sk="Medium-error"
     expected_asc="Zone-is-offline"

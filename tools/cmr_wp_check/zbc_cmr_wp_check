@@ -24,7 +24,7 @@ fi
 
 if [ $bad -eq 1 ]; then
   echo "Usage:"
-  echo "  $(basename $0) <on|off> <realms device>"
+  echo "  $(basename $0) <on|off> <media convert device>"
   echo ""
   echo "Example:"
   echo "  $0 on /dev/sdb"

@@ -22,28 +22,28 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
-# Get realm information
-zbc_test_get_realm_info
+# Get conversion range information
+zbc_test_get_cvt_range_info
 
-# Find a CMR realm that is convertable to SMR
-zbc_test_search_realm_by_type_and_cvt "1" "seq"
+# Find a CMR range that is convertable to SMR
+zbc_test_search_range_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${realm_num} 1 "seq"
+zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} 1 "seq"
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
-    # Verify that the realm is converted
-    zbc_test_get_realm_info
-    zbc_test_search_realm_by_number ${realm_num}
-    if [ $? -ne 0 -o "${realm_type}" != "0x2" ]; then
-        sk=${realm_type}
+    # Verify that the range is converted
+    zbc_test_get_cvt_range_info
+    zbc_test_search_cvt_range_by_number ${range_num}
+    if [ $? -ne 0 -o "${range_type}" != "0x2" ]; then
+        sk=${range_type}
         expected_sk="0x2"
         zbc_test_print_failed_sk
     fi

@@ -64,7 +64,8 @@ struct zbc_drv {
 	 * Report media conversion configuration.
 	 */
 	int		(*zbd_media_report)(struct zbc_device *,
-					     struct zbc_realm *, unsigned int *);
+					    struct zbc_cvt_range *,
+					    unsigned int *);
 
 	/**
 	 * Convert one or several realms from one type to another.
@@ -166,8 +167,9 @@ struct zbc_device {
 #define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
 #define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
-#define zbc_dev_is_realms(dev)	(zbc_dev_is_zoned(dev) && \
-				 (dev)->zbd_info.zbd_flags & ZBC_REALMS_SUPPORT)
+#define zbc_dev_is_convt(dev)	(zbc_dev_is_zoned(dev) && \
+				 (dev)->zbd_info.zbd_flags & \
+				 ZBC_MEDIA_CVT_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

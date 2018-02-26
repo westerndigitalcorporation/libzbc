@@ -1,0 +1,4 @@
+noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_media_report
+__top_builddir__test_programs_zbc_test_media_report_SOURCES = test/programs/media_report/zbc_test_media_report.c
+__top_builddir__test_programs_zbc_test_media_report_LDADD = $(libzbc_ldadd)
+__top_builddir__test_programs_zbc_test_media_report_LDFLAGS = -no-install

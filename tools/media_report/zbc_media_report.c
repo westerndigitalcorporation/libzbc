@@ -24,32 +24,34 @@
 #define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
 static void zbc_report_print_region(struct zbc_device_info *info,
-				    struct zbc_realm *r)
+				    struct zbc_cvt_range *r)
 {
-	if (zbc_realm_conventional(r) || zbc_realm_sequential(r)) {
+	if (zbc_cvt_range_conventional(r) || zbc_cvt_range_sequential(r)) {
 		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
 		       "%u zones, seq LBA %08llu:%u zones, kpo %u, "
 		       "cvt to conv: %s, cvt to seq: %s\n",
-		       zbc_realm_number(r), zbc_realm_type(r),
-		       zbc_zone_type_str(zbc_realm_type(r)),
-		       zbc_realm_conv_start(r), zbc_realm_conv_length(r),
-		       zbc_realm_seq_start(r), zbc_realm_seq_length(r),
-		       zbc_realm_keep_out(r),
-		       zbc_realm_to_conv(r) ? "Y" : "N",
-		       zbc_realm_to_seq(r) ? "Y" : "N");
+		       zbc_cvt_range_number(r), zbc_cvt_range_type(r),
+		       zbc_zone_type_str(zbc_cvt_range_type(r)),
+		       zbc_cvt_range_conv_start(r),
+		       zbc_cvt_range_conv_length(r),
+		       zbc_cvt_range_seq_start(r),
+		       zbc_cvt_range_seq_length(r),
+		       zbc_cvt_range_keep_out(r),
+		       zbc_cvt_range_to_conv(r) ? "Y" : "N",
+		       zbc_cvt_range_to_seq(r) ? "Y" : "N");
 		return;
 	}
 
-	printf("Realm %03d: unknown type 0x%x\n",
-	       zbc_realm_number(r), zbc_realm_type(r));
+	printf("Conversion range %03d: unknown type 0x%x\n",
+	       zbc_cvt_range_number(r), zbc_cvt_range_type(r));
 }
 
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	unsigned int nr_realms = 0, nr = 0;
-	struct zbc_realm *realms = NULL;
+	unsigned int nr_ranges = 0, nr = 0;
+	struct zbc_cvt_range *ranges = NULL;
 	int i, ret = 1, num = 0;
 	char *path;
 
@@ -59,8 +61,8 @@ usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
 		       "  -v		  : Verbose mode\n"
-		       "  -n		  : Get only the number of realms\n"
-		       "  -nr <num>	  : Get at most <num> realms\n",
+		       "  -n		  : Get only the number of range descriptors\n"
+		       "  -nr <num>	  : Get at most <num> range descriptors\n",
 		       argv[0]);
 		return 1;
 	}
@@ -104,33 +106,34 @@ usage:
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
 
-	ret = zbc_media_report_nr_regions(dev, &nr_realms);
+	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_report_nr_realms failed %d\n",
+		fprintf(stderr, "zbc_media_report_nr_ranges failed %d\n",
 			ret);
 		ret = 1;
 		goto out;
 	}
 
-	printf("    %u realm%s\n", nr_realms, (nr_realms > 1) ? "s" : "");
+	printf("    %u conversion ranges%s\n", nr_ranges, (nr_ranges > 1) ? "s" : "");
 	if (num)
 		goto out;
 
-	if (!nr || nr > nr_realms)
-		nr = nr_realms;
+	if (!nr || nr > nr_ranges)
+		nr = nr_ranges;
 	if (!nr)
 		goto out;
 
-	/* Allocate realm array */
-	realms = (struct zbc_realm *)calloc(nr, sizeof(struct zbc_realm));
-	if (!realms) {
+	/* Allocate conversion range descriptor array */
+	ranges = (struct zbc_cvt_range *)calloc(nr,
+						sizeof(struct zbc_cvt_range));
+	if (!ranges) {
 		fprintf(stderr, "No memory\n");
 		ret = 1;
 		goto out;
 	}
 
-	/* Get realm information */
-	ret = zbc_media_report(dev, realms, &nr);
+	/* Get the range descriptors */
+	ret = zbc_media_report(dev, ranges, &nr);
 	if (ret != 0) {
 		fprintf(stderr, "zbc_media_report failed %d\n", ret);
 		ret = 1;
@@ -138,11 +141,11 @@ usage:
 	}
 
 	for (i = 0; i < (int)nr; i++)
-		zbc_report_print_region(&info, &realms[i]);
+		zbc_report_print_region(&info, &ranges[i]);
 
 out:
-	if (realms)
-		free(realms);
+	if (ranges)
+		free(ranges);
 	zbc_close(dev);
 
 	return ret;

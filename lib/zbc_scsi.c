@@ -36,14 +36,14 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /*
- * REPORT REALMS ouput header size.
+ * MEDIA REPORT ouput header size.
  */
-#define ZBC_REALMS_HEADER_SIZE		64
+#define ZBC_RANGE_HEADER_SIZE		64
 
 /*
- * REPORT REALMS ouput descriptor size.
+ * MEDIA REPORT output conversion descriptor size.
  */
-#define ZBC_REALMS_RECORD_SIZE		128
+#define ZBC_RANGE_RECORD_SIZE		128
 
 /**
  * SCSI commands reply length.
@@ -320,7 +320,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		zbc_debug("%s: Realm host-managed SCSI block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		dev->zbd_info.zbd_flags |= ZBC_REALMS_SUPPORT;
+		dev->zbd_info.zbd_flags |= ZBC_MEDIA_CVT_SUPPORT;
 		break;
 
 	default:
@@ -624,18 +624,19 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 /**
  * Report device media conversion configuration.
  */
-static int zbc_scsi_media_report(struct zbc_device *dev, struct zbc_realm *realms,
-				  unsigned int *nr_realms)
+static int zbc_scsi_media_report(struct zbc_device *dev,
+				 struct zbc_cvt_range *ranges,
+				 unsigned int *nr_ranges)
 {
-	size_t bufsz = ZBC_REALMS_HEADER_SIZE;
+	size_t bufsz = ZBC_RANGE_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_realms)
-		bufsz += (size_t)*nr_realms * ZBC_REALMS_RECORD_SIZE;
+	if (*nr_ranges)
+		bufsz += (size_t)*nr_ranges * ZBC_RANGE_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -643,8 +644,8 @@ static int zbc_scsi_media_report(struct zbc_device *dev, struct zbc_realm *realm
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize REPORT REALMS command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_REALMS, NULL, bufsz);
+	/* Allocate and intialize MEDIA REPORT command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_REPORT, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -672,8 +673,8 @@ static int zbc_scsi_media_report(struct zbc_device *dev, struct zbc_realm *realm
 	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_REPORT_REALMS_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_REPORT_REALMS_CDB_SA;
+	cmd.cdb[0] = ZBC_SG_MEDIA_REPORT_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_MEDIA_REPORT_CDB_SA;
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
 
 	/* Send the SG_IO command */
@@ -681,55 +682,55 @@ static int zbc_scsi_media_report(struct zbc_device *dev, struct zbc_realm *realm
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_REALMS_HEADER_SIZE) {
+	if (cmd.out_bufsz < ZBC_RANGE_HEADER_SIZE) {
 		zbc_error("%s: Not enough report data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_REALMS_HEADER_SIZE,
+			  ZBC_RANGE_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
-	/* Get number of realms in result */
+	/* Get number of range descriptors in result */
 	buf = (uint8_t *)cmd.out_buf;
 	/* FIXME header format TBD */
-	nr = zbc_sg_get_int32(buf) / ZBC_REALMS_RECORD_SIZE;
+	nr = zbc_sg_get_int32(buf) / ZBC_RANGE_RECORD_SIZE;
 
-	if (!realms || !nr)
+	if (!ranges || !nr)
 		goto out;
 
-	/* Get realm info */
-	if (nr > *nr_realms)
-		nr = *nr_realms;
+	/* Get the number of renge descriptors to fill */
+	if (nr > *nr_ranges)
+		nr = *nr_ranges;
 
-	bufsz = (cmd.out_bufsz - ZBC_REALMS_HEADER_SIZE) /
-		ZBC_REALMS_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_RANGE_HEADER_SIZE) /
+		ZBC_RANGE_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get realm descriptors */
-	buf += ZBC_REALMS_HEADER_SIZE;
+	/* Get conversion range descriptors */
+	buf += ZBC_RANGE_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		realms[i].zbr_type = buf[0] & 0x0f;
-		realms[i].zbr_convertible = buf[1];
+		ranges[i].zbr_type = buf[0] & 0x0f;
+		ranges[i].zbr_convertible = buf[1];
 
-		realms[i].zbr_number = zbc_sg_get_int16(&buf[2]);
-		realms[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
+		ranges[i].zbr_number = zbc_sg_get_int16(&buf[2]);
+		ranges[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
 
-		realms[i].zbr_conv_start =
+		ranges[i].zbr_conv_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
-		realms[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
-		realms[i].zbr_seq_start =
+		ranges[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
+		ranges[i].zbr_seq_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
-		realms[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
+		ranges[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
 
-		buf += ZBC_REALMS_RECORD_SIZE;
+		buf += ZBC_RANGE_RECORD_SIZE;
 	}
 
 out:
-	/* Return number of realms */
-	*nr_realms = nr;
+	/* Return number of range descriptors */
+	*nr_ranges = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1064,9 +1065,9 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ, REALMS SUPPORT, FC, CWPCE and CWPCS flags */
+	/* URSWRZ, Media Convert support, FC, CWPCE and CWPCS flags */
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_REALMS_SUPPORT : 0;
+	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_MEDIA_CVT_SUPPORT : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x04) ? ZBC_FC_SUPPORT : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x08) ? ZBC_CONV_WP_CHECK : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;

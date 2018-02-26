@@ -1,0 +1,3 @@
+bin_PROGRAMS += zbc_media_report
+zbc_media_report_SOURCES = tools/media_report/zbc_media_report.c
+zbc_media_report_LDADD = $(libzbc_ldadd)

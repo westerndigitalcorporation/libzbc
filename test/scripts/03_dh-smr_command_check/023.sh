@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "CONVERT_REALMS all realms to CMR" $*
+zbc_test_init $0 "CONVERT_REALMS all ranges to CMR" $*
 
 # Set expected error code
 expected_sk=""
@@ -22,30 +22,30 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
-# Get realm information
-zbc_test_get_realm_info
+# Get conversion range information
+zbc_test_get_cvt_range_info
 
-# Find the first SMR realm that is convertable to CMR
-zbc_test_search_realm_by_type_and_cvt "2" "conv"
+# Find the first SMR range that is convertable to CMR
+zbc_test_search_range_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
-# Assume that all convertable realms are contiguious
-zbc_test_count_cvt_to_conv_realms
+# Assume that all convertable ranges are contiguious
+zbc_test_count_cvt_to_conv_ranges
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${realm_num} ${nr_cvt_to_conv_realms} "conv"
+zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} ${nr_cvt_to_conv_ranges} "conv"
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
-# Verify that no convertable sequential realms present
-zbc_test_get_realm_info
-zbc_test_search_realm_by_type_and_cvt "2" "conv"
+# Verify that no convertable sequential ranges is present
+zbc_test_get_cvt_range_info
+zbc_test_search_range_by_type_and_cvt "2" "conv"
 if [ $? -eq 0 ]; then
-    sk=${realm_num}
+    sk=${range_num}
     expected_sk=""
     zbc_test_print_failed_sk
 fi

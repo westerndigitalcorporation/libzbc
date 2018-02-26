@@ -46,7 +46,7 @@ zbc_test_get_sk_ascq
 # Get zone information
 zbc_test_get_zone_info "1"
 zbc_test_search_vals_from_slba ${target_lba}
-if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+if [ $? -ne 0 -a "${media_cvt_device}" != "0" ]; then
     zbc_test_print_not_applicable
 else
     # Check result

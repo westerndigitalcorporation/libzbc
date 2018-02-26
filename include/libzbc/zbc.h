@@ -311,67 +311,69 @@ struct zbc_zone {
 
 /**
  * Flags that can be set in zbr_convertible field
- * of zbc_realm structure (below).
+ * of zbc_cvt_range structure (below).
  */
-#define ZBC_REALM_TO_SEQ		0x20
-#define ZBC_REALM_TO_CONV		0x40
+#define ZBC_CVT_TO_SEQ		0x20
+#define ZBC_CVT_TO_CONV		0x40
 
 /**
- * @brief Realm information data structure
+ * @brief Media Conversion range structure
  *
- * Provide all information about a single realm defined by the device.
- * This structure is typically populated with the information returned
- * to the client after succesful execution of REPORT REALMS ZBC SCSI command
- * or REPORT REALMS DMA ZAC ATA command.
+ * Provide all information about a single conversion range defined by the
+ * device. This structure is typically populated with the information
+ * returned to the client after succesful execution of MEDIA REPORT
+ * SCSI command or MEDIA REPORT DMA ATA command.
  */
-struct zbc_realm {
+struct zbc_cvt_range {
 
 	/**
-	 * Realm start LBA when the realm is CONVENTIONAL. If the realm
-	 * is not convertible to this zone type, then it is set to zero.
+	 * Conversion range start LBA when the range type is CONVENTIONAL.
+	 * If the range is not convertible to this zone type, then it is
+	 * set to zero.
 	 */
 	uint64_t		zbr_conv_start;
 
 	/**
-	 * Realm length in zones when the realm is CONVENTIONAL. If the
-	 * realm is not convertible to this zone type, then it's set to zero.
+	 * Conversion range length in zones when the range type is CONVENTIONAL.
+	 * If the range is not convertible to this zone type, then it's
+	 * set to zero.
 	 */
 	uint32_t		zbr_conv_length;
 
 	/**
-	 * Realm start LBA when the realm is SEQUENTIAL WRITE REQUIRED.
-	 * If the realm is not convertible to this zone type,
-	 * then it is set to zero.
+	 * Conversion range start LBA when the range is SEQUENTIAL WRITE REQUIRED.
+	 * If the range is not convertible to this zone type, then it is
+	 * set to zero.
 	 */
 	uint64_t		zbr_seq_start;
 
 	/**
-	 * Realm length in zones when the realm is SEQUENTIAL WRITE REQUIRED.
-	 * If the realm is not convertible to this zone type,
-	 * then it's set to zero.
+	 * Conversion range length in zones when the range is
+	 * SEQUENTIAL WRITE REQUIRED. If the range is not convertible to this
+	 * zone type, then it's set to zero.
 	 */
 	uint32_t		zbr_seq_length;
 
 	/**
-	 * Realm number as returned by REPORT REALMS. The lowest is 0.
+	 * Conversion number as returned by MEDIA REPORT. The lowest is 0.
 	 */
 	uint16_t		zbr_number;
 
 	/**
-	 * Number of zones required between CONVENTIONAL realms
+	 * Number of zones required between CONVENTIONAL ranges
 	 * when they are converted from SEQUENTIAL WRITE REQUIRED
 	 * to CONVENTIONAL.
 	 */
 	uint16_t		zbr_keep_out;
 
 	/**
-	 * Current realm type. This the type of all zones
-	 * in the realm (enum zbc_zone_type).
+	 * Current conversion range type. This the type of all zones
+	 * in the range (enum zbc_zone_type).
 	 */
 	uint8_t			zbr_type;
 
 	/**
-	 * A set of flags indicating how this realm can be converted.
+	 * A set of flags indicating how this range can be converted.
 	 */
 	uint8_t			zbr_convertible;
 
@@ -381,40 +383,43 @@ struct zbc_realm {
 	uint8_t			__pad[2];
 };
 
-/** @brief Get the realm type */
-#define zbc_realm_type(r)	((int)(r)->zbr_type)
+/** @brief Get the conversion range type */
+#define zbc_cvt_range_type(r)		((int)(r)->zbr_type)
 
-/** @brief Get the realm number */
-#define zbc_realm_number(r)	((int)(r)->zbr_number)
+/** @brief Get the conversion range number */
+#define zbc_cvt_range_number(r)		((int)(r)->zbr_number)
 
-/** @brief Test if a realm type is conventional */
-#define zbc_realm_conventional(r) ((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
+/** @brief Test if a conversion range type is CONVENTIONAL */
+#define zbc_cvt_range_conventional(r) 	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
-/** @brief Test if a realm type is sequential write required */
-#define zbc_realm_sequential(r) ((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+/** @brief Test if a conversion range type is SEQUENTIAL WRITE REQUIRED */
+#define zbc_cvt_range_sequential(r) \
+	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Get a realm start LBA if it is conventional as a 512B sector */
-#define zbc_realm_conv_start(r)	((unsigned long long)(r)->zbr_conv_start)
+/** @brief Get the range start LBA if it is CONVENTIONAL as a 512B sector */
+#define zbc_cvt_range_conv_start(r) \
+	((unsigned long long)(r)->zbr_conv_start)
 
-/** @brief Get a realm number of zones if it is conventional */
-#define zbc_realm_conv_length(r) ((unsigned int)(r)->zbr_conv_length)
+/** @brief Get the number of zones of a range if it is CONVENTIONAL */
+#define zbc_cvt_range_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
 
-/** @brief Get a realm start LBA if it is sequential as a 512B sector */
-#define zbc_realm_seq_start(r)	((unsigned long long)(r)->zbr_seq_start)
+/** @brief Get the range start LBA if it's SEQUENTIAL WR as a 512B sector */
+#define zbc_cvt_range_seq_start(r) \
+	((unsigned long long)(r)->zbr_seq_start)
 
-/** @brief Get a realm number of 512B sectors if it is sequential */
-#define zbc_realm_seq_length(r) ((unsigned int)(r)->zbr_seq_length)
+/** @brief Get the range size in 512B sectors if it is sequential */
+#define zbc_cvt_range_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
 
-/** @brief Get the realm "keep out" value */
-#define zbc_realm_keep_out(r)	((int)(r)->zbr_keep_out)
+/** @brief Get the conversion range "keep out" value */
+#define zbc_cvt_range_keep_out(r)	((int)(r)->zbr_keep_out)
 
-/** @brief Test if the realm is convertible to conventional */
-#define zbc_realm_to_conv(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_TO_CONV))
+/** @brief Test if the conversion range is convertible to conventional */
+#define zbc_cvt_range_to_conv(r) \
+	((int)((r)->zbr_convertible & ZBC_CVT_TO_CONV))
 
-/** @brief Test if the realm is convertible to sequential */
-#define zbc_realm_to_seq(r) \
-	((int)((r)->zbr_convertible & ZBC_REALM_TO_SEQ))
+/** @brief Test if the conversion range is convertible to sequential */
+#define zbc_cvt_range_to_seq(r) \
+	((int)((r)->zbr_convertible & ZBC_CVT_TO_SEQ))
 
 /**
  * @brief Media Conversion Results record.
@@ -570,14 +575,15 @@ enum zbc_dev_flags {
 	ZBC_UNRESTRICTED_READ = 0x00000001,
 
 	/**
-	 * Indicates that the device supports Realms command set to allow
-	 * zones on the device to be converted from CMR to SMR and vice versa.
+	 * Indicates that the device supports Media Convert command set
+	 * to allo zones on the device to be converted from CMR to SMR
+	 * and vice versa.
 	 */
-	ZBC_REALMS_SUPPORT = 0x00000002,
+	ZBC_MEDIA_CVT_SUPPORT = 0x00000002,
 
 	/**
-	 * Indicates that foreground realm conversion is supported
-	 * by the device. If it is cleared, CONVERT REALMS command may not
+	 * Indicates that foreground media conversion is supported
+	 * by the device. If it is cleared, MEDIA CONVERT command may not
 	 * set FG bit in CDB.
 	 */
 	ZBC_FC_SUPPORT = 0x00000004,
@@ -689,8 +695,8 @@ struct zbc_device_info {
 	uint32_t		zbd_max_nr_open_seq_req;
 
 	/**
-	 * Maximum allowable value for NUMBER OF REALMS value in
-	 * CONVERT REALMS command. Zero means no maximum.
+	 * Maximum allowable value for NUMBER OF ZONES value in
+	 * MEDIA CONVERT command. Zero means no maximum.
 	 */
 	uint32_t		zbd_max_conversion;
 
@@ -1223,60 +1229,60 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
- * @brief Get realm information
+ * @brief Get conversion reange information
  * @param[in] dev	 Device handle obtained with \a zbc_open
- * @param[in] realmss	 Pointer to the array of realm information to fill
- * @param[out] nr_realms Number of realms in the array \a realms
+ * @param[in] ranges	 Pointer to the array of convert descriptors to fill
+ * @param[out] nr_ranges Number of range descriptors in the array \a ranges
  *
- * Get realm information from a DH-SMR device.
- * The array \a realms must be allocated by the caller and \a nr_realms
- * must point to the size of the allocated array (number of realm information
- * structures in the array). Unlike zone reporting, the entire list of realms
+ * Get conversion range information from a DH-SMR device.
+ * The array \a range decsriptors must be allocated by the caller and
+ * \a nr_ranges must point to the size of the allocated array (number of
+ * descriptors in the array). Unlike zone reporting, the entire list of ranges
  * is always reported.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 extern int zbc_media_report(struct zbc_device *dev,
-			     struct zbc_realm *realms, unsigned int *nr_realms);
+			    struct zbc_cvt_range *ranges, unsigned int *nr_ranges);
 
 /**
- * @brief Get the number of media conversion regions
+ * @brief Get the number of media conversion range descriptors.
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] nr_regions	The number of conversion regions
+ * @param[out] nr_ranges	The number of conversion ranges
  *
  * Similar to \a zbc_media_report, but returns only the number of media
- * conversion regions that \a zbc_media_report would have returned.
- * This is useful to determine the total number of regions of a device
- * to allocate an array of conversion region information structures
+ * conversion ranges that \a zbc_media_report would have returned.
+ * This is useful to determine the total number of ranges of a device
+ * to allocate an array of conversion rangen information structures
  * for use with \a zbc_media_report.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-static inline int zbc_media_report_nr_regions(struct zbc_device *dev,
-					      unsigned int *nr_regions)
+static inline int zbc_media_report_nr_ranges(struct zbc_device *dev,
+					     unsigned int *nr_ranges)
 {
-	return zbc_media_report(dev, NULL, nr_regions);
+	return zbc_media_report(dev, NULL, nr_ranges);
 }
 
 /**
- * @brief Get conversion region information
+ * @brief Get conversion range information
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] regions		Array of convert region descriptors
- * @param[out] nr_regions	Number of regions in the array \a regions
+ * @param[out] ranges		Array of conversion range descriptors
+ * @param[out] nr_ranges	Number of ranges in the array \a ranges
  *
  * Similar to \a zbc_media_report, but also allocates an appropriately sized
- * array of conversion region descriptorss and returns the address of the array
- * at the address specified by \a regions. The size of the array allocated and
- * filled is returned at the address specified by \a nr_regions. Freeing of the
- * memory used by the array of region descriptors allocated by this function
+ * array of conversion range descriptorss and returns the address of the array
+ * at the address specified by \a ranges. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_ranges. Freeing of the
+ * memory used by the array of range descriptors allocated by this function
  * is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
- * Returns -ENOMEM if memory could not be allocated for \a regions.
+ * Returns -ENOMEM if memory could not be allocated for \a ranges.
  */
-extern int zbc_list_conv_regions(struct zbc_device *dev,
-				 struct zbc_realm **regions,
-				 unsigned int *nr_regions);
+extern int zbc_list_conv_ranges(struct zbc_device *dev,
+				struct zbc_cvt_range **ranges,
+				unsigned int *nr_ranges);
 
 /**
  * @brief Convert all zones in one or several realms to a specific type

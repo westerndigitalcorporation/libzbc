@@ -1,4 +1,0 @@
-noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_report_realms
-__top_builddir__test_programs_zbc_test_report_realms_SOURCES = test/programs/report_realms/zbc_test_report_realms.c
-__top_builddir__test_programs_zbc_test_report_realms_LDADD = $(libzbc_ldadd)
-__top_builddir__test_programs_zbc_test_report_realms_LDFLAGS = -no-install

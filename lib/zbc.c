@@ -424,8 +424,8 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	}
 
 	fprintf(out, "    Media Conversion command set is %ssupported\n",
-		(info->zbd_flags & ZBC_REALMS_SUPPORT) ? "" : "NOT ");
-	if (info->zbd_flags & ZBC_REALMS_SUPPORT) {
+		(info->zbd_flags & ZBC_MEDIA_CVT_SUPPORT) ? "" : "NOT ");
+	if (info->zbd_flags & ZBC_MEDIA_CVT_SUPPORT) {
 		fprintf(out, "    Foreground media conversion is %ssupported\n",
 			(info->zbd_flags & ZBC_FC_SUPPORT) ? "" : "not ");
 		fprintf(out, "    Conventional zone write pointer check"
@@ -558,24 +558,24 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
  * zbc_media_report - Get media conversion information
  */
 int zbc_media_report(struct zbc_device *dev,
-		      struct zbc_realm *realms, unsigned int *nr_realms)
+		     struct zbc_cvt_range *ranges, unsigned int *nr_ranges)
 {
 	int ret;
 
-	if (!zbc_dev_is_realms(dev)) {
-		zbc_error("%s: Not a realms device\n",
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	if (!realms)
-		/* Just get the number of realms */
-		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_realms);
+	if (!ranges)
+		/* Just get the number of conversion ranges */
+		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_ranges);
 
-	/* Get realm information */
-	ret = (dev->zbd_drv->zbd_media_report)(dev, realms, nr_realms);
+	/* Get convert range information */
+	ret = (dev->zbd_drv->zbd_media_report)(dev, ranges, nr_ranges);
 	if (ret != 0) {
-		zbc_error("%s: Get realms failed %d (%s)\n",
+		zbc_error("%s: MMEDIA REPORT failed %d (%s)\n",
 			  dev->zbd_filename,
 			  ret, strerror(-ret));
 		return ret;
@@ -585,46 +585,47 @@ int zbc_media_report(struct zbc_device *dev,
 }
 
 /**
- * zbc_list_conv_regions - Get conversion region information
+ * zbc_list_conv_regions - Get conversion range information
  */
-int zbc_list_conv_regions(struct zbc_device *dev,
-		    struct zbc_realm **prealms, unsigned int *pnr_realms)
+int zbc_list_conv_ranges(struct zbc_device *dev,
+			 struct zbc_cvt_range **pranges,
+			 unsigned int *pnr_ranges)
 {
-	struct zbc_realm *realms = NULL;
-	unsigned int nr_realms;
+	struct zbc_cvt_range *ranges = NULL;
+	unsigned int nr_ranges;
 	int ret;
 
-	if (!zbc_dev_is_realms(dev)) {
-		zbc_error("%s: Not a realms device\n",
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	/* Get total number of realms */
-	ret = zbc_media_report_nr_regions(dev, &nr_realms);
+	/* Get total number of range descriptors */
+	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
 	if (ret < 0)
 		return ret;
 
-	zbc_debug("%s: %d realms\n",
-		  dev->zbd_filename,
-		  nr_realms);
+	zbc_debug("%s: %d convert ranges\n",
+		  dev->zbd_filename, nr_ranges);
 
-	/* Allocate realm array */
-	realms = (struct zbc_realm *) calloc(nr_realms, sizeof(struct zbc_realm));
-	if (!realms)
+	/* Allocate convert range descriptor array */
+	ranges = (struct zbc_cvt_range *)calloc(nr_ranges,
+						sizeof(struct zbc_cvt_range));
+	if (!ranges)
 		return -ENOMEM;
 
-	/* Get realm information */
-	ret = zbc_media_report(dev, realms, &nr_realms);
+	/* Get conversion range information */
+	ret = zbc_media_report(dev, ranges, &nr_ranges);
 	if (ret != 0) {
 		zbc_error("%s: zbc_media_report failed %d\n",
 			  dev->zbd_filename, ret);
-		free(realms);
+		free(ranges);
 		return ret;
 	}
 
-	*prealms = realms;
-	*pnr_realms = nr_realms;
+	*pranges = ranges;
+	*pnr_ranges = nr_ranges;
 
 	return 0;
 }
@@ -637,8 +638,8 @@ int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
 		       unsigned int nr_realms, enum zbc_zone_type new_type,
 		       int fg)
 {
-	if (!zbc_dev_is_realms(dev)) {
-		zbc_error("%s: Not a realms device\n",
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}

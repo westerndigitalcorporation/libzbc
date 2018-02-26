@@ -34,7 +34,7 @@ fi
 # Search target LBA
 target_lba="0"
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-if [ $? -ne 0 -a "${realms_device}" != "0" ]; then
+if [ $? -ne 0 -a "${media_cvt_device}" != "0" ]; then
     zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0xc"
 fi
 target_lba=$(( ${target_slba} ))
