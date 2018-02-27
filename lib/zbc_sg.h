@@ -43,7 +43,9 @@ enum {
 	ZBC_SG_MEDIA_REPORT,
 	ZBC_SG_CONVERT_REALMS,
 	ZBC_SG_MEDIA_CONVERT_16,
+	ZBC_SG_MEDIA_QUERY_16,
 	ZBC_SG_MEDIA_CONVERT_32,
+	ZBC_SG_MEDIA_QUERY_32,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -150,22 +152,19 @@ enum {
 #define ZBC_SG_CONVERT_REALMS_CDB_LENGTH	16
 
 /**
- * Media Convert command definition.
+ * Media Query / Convert command definitions.
  */
+#define ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE	0x7f /* FIXME value TBD */
+
 #define ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE	0xd5 /* FIXME value TBD */
 #define ZBC_SG_MEDIA_CONVERT_16_CDB_LENGTH	16
-#define ZBC_SG_MEDIA_CONVERT_16_CDB_SA		0x06 /* FIXME value TBD */
-#define ZBC_SG_MEDIA_CONVERT_32_CDB_OPCODE	0x7f /* FIXME value TBD */
+
 #define ZBC_SG_MEDIA_CONVERT_32_CDB_LENGTH	32
 #define ZBC_SG_MEDIA_CONVERT_32_CDB_SA		0xf800 /* FIXME value TBD */
 
-/**
- * Media query command definition.
- */
-#define ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE	0xd5 /* FIXME value TBD */
+#define ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE	0xd6 /* FIXME value TBD */
 #define ZBC_SG_MEDIA_QUERY_16_CDB_LENGTH	16
-#define ZBC_SG_MEDIA_QUERY_16_CDB_SA		0x07 /* FIXME value TBD */
-#define ZBC_SG_MEDIA_QUERY_32_CDB_OPCODE	0x7f /* FIXME value TBD */
+
 #define ZBC_SG_MEDIA_QUERY_32_CDB_LENGTH	32
 #define ZBC_SG_MEDIA_QUERY_32_CDB_SA		0xf801 /*FIXME value TBD */
 
@@ -183,7 +182,7 @@ enum {
 /**
  * Maximum command CDB length.
  */
-#define ZBC_SG_CDB_MAX_LENGTH			16
+#define ZBC_SG_CDB_MAX_LENGTH			32
 
 /**
  * Status codes.

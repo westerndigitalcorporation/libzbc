@@ -801,12 +801,14 @@ static int zbc_scsi_convert_realms(struct zbc_device *dev,
 }
 
 /**
- *  Perform Media Convert operation.
+ *  Perform Media Query / Convert operation using 16-byte CDB.
  */
 static int zbc_scsi_media_convert16(struct zbc_device *dev,
 				    uint64_t start_zone_lba,
+				    uint32_t nr_zones,
 				    struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs)
+				    unsigned int *nr_conv_recs,
+				    bool query)
 {
 	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
@@ -824,8 +826,14 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
+	if (query)
+		/* Allocate and intialize MEDIA QUERY (16) command */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_QUERY_16,
+				      NULL, bufsz);
+	else
 	/* Allocate and intialize MEDIA CONVERT (16) command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_CONVERT_16, NULL, bufsz);
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_CONVERT_16,
+				      NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -834,13 +842,13 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev,
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
 	 * |=====+==========================+============================================|
-	 * | 0   |                   Operation Code (D5h FIXME TBD)                      |
+	 * | 0   |                 Operation Code (D5h/D6h FIXME TBD)                    |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 1   |  All   |    Direction    |                Reserved                    |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |                                                                       |
+	 * | 2   | (MSB)                                                                 |
 	 * |-----+---                  Starting Zone Locator (LBA)                    ---|
-	 * | 9   |                                                                       |
+	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  | (MSB)                                                                 |
 	 * |- - -+---                       Allocation Length                         ---|
@@ -851,9 +859,13 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev,
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
+	if (query)
+		cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE;
+	else
 	cmd.cdb[0] = ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE;
-	zbc_sg_set_int64(&cmd.cdb[2], (unsigned int)start_zone_lba);
+	zbc_sg_set_int64(&cmd.cdb[2], start_zone_lba);
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
+	/* FIXME nr_zones */
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -924,22 +936,169 @@ out:
 	return ret;
 }
 
+/**
+ *  Perform Media Query / Convert operation using 32-byte CDB.
+ */
 static int zbc_scsi_media_convert32(struct zbc_device *dev,
 				    uint64_t start_zone_lba,
+				    uint32_t nr_zones,
 				    struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs)
+				    unsigned int *nr_conv_recs,
+				    bool query)
 {
-	return 0;
+	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	struct zbc_sg_cmd cmd;
+	size_t max_bufsz;
+	uint8_t *buf;
+	int ret;
+
+	if (*nr_conv_recs)
+		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
+
+	/* For in kernel ATA translation: align to 512 B */
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize MEDIA QUERY/CONVERT (32) command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE,
+			      NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                  Operation Code (7Fh FIXME TBD)                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |                              Control                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                                                                       |
+	 * |- - -+                             Reserved                                  |
+	 * | 6   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 7   |                    Additional CDB Length (18h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 8   | (MSB)                                                                 |
+	 * |-----+---     Service Action (F800h for Convert, F810h for Query)         ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  |  All   |                 Reserved                   |   Direction     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 11  |                             Reserved                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 12  | (MSB)                                                                 |
+	 * |-----+---                   Starting Zone Locator (LBA)                   ---|
+	 * | 19  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 20  |                                                                       |
+	 * |-----+---                        Number Of Zones                          ---|
+	 * | 23  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 24  |                                                                       |
+	 * |-----+---                           Reserved                              ---|
+	 * | 27  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 28  | (MSB)                                                                 |
+	 * |- - -+---                       Allocation Length                         ---|
+	 * | 31  |                                                                 (LSB) |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE;
+	cmd.cdb[7] = 0x18;
+	if (query)
+		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_QUERY_32_CDB_SA);
+	else
+		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
+	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
+	zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
+	zbc_sg_set_int32(&cmd.cdb[28], (unsigned int)bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_CONV_RES_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_CONV_RES_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	buf = (uint8_t *)cmd.out_buf;
+
+	/*
+	 * FIXME analyze error bits and choose an error code
+	 * to return if they are set. For now, just check
+	 * CONVERTED bit.
+	 */
+	if ((buf[5] & 0x80) == 0) {
+		zbc_warning("%s: Media not converted\n",
+			    dev->zbd_filename);
+		ret = -EIO;
+		/* Not bailing here, gonna try to get the descriptors */
+	}
+
+	/* Get number of descriptors in result */
+	nr = zbc_sg_get_int32(buf) / ZBC_CONV_RES_RECORD_SIZE;
+
+	if (!conv_recs || !nr)
+		goto out;
+
+	/*
+	 * Only get as many conversion descriptors
+	 * as the allocated buffer allows.
+	 */
+	if (nr > *nr_conv_recs)
+		nr = *nr_conv_recs;
+
+	bufsz = (cmd.out_bufsz - ZBC_CONV_RES_HEADER_SIZE) /
+		ZBC_CONV_RES_RECORD_SIZE;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get the conversion descriptors */
+	buf += ZBC_CONV_RES_HEADER_SIZE;
+	for (i = 0; i < nr; i++) {
+		conv_recs[i].zbe_type = buf[0] & 0x0f;
+		conv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
+		conv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
+		conv_recs[i].zbe_start_lba =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
+
+		buf += ZBC_CONV_RES_RECORD_SIZE;
+	}
+
+out:
+	/* Return the number of descriptors */
+	*nr_conv_recs = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+
+	return ret;
 }
 
-static int zbc_scsi_media_convert(struct zbc_device *dev, bool use_32_byte_cdb,
-				  uint64_t lba,
+static int zbc_scsi_media_query_convert(struct zbc_device *dev,
+					bool use_32_byte_cdb, bool query,
+					uint64_t lba, uint32_t nr_zones,
 				  struct zbc_conv_rec *conv_recs,
 				  uint32_t *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-		zbc_scsi_media_convert32(dev, lba, conv_recs, nr_conv_recs) :
-		zbc_scsi_media_convert16(dev, lba, conv_recs, nr_conv_recs);
+	       zbc_scsi_media_convert32(dev, lba, nr_zones, conv_recs,
+					nr_conv_recs, query) :
+	       zbc_scsi_media_convert16(dev, lba, nr_zones, conv_recs,
+					nr_conv_recs, query);
 }
 
 /**
@@ -1354,6 +1513,6 @@ struct zbc_drv zbc_scsi_drv =
 	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_media_report	= zbc_scsi_media_report,
 	.zbd_convert_realms	= zbc_scsi_convert_realms,
-	.zbd_media_convert	= zbc_scsi_media_convert,
+	.zbd_media_query_cvt	= zbc_scsi_media_query_convert,
 };
 

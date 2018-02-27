@@ -74,10 +74,12 @@ struct zbc_drv {
 					     uint32_t, uint32_t, int);
 
 	/**
-	 * Convert zones from one CMR/SMR type to the other.
+	 * Convert zones from one CMR/SMR type to the other or query
+	 * about the possible results of such conversion.
 	 */
-	int		(*zbd_media_convert)(struct zbc_device *, bool,
-					     uint64_t, struct zbc_conv_rec *,
+	int		(*zbd_media_query_cvt)(struct zbc_device *, bool,
+					       bool, uint64_t, uint32_t,
+					       struct zbc_conv_rec *,
 					     uint32_t *);
 
 	/**
