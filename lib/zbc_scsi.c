@@ -803,12 +803,11 @@ static int zbc_scsi_convert_realms(struct zbc_device *dev,
 /**
  *  Perform Media Query / Convert operation using 16-byte CDB.
  */
-static int zbc_scsi_media_convert16(struct zbc_device *dev,
-				    uint64_t start_zone_lba,
-				    uint32_t nr_zones,
-				    struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs,
-				    bool query)
+static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
+				    uint64_t start_zone_lba, bool query,
+				    uint32_t nr_zones, enum zbc_cvt_dir dir,
+				    bool fg, struct zbc_conv_rec *conv_recs,
+				    unsigned int *nr_conv_recs)
 {
 	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
@@ -863,6 +862,9 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev,
 		cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE;
 	else
 	cmd.cdb[0] = ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE;
+	cmd.cdb[1] = dir << 5;
+	if (all)
+		cmd.cdb[1] |= 0x80;
 	zbc_sg_set_int64(&cmd.cdb[2], start_zone_lba);
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
 	/* FIXME nr_zones */
@@ -939,12 +941,11 @@ out:
 /**
  *  Perform Media Query / Convert operation using 32-byte CDB.
  */
-static int zbc_scsi_media_convert32(struct zbc_device *dev,
-				    uint64_t start_zone_lba,
-				    uint32_t nr_zones,
-				    struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs,
-				    bool query)
+static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
+				    uint64_t start_zone_lba, bool query,
+				    uint32_t nr_zones, enum zbc_cvt_dir dir,
+				    bool fg, struct zbc_conv_rec *conv_recs,
+				    unsigned int *nr_conv_recs)
 {
 	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
@@ -1014,6 +1015,9 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev,
 		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_QUERY_32_CDB_SA);
 	else
 		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
+	cmd.cdb[10] = dir;
+	if (all)
+		cmd.cdb[10] |= 0x80;
 	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
 	zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
 	zbc_sg_set_int32(&cmd.cdb[28], (unsigned int)bufsz);
@@ -1088,17 +1092,18 @@ out:
 	return ret;
 }
 
-static int zbc_scsi_media_query_convert(struct zbc_device *dev,
+static int zbc_scsi_media_query_convert(struct zbc_device *dev, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
+					enum zbc_cvt_dir dir, bool fg,
 				  struct zbc_conv_rec *conv_recs,
 				  uint32_t *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-	       zbc_scsi_media_convert32(dev, lba, nr_zones, conv_recs,
-					nr_conv_recs, query) :
-	       zbc_scsi_media_convert16(dev, lba, nr_zones, conv_recs,
-					nr_conv_recs, query);
+	       zbc_scsi_media_convert32(dev, all, lba, query, nr_zones, dir,
+					fg, conv_recs, nr_conv_recs) :
+	       zbc_scsi_media_convert16(dev, all, lba, query, nr_zones, dir,
+					fg, conv_recs, nr_conv_recs);
 }
 
 /**
@@ -1501,8 +1506,7 @@ int zbc_scsi_flush(struct zbc_device *dev)
 /**
  * ZBC SCSI device driver definition.
  */
-struct zbc_drv zbc_scsi_drv =
-{
+struct zbc_drv zbc_scsi_drv = {
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,

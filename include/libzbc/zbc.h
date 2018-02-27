@@ -297,7 +297,7 @@ struct zbc_zone {
 #define zbc_zone_rwp_recommended(z) ((z)->zbz_attributes & \
 				     ZBC_ZA_RWP_RECOMMENDED)
 
-/** @brief Test if a zone has the non sequential write resource allocated flag set */
+/** @brief Test if a zone has non sequential write resource flag set */
 #define zbc_zone_non_seq(z)	((z)->zbz_attributes & ZBC_ZA_NON_SEQ)
 
 /** @brief Get a zone start 512B sector */
@@ -315,6 +315,22 @@ struct zbc_zone {
  */
 #define ZBC_CVT_TO_SEQ		0x20
 #define ZBC_CVT_TO_CONV		0x40
+
+/**
+ * Conversion direction parameter in MEDIA CONVERT/QUERY.
+ */
+enum zbc_cvt_dir {
+
+	/**
+	 * Conversion from CMR to SMR
+	 */
+	ZBC_CVT_TO_SMR		= 0,
+
+	/**
+	 * Conversion from SMR to CMR
+	 */
+	ZBC_CVT_TO_CMR		= 1,
+};
 
 /**
  * @brief Media Conversion range structure
@@ -341,9 +357,9 @@ struct zbc_cvt_range {
 	uint32_t		zbr_conv_length;
 
 	/**
-	 * Conversion range start LBA when the range is SEQUENTIAL WRITE REQUIRED.
-	 * If the range is not convertible to this zone type, then it is
-	 * set to zero.
+	 * Conversion range start LBA when the range is SEQUENTIAL WRITE
+	 * REQUIRED. If the range is not convertible to this zone type,
+	 * then it is set to zero.
 	 */
 	uint64_t		zbr_seq_start;
 
@@ -1019,7 +1035,7 @@ enum zbc_reporting_options {
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 extern int zbc_report_zones(struct zbc_device *dev,
-			    uint64_t sector , enum zbc_reporting_options ro,
+			    uint64_t sector, enum zbc_reporting_options ro,
 			    struct zbc_zone *zones, unsigned int *nr_zones);
 
 /**
@@ -1243,7 +1259,8 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 extern int zbc_media_report(struct zbc_device *dev,
-			    struct zbc_cvt_range *ranges, unsigned int *nr_ranges);
+			    struct zbc_cvt_range *ranges,
+			    unsigned int *nr_ranges);
 
 /**
  * @brief Get the number of media conversion range descriptors.
@@ -1283,6 +1300,60 @@ static inline int zbc_media_report_nr_ranges(struct zbc_device *dev,
 extern int zbc_list_conv_ranges(struct zbc_device *dev,
 				struct zbc_cvt_range **ranges,
 				unsigned int *nr_ranges);
+
+/**
+ * @brief Convert a number of zones at the specified LBA to the new type
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] nr_zones		The total number of zones to convert
+ * @param[in] dir		Conversion direction
+ * @param[in] fg		Foreground flag
+ * @param[out] conv_recs	Array of conversion range records
+ * @param[out] nr_conv_recs	The number of conversion range records
+ */
+extern int zbc_media_convert(struct zbc_device *dev, bool all,
+			     bool use_32_byte_cdb, uint64_t lba,
+			     uint32_t nr_zones, enum zbc_cvt_dir dir,
+			     bool fg, struct zbc_conv_rec *conv_recs,
+			     uint32_t *nr_conv_recs);
+
+/**
+ * @brief Query about possible conversion results of a number of zones
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] nr_zones		The total number of zones to convert
+ * @param[in] dir		Conversion direction
+ * @param[in] fg		Foreground flag
+ * @param[out] conv_recs	Array of conversion range records
+ * @param[out] nr_conv_recs	The number of conversion range records
+ */
+extern int zbc_media_query(struct zbc_device *dev, bool all,
+			   bool use_32_byte_cdb, uint64_t lba,
+			   uint32_t nr_zones, enum zbc_cvt_dir dir,
+			   bool fg, struct zbc_conv_rec *conv_recs,
+			   uint32_t *nr_conv_recs);
+
+/**
+ * @brief Query about possible conversion results of a number of zones
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] nr_zones		The total number of zones to convert
+ * @param[in] dir		Conversion direction
+ * @param[in] fg		Foreground flag
+ * @param[out] conv_recs	Points to the returned array of convert records
+ * @param[out] nr_conv_recs	The number of returned conversion range records
+ */
+extern int zbc_media_list(struct zbc_device *dev, bool all,
+			  bool use_32_byte_cdb, uint64_t lba,
+			  uint32_t nr_zones, enum zbc_cvt_dir dir,
+			  bool fg, struct zbc_conv_rec **pconv_recs,
+			  uint32_t *pnr_conv_recs);
 
 /**
  * @brief Convert all zones in one or several realms to a specific type

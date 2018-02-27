@@ -373,8 +373,6 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
-
-	return;
 }
 
 /**
@@ -440,11 +438,11 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
 
 	/* Model number */
 	n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-		    (char *)&buf[48], 16, 0);
+			    (char *)&buf[48], 16, 0);
 
 	/* Firmware revision */
 	zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-	        (char *)&buf[32], 8, 4);
+		       (char *)&buf[32], 8, 4);
 }
 
 /**
@@ -516,13 +514,17 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 
 	}
 
-	/* Check if Media Conversion command set is supported. If this
-	 * is the case, pick up all the related values */
+	/*
+	 * Check if Media Conversion command set is supported.
+	 * If this is the case, pick up all the related values.
+	 */
 	qwd = zbc_ata_get_qword(&buf[56]);
 	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_MEDIA_CVT_SUPPORT : 0;
 	if ((dev->zbd_info.zbd_flags & ZBC_MEDIA_CVT_SUPPORT) != 0) {
-		/* FIXME the three flags below are not in
-		 * the current proposal, layout is preliminary */
+		/*
+		 * FIXME the three flags below are not in
+		 * the current proposal, layout is preliminary.
+		 */
 		dev->zbd_info.zbd_flags |= (qwd & 0x02ULL) ?
 					   ZBC_FC_SUPPORT : 0;
 		dev->zbd_info.zbd_flags |= (qwd & 0x04ULL) ?
@@ -530,8 +532,10 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
 					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
-		/* FIXME the following field is not in
-		* the current proposal, layout TBD */
+		/*
+		 * FIXME the following field is not in
+		 * the current proposal, layout TBD.
+		 */
 		dev->zbd_info.zbd_max_conversion =
 			zbc_ata_get_qword(&buf[64]) & 0xffff;
 	}
@@ -625,7 +629,7 @@ static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 	if (ret != 0) {
 		/* Request sense data */
-		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd) )
+		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
 			zbc_ata_request_sense_data_ext(dev);
 	} else {
 		ret = (sz - cmd.io_hdr.resid) >> 9;
@@ -735,9 +739,8 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 		/* Request sense data */
 		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
 			zbc_ata_request_sense_data_ext(dev);
-        } else {
+	} else
 		ret = (sz - cmd.io_hdr.resid) >> 9;
-	}
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1579,7 +1582,7 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 
 	/* Get capacity information */
 	ret = zbc_ata_get_capacity(dev);
-	if (ret != 0 )
+	if (ret != 0)
 		return ret;
 
 	/* Get vendor information */
@@ -1612,7 +1615,7 @@ static int zbc_ata_open(const char *filename,
 
 	/* Open the device file */
 	fd = open(filename, flags & ZBC_O_MODE_MASK);
-	if (fd < 0 ) {
+	if (fd < 0) {
 		ret = -errno;
 		zbc_error("%s: Open device file failed %d (%s)\n",
 			  filename,
@@ -1705,8 +1708,7 @@ static int zbc_ata_close(struct zbc_device *dev)
 /**
  * ZAC ATA backend driver definition.
  */
-struct zbc_drv zbc_ata_drv =
-{
+struct zbc_drv zbc_ata_drv = {
 	.flag			= ZBC_O_DRV_ATA,
 	.zbd_open		= zbc_ata_open,
 	.zbd_close		= zbc_ata_close,

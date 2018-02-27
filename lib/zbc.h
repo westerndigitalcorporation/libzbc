@@ -78,7 +78,8 @@ struct zbc_drv {
 	 * about the possible results of such conversion.
 	 */
 	int		(*zbd_media_query_cvt)(struct zbc_device *, bool,
-					       bool, uint64_t, uint32_t,
+					       bool, bool, uint64_t, uint32_t,
+					       enum zbc_cvt_dir, bool,
 					       struct zbc_conv_rec *,
 					     uint32_t *);
 

@@ -650,6 +650,116 @@ int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
 }
 
 /**
+ * zbc_media_convert - Convert all zones in a specified range
+ *                     to a new type
+ */
+int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+		      uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		      bool fg, struct zbc_conv_rec *conv_recs,
+		      uint32_t *nr_conv_recs)
+{
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_media_query_cvt) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Media conversion is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* Execute the operation */
+	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+						   false, lba, nr_zones,
+						   dir, fg, conv_recs,
+						   nr_conv_recs);
+}
+
+/**
+ * zbc_media_query - Receive information about converting all zones in a
+ *                   specific range to a new type without actually performing
+ *                   the conversion process.
+ */
+int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+		    uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		    bool fg, struct zbc_conv_rec *conv_recs,
+		    uint32_t *nr_conv_recs)
+{
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_media_query_cvt) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Media conversion query is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* Execute the operation */
+	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+						   true, lba, nr_zones,
+						   dir, fg, conv_recs,
+						   nr_conv_recs);
+}
+
+/**
+ * zbc_media_list - Receive information about converting all zones in a
+ *                  specific range to a new type without actually performing
+ *                  the conversion process. This function is similar to
+ *                  \a zbc_media_query, but is will allocate the buffer
+ *                  space for the output list of conversion ranges. It is
+ *                  responsibility of the caller to free this buffer.
+ */
+int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+		   uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		   bool fg, struct zbc_conv_rec **pconv_recs,
+		   uint32_t *pnr_conv_recs)
+{
+	struct zbc_conv_rec *conv_recs = NULL;
+	uint32_t nr_conv_recs;
+	int ret;
+
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_media_query_cvt) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Media conversion query is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+						  true, lba, nr_zones, dir,
+						  fg, NULL,
+						  &nr_conv_recs);
+	if (ret)
+		return ret;
+
+	/* Allocate conversion record array */
+	conv_recs = (struct zbc_conv_rec *)
+		    calloc(nr_conv_recs, sizeof(struct zbc_conv_rec));
+	if (!conv_recs)
+		return -ENOMEM;
+
+	/* Now get the entire list */
+	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+						  true, lba, nr_zones, dir,
+						  fg, conv_recs,
+						  &nr_conv_recs);
+	*pconv_recs = conv_recs;
+	*pnr_conv_recs = nr_conv_recs;
+
+	return ret;
+}
+
+/**
  * zbc_pread - Read sectors form a device
  */
 ssize_t zbc_pread(struct zbc_device *dev, void *buf,
