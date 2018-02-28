@@ -32,7 +32,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} 1 "conv"
 
 # Check result
 zbc_test_get_sk_ascq

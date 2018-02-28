@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "CONVERT_REALMS conversion to SMR" $*
+zbc_test_init $0 "MEDIA_CONVERT conversion to SMR" $*
 
 # Set expected error code
 expected_sk=""
@@ -32,7 +32,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} 1 "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} 1 "seq"
 
 # Check result
 zbc_test_get_sk_ascq

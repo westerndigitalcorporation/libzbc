@@ -1,0 +1,3 @@
+bin_PROGRAMS += zbc_media_convert
+zbc_media_convert_SOURCES = tools/media_convert/zbc_media_convert.c
+zbc_media_convert_LDADD = $(libzbc_ldadd)

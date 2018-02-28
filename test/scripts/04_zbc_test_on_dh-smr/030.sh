@@ -35,7 +35,7 @@ if [ $nr_cvt_to_conv_ranges -eq 0 ]; then
 fi
 
 # Convert the media
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} ${nr_cvt_to_conv_ranges} "conv"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} ${nr_cvt_to_conv_ranges} "conv"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

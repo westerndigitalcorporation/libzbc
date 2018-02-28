@@ -1,3 +1,0 @@
-bin_PROGRAMS += zbc_convert_realms
-zbc_convert_realms_SOURCES = tools/convert_realms/zbc_convert_realms.c
-zbc_convert_realms_LDADD = $(libzbc_ldadd)

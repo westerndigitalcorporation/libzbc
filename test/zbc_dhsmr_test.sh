@@ -76,7 +76,7 @@ test_progs=( \
     zbc_test_finish_zone \
     zbc_test_read_zone \
     zbc_test_media_report \
-    zbc_test_convert_realms \
+    zbc_test_media_convert \
 )
 
 for p in ${test_progs[@]}; do

@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "CONVERT_REALMS all ranges to SMR" $*
+zbc_test_init $0 "MEDIA_CONVERT all ranges to SMR" $*
 
 # Set expected error code
 expected_sk=""
@@ -35,7 +35,7 @@ fi
 zbc_test_count_cvt_to_seq_ranges
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} ${nr_cvt_to_seq_ranges} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} ${nr_cvt_to_seq_ranges} "seq"
 
 # Check result
 zbc_test_get_sk_ascq

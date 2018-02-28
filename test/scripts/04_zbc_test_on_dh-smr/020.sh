@@ -42,7 +42,7 @@ if [ $nr -eq 0 ]; then
 fi
 
 # Convert the media
-zbc_test_run ${bin_path}/zbc_test_convert_realms -v ${device} ${range_num} ${nr} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} ${nr} "seq"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

@@ -41,7 +41,7 @@ include tools/set_write_ptr/Makemodule.am
 include tools/set_zones/Makemodule.am
 
 include tools/media_report/Makemodule.am
-include tools/convert_realms/Makemodule.am
+include tools/media_convert/Makemodule.am
 include tools/cmr_wp_check/Makemodule.am
 
 if BUILD_GZBC
@@ -58,6 +58,6 @@ include test/programs/finish_zone/Makemodule.am
 include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
 include test/programs/media_report/Makemodule.am
-include test/programs/convert_realms/Makemodule.am
+include test/programs/media_convert/Makemodule.am
 endif
 
