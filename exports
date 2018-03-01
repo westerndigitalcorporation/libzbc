@@ -23,6 +23,7 @@ global:
 	zbc_list_zones;
 	zbc_zone_operation;
 	zbc_media_report;
+	zbc_list_conv_ranges;
 	zbc_convert_realms;
 	zbc_media_convert;
 	zbc_media_query;

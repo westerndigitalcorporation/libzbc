@@ -894,11 +894,15 @@ static int zbc_block_media_report(struct zbc_device *dev,
 }
 
 /**
- * Convert one or several realms from one type to another.
+ * Convert zones from one type to another or query
+ * about the outcome of such conversion.
  */
-static int zbc_block_convert_realms(struct zbc_device *dev,
-				    uint64_t start_realm, uint32_t count,
-				    enum zbc_zone_type new_type, int fg)
+static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t lba, uint32_t nr_zones,
+					 enum zbc_cvt_dir dir, bool fg,
+					 struct zbc_conv_rec *conv_recs,
+					 uint32_t *nr_conv_recs)
 {
 	/* FIXME N/I */
 	return -EOPNOTSUPP;
@@ -969,9 +973,12 @@ static int zbc_block_media_report(struct zbc_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_convert_realms(*struct zbc_device *dev,
-				    uint64_t start_realm, uint32_t count,
-				    enum zbc_zone_type new_type, int fg)
+static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t lba, uint32_t nr_zones,
+					 enum zbc_cvt_dir dir, bool fg,
+					 struct zbc_conv_rec *conv_recs,
+					 uint32_t *nr_conv_recs)
 {
 	return -EOPNOTSUPP;
 }
@@ -1009,5 +1016,5 @@ struct zbc_drv zbc_block_drv =
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
 	.zbd_media_report	= zbc_block_media_report,
-	.zbd_convert_realms	= zbc_block_convert_realms,
+	.zbd_media_query_cvt	= zbc_block_media_query_convert,
 };
