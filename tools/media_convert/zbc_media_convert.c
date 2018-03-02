@@ -69,6 +69,8 @@ usage:
 			all = true;
 		else if (strcmp(argv[i], "-16") == 0)
 			cdb32 = false;
+		else if (strcmp(argv[i], "-l") == 0)
+			list = true;
 		else if (strcmp(argv[i], "-z") == 0) {
 			media_cvt = true;
 			zone_addr = true;

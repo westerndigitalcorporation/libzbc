@@ -892,8 +892,9 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * CONVERTED bit.
 	 */
 	if ((buf[5] & 0x80) == 0) {
-		zbc_warning("%s: Media not converted\n",
-			    dev->zbd_filename);
+		zbc_warning("%s: Media %s converted\n",
+			    dev->zbd_filename,
+			    query ? "will not be" : "not");
 		ret = -EIO;
 		/* Not bailing here, gonna try to get the descriptors */
 	}
@@ -964,8 +965,9 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 		bufsz = max_bufsz;
 
 	/* Allocate and intialize MEDIA QUERY/CONVERT (32) command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE,
-			      NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd,
+			      query ? ZBC_SG_MEDIA_QUERY_32 :
+				      ZBC_SG_MEDIA_CONVERT_32, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -1011,10 +1013,8 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 */
 	cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE;
 	cmd.cdb[7] = 0x18;
-	if (query)
-		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_QUERY_32_CDB_SA);
-	else
-		zbc_sg_set_int32(&cmd.cdb[8], ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
+	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_MEDIA_QUERY_32_CDB_SA :
+					      ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
 	cmd.cdb[10] = dir;
 	if (all)
 		cmd.cdb[10] |= 0x80;
@@ -1045,8 +1045,9 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * CONVERTED bit.
 	 */
 	if ((buf[5] & 0x80) == 0) {
-		zbc_warning("%s: Media not converted\n",
-			    dev->zbd_filename);
+		zbc_warning("%s: Media %s converted\n",
+			    dev->zbd_filename,
+			    query ? "will not be" : "not");
 		ret = -EIO;
 		/* Not bailing here, gonna try to get the descriptors */
 	}
