@@ -1234,7 +1234,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_MEDIA_CVT_SUPPORT : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x04) ? ZBC_FC_SUPPORT : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x08) ? ZBC_CONV_WP_CHECK : 0;
+	dev->zbd_info.zbd_flags |= (buf[4] & 0x08) ? ZBC_CONV_WP_CHECK : 0; /* FIXME shoud be in MODE PAGE */
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
 	/* Maximum number of zones for resource management */
@@ -1415,6 +1415,82 @@ static int zbc_scsi_close(struct zbc_device *dev)
 	return 0;
 }
 
+#define ZBC_MODE_PAGE_OFFSET	12
+
+/**
+ * Read or set values in one of device mode pages.
+ */
+static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
+				 uint32_t subpg, uint8_t *buf,
+				 uint32_t buf_len, bool set)
+{
+	struct zbc_sg_cmd cmd;
+	uint8_t *data = NULL;
+	uint32_t len, bufsz = buf_len + ZBC_MODE_PAGE_OFFSET, max_bufsz;
+	int ret;
+
+	/* For in kernel ATA translation: align to 512 B */
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	data = calloc(1, bufsz);
+	if (!data)
+		return -ENOMEM;
+
+	if (!set) {
+		memset(data, 0, bufsz);
+
+		/* MODE SENSE 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SENSE,
+				      NULL, bufsz);
+	} else {
+		memset(data, 0, ZBC_MODE_PAGE_OFFSET);
+		memcpy(&data[ZBC_MODE_PAGE_OFFSET], buf, buf_len);
+
+		/* MODE SELECT 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SELECT,
+				      data, bufsz);
+	}
+	if (ret != 0)
+		goto err;
+
+	/* Fill command CDB */
+	cmd.cdb[1] = 0x10; /* PF */
+	if (!set) {
+		cmd.cdb[0] = MODE_SENSE_10;
+		cmd.cdb[2] = pg & 0x3f;
+		cmd.cdb[3] = subpg;
+	}
+	else {
+		cmd.cdb[0] = MODE_SELECT_10;
+		data[8] = pg & 0x3f;
+		data[8] |= 0x40;
+		data[9] = subpg;
+		zbc_sg_set_int16(&data[10], buf_len);
+	}
+	zbc_sg_set_int16(&cmd.cdb[7], bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (!set) {
+		len = zbc_sg_get_int16(&cmd.cdb[7]);
+		memcpy(buf, &data[ZBC_MODE_PAGE_OFFSET], len);
+	}
+out:
+	zbc_sg_cmd_destroy(&cmd);
+err:
+	if (data)
+		free(data);
+
+	return ret;
+}
+
+
 /**
  * Read from a ZBC device
  */
@@ -1511,6 +1587,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,
+	.zbd_get_set_mode	= zbc_scsi_get_set_mode,
 	.zbd_pread		= zbc_scsi_pread,
 	.zbd_pwrite		= zbc_scsi_pwrite,
 	.zbd_flush		= zbc_scsi_flush,

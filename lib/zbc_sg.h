@@ -30,6 +30,8 @@ enum {
 	ZBC_SG_TEST_UNIT_READY = 0,
 	ZBC_SG_INQUIRY,
 	ZBC_SG_READ_CAPACITY,
+	ZBC_SG_MODE_SENSE,
+	ZBC_SG_MODE_SELECT,
 	ZBC_SG_READ,
 	ZBC_SG_WRITE,
 	ZBC_SG_SYNC_CACHE,
@@ -69,6 +71,18 @@ enum {
 #define ZBC_SG_READ_CAPACITY_CDB_OPCODE		0x9E
 #define ZBC_SG_READ_CAPACITY_CDB_SA		0x10
 #define ZBC_SG_READ_CAPACITY_CDB_LENGTH		16
+
+/**
+ * Mode sense command definition.
+ */
+#define ZBC_SG_MODE_SENSE_CDB_OPCODE		MODE_SENSE_10
+#define ZBC_SG_MODE_SENSE_CDB_LENGTH		10
+
+/**
+ * Mode select command definition.
+ */
+#define ZBC_SG_MODE_SELECT_CDB_OPCODE		MODE_SELECT_10
+#define ZBC_SG_MODE_SELECT_CDB_LENGTH		10
 
 /**
  * Read command definition.

@@ -48,6 +48,13 @@ struct zbc_drv {
 	int		(*zbd_close)(struct zbc_device *);
 
 	/**
+	 * Read or set values in one of device mode pages.
+	 */
+	int		(*zbd_get_set_mode)(struct zbc_device *, uint32_t,
+					    uint32_t, uint8_t *, uint32_t,
+					    bool);
+
+	/**
 	 * Report a device zone information.
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
