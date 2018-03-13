@@ -60,6 +60,28 @@
 #define ZBC_CONV_RES_RECORD_SIZE	16
 
 /**
+ * ZONE PROVISIONING mode page size
+ */
+#define ZBC_SCSI_MODE_PG_SIZE		256
+
+/**
+ * ZONE PROVISIONING mode page minimum size
+ */
+#define ZBC_SCSI_MIN_MODE_PG_SIZE	8
+
+/**
+ * Data offset from the beginning of MODE SENSE/SELSECT data buffer
+ * to the first byte of the actual page.
+ */
+#define ZBC_MODE_PAGE_OFFSET		12
+/**
+ * ZONE PROVISIONING mode page and subpage numbers.
+ * FIXME The values below are in vendor-specific range and will change
+ */
+#define ZBC_ZONE_PROV_MODE_PG		0x3d
+#define ZBC_ZONE_PROV_MODE_SUBPG	0x08
+
+/**
  * Fill the buffer with the result of INQUIRY command.
  * @buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
@@ -1175,7 +1197,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			break;
 
 		default:
-			zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+			zbc_error("%s: invalid RC_BASIS field in READ CAPACITY result\n",
 				  dev->zbd_filename);
 			ret = -EIO;
 			goto out;
@@ -1415,22 +1437,20 @@ static int zbc_scsi_close(struct zbc_device *dev)
 	return 0;
 }
 
-#define ZBC_MODE_PAGE_OFFSET	12
-
 /**
  * Read or set values in one of device mode pages.
  */
 static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
 				 uint32_t subpg, uint8_t *buf,
-				 uint32_t buf_len, bool set)
+				 uint32_t buf_len, bool set, uint32_t *pg_len)
 {
 	struct zbc_sg_cmd cmd;
 	uint8_t *data = NULL;
 	uint32_t len, bufsz = buf_len + ZBC_MODE_PAGE_OFFSET, max_bufsz;
 	int ret;
 
-	/* For in kernel ATA translation: align to 512 B */
-	bufsz = (bufsz + 511) & ~511;
+	if (pg_len)
+		*pg_len = 0;
 	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
@@ -1444,7 +1464,7 @@ static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
 
 		/* MODE SENSE 10 */
 		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SENSE,
-				      NULL, bufsz);
+				      data, bufsz);
 	} else {
 		memset(data, 0, ZBC_MODE_PAGE_OFFSET);
 		memcpy(&data[ZBC_MODE_PAGE_OFFSET], buf, buf_len);
@@ -1462,8 +1482,7 @@ static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
 		cmd.cdb[0] = MODE_SENSE_10;
 		cmd.cdb[2] = pg & 0x3f;
 		cmd.cdb[3] = subpg;
-	}
-	else {
+	} else {
 		cmd.cdb[0] = MODE_SELECT_10;
 		data[8] = pg & 0x3f;
 		data[8] |= 0x40;
@@ -1478,11 +1497,16 @@ static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
 		goto out;
 
 	if (!set) {
-		len = zbc_sg_get_int16(&cmd.cdb[7]);
+		len = zbc_sg_get_int16(&data[0]);
+		if (len > buf_len)
+			len = buf_len;
 		memcpy(buf, &data[ZBC_MODE_PAGE_OFFSET], len);
+		if (pg_len)
+			*pg_len = len;
 	}
 out:
 	zbc_sg_cmd_destroy(&cmd);
+
 err:
 	if (data)
 		free(data);
@@ -1490,6 +1514,67 @@ err:
 	return ret;
 }
 
+/**
+ * Read or set DH-SMR configuration parameters.
+ */
+static int zbc_scsi_dev_control(struct zbc_device *dev,
+				struct zbc_zp_dev_control *ctl, bool set)
+{
+	int ret;
+	unsigned int pg_len;
+	bool update = false;
+	uint8_t mode_page[ZBC_SCSI_MODE_PG_SIZE];
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_PROV_MODE_PG,
+				    ZBC_ZONE_PROV_MODE_SUBPG, mode_page,
+				    ZBC_SCSI_MODE_PG_SIZE, false, &pg_len);
+	if (ret) {
+		zbc_error("%s: Can't read Zone Provisioning mode page\n",
+			  dev->zbd_filename);
+		return ret;
+	}
+	if (pg_len < ZBC_SCSI_MIN_MODE_PG_SIZE) {
+		zbc_error("%s: Zone Provisioning mode page too short, %iB\n",
+			  dev->zbd_filename, pg_len);
+		return -EINVAL;
+	}
+
+	if (!set) {
+		memset(ctl, 0, sizeof(*ctl));
+		ctl->zbm_nr_zones = zbc_sg_get_int32(&mode_page[0]);
+		ctl->zbm_smr_zone_type = mode_page[4];
+		ctl->zbm_cmr_wp_check = mode_page[6];
+		return ret;
+	}
+
+	if (ctl->zbm_nr_zones != 0xffffffff) {
+		zbc_sg_set_int32(&mode_page[0], ctl->zbm_nr_zones);
+		update = true;
+	}
+	if (ctl->zbm_smr_zone_type != 0xff) {
+		mode_page[4] = ctl->zbm_smr_zone_type;
+		update = true;
+	}
+	if (ctl->zbm_cmr_wp_check != 0xff) {
+		mode_page[6] = ctl->zbm_cmr_wp_check;
+		update = true;
+	}
+
+	if (!update)
+		return ret;
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_PROV_MODE_PG,
+				    ZBC_ZONE_PROV_MODE_SUBPG,
+				    mode_page, pg_len,
+				    true, NULL);
+	if (ret)
+		zbc_error("%s: Can't update Zone Provisioning mode page\n",
+			  dev->zbd_filename);
+
+	return ret;
+}
 
 /**
  * Read from a ZBC device
@@ -1587,7 +1672,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,
-	.zbd_get_set_mode	= zbc_scsi_get_set_mode,
+	.zbd_dev_control	= zbc_scsi_dev_control,
 	.zbd_pread		= zbc_scsi_pread,
 	.zbd_pwrite		= zbc_scsi_pwrite,
 	.zbd_flush		= zbc_scsi_flush,

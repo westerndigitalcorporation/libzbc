@@ -760,6 +760,28 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 }
 
 /**
+ * zbc_dhsmr_dev_control - Get or set device DH-SMR configuration parameters.
+ */
+int zbc_dhsmr_dev_control(struct zbc_device *dev,
+			  struct zbc_zp_dev_control *ctl, bool set)
+{
+	if (!zbc_dev_is_convt(dev)) {
+		zbc_error("%s: Not a Media Convert device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_dev_control) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: DH-SMR dev_ctl not implemented by driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	return (dev->zbd_drv->zbd_dev_control)(dev, ctl, set);
+}
+
+/**
  * zbc_pread - Read sectors form a device
  */
 ssize_t zbc_pread(struct zbc_device *dev, void *buf,

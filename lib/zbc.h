@@ -48,11 +48,10 @@ struct zbc_drv {
 	int		(*zbd_close)(struct zbc_device *);
 
 	/**
-	 * Read or set values in one of device mode pages.
+	 * Get or set DH-SMR device configuration parameters.
 	 */
-	int		(*zbd_get_set_mode)(struct zbc_device *, uint32_t,
-					    uint32_t, uint8_t *, uint32_t,
-					    bool);
+	int		(*zbd_dev_control)(struct zbc_device *,
+					   struct zbc_zp_dev_control *, bool);
 
 	/**
 	 * Report a device zone information.

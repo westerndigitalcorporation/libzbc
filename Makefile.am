@@ -42,7 +42,7 @@ include tools/set_zones/Makemodule.am
 
 include tools/media_report/Makemodule.am
 include tools/media_convert/Makemodule.am
-include tools/cmr_wp_check/Makemodule.am
+include tools/dev_control/Makemodule.am
 
 if BUILD_GZBC
 include tools/gui/Makemodule.am

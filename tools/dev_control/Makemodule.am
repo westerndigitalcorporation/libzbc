@@ -1,0 +1,3 @@
+bin_PROGRAMS += zbc_dev_control
+zbc_dev_control_SOURCES = tools/dev_control/zbc_dev_control.c
+zbc_dev_control_LDADD = $(libzbc_ldadd)

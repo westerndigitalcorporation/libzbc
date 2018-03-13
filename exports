@@ -28,7 +28,7 @@ global:
 	zbc_media_convert;
 	zbc_media_query;
 	zbc_media_list;
-	zbc_cmr_wp_check;
+	zbc_dhsmr_dev_control;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

@@ -39,6 +39,7 @@ zbc_set_write_ptr
 zbc_media_report
 zbc_media_convert
 zbc_convert_realms
+zbc_dev_control
 gzbc
 
 test/programs/zbc_test_print_devinfo

@@ -470,6 +470,29 @@ struct zbc_conv_rec {
 };
 
 /**
+ * @brief Zone Provisioning device control structure.
+ *
+ * The contents of this structure mirror fields in
+ * ZONE PROVISIONING Mode page.
+ */
+struct zbc_zp_dev_control {
+	/**
+	 * @brief Default number of zones to convert.
+	 */
+	uint32_t		zbm_nr_zones;
+
+	/**
+	 * @brief SMR zone type.
+	 */
+	uint8_t			zbm_smr_zone_type;
+	/**
+	 * @brief CMR WP Check setting. Zero value means off.
+	 */
+	uint8_t			zbm_cmr_wp_check;
+
+};
+
+/**
  * Vendor ID string maximum length.
  */
 #define ZBC_DEVICE_INFO_LENGTH  32
@@ -1354,6 +1377,19 @@ extern int zbc_media_list(struct zbc_device *dev, bool all,
 			  uint32_t nr_zones, enum zbc_cvt_dir dir,
 			  bool fg, struct zbc_conv_rec **pconv_recs,
 			  uint32_t *pnr_conv_recs);
+/**
+ * @brief Read or change persistent DH-SMR device settings
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] ctl		Contains all supported variables to control
+ * @param[in] set		If false, just get the settings, otherwise set
+ *
+ * Typically, to set values, this function is called with \a set = false first
+ * to get the current values, then the caller modifes the members of \a ctl
+ * that need to be modified and then calls this function again with
+ * \a set = true.
+ */
+extern int zbc_dhsmr_dev_control(struct zbc_device *dev,
+				 struct zbc_zp_dev_control *ctl, bool set);
 
 /**
  * @brief Convert all zones in one or several realms to a specific type
