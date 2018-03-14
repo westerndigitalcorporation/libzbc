@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	int i, fg = 0, ret = 1, end;
 	char *path;
 	bool media_cvt = false, query = false, to_cmr;
-	bool all = false, zone_addr = false, list = false, cdb32 = true;
+	bool all = false, zone_addr = false, list = false, cdb32 = false;
 
 	/* Check command line */
 	if (argc < 5) {
@@ -49,7 +49,7 @@ usage:
 		       "    -m            : Use MEDIA CONVERT instead of CONVERT REALMS\n"
 		       "    -q            : Query only\n"
 		       "    -a            : Convert all\n"
-		       "    -16           : Use 16-byte SCSI commands, default is 32\n"
+		       "    -32           : Use 32-byte SCSI commands, default is 16\n"
 		       "    -l            : List conversion records\n",
 		       argv[0], argv[0]);
 		return 1;
@@ -67,8 +67,8 @@ usage:
 		}
 		else if (strcmp(argv[i], "-a") == 0)
 			all = true;
-		else if (strcmp(argv[i], "-16") == 0)
-			cdb32 = false;
+		else if (strcmp(argv[i], "-32") == 0)
+			cdb32 = true;
 		else if (strcmp(argv[i], "-l") == 0)
 			list = true;
 		else if (strcmp(argv[i], "-z") == 0) {

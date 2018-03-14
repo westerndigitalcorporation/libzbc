@@ -900,7 +900,7 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	else
 	cmd.cdb[0] = ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE;
 	cmd.cdb[1] = to_cmr ? 0x20 : 0; /* DIR */
-	if (!nr_zones)
+	if (nr_zones)
 		cmd.cdb[1] |= 0x10; /* ZSRC */
 	if (fg)
 		cmd.cdb[1] |= 0x40; /* FGND */
@@ -909,6 +909,9 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	zbc_sg_set_int64(&cmd.cdb[2], start_zone_lba);
 	if (*nr_conv_recs)
 		zbc_sg_set_int16(&cmd.cdb[10], (uint16_t)(*nr_conv_recs));
+	else
+		zbc_sg_set_int16(&cmd.cdb[10], 1);
+
 	if (nr_zones)
 		zbc_sg_set_int16(&cmd.cdb[12], (uint16_t)nr_zones);
 
@@ -1052,7 +1055,7 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * | 27  |                                                                       |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 28  | (MSB)                                                                 |
-	 * |- - -+---                       Allocation Length                         ---|
+	 * |- - -+---                          Record Count                           ---|
 	 * | 31  |                                                                 (LSB) |
 	 * +=============================================================================+
 	 */
@@ -1061,7 +1064,7 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_MEDIA_QUERY_32_CDB_SA :
 					      ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
 	cmd.cdb[10] = to_cmr ? 0x20 : 0; /* DIR */
-	if (!nr_zones)
+	if (nr_zones)
 		cmd.cdb[10] |= 0x10; /* ZSRC */
 	if (fg)
 		cmd.cdb[10] |= 0x40; /* FGND */
@@ -1070,7 +1073,10 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
 	if (nr_zones)
 	zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
-	zbc_sg_set_int32(&cmd.cdb[28], (unsigned int)bufsz);
+	if (*nr_conv_recs)
+		zbc_sg_set_int32(&cmd.cdb[28], *nr_conv_recs);
+	else
+		zbc_sg_set_int32(&cmd.cdb[28], 1);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
