@@ -654,7 +654,7 @@ int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
  *                     to a new type
  */
 int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		      uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		      uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		      bool fg, struct zbc_conv_rec *conv_recs,
 		      uint32_t *nr_conv_recs)
 {
@@ -673,7 +673,7 @@ int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
 						   false, lba, nr_zones,
-						   dir, fg, conv_recs,
+						   to_cmr, fg, conv_recs,
 						   nr_conv_recs);
 }
 
@@ -683,7 +683,7 @@ int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
  *                   the conversion process.
  */
 int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		    uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		    uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		    bool fg, struct zbc_conv_rec *conv_recs,
 		    uint32_t *nr_conv_recs)
 {
@@ -702,7 +702,7 @@ int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
 						   true, lba, nr_zones,
-						   dir, fg, conv_recs,
+						   to_cmr, fg, conv_recs,
 						   nr_conv_recs);
 }
 
@@ -715,7 +715,7 @@ int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
  *                  responsibility of the caller to free this buffer.
  */
 int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		   uint64_t lba, uint32_t nr_zones, enum zbc_cvt_dir dir,
+		   uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		   bool fg, struct zbc_conv_rec **pconv_recs,
 		   uint32_t *pnr_conv_recs)
 {
@@ -736,8 +736,8 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	}
 
 	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
-						  true, lba, nr_zones, dir,
-						  fg, NULL,
+						  true, lba, nr_zones,
+						  to_cmr, fg, NULL,
 						  &nr_conv_recs);
 	if (ret)
 		return ret;
@@ -750,8 +750,8 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 
 	/* Now get the entire list */
 	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
-						  true, lba, nr_zones, dir,
-						  fg, conv_recs,
+						  true, lba, nr_zones,
+						  to_cmr, fg, conv_recs,
 						  &nr_conv_recs);
 	*pconv_recs = conv_recs;
 	*pnr_conv_recs = nr_conv_recs;

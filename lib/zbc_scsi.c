@@ -827,7 +827,7 @@ static int zbc_scsi_convert_realms(struct zbc_device *dev,
  */
 static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 				    uint64_t start_zone_lba, bool query,
-				    uint32_t nr_zones, enum zbc_cvt_dir dir,
+				    uint32_t nr_zones, bool to_cmr,
 				    bool fg, struct zbc_conv_rec *conv_recs,
 				    unsigned int *nr_conv_recs)
 {
@@ -838,8 +838,21 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_conv_recs)
+	if (nr_zones > (uint16_t)(-1)) {
+		zbc_error("%s: # of zones to convert %u is too high\n",
+			  dev->zbd_filename, nr_zones);
+		return -EINVAL;
+	}
+
+	if (*nr_conv_recs) {
+		if (*nr_conv_recs > (uint16_t)(-1)) {
+			zbc_error("%s: # of convert records %u is too high\n",
+				dev->zbd_filename, *nr_conv_recs);
+			return -EINVAL;
+		}
 		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
+	} else
+		bufsz += ZBC_CONV_RES_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -863,19 +876,21 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
 	 * |=====+==========================+============================================|
-	 * | 0   |                 Operation Code (D5h/D6h FIXME TBD)                    |
+	 * | 0   |                        Operation Code (4A/4Bh)                        |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |  All   |    Direction    |                Reserved                    |
+	 * | 1   |  All   |  FGND  |  DIR   |  ZSRC  |          Reserved                 |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 2   | (MSB)                                                                 |
-	 * |-----+---                  Starting Zone Locator (LBA)                    ---|
+	 * |- - -+---                  Starting Zone Locator (LBA)                    ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  | (MSB)                                                                 |
-	 * |- - -+---                       Allocation Length                         ---|
-	 * | 13  |                                                                 (LSB) |
+	 * |- - -+---                        Record Count                             ---|
+	 * | 11  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                             Reserved                                  |
+	 * | 12  | (MSB)                                                                 |
+	 * |- - -+---                       Number Of Zones                           ---|
+	 * | 13  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
@@ -884,12 +899,18 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 		cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE;
 	else
 	cmd.cdb[0] = ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE;
-	cmd.cdb[1] = dir << 5;
+	cmd.cdb[1] = to_cmr ? 0x20 : 0; /* DIR */
+	if (!nr_zones)
+		cmd.cdb[1] |= 0x10; /* ZSRC */
+	if (fg)
+		cmd.cdb[1] |= 0x40; /* FGND */
 	if (all)
-		cmd.cdb[1] |= 0x80;
+		cmd.cdb[1] |= 0x80; /* All */
 	zbc_sg_set_int64(&cmd.cdb[2], start_zone_lba);
-	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
-	/* FIXME nr_zones */
+	if (*nr_conv_recs)
+		zbc_sg_set_int16(&cmd.cdb[10], (uint16_t)(*nr_conv_recs));
+	if (nr_zones)
+		zbc_sg_set_int16(&cmd.cdb[12], (uint16_t)nr_zones);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -966,7 +987,7 @@ out:
  */
 static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 				    uint64_t start_zone_lba, bool query,
-				    uint32_t nr_zones, enum zbc_cvt_dir dir,
+				    uint32_t nr_zones, bool to_cmr,
 				    bool fg, struct zbc_conv_rec *conv_recs,
 				    unsigned int *nr_conv_recs)
 {
@@ -979,6 +1000,8 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 
 	if (*nr_conv_recs)
 		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
+	else
+		bufsz += ZBC_CONV_RES_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -1012,7 +1035,7 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * |-----+---     Service Action (F800h for Convert, F810h for Query)         ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  |  All   |                 Reserved                   |   Direction     |
+	 * | 10  |  All   |  FGND  |  DIR   |  ZSRC  |          Reserved                 |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 11  |                             Reserved                                  |
 	 * |-----+-----------------------------------------------------------------------|
@@ -1037,10 +1060,15 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	cmd.cdb[7] = 0x18;
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_MEDIA_QUERY_32_CDB_SA :
 					      ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
-	cmd.cdb[10] = dir;
+	cmd.cdb[10] = to_cmr ? 0x20 : 0; /* DIR */
+	if (!nr_zones)
+		cmd.cdb[10] |= 0x10; /* ZSRC */
+	if (fg)
+		cmd.cdb[10] |= 0x40; /* FGND */
 	if (all)
-		cmd.cdb[10] |= 0x80;
+		cmd.cdb[10] |= 0x80; /* All */
 	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
+	if (nr_zones)
 	zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
 	zbc_sg_set_int32(&cmd.cdb[28], (unsigned int)bufsz);
 
@@ -1118,14 +1146,14 @@ out:
 static int zbc_scsi_media_query_convert(struct zbc_device *dev, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
-					enum zbc_cvt_dir dir, bool fg,
+					bool to_cmr, bool fg,
 				  struct zbc_conv_rec *conv_recs,
 				  uint32_t *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-	       zbc_scsi_media_convert32(dev, all, lba, query, nr_zones, dir,
+	       zbc_scsi_media_convert32(dev, all, lba, query, nr_zones, to_cmr,
 					fg, conv_recs, nr_conv_recs) :
-	       zbc_scsi_media_convert16(dev, all, lba, query, nr_zones, dir,
+	       zbc_scsi_media_convert16(dev, all, lba, query, nr_zones, to_cmr,
 					fg, conv_recs, nr_conv_recs);
 }
 

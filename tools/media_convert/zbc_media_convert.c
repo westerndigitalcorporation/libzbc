@@ -31,9 +31,9 @@ int main(int argc, char **argv)
 	struct zbc_conv_rec *conv_recs = NULL;
 	uint64_t start;
 	unsigned int nr_units, nr_ranges, nr_conv_recs = 0;
-	int i, type, fg = 0, ret = 1, end;
+	int i, fg = 0, ret = 1, end;
 	char *path;
-	bool media_cvt = false, query = false;
+	bool media_cvt = false, query = false, to_cmr;
 	bool all = false, zone_addr = false, list = false, cdb32 = true;
 
 	/* Check command line */
@@ -109,17 +109,11 @@ usage:
 		fprintf(stderr, "Missing new zone type\n");
 		goto usage;
 	}
-	if (strcmp(argv[i], "conv") == 0) {
-		if (!media_cvt)
-			type = ZBC_ZT_CONVENTIONAL;
-		else
-			type = ZBC_CVT_TO_CMR;
-	} else if (strcmp(argv[i], "seq") == 0) {
-		if (!media_cvt)
-			type = ZBC_ZT_SEQUENTIAL_REQ;
-		else
-			type = ZBC_CVT_TO_SMR;
-	} else {
+	if (strcmp(argv[i], "conv") == 0)
+		to_cmr = true;
+	else if (strcmp(argv[i], "seq") == 0)
+		to_cmr = false;
+	else {
 		fprintf(stderr, "Invalid new zone type\n");
 		goto usage;
 	}
@@ -144,7 +138,10 @@ usage:
 
 	if (!media_cvt) {
 		/* Convert realms */
-		ret = zbc_convert_realms(dev, start, nr_units, type, fg);
+		ret = zbc_convert_realms(dev, start, nr_units,
+					 to_cmr ? ZBC_ZT_CONVENTIONAL :
+						  ZBC_ZT_SEQUENTIAL_REQ,
+					 fg);
 		if (ret != 0) {
 			fprintf(stderr,
 				"zbc_convert_realms failed, err %i (%s)\n",
@@ -176,7 +173,7 @@ usage:
 			goto out;
 		}
 		end = start + nr_units;
-		if (type == ZBC_CVT_TO_SMR) {
+		if (!to_cmr) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += ranges[i].zbr_seq_length;
 			start = ranges[start].zbr_seq_start;
@@ -189,7 +186,7 @@ usage:
 	}
 
 	ret = zbc_media_query(dev, all, cdb32, start, nr_units,
-			      type, fg, NULL, &nr_conv_recs);
+			      to_cmr, fg, NULL, &nr_conv_recs);
 	if (ret != 0) {
 		fprintf(stderr,
 			"Can't receive the number of conversion records, err %i (%s)\n",
@@ -209,13 +206,13 @@ usage:
 
 	if (query)
 		ret = zbc_media_query(dev, all, cdb32, start, nr_units,
-				      type, fg, conv_recs, &nr_conv_recs);
+				      to_cmr, fg, conv_recs, &nr_conv_recs);
 	else if (list)
 		ret = zbc_media_convert(dev, all, cdb32, start, nr_units,
-					type, fg, conv_recs, &nr_conv_recs);
+					to_cmr, fg, conv_recs, &nr_conv_recs);
 	else
 		ret = zbc_media_convert(dev, all, cdb32, start, nr_units,
-					type, fg, NULL, &nr_conv_recs);
+					to_cmr, fg, NULL, &nr_conv_recs);
 
 	if (ret != 0) {
 		fprintf(stderr,

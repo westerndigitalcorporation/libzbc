@@ -900,7 +900,7 @@ static int zbc_block_media_report(struct zbc_device *dev,
 static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
-					 enum zbc_cvt_dir dir, bool fg,
+					 bool to_cmr, bool fg,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {
@@ -976,7 +976,7 @@ static int zbc_block_media_report(struct zbc_device *dev,
 static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
-					 enum zbc_cvt_dir dir, bool fg,
+					 bool to_cmr, bool fg,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {

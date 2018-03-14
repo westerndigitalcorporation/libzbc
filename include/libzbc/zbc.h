@@ -317,22 +317,6 @@ struct zbc_zone {
 #define ZBC_CVT_TO_CONV		0x40
 
 /**
- * Conversion direction parameter in MEDIA CONVERT/QUERY.
- */
-enum zbc_cvt_dir {
-
-	/**
-	 * Conversion from CMR to SMR
-	 */
-	ZBC_CVT_TO_SMR		= 0,
-
-	/**
-	 * Conversion from SMR to CMR
-	 */
-	ZBC_CVT_TO_CMR		= 1,
-};
-
-/**
  * @brief Media Conversion range structure
  *
  * Provide all information about a single conversion range defined by the
@@ -1338,7 +1322,7 @@ extern int zbc_list_conv_ranges(struct zbc_device *dev,
  */
 extern int zbc_media_convert(struct zbc_device *dev, bool all,
 			     bool use_32_byte_cdb, uint64_t lba,
-			     uint32_t nr_zones, enum zbc_cvt_dir dir,
+			     uint32_t nr_zones, bool to_cmr,
 			     bool fg, struct zbc_conv_rec *conv_recs,
 			     uint32_t *nr_conv_recs);
 
@@ -1356,7 +1340,7 @@ extern int zbc_media_convert(struct zbc_device *dev, bool all,
  */
 extern int zbc_media_query(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
-			   uint32_t nr_zones, enum zbc_cvt_dir dir,
+			   uint32_t nr_zones, bool to_cmr,
 			   bool fg, struct zbc_conv_rec *conv_recs,
 			   uint32_t *nr_conv_recs);
 
@@ -1374,7 +1358,7 @@ extern int zbc_media_query(struct zbc_device *dev, bool all,
  */
 extern int zbc_media_list(struct zbc_device *dev, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,
-			  uint32_t nr_zones, enum zbc_cvt_dir dir,
+			  uint32_t nr_zones, bool to_cmr,
 			  bool fg, struct zbc_conv_rec **pconv_recs,
 			  uint32_t *pnr_conv_recs);
 /**
