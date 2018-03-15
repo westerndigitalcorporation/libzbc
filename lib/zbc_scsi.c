@@ -860,14 +860,10 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	if (query)
-		/* Allocate and intialize MEDIA QUERY (16) command */
-		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_QUERY_16,
-				      NULL, bufsz);
-	else
-	/* Allocate and intialize MEDIA CONVERT (16) command */
-		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_CONVERT_16,
-				      NULL, bufsz);
+	/* Allocate and intialize MEDIA QUERY/CONVERT (16) command */
+	ret = zbc_sg_cmd_init(dev, &cmd,
+			      query ? ZBC_SG_MEDIA_QUERY_16 :
+				      ZBC_SG_MEDIA_CONVERT_16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -876,36 +872,40 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
 	 * |=====+==========================+============================================|
-	 * | 0   |                        Operation Code (4A/4Bh)                        |
+	 * | 0   |                        Operation Code (4Ah)                           |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |  All   |  FGND  |  DIR   |  ZSRC  |          Reserved                 |
+	 * | 1   |  All   |  DIR   | Rsrvd  |          Service Action (01h/02h)          |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
+	 * | 2   |  FGND  |                   Reserved                          |  ZSRC  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   | (MSB)                                                                 |
 	 * |- - -+---                  Starting Zone Locator (LBA)                    ---|
-	 * | 9   |                                                                 (LSB) |
+	 * | 10  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  | (MSB)                                                                 |
+	 * | 11  | (MSB)                                                                 |
 	 * |- - -+---                        Record Count                             ---|
-	 * | 11  |                                                                 (LSB) |
+	 * | 12  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 12  | (MSB)                                                                 |
+	 * | 13  | (MSB)                                                                 |
 	 * |- - -+---                       Number Of Zones                           ---|
-	 * | 13  |                                                                 (LSB) |
+	 * | 14  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
+	cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_CVT_16_CDB_OPCODE;
 	if (query)
-		cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_16_CDB_OPCODE;
+		cmd.cdb[1] = ZBC_SG_MEDIA_QUERY_16_CDB_SA;
 	else
-	cmd.cdb[0] = ZBC_SG_MEDIA_CONVERT_16_CDB_OPCODE;
-	cmd.cdb[1] = to_cmr ? 0x20 : 0; /* DIR */
-	if (nr_zones)
-		cmd.cdb[1] |= 0x10; /* ZSRC */
-	if (fg)
-		cmd.cdb[1] |= 0x40; /* FGND */
+		cmd.cdb[1] = ZBC_SG_MEDIA_CONVERT_16_CDB_SA;
+	if (to_cmr)
+		cmd.cdb[1] |= 0x40; /* DIR */
 	if (all)
 		cmd.cdb[1] |= 0x80; /* All */
+	if (nr_zones)
+		cmd.cdb[2] |= 0x01; /* ZSRC */
+	if (fg)
+		cmd.cdb[2] |= 0x80; /* FGND */
 	zbc_sg_set_int64(&cmd.cdb[2], start_zone_lba);
 	if (*nr_conv_recs)
 		zbc_sg_set_int16(&cmd.cdb[10], (uint16_t)(*nr_conv_recs));
