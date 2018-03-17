@@ -29,11 +29,12 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	struct zbc_cvt_range *ranges = NULL;
 	struct zbc_conv_rec *conv_recs = NULL;
+	char *path;
+	struct zbc_zp_dev_control ctl;
 	uint64_t start;
 	unsigned int nr_units, nr_ranges, nr_conv_recs = 0;
 	int i, fg = 0, ret = 1, end;
-	char *path;
-	bool media_cvt = false, query = false, to_cmr;
+	bool media_cvt = true, query = false, to_cmr, fsnoz = false;
 	bool all = false, zone_addr = false, list = false, cdb32 = false;
 
 	/* Check command line */
@@ -41,14 +42,15 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Not enough arguments\n");
 usage:
 		printf("Usage:\n%s [options] <dev> <start conv range> "
-		       "<num conv reanges> <conv | seq> [<fg>]\n"
+		       "<num conv ranges> <conv | seq> [<fg>]\n"
 		       "or\n%s -z [options] <dev> <start zone lba> "
 		       "<num zones> <conv | seq> [<fg>]\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
-		       "    -m            : Use MEDIA CONVERT instead of CONVERT REALMS\n"
+		       "    -c            : Use CONVERT REALMS instead of MEDIA CONVERT\n"
 		       "    -q            : Query only\n"
 		       "    -a            : Convert all\n"
+		       "    -n            : Set the number of zones to convert via separate call\n"
 		       "    -32           : Use 32-byte SCSI commands, default is 16\n"
 		       "    -l            : List conversion records\n",
 		       argv[0], argv[0]);
@@ -59,14 +61,16 @@ usage:
 	for (i = 1; i < (argc - 1); i++) {
 		if (strcmp(argv[i], "-v") == 0)
 			zbc_set_log_level("debug");
-		else if (strcmp(argv[i], "-m") == 0)
-			media_cvt = true;
+		else if (strcmp(argv[i], "-c") == 0)
+			media_cvt = false;
 		else if (strcmp(argv[i], "-q") == 0) {
 			query = true;
 			list = true;
 		}
 		else if (strcmp(argv[i], "-a") == 0)
 			all = true;
+		else if (strcmp(argv[i], "-n") == 0)
+			fsnoz = true;
 		else if (strcmp(argv[i], "-32") == 0)
 			cdb32 = true;
 		else if (strcmp(argv[i], "-l") == 0)
@@ -173,7 +177,7 @@ usage:
 			goto out;
 		}
 		end = start + nr_units;
-		if (!to_cmr) {
+		if (to_cmr) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += ranges[i].zbr_seq_length;
 			start = ranges[start].zbr_seq_start;
@@ -202,6 +206,26 @@ usage:
 		fprintf(stderr, "No memory\n");
 		ret = 1;
 		goto out;
+	}
+
+	/* Force setting the number of zones via FSNOZ if it doesn't fit into 16-bit */
+	if (!cdb32 && nr_units > 0xffff)
+		fsnoz = true;
+
+	if (fsnoz) {
+		/* Set the number of zones to convert via a separate command */
+		ctl.zbm_nr_zones = nr_units;
+		ctl.zbm_smr_zone_type = 0xff;
+		ctl.zbm_cmr_wp_check = 0xff;
+		ret = zbc_dhsmr_dev_control(dev, &ctl, true);
+		if (ret != 0) {
+			fprintf(stderr,
+				"Can't set the number of zones to convert, err %i (%s)\n",
+				ret, strerror(-ret));
+			ret = 1;
+			goto out;
+		}
+		nr_units = 0;
 	}
 
 	if (query)

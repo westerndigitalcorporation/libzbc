@@ -168,7 +168,7 @@ enum {
 /**
  * Media Query / Convert command definitions.
  */
-#define ZBC_SG_MEDIA_QUERY_CVT_16_CDB_OPCODE	0x4A /* FIXME value TBD */
+#define ZBC_SG_MEDIA_QUERY_CVT_16_CDB_OPCODE	0x9F /* FIXME value TBD */
 #define ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE	0x7F /* FIXME value TBD */
 
 #define ZBC_SG_MEDIA_QUERY_CVT_16_CDB_LENGTH	16
