@@ -248,7 +248,7 @@ usage:
 
 	if (list) {
 		for (i = 0; i < (int)nr_conv_recs; i++) {
-			printf("%03i %012lu %08u 0x%x 0x%x\n",
+			printf("%03i LBA:%012lu Zones:%08u Type:0x%02x Cond:0x%02x\n",
 			       i, conv_recs[i].zbe_start_lba,
 			       conv_recs[i].zbe_nr_zones,
 			       conv_recs[i].zbe_type,

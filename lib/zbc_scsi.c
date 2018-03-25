@@ -838,21 +838,13 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	uint8_t *buf;
 	int ret;
 
-	if (nr_zones > (uint16_t)(-1)) {
-		zbc_error("%s: # of zones to convert %u is too high\n",
-			  dev->zbd_filename, nr_zones);
-		return -EINVAL;
-	}
-
-	if (*nr_conv_recs) {
+	if (*nr_conv_recs)
+		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
 		if (*nr_conv_recs > (uint16_t)(-1)) {
 			zbc_error("%s: # of convert records %u is too high\n",
 				dev->zbd_filename, *nr_conv_recs);
 			return -EINVAL;
 		}
-		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
-	} else
-		bufsz += ZBC_CONV_RES_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -883,7 +875,7 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * | 10  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 11  | (MSB)                                                                 |
-	 * |- - -+---                        Record Count                             ---|
+	 * |- - -+---                      Allocated Length                           ---|
 	 * | 12  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 13  | (MSB)                                                                 |
@@ -909,10 +901,7 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	if (fg)
 		cmd.cdb[2] |= 0x80; /* FGND */
 	zbc_sg_set_int64(&cmd.cdb[3], start_zone_lba);
-	if (*nr_conv_recs)
-		zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)(*nr_conv_recs));
-	else
-		zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)1);
+	zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)bufsz);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -941,10 +930,10 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 			    dev->zbd_filename,
 			    query ? "will not be" : "not");
 		ret = -EIO;
-		/* Not bailing here, gonna try to get the descriptors */
+		/* Not bailing here, gonna try to get the records */
 	}
 
-	/* Get number of descriptors in result */
+	/* Get number of conversion records in result */
 	nr = zbc_sg_get_int32(buf) / ZBC_CONV_RES_RECORD_SIZE;
 
 	if (!conv_recs || !nr)
@@ -1002,8 +991,6 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 
 	if (*nr_conv_recs)
 		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
-	else
-		bufsz += ZBC_CONV_RES_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -1054,7 +1041,7 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * | 27  |                                                                       |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 28  | (MSB)                                                                 |
-	 * |- - -+---                          Record Count                           ---|
+	 * |- - -+---                       Allocated Length                          ---|
 	 * | 31  |                                                                 (LSB) |
 	 * +=============================================================================+
 	 */
@@ -1063,19 +1050,16 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_MEDIA_QUERY_32_CDB_SA :
 					      ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
 	cmd.cdb[10] = to_cmr ? 0x20 : 0; /* DIR */
-	if (nr_zones)
+	if (nr_zones) {
 		cmd.cdb[10] |= 0x10; /* ZSRC */
+		zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
+	}
 	if (fg)
 		cmd.cdb[10] |= 0x40; /* FGND */
 	if (all)
 		cmd.cdb[10] |= 0x80; /* All */
 	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
-	if (nr_zones)
-	zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
-	if (*nr_conv_recs)
-		zbc_sg_set_int32(&cmd.cdb[28], *nr_conv_recs);
-	else
-		zbc_sg_set_int32(&cmd.cdb[28], 1);
+	zbc_sg_set_int32(&cmd.cdb[28], bufsz);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
