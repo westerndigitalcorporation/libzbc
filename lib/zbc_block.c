@@ -883,11 +883,11 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion range configuration.
+ * Report device conversion domain configuration.
  */
 static int zbc_block_media_report(struct zbc_device *dev,
-				  struct zbc_cvt_range *ranges,
-				  unsigned int *nr_ranges)
+				  struct zbc_cvt_domain *domains,
+				  unsigned int *nr_domains)
 {
 	/* FIXME N/I */
 	return -EOPNOTSUPP;
@@ -967,8 +967,8 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 static int zbc_block_media_report(struct zbc_device *dev,
-				  struct zbc_cvt_range *ranges,
-				  unsigned int nr_ranges)
+				  struct zbc_cvt_domain *domains,
+				  unsigned int nr_domains)
 {
 	return -EOPNOTSUPP;
 }

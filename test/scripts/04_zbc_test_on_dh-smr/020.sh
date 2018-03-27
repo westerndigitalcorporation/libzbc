@@ -19,30 +19,30 @@ zbc_test_init $0 "Run ZBC test on mixed CMR-SMR device" $*
 expected_sk=""
 expected_asc=""
 
-# Get conversion range information
-zbc_test_get_cvt_range_info
+# Get conversion domain information
+zbc_test_get_cvt_domain_info
 
-# Convert roughly half of the ranges to SMR -
-# Find a CMR range that is convertible to SMR
-zbc_test_search_range_by_type_and_cvt "1" "seq"
+# Convert roughly half of the domains to SMR -
+# Find a CMR domain that is convertible to SMR
+zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
-# Find the total number of convertible ranges
-zbc_test_count_cvt_to_seq_ranges
-if [ $nr_cvt_to_seq_ranges -eq 0 ]; then
+# Find the total number of convertible domains
+zbc_test_count_cvt_to_seq_domains
+if [ $nr_cvt_to_seq_domains -eq 0 ]; then
     zbc_test_print_failed
 fi
 
 # Take the first half
-nr=$[nr_cvt_to_seq_ranges/2]
+nr=$[nr_cvt_to_seq_domains/2]
 if [ $nr -eq 0 ]; then
     nr=$[nr + 1]
 fi
 
 # Convert the media
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} ${nr} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} ${nr} "seq"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

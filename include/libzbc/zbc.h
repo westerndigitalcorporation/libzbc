@@ -311,46 +311,46 @@ struct zbc_zone {
 
 /**
  * Flags that can be set in zbr_convertible field
- * of zbc_cvt_range structure (below).
+ * of zbc_cvt_domain structure (below).
  */
 #define ZBC_CVT_TO_SEQ		0x20
 #define ZBC_CVT_TO_CONV		0x40
 
 /**
- * @brief Media Conversion range structure
+ * @brief Media Conversion domain structure
  *
- * Provide all information about a single conversion range defined by the
+ * Provide all information about a single conversion domain defined by the
  * device. This structure is typically populated with the information
  * returned to the client after succesful execution of MEDIA REPORT
  * SCSI command or MEDIA REPORT DMA ATA command.
  */
-struct zbc_cvt_range {
+struct zbc_cvt_domain {
 
 	/**
-	 * Conversion range start LBA when the range type is CONVENTIONAL.
-	 * If the range is not convertible to this zone type, then it is
+	 * Conversion domain start LBA when the domain type is CONVENTIONAL.
+	 * If the domain is not convertible to this zone type, then it is
 	 * set to zero.
 	 */
 	uint64_t		zbr_conv_start;
 
 	/**
-	 * Conversion range length in zones when the range type is CONVENTIONAL.
-	 * If the range is not convertible to this zone type, then it's
+	 * Conversion domain length in zones when the domain type is CONVENTIONAL.
+	 * If the domain is not convertible to this zone type, then it's
 	 * set to zero.
 	 */
 	uint32_t		zbr_conv_length;
 
 	/**
-	 * Conversion range start LBA when the range is SEQUENTIAL WRITE
-	 * REQUIRED. If the range is not convertible to this zone type,
+	 * Conversion domain start LBA when the domain is SEQUENTIAL WRITE
+	 * REQUIRED. If the domain is not convertible to this zone type,
 	 * then it is set to zero.
 	 */
 	uint64_t		zbr_seq_start;
 
 	/**
-	 * Conversion range length in zones when the range is
-	 * SEQUENTIAL WRITE REQUIRED. If the range is not convertible to this
-	 * zone type, then it's set to zero.
+	 * Conversion domain length in zones when the domain is
+	 * SEQUENTIAL WRITE REQUIRED. If the domain is not convertible
+	 * to this zone type, then it's set to zero.
 	 */
 	uint32_t		zbr_seq_length;
 
@@ -360,20 +360,20 @@ struct zbc_cvt_range {
 	uint16_t		zbr_number;
 
 	/**
-	 * Number of zones required between CONVENTIONAL ranges
+	 * Number of zones required between CONVENTIONAL domains
 	 * when they are converted from SEQUENTIAL WRITE REQUIRED
 	 * to CONVENTIONAL.
 	 */
 	uint16_t		zbr_keep_out;
 
 	/**
-	 * Current conversion range type. This the type of all zones
-	 * in the range (enum zbc_zone_type).
+	 * Current conversion domain type. This the type of all zones
+	 * in the domain (enum zbc_zone_type).
 	 */
 	uint8_t			zbr_type;
 
 	/**
-	 * A set of flags indicating how this range can be converted.
+	 * A set of flags indicating how this domain can be converted.
 	 */
 	uint8_t			zbr_convertible;
 
@@ -383,42 +383,42 @@ struct zbc_cvt_range {
 	uint8_t			__pad[2];
 };
 
-/** @brief Get the conversion range type */
-#define zbc_cvt_range_type(r)		((int)(r)->zbr_type)
+/** @brief Get the conversion domain type */
+#define zbc_cvt_domain_type(r)		((int)(r)->zbr_type)
 
-/** @brief Get the conversion range number */
-#define zbc_cvt_range_number(r)		((int)(r)->zbr_number)
+/** @brief Get the conversion domain number */
+#define zbc_cvt_domain_number(r)		((int)(r)->zbr_number)
 
-/** @brief Test if a conversion range type is CONVENTIONAL */
-#define zbc_cvt_range_conventional(r) 	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
+/** @brief Test if a conversion domain type is CONVENTIONAL */
+#define zbc_cvt_domain_conventional(r)	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
-/** @brief Test if a conversion range type is SEQUENTIAL WRITE REQUIRED */
-#define zbc_cvt_range_sequential(r) \
+/** @brief Test if a conversion domain type is SEQUENTIAL WRITE REQUIRED */
+#define zbc_cvt_domain_sequential(r) \
 	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Get the range start LBA if it is CONVENTIONAL as a 512B sector */
-#define zbc_cvt_range_conv_start(r) \
+/** @brief Get the domain start LBA if it is CONVENTIONAL as a 512B sector */
+#define zbc_cvt_domain_conv_start(r) \
 	((unsigned long long)(r)->zbr_conv_start)
 
-/** @brief Get the number of zones of a range if it is CONVENTIONAL */
-#define zbc_cvt_range_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
+/** @brief Get the number of zones of a domain if it is CONVENTIONAL */
+#define zbc_cvt_domain_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
 
-/** @brief Get the range start LBA if it's SEQUENTIAL WR as a 512B sector */
-#define zbc_cvt_range_seq_start(r) \
+/** @brief Get the domain start LBA if it's SEQUENTIAL WR as a 512B sector */
+#define zbc_cvt_domain_seq_start(r) \
 	((unsigned long long)(r)->zbr_seq_start)
 
-/** @brief Get the range size in 512B sectors if it is sequential */
-#define zbc_cvt_range_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
+/** @brief Get the domain size in 512B sectors if it is sequential */
+#define zbc_cvt_domain_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
 
-/** @brief Get the conversion range "keep out" value */
-#define zbc_cvt_range_keep_out(r)	((int)(r)->zbr_keep_out)
+/** @brief Get the conversion domain "keep out" value */
+#define zbc_cvt_domain_keep_out(r)	((int)(r)->zbr_keep_out)
 
-/** @brief Test if the conversion range is convertible to conventional */
-#define zbc_cvt_range_to_conv(r) \
+/** @brief Test if the conversion domain is convertible to conventional */
+#define zbc_cvt_domain_to_conv(r) \
 	((int)((r)->zbr_convertible & ZBC_CVT_TO_CONV))
 
-/** @brief Test if the conversion range is convertible to sequential */
-#define zbc_cvt_range_to_seq(r) \
+/** @brief Test if the conversion domain is convertible to sequential */
+#define zbc_cvt_domain_to_seq(r) \
 	((int)((r)->zbr_convertible & ZBC_CVT_TO_SEQ))
 
 /**
@@ -1252,61 +1252,61 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
- * @brief Get conversion reange information
+ * @brief Get conversion  domain information
  * @param[in] dev	 Device handle obtained with \a zbc_open
- * @param[in] ranges	 Pointer to the array of convert descriptors to fill
- * @param[out] nr_ranges Number of range descriptors in the array \a ranges
+ * @param[in] domains	  Pointer to the array of convert descriptors to fill
+ * @param[out] nr_domains Number of domain descriptors in the array \a domains
  *
- * Get conversion range information from a DH-SMR device.
- * The array \a range decsriptors must be allocated by the caller and
- * \a nr_ranges must point to the size of the allocated array (number of
- * descriptors in the array). Unlike zone reporting, the entire list of ranges
+ * Get conversion domain information from a DH-SMR device.
+ * The array \a domains array must be allocated by the caller and
+ * \a nr_domains must point to the size of the allocated array (number of
+ * descriptors in the array). Unlike zone reporting, the entire list of domains
  * is always reported.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 extern int zbc_media_report(struct zbc_device *dev,
-			    struct zbc_cvt_range *ranges,
-			    unsigned int *nr_ranges);
+			    struct zbc_cvt_domain *domains,
+			    unsigned int *nr_domains);
 
 /**
- * @brief Get the number of media conversion range descriptors.
+ * @brief Get the number of media conversion domain descriptors.
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] nr_ranges	The number of conversion ranges
+ * @param[out] nr_domains	The number of conversion domains
  *
  * Similar to \a zbc_media_report, but returns only the number of media
- * conversion ranges that \a zbc_media_report would have returned.
- * This is useful to determine the total number of ranges of a device
- * to allocate an array of conversion rangen information structures
- * for use with \a zbc_media_report.
+ * conversion domains that \a zbc_media_report would have returned.
+ * This is useful to determine the total number of domains of a device
+ * to allocate an array of conversion domain descriptors for use with
+ * \a zbc_media_report.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-static inline int zbc_media_report_nr_ranges(struct zbc_device *dev,
-					     unsigned int *nr_ranges)
+static inline int zbc_media_report_nr_domains(struct zbc_device *dev,
+					      unsigned int *nr_domains)
 {
-	return zbc_media_report(dev, NULL, nr_ranges);
+	return zbc_media_report(dev, NULL, nr_domains);
 }
 
 /**
- * @brief Get conversion range information
+ * @brief Get conversion domain information
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] ranges		Array of conversion range descriptors
- * @param[out] nr_ranges	Number of ranges in the array \a ranges
+ * @param[out] domains		Array of conversion domain descriptors
+ * @param[out] nr_domains	Number of domains in the array \a domains
  *
  * Similar to \a zbc_media_report, but also allocates an appropriately sized
- * array of conversion range descriptorss and returns the address of the array
- * at the address specified by \a ranges. The size of the array allocated and
- * filled is returned at the address specified by \a nr_ranges. Freeing of the
- * memory used by the array of range descriptors allocated by this function
+ * array of conversion domain descriptorss and returns the address of the array
+ * at the address specified by \a domains. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_domains. Freeing of the
+ * memory used by the array of domain descriptors allocated by this function
  * is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
- * Returns -ENOMEM if memory could not be allocated for \a ranges.
+ * Returns -ENOMEM if memory could not be allocated for \a domains.
  */
-extern int zbc_list_conv_ranges(struct zbc_device *dev,
-				struct zbc_cvt_range **ranges,
-				unsigned int *nr_ranges);
+extern int zbc_list_conv_domains(struct zbc_device *dev,
+				 struct zbc_cvt_domain **domains,
+				 unsigned int *nr_domains);
 
 /**
  * @brief Convert a number of zones at the specified LBA to the new type
@@ -1317,8 +1317,8 @@ extern int zbc_list_conv_ranges(struct zbc_device *dev,
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
  * @param[in] fg		Foreground flag
- * @param[out] conv_recs	Array of conversion range records
- * @param[out] nr_conv_recs	The number of conversion range records
+ * @param[out] conv_recs	Array of conversion results records
+ * @param[out] nr_conv_recs	The number of conversion results records
  */
 extern int zbc_media_convert(struct zbc_device *dev, bool all,
 			     bool use_32_byte_cdb, uint64_t lba,
@@ -1335,8 +1335,8 @@ extern int zbc_media_convert(struct zbc_device *dev, bool all,
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
  * @param[in] fg		Foreground flag
- * @param[out] conv_recs	Array of conversion range records
- * @param[out] nr_conv_recs	The number of conversion range records
+ * @param[out] conv_recs	Array of conversion results records
+ * @param[out] nr_conv_recs	The number of conversion results records
  */
 extern int zbc_media_query(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
@@ -1368,7 +1368,7 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  * @param[in] dir		Conversion direction
  * @param[in] fg		Foreground flag
  * @param[out] conv_recs	Points to the returned array of convert records
- * @param[out] nr_conv_recs	The number of returned conversion range records
+ * @param[out] nr_conv_recs	Number of returned conversion results records
  */
 extern int zbc_media_list(struct zbc_device *dev, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,

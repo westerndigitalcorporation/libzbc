@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT all ranges to SMR" $*
+zbc_test_init $0 "MEDIA_CONVERT all domains to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -22,30 +22,30 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
-# Get conversion range information
-zbc_test_get_cvt_range_info
+# Get conversion domain information
+zbc_test_get_cvt_domain_info
 
-# Find a CMR range that is convertable to SMR
-zbc_test_search_range_by_type_and_cvt "1" "seq"
+# Find a CMR domain that is convertable to SMR
+zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
-# Assume that all convertable ranges are contiguious
-zbc_test_count_cvt_to_seq_ranges
+# Assume that all convertable domains are contiguious
+zbc_test_count_cvt_to_seq_domains
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} ${nr_cvt_to_seq_ranges} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} ${nr_cvt_to_seq_domains} "seq"
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
-# Verify that no convertable conventional ranges present
-zbc_test_get_cvt_range_info
-zbc_test_search_range_by_type_and_cvt "1" "seq"
+# Verify that no convertable conventional domains present
+zbc_test_get_cvt_domain_info
+zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -eq 0 ]; then
-    sk=${range_num}
+    sk=${domain_num}
     expected_sk=""
     zbc_test_print_failed_sk
 fi

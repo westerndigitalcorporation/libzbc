@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Convert a non-convertible CMR range to SMR" $*
+zbc_test_init $0 "Convert a non-convertible CMR domain to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"
@@ -22,17 +22,17 @@ expected_asc="Conversion-type-unsupported"
 # Get drive information
 zbc_test_get_device_info
 
-# Get conversion range information
-zbc_test_get_cvt_range_info
+# Get conversion domain information
+zbc_test_get_cvt_domain_info
 
-# Find the first SMR range that is not convertible to SMR
-zbc_test_search_range_by_type_and_cvt "1" "noseq"
+# Find the first SMR domain that is not convertible to SMR
+zbc_test_search_domain_by_type_and_cvt "1" "noseq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${range_num} 1 "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} 1 "seq"
 
 # Check result
 zbc_test_get_sk_ascq

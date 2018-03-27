@@ -37,12 +37,12 @@
 /*
  * MEDIA REPORT output header size.
  */
-#define ZBC_RANGE_HEADER_SIZE			64
+#define ZBC_DOMAIN_HEADER_SIZE			64
 
 /*
- * MEDIA REPORT conversion range descriptor size.
+ * MEDIA REPORT conversion domain descriptor size.
  */
-#define ZBC_RANGE_RECORD_SIZE			128
+#define ZBC_DOMAIN_RECORD_SIZE			128
 
 /**
  * ATA commands.
@@ -1066,21 +1066,21 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion range configuration.
+ * Report device conversion domain configuration.
  */
 static int zbc_ata_media_report(struct zbc_device *dev,
-				struct zbc_cvt_range *ranges,
-				unsigned int *nr_ranges)
+				struct zbc_cvt_domain *domains,
+				unsigned int *nr_domains)
 {
-	size_t bufsz = ZBC_RANGE_HEADER_SIZE;
+	size_t bufsz = ZBC_DOMAIN_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	size_t max_bufsz;
 	struct zbc_sg_cmd cmd;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_ranges)
-		bufsz += (size_t)*nr_ranges * ZBC_RANGE_RECORD_SIZE;
+	if (*nr_domains)
+		bufsz += (size_t)*nr_domains * ZBC_DOMAIN_RECORD_SIZE;
 
 	bufsz = (bufsz + 4095) & ~4095;
 	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
@@ -1144,55 +1144,55 @@ static int zbc_ata_media_report(struct zbc_device *dev,
 		goto out;
 	}
 
-	if (cmd.out_bufsz < ZBC_RANGE_HEADER_SIZE) {
+	if (cmd.out_bufsz < ZBC_DOMAIN_HEADER_SIZE) {
 		zbc_error("%s: Not enough data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_RANGE_HEADER_SIZE,
+			  ZBC_DOMAIN_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
-	/* Get the number of range descriptors in result */
+	/* Get the number of domain descriptors in result */
 	buf = (uint8_t *)cmd.out_buf;
 	/* FIXME header format TBD */
-	nr = zbc_ata_get_dword(buf) / ZBC_RANGE_RECORD_SIZE;
+	nr = zbc_ata_get_dword(buf) / ZBC_DOMAIN_RECORD_SIZE;
 
-	if (!ranges || !nr)
+	if (!domains || !nr)
 		goto out;
 
-	/* Find the number of conversion range desccriptors to fill */
-	if (nr > *nr_ranges)
-		nr = *nr_ranges;
+	/* Find the number of conversion domain desccriptors to fill */
+	if (nr > *nr_domains)
+		nr = *nr_domains;
 
-	bufsz = (cmd.out_bufsz - ZBC_RANGE_HEADER_SIZE) /
-		 ZBC_RANGE_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_DOMAIN_HEADER_SIZE) /
+		 ZBC_DOMAIN_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get conversion range descriptors */
-	buf += ZBC_RANGE_HEADER_SIZE;
+	/* Get conversion domain descriptors */
+	buf += ZBC_DOMAIN_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		ranges[i].zbr_type = buf[0] & 0x0f;
-		ranges[i].zbr_convertible = buf[1];
+		domains[i].zbr_type = buf[0] & 0x0f;
+		domains[i].zbr_convertible = buf[1];
 
-		ranges[i].zbr_number = zbc_ata_get_word(&buf[2]);
-		ranges[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
+		domains[i].zbr_number = zbc_ata_get_word(&buf[2]);
+		domains[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
 
-		ranges[i].zbr_conv_start =
+		domains[i].zbr_conv_start =
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
-		ranges[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
-		ranges[i].zbr_seq_start =
+		domains[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
+		domains[i].zbr_seq_start =
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[32]));
-		ranges[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
+		domains[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
 
-		buf += ZBC_RANGE_RECORD_SIZE;
+		buf += ZBC_DOMAIN_RECORD_SIZE;
 	}
 
 out:
 	/* Return the number of descriptorss */
-	*nr_ranges = nr;
+	*nr_domains = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);

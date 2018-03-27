@@ -25,8 +25,8 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_cvt_range *r, *ranges = NULL;
-	unsigned int nr_ranges, oflags;
+	struct zbc_cvt_domain *d, *domains = NULL;
+	unsigned int nr_domains, oflags;
 	int i, ret = 1;
 
 	/* Check command line */
@@ -80,28 +80,28 @@ usage:
 
 	zbc_get_device_info(dev, &info);
 
-	/* Get the number of conversion ranges */
-	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
+	/* Get the number of conversion domains */
+	ret = zbc_media_report_nr_domains(dev, &nr_domains);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_media_report_nr_ranges failed %d\n",
+			"[TEST][ERROR],zbc_media_report_nr_domains failed %d\n",
 			ret);
 		ret = 1;
 		goto out;
 	}
 
-	/* Allocate conversion range descriptor array */
-	ranges = (struct zbc_cvt_range *)calloc(nr_ranges,
-						sizeof(struct zbc_cvt_range));
-	if (!ranges) {
+	/* Allocate conversion domain descriptor array */
+	domains = (struct zbc_cvt_domain *)calloc(nr_domains,
+						  sizeof(struct zbc_cvt_domain));
+	if (!domains) {
 		fprintf(stderr,
 			"[TEST][ERROR],No memory\n");
 		ret = 1;
 		goto out;
 	}
 
-	/* Get conversion range information */
-	ret = zbc_media_report(dev, ranges, &nr_ranges);
+	/* Get conversion domain information */
+	ret = zbc_media_report(dev, domains, &nr_domains);
 	if (ret != 0) {
 		struct zbc_errno zbc_err;
 		const char *sk_name;
@@ -121,23 +121,23 @@ usage:
 		goto out;
 	}
 
-	for (i = 0; i < (int)nr_ranges; i++) {
-		r = &ranges[i];
-		printf("[CVT_RANGE_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
-		       zbc_cvt_range_number(r),
-		       zbc_cvt_range_type(r),
-		       zbc_sect2lba(&info, zbc_cvt_range_conv_start(r)),
-		       zbc_sect2lba(&info, zbc_cvt_range_conv_length(r)),
-		       zbc_sect2lba(&info, zbc_cvt_range_seq_start(r)),
-		       zbc_sect2lba(&info, zbc_cvt_range_seq_length(r)),
-		       zbc_cvt_range_keep_out(r),
-		       zbc_cvt_range_to_conv(r) ? "Y" : "N",
-		       zbc_cvt_range_to_seq(r) ? "Y" : "N");
+	for (i = 0; i < (int)nr_domains; i++) {
+		d = &domains[i];
+		printf("[CVT_DOMAIN_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
+		       zbc_cvt_domain_number(d),
+		       zbc_cvt_domain_type(d),
+		       zbc_sect2lba(&info, zbc_cvt_domain_conv_start(d)),
+		       zbc_sect2lba(&info, zbc_cvt_domain_conv_length(d)),
+		       zbc_sect2lba(&info, zbc_cvt_domain_seq_start(d)),
+		       zbc_sect2lba(&info, zbc_cvt_domain_seq_length(d)),
+		       zbc_cvt_domain_keep_out(d),
+		       zbc_cvt_domain_to_conv(d) ? "Y" : "N",
+		       zbc_cvt_domain_to_seq(d) ? "Y" : "N");
 	}
 
 out:
-	if (ranges)
-		free(ranges);
+	if (domains)
+		free(domains);
 	zbc_close(dev);
 
 	return ret;

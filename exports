@@ -23,7 +23,7 @@ global:
 	zbc_list_zones;
 	zbc_zone_operation;
 	zbc_media_report;
-	zbc_list_conv_ranges;
+	zbc_list_conv_domains;
 	zbc_media_convert;
 	zbc_media_query;
 	zbc_get_nr_cvt_records;

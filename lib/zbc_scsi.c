@@ -38,12 +38,12 @@
 /*
  * MEDIA REPORT ouput header size.
  */
-#define ZBC_RANGE_HEADER_SIZE		64
+#define ZBC_DOMAIN_HEADER_SIZE		64
 
 /*
- * MEDIA REPORT output conversion descriptor size.
+ * MEDIA REPORT output conversion domain descriptor size.
  */
-#define ZBC_RANGE_RECORD_SIZE		128
+#define ZBC_DOMAIN_RECORD_SIZE		128
 
 /**
  * SCSI commands reply length.
@@ -60,12 +60,12 @@
 #define ZBC_CONV_RES_RECORD_SIZE	16
 
 /**
- * ZONE PROVISIONING mode page size
+ * ZONE ACTIVATION mode page size
  */
 #define ZBC_SCSI_MODE_PG_SIZE		256
 
 /**
- * ZONE PROVISIONING mode page minimum size
+ * ZONE ACTIVATION mode page minimum size
  */
 #define ZBC_SCSI_MIN_MODE_PG_SIZE	8
 
@@ -644,21 +644,21 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device media conversion configuration.
+ * Report device media conversion domain configuration.
  */
 static int zbc_scsi_media_report(struct zbc_device *dev,
-				 struct zbc_cvt_range *ranges,
-				 unsigned int *nr_ranges)
+				 struct zbc_cvt_domain *domains,
+				 unsigned int *nr_domains)
 {
-	size_t bufsz = ZBC_RANGE_HEADER_SIZE;
+	size_t bufsz = ZBC_DOMAIN_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_ranges)
-		bufsz += (size_t)*nr_ranges * ZBC_RANGE_RECORD_SIZE;
+	if (*nr_domains)
+		bufsz += (size_t)*nr_domains * ZBC_DOMAIN_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -704,55 +704,55 @@ static int zbc_scsi_media_report(struct zbc_device *dev,
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_RANGE_HEADER_SIZE) {
+	if (cmd.out_bufsz < ZBC_DOMAIN_HEADER_SIZE) {
 		zbc_error("%s: Not enough report data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_RANGE_HEADER_SIZE,
+			  ZBC_DOMAIN_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
-	/* Get number of range descriptors in result */
+	/* Get number of domain descriptors in result */
 	buf = (uint8_t *)cmd.out_buf;
 	/* FIXME header format TBD */
-	nr = zbc_sg_get_int32(buf) / ZBC_RANGE_RECORD_SIZE;
+	nr = zbc_sg_get_int32(buf) / ZBC_DOMAIN_RECORD_SIZE;
 
-	if (!ranges || !nr)
+	if (!domains || !nr)
 		goto out;
 
-	/* Get the number of renge descriptors to fill */
-	if (nr > *nr_ranges)
-		nr = *nr_ranges;
+	/* Get the number of domain descriptors to fill */
+	if (nr > *nr_domains)
+		nr = *nr_domains;
 
-	bufsz = (cmd.out_bufsz - ZBC_RANGE_HEADER_SIZE) /
-		ZBC_RANGE_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_DOMAIN_HEADER_SIZE) /
+		ZBC_DOMAIN_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get conversion range descriptors */
-	buf += ZBC_RANGE_HEADER_SIZE;
+	/* Get conversion domain descriptors */
+	buf += ZBC_DOMAIN_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		ranges[i].zbr_type = buf[0] & 0x0f;
-		ranges[i].zbr_convertible = buf[1];
+		domains[i].zbr_type = buf[0] & 0x0f;
+		domains[i].zbr_convertible = buf[1];
 
-		ranges[i].zbr_number = zbc_sg_get_int16(&buf[2]);
-		ranges[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
+		domains[i].zbr_number = zbc_sg_get_int16(&buf[2]);
+		domains[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
 
-		ranges[i].zbr_conv_start =
+		domains[i].zbr_conv_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
-		ranges[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
-		ranges[i].zbr_seq_start =
+		domains[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
+		domains[i].zbr_seq_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
-		ranges[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
+		domains[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
 
-		buf += ZBC_RANGE_RECORD_SIZE;
+		buf += ZBC_DOMAIN_RECORD_SIZE;
 	}
 
 out:
-	/* Return number of range descriptors */
-	*nr_ranges = nr;
+	/* Return number of domain descriptors */
+	*nr_domains = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);

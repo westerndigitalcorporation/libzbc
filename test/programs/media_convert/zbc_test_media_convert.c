@@ -24,12 +24,12 @@ int main(int argc, char **argv)
 {
 	struct zbc_device *dev;
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
-	struct zbc_cvt_range *ranges = NULL;
+	struct zbc_cvt_domain *domains = NULL;
 	const char *sk_name, *ascq_name;
 	char *path;
 	struct zbc_errno zbc_err;
 	uint64_t start;
-	unsigned int oflags, nr_units, nr_ranges, nr_conv_recs = 0;
+	unsigned int oflags, nr_units, nr_domains, nr_conv_recs = 0;
 	int i, ret, end;
 	bool zone_addr = false, to_cmr, fg = false, all = false, cdb32 = false;
 
@@ -123,16 +123,16 @@ int main(int argc, char **argv)
 
 	if (!zone_addr) {
 		/*
-		 * Have to call zbc_list_conv_ranges() to find the
+		 * Have to call zbc_list_conv_domains() to find the
 		 * starting zone and number of zones to convert.
 		 */
-		ret = zbc_list_conv_ranges(dev, &ranges, &nr_ranges);
+		ret = zbc_list_conv_domains(dev, &domains, &nr_domains);
 		if (ret != 0) {
 			zbc_errno(dev, &zbc_err);
 			sk_name = zbc_sk_str(zbc_err.sk);
 			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 			fprintf(stderr,
-				"[TEST][ERROR],zbc_list_conv_ranges failed, err %i (%s)\n",
+				"[TEST][ERROR],zbc_list_conv_domains failed, err %i (%s)\n",
 				ret, strerror(-ret));
 			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
@@ -140,9 +140,9 @@ int main(int argc, char **argv)
 			goto out;
 		}
 
-		if (start + nr_units > nr_ranges) {
+		if (start + nr_units > nr_domains) {
 			fprintf(stderr,
-				"[TEST][ERROR],Range [%lu/%u] is too high\n",
+				"[TEST][ERROR],Domain [%lu/%u] out of range\n",
 				start, nr_units);
 			ret = 1;
 			goto out;
@@ -150,12 +150,12 @@ int main(int argc, char **argv)
 		end = start + nr_units;
 		if (to_cmr) {
 			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += ranges[i].zbr_seq_length;
-			start = ranges[start].zbr_seq_start;
+				nr_units += domains[i].zbr_seq_length;
+			start = domains[start].zbr_seq_start;
 		} else {
 			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += ranges[i].zbr_conv_length;
-			start = ranges[start].zbr_conv_start;
+				nr_units += domains[i].zbr_conv_length;
+			start = domains[start].zbr_conv_start;
 		}
 	}
 
@@ -203,8 +203,8 @@ int main(int argc, char **argv)
 	}
 
 out:
-	if (ranges)
-		free(ranges);
+	if (domains)
+		free(domains);
 	if (conv_recs)
 		free(conv_recs);
 	zbc_close(dev);

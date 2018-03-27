@@ -436,10 +436,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			     " is %senabled\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
 		if (info->zbd_max_conversion != 0)
-			fprintf(out, "    Maximum number of ranges to convert: %u\n",
+			fprintf(out, "    Maximum number of domains to convert: %u\n",
 				info->zbd_max_conversion);
 		else
-			fprintf(out, "    Maximum number of ranges"
+			fprintf(out, "    Maximum number of domains"
 				     " to convert is unlimited\n");
 	}
 
@@ -558,7 +558,7 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
  * zbc_media_report - Get media conversion information
  */
 int zbc_media_report(struct zbc_device *dev,
-		     struct zbc_cvt_range *ranges, unsigned int *nr_ranges)
+		     struct zbc_cvt_domain *domains, unsigned int *nr_domains)
 {
 	int ret;
 
@@ -568,12 +568,12 @@ int zbc_media_report(struct zbc_device *dev,
 		return -ENOTSUP;
 	}
 
-	if (!ranges)
-		/* Just get the number of conversion ranges */
-		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_ranges);
+	if (!domains)
+		/* Just get the number of conversion domains */
+		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_domains);
 
-	/* Get convert range information */
-	ret = (dev->zbd_drv->zbd_media_report)(dev, ranges, nr_ranges);
+	/* Get conversion domain information */
+	ret = (dev->zbd_drv->zbd_media_report)(dev, domains, nr_domains);
 	if (ret != 0) {
 		zbc_error("%s: MMEDIA REPORT failed %d (%s)\n",
 			  dev->zbd_filename,
@@ -585,15 +585,22 @@ int zbc_media_report(struct zbc_device *dev,
 }
 
 /**
- * zbc_list_conv_ranges - Get conversion range information
+ * zbc_list_conv_domains - Get conversion domain information
  */
-int zbc_list_conv_ranges(struct zbc_device *dev,
-			 struct zbc_cvt_range **pranges,
-			 unsigned int *pnr_ranges)
+int zbc_list_conv_domains(struct zbc_device *dev,
+			  struct zbc_cvt_domain **pdomains,
+			  unsigned int *pnr_domains)
 {
-	struct zbc_cvt_range *ranges = NULL;
-	unsigned int nr_ranges;
+	struct zbc_cvt_domain *domains = NULL;
+	unsigned int nr_domains;
 	int ret;
+
+	if (!pdomains) {
+		zbc_error("%s: NULL domain array pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*pdomains = NULL;
 
 	if (!zbc_dev_is_convt(dev)) {
 		zbc_error("%s: Not a Media Convert device\n",
@@ -601,38 +608,37 @@ int zbc_list_conv_ranges(struct zbc_device *dev,
 		return -ENOTSUP;
 	}
 
-	/* Get total number of range descriptors */
-	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
+	/* Get the total number of domain descriptors */
+	ret = zbc_media_report_nr_domains(dev, &nr_domains);
 	if (ret < 0)
 		return ret;
 
-	zbc_debug("%s: %d convert ranges\n",
-		  dev->zbd_filename, nr_ranges);
+	zbc_debug("%s: %d convert domains\n",
+		  dev->zbd_filename, nr_domains);
 
-	/* Allocate convert range descriptor array */
-	ranges = (struct zbc_cvt_range *)calloc(nr_ranges,
-						sizeof(struct zbc_cvt_range));
-	if (!ranges)
+	/* Allocate conversion domain descriptor array */
+	domains = (struct zbc_cvt_domain *)calloc(nr_domains,
+						sizeof(struct zbc_cvt_domain));
+	if (!domains)
 		return -ENOMEM;
 
-	/* Get conversion range information */
-	ret = zbc_media_report(dev, ranges, &nr_ranges);
+	/* Get conversion domain information */
+	ret = zbc_media_report(dev, domains, &nr_domains);
 	if (ret != 0) {
 		zbc_error("%s: zbc_media_report failed %d\n",
 			  dev->zbd_filename, ret);
-		free(ranges);
+		free(domains);
 		return ret;
 	}
 
-	*pranges = ranges;
-	*pnr_ranges = nr_ranges;
+	*pdomains = domains;
+	*pnr_domains = nr_domains;
 
 	return 0;
 }
 
 /**
- * zbc_media_convert - Convert all zones in a specified range
- *                     to a new type
+ * zbc_media_convert - Convert all zones in a specified range to a new type
  */
 int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		      uint64_t lba, uint32_t nr_zones, bool to_cmr,
@@ -723,7 +729,7 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  *                  specific range to a new type without actually performing
  *                  the conversion process. This function is similar to
  *                  \a zbc_media_query, but is will allocate the buffer
- *                  space for the output list of conversion ranges. It is
+ *                  space for the output list of conversion results. It is
  *                  responsibility of the caller to free this buffer
  */
 int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,

@@ -27,12 +27,12 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_cvt_range *ranges = NULL;
+	struct zbc_cvt_domain *domains = NULL;
 	struct zbc_conv_rec *conv_recs = NULL;
 	char *path;
 	struct zbc_zp_dev_control ctl;
 	uint64_t start;
-	unsigned int nr_units, nr_ranges, nr_conv_recs = 0;
+	unsigned int nr_units, nr_domains, nr_conv_recs = 0;
 	int i, fg = 0, ret = 1, end;
 	bool query = false, to_cmr, fsnoz = false;
 	bool all = false, zone_addr = false, list = false, cdb32 = false;
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	if (argc < 5) {
 		fprintf(stderr, "Not enough arguments\n");
 usage:
-		printf("Usage:\n%s [options] <dev> <start conv range> <num conv ranges> <conv | seq> [<fg>]\n"
+		printf("Usage:\n%s [options] <dev> <start domain> <num domains> <conv | seq> [<fg>]\n"
 		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv | seq> [<fg>]\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
@@ -86,18 +86,15 @@ usage:
 	path = argv[i++];
 
 	if (i >= argc) {
-		if (zone_addr)
-			fprintf(stderr, "Missing starting zone locator\n");
-		else
-			fprintf(stderr,
-				"Missing start conversion range number\n");
+		fprintf(stderr, "Missing starting %s\n",
+			zone_addr ? "zone" : "conversion domain");
 		goto usage;
 	}
 	start = atol(argv[i++]);
 
 	if (i >= argc) {
 		fprintf(stderr, "Missing the number of %ss to convert\n",
-			zone_addr ? "zone" : "conversion range");
+			zone_addr ? "zone" : "conversion domain");
 		goto usage;
 	}
 	nr_units = atoi(argv[i++]);
@@ -135,34 +132,34 @@ usage:
 
 	if (!zone_addr) {
 		/*
-		 * Have to call zbc_list_conv_ranges() to find the
+		 * Have to call zbc_list_conv_domains() to find the
 		 * starting zone and number of zones to convert.
 		 */
-		ret = zbc_list_conv_ranges(dev, &ranges, &nr_ranges);
+		ret = zbc_list_conv_domains(dev, &domains, &nr_domains);
 		if (ret != 0) {
 			fprintf(stderr,
-				"zbc_list_conv_ranges failed, err %i (%s)\n",
+				"zbc_list_conv_domains failed, err %i (%s)\n",
 				ret, strerror(-ret));
 			ret = 1;
 			goto out;
 		}
 
-		if (start + nr_units > nr_ranges) {
+		if (start + nr_units > nr_domains) {
 			fprintf(stderr,
-				"End range #%lu is too large, only %u present\n",
-				start + nr_units, nr_ranges);
+				"End end domain #%lu is too large, only %u present\n",
+				start + nr_units, nr_domains);
 			ret = 1;
 			goto out;
 		}
 		end = start + nr_units;
 		if (to_cmr) {
 			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += ranges[i].zbr_seq_length;
-			start = ranges[start].zbr_seq_start;
+				nr_units += domains[i].zbr_seq_length;
+			start = domains[start].zbr_seq_start;
 		} else {
 			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += ranges[i].zbr_conv_length;
-			start = ranges[start].zbr_conv_start;
+				nr_units += domains[i].zbr_conv_length;
+			start = domains[start].zbr_conv_start;
 		}
 	}
 
@@ -236,8 +233,8 @@ usage:
 		}
 	}
 out:
-	if (ranges)
-		free(ranges);
+	if (domains)
+		free(domains);
 	if (conv_recs)
 		free(conv_recs);
 	zbc_close(dev);

@@ -70,7 +70,7 @@ struct zbc_drv {
 	 * Report media conversion configuration.
 	 */
 	int		(*zbd_media_report)(struct zbc_device *,
-					    struct zbc_cvt_range *,
+					    struct zbc_cvt_domain *,
 					    unsigned int *);
 
 	/**
