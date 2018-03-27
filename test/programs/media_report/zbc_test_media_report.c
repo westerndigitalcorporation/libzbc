@@ -83,26 +83,42 @@ usage:
 	/* Get the number of conversion ranges */
 	ret = zbc_media_report_nr_ranges(dev, &nr_ranges);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],zbc_media_report_nr_ranges failed %d\n",
+		fprintf(stderr,
+			"[TEST][ERROR],zbc_media_report_nr_ranges failed %d\n",
 			ret);
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	/* Allocate conversion range descriptor array */
-	ranges = (struct zbc_cvt_range *)calloc(nr_ranges, sizeof(struct zbc_cvt_range));
+	ranges = (struct zbc_cvt_range *)calloc(nr_ranges,
+						sizeof(struct zbc_cvt_range));
 	if (!ranges) {
 		fprintf(stderr,
 			"[TEST][ERROR],No memory\n");
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	/* Get conversion range information */
 	ret = zbc_media_report(dev, ranges, &nr_ranges);
 	if (ret != 0) {
+		struct zbc_errno zbc_err;
+		const char *sk_name;
+		const char *ascq_name;
+
+		zbc_errno(dev, &zbc_err);
+		sk_name = zbc_sk_str(zbc_err.sk);
+		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_media_report failed %d\n",
 			ret);
-		return 1;
+		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+
+		ret = 1;
+		goto out;
 	}
 
 	for (i = 0; i < (int)nr_ranges; i++) {
@@ -117,22 +133,9 @@ usage:
 		       zbc_cvt_range_keep_out(r),
 		       zbc_cvt_range_to_conv(r) ? "Y" : "N",
 		       zbc_cvt_range_to_seq(r) ? "Y" : "N");
-        }
-
-	if (ret != 0) {
-		struct zbc_errno zbc_err;
-		const char *sk_name;
-		const char *ascq_name;
-
-		zbc_errno(dev, &zbc_err);
-		sk_name = zbc_sk_str(zbc_err.sk);
-		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
-
-		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-
 	}
 
+out:
 	if (ranges)
 		free(ranges);
 	zbc_close(dev);

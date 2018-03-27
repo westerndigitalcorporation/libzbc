@@ -74,12 +74,6 @@ struct zbc_drv {
 					    unsigned int *);
 
 	/**
-	 * Convert one or several realms from one type to another.
-	 */
-	int		(*zbd_convert_realms)(struct zbc_device *, uint64_t,
-					     uint32_t, uint32_t, int);
-
-	/**
 	 * Convert zones from one CMR/SMR type to the other or query
 	 * about the possible results of such conversion.
 	 */

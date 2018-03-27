@@ -736,11 +736,11 @@ function zbc_test_search_cvt_range_by_type()
 
 			IFS="$_IFS"
 
+			return 0
+
 		else
 			_skip=$(expr ${_skip} - 1)
 		fi
-
-		return 0
 
 	done
 
@@ -795,11 +795,11 @@ function zbc_test_search_range_by_type_and_cvt()
 
 			IFS="$_IFS"
 
+			return 0
+
 		else
 			_skip=$(expr ${_skip} - 1)
 		fi
-
-		return 0
 
 	done
 

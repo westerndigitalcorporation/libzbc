@@ -338,8 +338,8 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -ENXIO;
 
 	case 0x03:
-		/* Realm host-managed device */
-		zbc_debug("%s: Realm host-managed SCSI block device detected\n",
+		/* Zone Activation host-managed device */
+		zbc_debug("%s: Zone Activation host-managed SCSI block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
 		dev->zbd_info.zbd_flags |= ZBC_MEDIA_CVT_SUPPORT;
@@ -753,68 +753,6 @@ static int zbc_scsi_media_report(struct zbc_device *dev,
 out:
 	/* Return number of range descriptors */
 	*nr_ranges = nr;
-
-	/* Cleanup */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Convert one or several realms from one type to another.
- */
-static int zbc_scsi_convert_realms(struct zbc_device *dev,
-				   uint64_t start_realm, uint32_t count,
-				   enum zbc_zone_type new_type, int fg)
-{
-	struct zbc_sg_cmd cmd;
-	int ret;
-
-	/* Allocate and intialize CONVERT REALMS command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_CONVERT_REALMS, NULL, 0);
-	if (ret != 0)
-		return ret;
-
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+=======================================================================|
-	 * | 0   |                        Operation Code (94h)                           |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |  FGND  |    Reserved     |         Service Action (06h) FIXME TBD     |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |           New Zone Type           | Rservd |        Options           |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   |                             Reserved                                  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 4   | (MSB)                                                                 |
-	 * |- - -+---                       Starting Realm                            ---|
-	 * | 5   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 6   | (MSB)                                                                 |
-	 * |- - -+---                         Realm Count                             ---|
-	 * | 7   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 8   |                                                                       |
-	 * |- - -|---                          Reserved                               ---|
-	 * | 14  |                                                                       |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                              Control                                  |
-	 * +=============================================================================+
-	 */
-	cmd.cdb[0] = ZBC_SG_CONVERT_REALMS_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_CONVERT_REALMS_CDB_SA;
-	/* Fill in the starting realm number and the realm count */
-	zbc_sg_set_int16(&cmd.cdb[4], start_realm);
-	zbc_sg_set_int16(&cmd.cdb[6], (unsigned short)count);
-	/* Init the new zone type and FOREGROUND flag */
-	cmd.cdb[2] = new_type << 4;
-	if (fg)
-		cmd.cdb[1] |= 0x80;
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1696,7 +1634,6 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_media_report	= zbc_scsi_media_report,
-	.zbd_convert_realms	= zbc_scsi_convert_realms,
 	.zbd_media_query_cvt	= zbc_scsi_media_query_convert,
 };
 

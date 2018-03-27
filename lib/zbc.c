@@ -631,25 +631,6 @@ int zbc_list_conv_ranges(struct zbc_device *dev,
 }
 
 /**
- * zbc_convert_realms - Convert all zones in one or several
- * 			realms to a specific type
- */
-int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
-		       unsigned int nr_realms, enum zbc_zone_type new_type,
-		       int fg)
-{
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
-			  dev->zbd_filename);
-		return -ENOTSUP;
-	}
-
-	/* Execute the operation */
-	return (dev->zbd_drv->zbd_convert_realms)(dev, start_realm, nr_realms,
-						  new_type, fg);
-}
-
-/**
  * zbc_media_convert - Convert all zones in a specified range
  *                     to a new type
  */
@@ -680,7 +661,7 @@ int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 /**
  * zbc_media_query - Receive information about converting all zones in a
  *                   specific range to a new type without actually performing
- *                   the conversion process.
+ *                   the conversion process
  */
 int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		    uint64_t lba, uint32_t nr_zones, bool to_cmr,
@@ -707,19 +688,14 @@ int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 }
 
 /**
- * zbc_media_list - Receive information about converting all zones in a
- *                  specific range to a new type without actually performing
- *                  the conversion process. This function is similar to
- *                  \a zbc_media_query, but is will allocate the buffer
- *                  space for the output list of conversion ranges. It is
- *                  responsibility of the caller to free this buffer.
+ * zbc_get_nr_cvt_records - Get the expected number of conversion records for
+ * 			    a MEDIA REPORT or MEDIA CONVERT operation'
  */
-int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		   uint64_t lba, uint32_t nr_zones, bool to_cmr,
-		   bool fg, struct zbc_conv_rec **pconv_recs,
-		   uint32_t *pnr_conv_recs)
+int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
+			   bool use_32_byte_cdb, uint64_t lba,
+			   uint32_t nr_zones, bool to_cmr,
+			   bool fg)
 {
-	struct zbc_conv_rec *conv_recs = NULL;
 	uint32_t nr_conv_recs;
 	int ret;
 
@@ -739,8 +715,31 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 						  true, lba, nr_zones,
 						  to_cmr, fg, NULL,
 						  &nr_conv_recs);
-	if (ret)
+	return ret ? ret : (int)nr_conv_recs;
+}
+
+/**
+ * zbc_media_list - Receive information about converting all zones in a
+ *                  specific range to a new type without actually performing
+ *                  the conversion process. This function is similar to
+ *                  \a zbc_media_query, but is will allocate the buffer
+ *                  space for the output list of conversion ranges. It is
+ *                  responsibility of the caller to free this buffer
+ */
+int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+		   uint64_t lba, uint32_t nr_zones, bool to_cmr,
+		   bool fg, struct zbc_conv_rec **pconv_recs,
+		   uint32_t *pnr_conv_recs)
+{
+	struct zbc_conv_rec *conv_recs = NULL;
+	uint32_t nr_conv_recs;
+	int ret;
+
+	ret = zbc_get_nr_cvt_records(dev, all, use_32_byte_cdb,
+				     lba, nr_zones, to_cmr, fg);
+	if (ret < 0)
 		return ret;
+	nr_conv_recs = (uint32_t)ret;
 
 	/* Allocate conversion record array */
 	conv_recs = (struct zbc_conv_rec *)
@@ -760,7 +759,7 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 }
 
 /**
- * zbc_dhsmr_dev_control - Get or set device DH-SMR configuration parameters.
+ * zbc_dhsmr_dev_control - Get or set device DH-SMR configuration parameters
  */
 int zbc_dhsmr_dev_control(struct zbc_device *dev,
 			  struct zbc_zp_dev_control *ctl, bool set)
@@ -782,7 +781,7 @@ int zbc_dhsmr_dev_control(struct zbc_device *dev,
 }
 
 /**
- * zbc_pread - Read sectors form a device
+ * zbc_pread - Read sectors from a device
  */
 ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		  size_t count, uint64_t offset)

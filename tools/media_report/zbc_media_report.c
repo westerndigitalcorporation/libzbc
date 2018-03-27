@@ -69,12 +69,13 @@ usage:
 
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
-
-		if (strcmp(argv[i], "-v") == 0) {
+		if (argv[i][0] != '-')
+			break;
+		if (strcmp(argv[i], "-v") == 0)
 			zbc_set_log_level("debug");
-		} else if (strcmp(argv[i], "-n") == 0) {
+		else if (strcmp(argv[i], "-n") == 0)
 			num = 1;
-		} else if (strcmp(argv[i], "-nr") == 0) {
+		else if (strcmp(argv[i], "-nr") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
@@ -82,14 +83,11 @@ usage:
 			nr = strtol(argv[i], NULL, 10);
 			if (nr <= 0)
 				goto usage;
-		} else if (argv[i][0] == '-') {
+		} else {
 			fprintf(stderr, "Unknown option \"%s\"\n",
 				argv[i]);
 			goto usage;
-		} else {
-			break;
 		}
-
 	}
 
 	if (i != (argc - 1))
@@ -114,7 +112,8 @@ usage:
 		goto out;
 	}
 
-	printf("    %u conversion ranges%s\n", nr_ranges, (nr_ranges > 1) ? "s" : "");
+	printf("    %u conversion ranges%s\n",
+	       nr_ranges, (nr_ranges > 1) ? "s" : "");
 	if (num)
 		goto out;
 

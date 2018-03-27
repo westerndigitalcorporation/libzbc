@@ -24,9 +24,9 @@ global:
 	zbc_zone_operation;
 	zbc_media_report;
 	zbc_list_conv_ranges;
-	zbc_convert_realms;
 	zbc_media_convert;
 	zbc_media_query;
+	zbc_get_nr_cvt_records;
 	zbc_media_list;
 	zbc_dhsmr_dev_control;
 	zbc_pread;

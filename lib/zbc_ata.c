@@ -69,7 +69,6 @@
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
 #define ZBC_ATA_OPEN_ZONE_EXT_AF		0x03
 #define ZBC_ATA_RESET_WRITE_POINTER_EXT_AF	0x04
-#define ZBC_ATA_CONVERT_REALMS_EXT_AF		0x06 /* FIXME value TBD */
 
 
 #define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
@@ -1202,87 +1201,6 @@ out:
 }
 
 /**
- * Convert one or several realms from one type to another.
- */
-static int zbc_ata_convert_realms(struct zbc_device *dev, uint64_t start_realm,
-				  uint32_t count, enum zbc_zone_type new_type,
-				  int fg)
-{
-	struct zbc_sg_cmd cmd;
-	int ret;
-
-	/* Intialize command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
-	if (ret != 0)
-		return ret;
-
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
-	 * | 0   |                           Operation Code (85h)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Multiple count      |              Protocol             | ext=1  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   |                          features (15:8)                              |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 4   |                 features (7:0), action FIXME TBD                      |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 5   |                          count (15:8)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 6   |                          count (7:0)                                  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 7-12|                   LBA, starting realm number                          |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 13  |                           Device                                      |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                         Command (9Fh)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
-	 * +=============================================================================+
-	 */
-	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
-	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
-	/* Non-Data protocol, ext=1 */
-	cmd.cdb[1] = (0x3 << 1) | 0x01;
-	/* Enter the new zone type, AF and the FOREGROUND bit */
-	cmd.cdb[3] = new_type;
-	if (fg)
-		cmd.cdb[3] |= 0X10;
-	cmd.cdb[4] = ZBC_ATA_CONVERT_REALMS_EXT_AF;
-	/* Fill the number of realms to convert. Zero means
-	 * all the subsequent realms have to be converted */
-	cmd.cdb[5] = (count >> 8) & 0xff;
-	cmd.cdb[6] = count & 0xff;
-
-	/* Fill in the starting realm */
-	cmd.cdb[8] = start_realm & 0xff;
-	cmd.cdb[10] = (start_realm >> 8) & 0xff;
-	cmd.cdb[12] = (start_realm >> 16) & 0xff;
-	cmd.cdb[7] = (start_realm >> 24) & 0xff;
-	cmd.cdb[9] = (start_realm >> 32) & 0xff;
-	cmd.cdb[11] = (start_realm >> 40) & 0xff;
-
-	cmd.cdb[13] = 1 << 6;
-	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_OUT;
-
-	/* Execute the command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-
-	/* Request sense data */
-	if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
-		zbc_ata_request_sense_data_ext(dev);
-
-	/* Done */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
  * Test device signature (return device model detected).
  */
 static int zbc_ata_classify(struct zbc_device *dev)
@@ -1718,6 +1636,5 @@ struct zbc_drv zbc_ata_drv = {
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
 	.zbd_media_report	= zbc_ata_media_report,
-	.zbd_convert_realms	= zbc_ata_convert_realms,
 };
 

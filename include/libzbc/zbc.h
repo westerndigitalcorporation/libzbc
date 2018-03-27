@@ -1345,6 +1345,20 @@ extern int zbc_media_query(struct zbc_device *dev, bool all,
 			   uint32_t *nr_conv_recs);
 
 /**
+ * @brief Return the expected number of conversion records
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] nr_zones		The total number of zones to convert
+ * @param[in] dir		Conversion direction
+ * @param[in] fg		Foreground flag
+ */
+extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
+				  bool use_32_byte_cdb, uint64_t lba,
+				  uint32_t nr_zones, bool to_cmr, bool fg);
+
+/**
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
@@ -1374,18 +1388,6 @@ extern int zbc_media_list(struct zbc_device *dev, bool all,
  */
 extern int zbc_dhsmr_dev_control(struct zbc_device *dev,
 				 struct zbc_zp_dev_control *ctl, bool set);
-
-/**
- * @brief Convert all zones in one or several realms to a specific type
- * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[in] start_realm	The number of the starting realm to convert
- * @param[in] nr_realms		Device handle obtained with \a zbc_open
- * @param[in] new_type		The total number of realms to convert
- * @param[in] fg		Foreground flag (optional)
- */
-extern int zbc_convert_realms(struct zbc_device *dev, uint32_t start_realm,
-			      unsigned int nr_realms, enum zbc_zone_type new_type,
-			      int fg);
 
 /**
  * @brief Read sectors form a device
