@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT(32) all domains to CMR (zone addressing)" $*
+zbc_test_init $0 "MEDIA_CONVERT(32) all domains to CMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -34,11 +34,8 @@ fi
 # Assume that all convertable domains are contiguious
 zbc_test_count_cvt_to_conv_domains
 
-# Calculate the total number of zones in this range of domains
-zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_conv_domains}
-
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v -z -32 ${device} ${domain_seq_start} ${nr_seq_zones}  "conv"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v -32 ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
 
 # Check result
 zbc_test_get_sk_ascq

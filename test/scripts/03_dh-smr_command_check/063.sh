@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT(16) conversion to SMR (zone addressing, FSNOZ)" $*
+zbc_test_init $0 "MEDIA_CONVERT(32) all domains to CMR (zone addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -25,28 +25,32 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find a CMR domain that is convertable to SMR
-zbc_test_search_domain_by_type_and_cvt "1" "seq"
+# Find the first SMR domain that is convertable to CMR
+zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
+# Assume that all convertable domains are contiguious
+zbc_test_count_cvt_to_conv_domains
+
+# Calculate the total number of zones in this range of domains
+zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_conv_domains}
+
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v -z -n ${device} ${domain_conv_start} ${domain_conv_len} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v -z -32 ${device} ${domain_seq_start} ${nr_seq_zones}  "conv"
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
-if [ -z "${sk}" ]; then
-    # Verify that the domain is converted
-    zbc_test_get_cvt_domain_info
-    zbc_test_search_cvt_domain_by_number ${domain_num}
-    if [ $? -ne 0 -o "${domain_type}" != "0x2" ]; then
-        sk=${domain_type}
-        expected_sk="0x2"
-        zbc_test_print_failed_sk
-    fi
+# Verify that no convertable sequential domains is present
+zbc_test_get_cvt_domain_info
+zbc_test_search_domain_by_type_and_cvt "2" "conv"
+if [ $? -eq 0 ]; then
+    sk=${domain_num}
+    expected_sk=""
+    zbc_test_print_failed_sk
 fi
 
 # Check failed

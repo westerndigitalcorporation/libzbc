@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT(32) conversion to SMR (zone addressing)" $*
+zbc_test_init $0 "MEDIA_CONVERT(32) conversion to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -32,7 +32,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v -z -32 ${device} ${domain_conv_start} ${domain_conv_len} "seq"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v -32 ${device} ${domain_num} 1 "seq"
 
 # Check result
 zbc_test_get_sk_ascq

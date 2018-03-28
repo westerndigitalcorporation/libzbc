@@ -26,12 +26,13 @@ int main(int argc, char **argv)
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
 	struct zbc_cvt_domain *domains = NULL;
 	const char *sk_name, *ascq_name;
+	struct zbc_zp_dev_control ctl;
 	char *path;
 	struct zbc_errno zbc_err;
 	uint64_t start;
 	unsigned int oflags, nr_units, nr_domains, nr_conv_recs = 0;
 	int i, ret, end;
-	bool zone_addr = false, to_cmr, fg = false, all = false, cdb32 = false;
+	bool zone_addr = false, to_cmr, fg = false, all = false, cdb32 = false, fsnoz = false;
 
 	/* Check command line */
 	if (argc < 5) {
@@ -41,6 +42,7 @@ int main(int argc, char **argv)
 		       "    -a            : Try to convert all, even if not every zone can be\n"
 		       "    -f            : Convert in foreground (slower)\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n"
+		       "    -n            : Set the number of zones to convert via FSNOZ\n"
 		       "    -v            : Verbose mode\n",
 		       argv[0], argv[0]);
 		return 1;
@@ -60,6 +62,8 @@ int main(int argc, char **argv)
 			fg = true;
 		else if (strcmp(argv[i], "-32") == 0)
 			cdb32 = true;
+		else if (strcmp(argv[i], "-n") == 0)
+			fsnoz = true;
 		else {
 			fprintf(stderr,
 				"[TEST][ERROR],Unknown option \"%s\"\n",
@@ -157,6 +161,29 @@ int main(int argc, char **argv)
 				nr_units += domains[i].zbr_conv_length;
 			start = domains[start].zbr_conv_start;
 		}
+	}
+
+	if (cdb32)
+		fsnoz = false;
+
+	if (fsnoz) {
+		/* Set the number of zones to convert via a separate command */
+		ctl.zbm_nr_zones = nr_units;
+		ctl.zbm_smr_zone_type = 0xff;
+		ctl.zbm_cmr_wp_check = 0xff;
+		ret = zbc_dhsmr_dev_control(dev, &ctl, true);
+		if (ret != 0) {
+			zbc_errno(dev, &zbc_err);
+			sk_name = zbc_sk_str(zbc_err.sk);
+			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+			fprintf(stderr, "Can't set FSNOZ, err %i (%s)\n",
+				ret, strerror(-ret));
+			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+			ret = 1;
+			goto out;
+		}
+		nr_units = 0;
 	}
 
 	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,

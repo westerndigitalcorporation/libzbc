@@ -13,41 +13,30 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT(32) conversion to CMR (domain addressing)" $*
+zbc_test_init $0 "MEDIA CONVERT(16) non-convertible SMR domain to CMR (domain addr, FSNOZ)" $*
 
 # Set expected error code
-expected_sk=""
-expected_asc=""
+expected_sk="Aborted-command"
+expected_asc="Conversion-type-unsupported"
 
 # Get drive information
 zbc_test_get_device_info
 
-# Get domain information
+# Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find an SMR domain that is convertable to CMR
-zbc_test_search_domain_by_type_and_cvt "2" "conv"
+# Find the first SMR domain that is not convertible to SMR
+zbc_test_search_domain_by_type_and_cvt "2" "noconv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v -32 ${device} ${domain_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v -n ${device} ${domain_num} 1 "conv"
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
-
-if [ -z "${sk}" ]; then
-    # Verify that the domain is converted
-    zbc_test_get_cvt_domain_info
-    zbc_test_search_cvt_domain_by_number ${domain_num}
-    if [ $? -ne 0 -o "${domain_type}" != "0x1" ]; then
-        sk=${domain_type}
-        expected_sk="0x2"
-        zbc_test_print_failed_sk
-    fi
-fi
+zbc_test_check_sk_ascq
 
 # Check failed
 zbc_test_check_failed
