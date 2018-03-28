@@ -112,7 +112,7 @@ usage:
 		goto out;
 	}
 
-	printf("    %u conversion domains%s\n",
+	printf("    %u conversion domain%s\n",
 	       nr_domains, (nr_domains > 1) ? "s" : "");
 	if (num)
 		goto out;

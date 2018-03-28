@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT conversion to SMR (domain addressing)" $*
+zbc_test_init $0 "MEDIA_CONVERT(16) conversion to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""

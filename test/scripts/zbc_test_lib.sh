@@ -806,6 +806,34 @@ function zbc_test_search_domain_by_type_and_cvt()
 	return 1
 }
 
+function zbc_test_calc_nr_domain_zones()
+{
+	domain_num=${1}
+	_nr_domains=${2}
+	nr_conv_zones=0
+	nr_seq_zones=0
+
+	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]*"`; do
+
+		_IFS="${IFS}"
+		IFS=','
+		set -- ${_line}
+
+		if [ "$(expr ${2} + 0)" -ge "${domain_num}" ]; then
+
+			nr_conv_zones=$(expr ${nr_conv_zones} + ${5})
+			nr_seq_zones=$(expr ${nr_conv_zones} + ${7})
+			_nr_domains=$(expr ${_nr_domains} - 1)
+
+		fi
+
+		if [ "${_nr_domains}" -eq 0 ]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
 
 # Check result functions
 

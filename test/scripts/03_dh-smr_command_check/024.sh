@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Convert a non-convertible CMR domain to SMR (domain addressing)" $*
+zbc_test_init $0 "MEDIA CONVERT(16) non-convertible CMR domain to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"

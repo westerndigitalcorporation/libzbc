@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA CONVERT(16) non-convertible SMR domain to CMR (domain addressing)" $*
+zbc_test_init $0 "MEDIA CONVERT(32) non-convertible CMR domain to SMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"
@@ -26,13 +26,13 @@ zbc_test_get_device_info
 zbc_test_get_cvt_domain_info
 
 # Find the first SMR domain that is not convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "2" "noconv"
+zbc_test_search_domain_by_type_and_cvt "1" "noseq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_media_convert -v -32 ${device} ${domain_num} 1 "seq"
 
 # Check result
 zbc_test_get_sk_ascq
