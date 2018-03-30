@@ -35,12 +35,12 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET		64
 
 /*
- * MEDIA REPORT output header size.
+ * DOMAIN REPORT output header size.
  */
 #define ZBC_DOMAIN_HEADER_SIZE			64
 
 /*
- * MEDIA REPORT conversion domain descriptor size.
+ * Conversion domain descriptor size.
  */
 #define ZBC_DOMAIN_RECORD_SIZE			128
 
@@ -63,7 +63,7 @@
  * Zone commands
  */
 #define ZBC_ATA_REPORT_ZONES_EXT_AF		0x00
-#define ZBC_ATA_MEDIA_REPORT_EXT_AF		0x01 /* FIXME value TBD */
+#define ZBC_ATA_DOMAIN_REPORT_EXT_AF		0x01 /* FIXME value TBD */
 
 #define ZBC_ATA_CLOSE_ZONE_EXT_AF		0x01
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
@@ -514,20 +514,16 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	}
 
 	/*
-	 * Check if Media Conversion command set is supported.
+	 * Check if Zone Activation command set is supported.
 	 * If this is the case, pick up all the related values.
 	 */
 	qwd = zbc_ata_get_qword(&buf[56]);
-	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_MEDIA_CVT_SUPPORT : 0;
-	if ((dev->zbd_info.zbd_flags & ZBC_MEDIA_CVT_SUPPORT) != 0) {
+	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
+	if ((dev->zbd_info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) != 0) {
 		/*
-		 * FIXME the three flags below are not in
-		 * the current proposal, layout is preliminary.
+		 * FIXME the flag below is not in the current
+		 * proposal, layout is preliminary.
 		 */
-		dev->zbd_info.zbd_flags |= (qwd & 0x02ULL) ?
-					   ZBC_FC_SUPPORT : 0;
-		dev->zbd_info.zbd_flags |= (qwd & 0x04ULL) ?
-					   ZBC_CONV_WP_CHECK : 0;
 		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
 					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
@@ -1068,9 +1064,9 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 /**
  * Report device conversion domain configuration.
  */
-static int zbc_ata_media_report(struct zbc_device *dev,
-				struct zbc_cvt_domain *domains,
-				unsigned int *nr_domains)
+static int zbc_ata_domain_report(struct zbc_device *dev,
+				 struct zbc_cvt_domain *domains,
+				 unsigned int *nr_domains)
 {
 	size_t bufsz = ZBC_DOMAIN_HEADER_SIZE;
 	unsigned int i, nr = 0;
@@ -1087,7 +1083,7 @@ static int zbc_ata_media_report(struct zbc_device *dev,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize MEDIA REPORT command */
+	/* Allocate and intialize DOMAIN REPORT command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
@@ -1125,7 +1121,7 @@ static int zbc_ata_media_report(struct zbc_device *dev,
 	/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
 	cmd.cdb[2] = 0x0e;
 	/* Fill AF, Count and Device */
-	cmd.cdb[4] = ZBC_ATA_MEDIA_REPORT_EXT_AF;
+	cmd.cdb[4] = ZBC_ATA_DOMAIN_REPORT_EXT_AF;
 	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
 	cmd.cdb[6] = (bufsz / 512) & 0xff;
 	cmd.cdb[13] = 1 << 6;
@@ -1369,10 +1365,10 @@ static int zbc_ata_classify(struct zbc_device *dev)
 		break;
 
 	case 0x03:
-		zbc_debug("%s: Media Convert SCSI block device detected\n",
+		zbc_debug("%s: Zone Activation ATA block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		dev->zbd_info.zbd_flags |= ZBC_MEDIA_CVT_SUPPORT;
+		dev->zbd_info.zbd_flags |= ZBC_ZONE_ACTIVATION_SUPPORT;
 		break;
 
 	default:
@@ -1635,6 +1631,6 @@ struct zbc_drv zbc_ata_drv = {
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
-	.zbd_media_report	= zbc_ata_media_report,
+	.zbd_domain_report	= zbc_ata_domain_report,
 };
 

@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "MEDIA_CONVERT(32) all domains to CMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32) all domains to CMR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -35,7 +35,7 @@ fi
 zbc_test_count_cvt_to_conv_domains
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_media_convert -v -32 ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
 
 # Check result
 zbc_test_get_sk_ascq

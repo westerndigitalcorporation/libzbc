@@ -206,18 +206,18 @@ usage:
 	}
 
 	if (query)
-		ret = zbc_media_query(dev, all, cdb32, start, nr_units,
-				      to_cmr, fg, conv_recs, &nr_conv_recs);
+		ret = zbc_zone_query(dev, all, cdb32, start, nr_units,
+				     to_cmr, fg, conv_recs, &nr_conv_recs);
 	else if (list)
-		ret = zbc_media_convert(dev, all, cdb32, start, nr_units,
+		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
 					to_cmr, fg, conv_recs, &nr_conv_recs);
 	else
-		ret = zbc_media_convert(dev, all, cdb32, start, nr_units,
+		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
 					to_cmr, fg, NULL, &nr_conv_recs);
 
 	if (ret != 0) {
 		fprintf(stderr,
-			"MEDIA CONVERT/QUERY failed, err %i (%s)\n",
+			"ZONE ACTIVATE/QUERY failed, err %i (%s)\n",
 			ret, strerror(-ret));
 		ret = 1;
 		goto out;

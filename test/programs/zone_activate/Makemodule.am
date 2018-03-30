@@ -1,0 +1,4 @@
+noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_zone_activate
+__top_builddir__test_programs_zbc_test_zone_activate_SOURCES = test/programs/zone_activate/zbc_test_zone_activate.c
+__top_builddir__test_programs_zbc_test_zone_activate_LDADD = $(libzbc_ldadd)
+__top_builddir__test_programs_zbc_test_zone_activate_LDFLAGS = -no-install

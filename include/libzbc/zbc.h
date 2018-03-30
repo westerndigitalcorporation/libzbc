@@ -132,12 +132,12 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
-	 * Conventional WP zone (for Media Conversion devices only).
+	 * Conventional WP zone (for Zone Activation devices only).
 	 */
 	ZBC_ZC_CONV_WP		= 0x05,
 
 	/**
-	 * Inacive zone: an unmapped zone of a Media Conversion device.
+	 * Inacive zone: an unmapped zone of a Zone Activation device.
 	 */
 	ZBC_ZC_INACTIVE		= 0x0c,
 
@@ -317,12 +317,12 @@ struct zbc_zone {
 #define ZBC_CVT_TO_CONV		0x40
 
 /**
- * @brief Media Conversion domain structure
+ * @brief Conversion domain descriptor
  *
  * Provide all information about a single conversion domain defined by the
  * device. This structure is typically populated with the information
- * returned to the client after succesful execution of MEDIA REPORT
- * SCSI command or MEDIA REPORT DMA ATA command.
+ * returned to the client after succesful execution of DOMAIN REPORT
+ * SCSI command or DOMAIN REPORT DMA ATA command.
  */
 struct zbc_cvt_domain {
 
@@ -355,7 +355,8 @@ struct zbc_cvt_domain {
 	uint32_t		zbr_seq_length;
 
 	/**
-	 * Conversion number as returned by MEDIA REPORT. The lowest is 0.
+	 * Conversion domain number as returned by DOMAIN REPORT.
+	 * The lowest is 0.
 	 */
 	uint16_t		zbr_number;
 
@@ -422,14 +423,13 @@ struct zbc_cvt_domain {
 	((int)((r)->zbr_convertible & ZBC_CVT_TO_SEQ))
 
 /**
- * @brief Media Conversion Results record.
+ * @brief Zone Conversion Results record.
  *
- * A list of these descriptors is returned by MEDIA CONVERT command
- * to provide the caller with LBAs and other information about
+ * A list of these descriptors is returned by ZONE ACTIVATE or ZONE QUERY
+ * command to provide the caller with LBAs and other information about
  * the converted zones.
  */
 struct zbc_conv_rec {
-
 
 	/**
 	 * @brief Starting zone locator (LBA).
@@ -598,18 +598,11 @@ enum zbc_dev_flags {
 	ZBC_UNRESTRICTED_READ = 0x00000001,
 
 	/**
-	 * Indicates that the device supports Media Convert command set
-	 * to allo zones on the device to be converted from CMR to SMR
+	 * Indicates that the device supports Zopne Activation command set
+	 * to allow zones on the device to be converted from CMR to SMR
 	 * and vice versa.
 	 */
-	ZBC_MEDIA_CVT_SUPPORT = 0x00000002,
-
-	/**
-	 * Indicates that foreground media conversion is supported
-	 * by the device. If it is cleared, MEDIA CONVERT command may not
-	 * set FG bit in CDB.
-	 */
-	ZBC_FC_SUPPORT = 0x00000004,
+	ZBC_ZONE_ACTIVATION_SUPPORT = 0x00000002,
 
 	/**
 	 * Indicates that checking write pointer for conventional zones
@@ -719,7 +712,7 @@ struct zbc_device_info {
 
 	/**
 	 * Maximum allowable value for NUMBER OF ZONES value in
-	 * MEDIA CONVERT command. Zero means no maximum.
+	 * ZONE ACTIVATE or ZONE QUERY command. Zero means no maximum.
 	 */
 	uint32_t		zbd_max_conversion;
 
@@ -1265,27 +1258,27 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_media_report(struct zbc_device *dev,
+extern int zbc_domain_report(struct zbc_device *dev,
 			    struct zbc_cvt_domain *domains,
 			    unsigned int *nr_domains);
 
 /**
- * @brief Get the number of media conversion domain descriptors.
+ * @brief Get the number of available conversion domain descriptors.
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[out] nr_domains	The number of conversion domains
  *
- * Similar to \a zbc_media_report, but returns only the number of media
- * conversion domains that \a zbc_media_report would have returned.
+ * Similar to \a zbc_domain_report, but returns only the number of
+ * conversion domains that \a zbc_domain_report would have returned.
  * This is useful to determine the total number of domains of a device
  * to allocate an array of conversion domain descriptors for use with
- * \a zbc_media_report.
+ * \a zbc_domain_report.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-static inline int zbc_media_report_nr_domains(struct zbc_device *dev,
+static inline int zbc_report_nr_domains(struct zbc_device *dev,
 					      unsigned int *nr_domains)
 {
-	return zbc_media_report(dev, NULL, nr_domains);
+	return zbc_domain_report(dev, NULL, nr_domains);
 }
 
 /**
@@ -1294,7 +1287,7 @@ static inline int zbc_media_report_nr_domains(struct zbc_device *dev,
  * @param[out] domains		Array of conversion domain descriptors
  * @param[out] nr_domains	Number of domains in the array \a domains
  *
- * Similar to \a zbc_media_report, but also allocates an appropriately sized
+ * Similar to \a zbc_domain_report, but also allocates an appropriately sized
  * array of conversion domain descriptorss and returns the address of the array
  * at the address specified by \a domains. The size of the array allocated and
  * filled is returned at the address specified by \a nr_domains. Freeing of the
@@ -1312,7 +1305,7 @@ extern int zbc_list_conv_domains(struct zbc_device *dev,
  * @brief Convert a number of zones at the specified LBA to the new type
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
  * @param[in] lba		Start LBA of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
@@ -1320,7 +1313,7 @@ extern int zbc_list_conv_domains(struct zbc_device *dev,
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
-extern int zbc_media_convert(struct zbc_device *dev, bool all,
+extern int zbc_zone_activate(struct zbc_device *dev, bool all,
 			     bool use_32_byte_cdb, uint64_t lba,
 			     uint32_t nr_zones, bool to_cmr,
 			     bool fg, struct zbc_conv_rec *conv_recs,
@@ -1330,7 +1323,7 @@ extern int zbc_media_convert(struct zbc_device *dev, bool all,
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
  * @param[in] lba		Start LBA of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
@@ -1338,7 +1331,7 @@ extern int zbc_media_convert(struct zbc_device *dev, bool all,
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
-extern int zbc_media_query(struct zbc_device *dev, bool all,
+extern int zbc_zone_query(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
 			   uint32_t nr_zones, bool to_cmr,
 			   bool fg, struct zbc_conv_rec *conv_recs,
@@ -1348,7 +1341,7 @@ extern int zbc_media_query(struct zbc_device *dev, bool all,
  * @brief Return the expected number of conversion records
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
  * @param[in] lba		Start LBA of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
@@ -1362,7 +1355,7 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use MEDIA CONVERT(32)
+ * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
  * @param[in] lba		Start LBA of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] dir		Conversion direction
@@ -1370,7 +1363,7 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  * @param[out] conv_recs	Points to the returned array of convert records
  * @param[out] nr_conv_recs	Number of returned conversion results records
  */
-extern int zbc_media_list(struct zbc_device *dev, bool all,
+extern int zbc_zone_query_list(struct zbc_device *dev, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,
 			  uint32_t nr_zones, bool to_cmr,
 			  bool fg, struct zbc_conv_rec **pconv_recs,
@@ -1390,7 +1383,7 @@ extern int zbc_dhsmr_dev_control(struct zbc_device *dev,
 				 struct zbc_zp_dev_control *ctl, bool set);
 
 /**
- * @brief Read sectors form a device
+ * @brief Read sectors from a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] buf	Caller supplied buffer to read into
  * @param[in] count	Number of 512B sectors to read

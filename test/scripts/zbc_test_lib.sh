@@ -192,10 +192,10 @@ function zbc_test_get_device_info()
 	unrestricted_read=${2}
 	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
-	media_cvt_device_line=`cat ${log_file} | grep -F "[MEDIA_CONVERT_DEVICE]"`
-	set -- ${media_cvt_device_line}
-	media_cvt_device=${2}
-	zbc_check_string "Failed to get Media Convert device support" ${media_cvt_device}
+	zone_activation_device_line=`cat ${log_file} | grep -F "[ZONE_ACTIVATION_DEVICE]"`
+	set -- ${zone_activation_device_line}
+	zone_activation_device=${2}
+	zbc_check_string "Failed to get Zone Activation device support" ${zone_activation_device}
 
 	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
@@ -645,11 +645,11 @@ function zbc_test_zone_tuple_cond()
 	return 0
 }
 
-# Media Conversion domain manipulation functions
+# Conversion domain manipulation functions
 
 function zbc_test_get_cvt_domain_info()
 {
-	local _cmd="${bin_path}/zbc_test_media_report ${device}"
+	local _cmd="${bin_path}/zbc_test_domain_report ${device}"
 	echo "" >> ${log_file} 2>&1
 	echo "## Executing: ${_cmd} > ${cvt_domain_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
@@ -963,7 +963,7 @@ function zbc_test_dump_zone_info()
 
 function zbc_test_dump_cvt_domain_info()
 {
-	zbc_media_report ${device} > ${dump_cvt_domain_info_file}
+	zbc_domain_report ${device} > ${dump_cvt_domain_info_file}
 }
 
 function zbc_test_check_failed()
@@ -973,7 +973,7 @@ function zbc_test_check_failed()
 
 	if [ "Failed" = "${failed}" ]; then
 		zbc_test_dump_zone_info
-		if [ "${media_cvt_device}" != "0" ]; then
+		if [ "${zone_activation_device}" != "0" ]; then
 			zbc_test_dump_cvt_domain_info
 		fi
 		return 1

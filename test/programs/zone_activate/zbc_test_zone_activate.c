@@ -210,8 +210,8 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	/* Convert media */
-	ret = zbc_media_convert(dev, all, cdb32, start, nr_units,
+	/* Convert zones */
+	ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
 				to_cmr, fg, conv_recs, &nr_conv_recs);
 	if (ret != 0) {
 		zbc_errno(dev, &zbc_err);

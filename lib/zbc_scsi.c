@@ -36,12 +36,12 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /*
- * MEDIA REPORT ouput header size.
+ * DOMAIN REPORT ouput header size.
  */
 #define ZBC_DOMAIN_HEADER_SIZE		64
 
 /*
- * MEDIA REPORT output conversion domain descriptor size.
+ * DOMAIN REPORT output conversion domain descriptor size.
  */
 #define ZBC_DOMAIN_RECORD_SIZE		128
 
@@ -54,9 +54,13 @@
 #define ZBC_SCSI_READ_CAPACITY_BUF_LEN	32
 
 /**
- * Media Conversion Results header and descriptor sizes.
+ * Zone activation results header size.
  */
 #define ZBC_CONV_RES_HEADER_SIZE	32
+
+/**
+ * Zone activation results descriptor size.
+ */
 #define ZBC_CONV_RES_RECORD_SIZE	16
 
 /**
@@ -342,7 +346,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		zbc_debug("%s: Zone Activation host-managed SCSI block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		dev->zbd_info.zbd_flags |= ZBC_MEDIA_CVT_SUPPORT;
+		dev->zbd_info.zbd_flags |= ZBC_ZONE_ACTIVATION_SUPPORT;
 		break;
 
 	default:
@@ -644,9 +648,9 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device media conversion domain configuration.
+ * Report device conversion domain configuration.
  */
-static int zbc_scsi_media_report(struct zbc_device *dev,
+static int zbc_scsi_domain_report(struct zbc_device *dev,
 				 struct zbc_cvt_domain *domains,
 				 unsigned int *nr_domains)
 {
@@ -666,8 +670,8 @@ static int zbc_scsi_media_report(struct zbc_device *dev,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize MEDIA REPORT command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MEDIA_REPORT, NULL, bufsz);
+	/* Allocate and intialize DOMAIN REPORT command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_DOMAIN_REPORT, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -695,8 +699,8 @@ static int zbc_scsi_media_report(struct zbc_device *dev,
 	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_MEDIA_REPORT_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_MEDIA_REPORT_CDB_SA;
+	cmd.cdb[0] = ZBC_SG_DOMAIN_REPORT_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_DOMAIN_REPORT_CDB_SA;
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
 
 	/* Send the SG_IO command */
@@ -761,9 +765,9 @@ out:
 }
 
 /**
- *  Perform Media Query / Convert operation using 16-byte CDB.
+ *  Perform Zone Query / Activate operation using the 16-byte CDB.
  */
-static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 				    uint64_t start_zone_lba, bool query,
 				    uint32_t nr_zones, bool to_cmr,
 				    bool fg, struct zbc_conv_rec *conv_recs,
@@ -790,10 +794,10 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize MEDIA QUERY/CONVERT (16) command */
+	/* Allocate and intialize ZONE QUERY/ACTIVATE(16) command */
 	ret = zbc_sg_cmd_init(dev, &cmd,
-			      query ? ZBC_SG_MEDIA_QUERY_16 :
-				      ZBC_SG_MEDIA_CONVERT_16, NULL, bufsz);
+			      query ? ZBC_SG_ZONE_QUERY_16 :
+				      ZBC_SG_ZONE_ACTIVATE_16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -823,11 +827,11 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_CVT_16_CDB_OPCODE;
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_CVT_16_CDB_OPCODE;
 	if (query)
-		cmd.cdb[1] = ZBC_SG_MEDIA_QUERY_16_CDB_SA;
+		cmd.cdb[1] = ZBC_SG_ZONE_QUERY_16_CDB_SA;
 	else
-		cmd.cdb[1] = ZBC_SG_MEDIA_CONVERT_16_CDB_SA;
+		cmd.cdb[1] = ZBC_SG_ZONE_ACTIVATE_16_CDB_SA;
 	if (to_cmr)
 		cmd.cdb[1] |= 0x40; /* DIR */
 	if (all)
@@ -864,7 +868,7 @@ static int zbc_scsi_media_convert16(struct zbc_device *dev, bool all,
 	 * CONVERTED bit.
 	 */
 	if ((buf[5] & 0x80) == 0) {
-		zbc_warning("%s: Media %s converted\n",
+		zbc_warning("%s: Zones %s converted\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not");
 		ret = -EIO;
@@ -912,9 +916,9 @@ out:
 }
 
 /**
- *  Perform Media Query / Convert operation using 32-byte CDB.
+ *  Perform Zone Query / Activate operation using the 32-byte CDB.
  */
-static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 				    uint64_t start_zone_lba, bool query,
 				    uint32_t nr_zones, bool to_cmr,
 				    bool fg, struct zbc_conv_rec *conv_recs,
@@ -936,10 +940,10 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize MEDIA QUERY/CONVERT (32) command */
+	/* Allocate and intialize ZONE QUERY/ACTIVATE(32) command */
 	ret = zbc_sg_cmd_init(dev, &cmd,
-			      query ? ZBC_SG_MEDIA_QUERY_32 :
-				      ZBC_SG_MEDIA_CONVERT_32, NULL, bufsz);
+			      query ? ZBC_SG_ZONE_QUERY_32 :
+				      ZBC_SG_ZONE_ACTIVATE_32, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -983,10 +987,10 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * | 31  |                                                                 (LSB) |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_MEDIA_QUERY_CVT_32_CDB_OPCODE;
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_CVT_32_CDB_OPCODE;
 	cmd.cdb[7] = 0x18;
-	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_MEDIA_QUERY_32_CDB_SA :
-					      ZBC_SG_MEDIA_CONVERT_32_CDB_SA);
+	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_ZONE_QUERY_32_CDB_SA :
+					      ZBC_SG_ZONE_ACTIVATE_32_CDB_SA);
 	cmd.cdb[10] = to_cmr ? 0x20 : 0; /* DIR */
 	if (nr_zones) {
 		cmd.cdb[10] |= 0x10; /* ZSRC */
@@ -1022,7 +1026,7 @@ static int zbc_scsi_media_convert32(struct zbc_device *dev, bool all,
 	 * CONVERTED bit.
 	 */
 	if ((buf[5] & 0x80) == 0) {
-		zbc_warning("%s: Media %s converted\n",
+		zbc_warning("%s: Zones %s converted\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not");
 		ret = -EIO;
@@ -1070,7 +1074,7 @@ out:
 	return ret;
 }
 
-static int zbc_scsi_media_query_convert(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
 					bool to_cmr, bool fg,
@@ -1078,9 +1082,9 @@ static int zbc_scsi_media_query_convert(struct zbc_device *dev, bool all,
 				  uint32_t *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-	       zbc_scsi_media_convert32(dev, all, lba, query, nr_zones, to_cmr,
+	       zbc_scsi_zone_activate32(dev, all, lba, query, nr_zones, to_cmr,
 					fg, conv_recs, nr_conv_recs) :
-	       zbc_scsi_media_convert16(dev, all, lba, query, nr_zones, to_cmr,
+	       zbc_scsi_zone_activate16(dev, all, lba, query, nr_zones, to_cmr,
 					fg, conv_recs, nr_conv_recs);
 }
 
@@ -1207,11 +1211,9 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ, Media Convert support, FC, CWPCE and CWPCS flags */
+	/* URSWRZ, Zone Activation support and CWPCS flags */
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_MEDIA_CVT_SUPPORT : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x04) ? ZBC_FC_SUPPORT : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x08) ? ZBC_CONV_WP_CHECK : 0; /* FIXME shoud be in MODE PAGE */
+	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
 	dev->zbd_info.zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
 	/* Maximum number of zones for resource management */
@@ -1633,7 +1635,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
-	.zbd_media_report	= zbc_scsi_media_report,
-	.zbd_media_query_cvt	= zbc_scsi_media_query_convert,
+	.zbd_domain_report	= zbc_scsi_domain_report,
+	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
 };
 

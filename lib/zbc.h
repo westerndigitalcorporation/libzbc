@@ -67,9 +67,9 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
-	 * Report media conversion configuration.
+	 * Report conversion domain configuration.
 	 */
-	int		(*zbd_media_report)(struct zbc_device *,
+	int		(*zbd_domain_report)(struct zbc_device *,
 					    struct zbc_cvt_domain *,
 					    unsigned int *);
 
@@ -77,7 +77,7 @@ struct zbc_drv {
 	 * Convert zones from one CMR/SMR type to the other or query
 	 * about the possible results of such conversion.
 	 */
-	int		(*zbd_media_query_cvt)(struct zbc_device *, bool,
+	int		(*zbd_zone_query_cvt)(struct zbc_device *, bool,
 					       bool, bool, uint64_t,
 					       uint32_t, bool, bool,
 					       struct zbc_conv_rec *,
@@ -170,9 +170,9 @@ struct zbc_device {
 #define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
 #define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
-#define zbc_dev_is_convt(dev)	(zbc_dev_is_zoned(dev) && \
+#define zbc_dev_is_zone_act(dev) (zbc_dev_is_zoned(dev) && \
 				 (dev)->zbd_info.zbd_flags & \
-				 ZBC_MEDIA_CVT_SUPPORT)
+				 ZBC_ZONE_ACTIVATION_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

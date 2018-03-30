@@ -40,8 +40,8 @@ include tools/write_zone/Makemodule.am
 include tools/set_write_ptr/Makemodule.am
 include tools/set_zones/Makemodule.am
 
-include tools/media_report/Makemodule.am
-include tools/media_convert/Makemodule.am
+include tools/domain_report/Makemodule.am
+include tools/zone_activate/Makemodule.am
 include tools/dev_control/Makemodule.am
 
 if BUILD_GZBC
@@ -57,7 +57,7 @@ include test/programs/close_zone/Makemodule.am
 include test/programs/finish_zone/Makemodule.am
 include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
-include test/programs/media_report/Makemodule.am
-include test/programs/media_convert/Makemodule.am
+include test/programs/domain_report/Makemodule.am
+include test/programs/zone_activate/Makemodule.am
 endif
 

@@ -885,7 +885,7 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 /**
  * Report device conversion domain configuration.
  */
-static int zbc_block_media_report(struct zbc_device *dev,
+static int zbc_block_domain_report(struct zbc_device *dev,
 				  struct zbc_cvt_domain *domains,
 				  unsigned int *nr_domains)
 {
@@ -897,7 +897,7 @@ static int zbc_block_media_report(struct zbc_device *dev,
  * Convert zones from one type to another or query
  * about the outcome of such conversion.
  */
-static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
 					 bool to_cmr, bool fg,
@@ -966,14 +966,14 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_media_report(struct zbc_device *dev,
+static int zbc_block_domain_report(struct zbc_device *dev,
 				  struct zbc_cvt_domain *domains,
 				  unsigned int nr_domains)
 {
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_media_query_convert(struct zbc_device *dev, bool all,
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
 					 bool to_cmr, bool fg,
@@ -1015,6 +1015,6 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
-	.zbd_media_report	= zbc_block_media_report,
-	.zbd_media_query_cvt	= zbc_block_media_query_convert,
+	.zbd_domain_report	= zbc_block_domain_report,
+	.zbd_zone_query_cvt	= zbc_block_zone_query_activate,
 };

@@ -36,9 +36,8 @@ zbc_write_zone
 zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
-zbc_media_report
-zbc_media_convert
-zbc_convert_realms
+zbc_domain_report
+zbc_zone_activate
 zbc_dev_control
 gzbc
 
@@ -50,8 +49,8 @@ test/programs/zbc_test_finish_zone
 test/programs/zbc_test_open_zone
 test/programs/zbc_test_read_zone
 test/programs/zbc_test_write_zone
-test/programs/zbc_test_media_report
-test/programs/zbc_test_media_convert
+test/programs/zbc_test_domain_report
+test/programs/zbc_test_zone_activate
 test/log
 
 # Kernel compile files

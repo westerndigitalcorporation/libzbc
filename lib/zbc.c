@@ -423,11 +423,9 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
 	}
 
-	fprintf(out, "    Media Conversion command set is %ssupported\n",
-		(info->zbd_flags & ZBC_MEDIA_CVT_SUPPORT) ? "" : "NOT ");
-	if (info->zbd_flags & ZBC_MEDIA_CVT_SUPPORT) {
-		fprintf(out, "    Foreground media conversion is %ssupported\n",
-			(info->zbd_flags & ZBC_FC_SUPPORT) ? "" : "not ");
+	fprintf(out, "    Zone Activation command set is %ssupported\n",
+		(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
+	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
 		fprintf(out, "    Conventional zone write pointer check"
 			     " is %ssupported\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) ?
@@ -555,27 +553,27 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_media_report - Get media conversion information
+ * zbc_domain_report - Get conversion domain information
  */
-int zbc_media_report(struct zbc_device *dev,
+int zbc_domain_report(struct zbc_device *dev,
 		     struct zbc_cvt_domain *domains, unsigned int *nr_domains)
 {
 	int ret;
 
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
 	if (!domains)
 		/* Just get the number of conversion domains */
-		return (dev->zbd_drv->zbd_media_report)(dev, NULL, nr_domains);
+		return (dev->zbd_drv->zbd_domain_report)(dev, NULL, nr_domains);
 
 	/* Get conversion domain information */
-	ret = (dev->zbd_drv->zbd_media_report)(dev, domains, nr_domains);
+	ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
 	if (ret != 0) {
-		zbc_error("%s: MMEDIA REPORT failed %d (%s)\n",
+		zbc_error("%s: DOMAIN REPORT failed %d (%s)\n",
 			  dev->zbd_filename,
 			  ret, strerror(-ret));
 		return ret;
@@ -602,14 +600,14 @@ int zbc_list_conv_domains(struct zbc_device *dev,
 	}
 	*pdomains = NULL;
 
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
 	/* Get the total number of domain descriptors */
-	ret = zbc_media_report_nr_domains(dev, &nr_domains);
+	ret = zbc_report_nr_domains(dev, &nr_domains);
 	if (ret < 0)
 		return ret;
 
@@ -623,9 +621,9 @@ int zbc_list_conv_domains(struct zbc_device *dev,
 		return -ENOMEM;
 
 	/* Get conversion domain information */
-	ret = zbc_media_report(dev, domains, &nr_domains);
+	ret = zbc_domain_report(dev, domains, &nr_domains);
 	if (ret != 0) {
-		zbc_error("%s: zbc_media_report failed %d\n",
+		zbc_error("%s: zbc_domain_report failed %d\n",
 			  dev->zbd_filename, ret);
 		free(domains);
 		return ret;
@@ -638,56 +636,56 @@ int zbc_list_conv_domains(struct zbc_device *dev,
 }
 
 /**
- * zbc_media_convert - Convert all zones in a specified range to a new type
+ * zbc_zone_activate - Convert all zones in a specified range to a new type
  */
-int zbc_media_convert(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		      uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		      bool fg, struct zbc_conv_rec *conv_recs,
 		      uint32_t *nr_conv_recs)
 {
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_media_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_cvt) {
 		/* FIXME need to implement! */
-		zbc_warning("%s: Media conversion is not implemented\n",
+		zbc_warning("%s: Zone activate/query is not implemented\n",
 			    dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						   false, lba, nr_zones,
 						   to_cmr, fg, conv_recs,
 						   nr_conv_recs);
 }
 
 /**
- * zbc_media_query - Receive information about converting all zones in a
+ * zbc_zone_query - Receive information about converting all zones in a
  *                   specific range to a new type without actually performing
  *                   the conversion process
  */
-int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		    uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		    bool fg, struct zbc_conv_rec *conv_recs,
 		    uint32_t *nr_conv_recs)
 {
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_media_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_cvt) {
 		/* FIXME need to implement! */
-		zbc_warning("%s: Media conversion query is not implemented\n",
+		zbc_warning("%s: Zone activation/query is not implemented\n",
 			    dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						   true, lba, nr_zones,
 						   to_cmr, fg, conv_recs,
 						   nr_conv_recs);
@@ -695,7 +693,7 @@ int zbc_media_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 
 /**
  * zbc_get_nr_cvt_records - Get the expected number of conversion records for
- * 			    a MEDIA REPORT or MEDIA CONVERT operation'
+ * 			    a ZONE ACTIVATE or ZONE QUERY operation
  */
 int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
@@ -705,19 +703,19 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 	uint32_t nr_conv_recs;
 	int ret;
 
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_media_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_cvt) {
 		/* FIXME need to implement! */
-		zbc_warning("%s: Media conversion query is not implemented\n",
+		zbc_warning("%s: Zone activation/query is not implemented\n",
 			    dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						  true, lba, nr_zones,
 						  to_cmr, fg, NULL,
 						  &nr_conv_recs);
@@ -725,14 +723,15 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 }
 
 /**
- * zbc_media_list - Receive information about converting all zones in a
- *                  specific range to a new type without actually performing
- *                  the conversion process. This function is similar to
- *                  \a zbc_media_query, but is will allocate the buffer
- *                  space for the output list of conversion results. It is
- *                  responsibility of the caller to free this buffer
+ * zbc_zone_query_list - Receive information about converting all zones in a
+ *                       specific range to a new type without actually
+ *                       performing the conversion process. This function is
+ *                       similar to \a zbc_zone_query, but it will allocate
+ *                       the buffer space for the output list of conversion
+ *                       results. It is responsibility of the caller to free
+ *                       this buffer
  */
-int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		   uint64_t lba, uint32_t nr_zones, bool to_cmr,
 		   bool fg, struct zbc_conv_rec **pconv_recs,
 		   uint32_t *pnr_conv_recs)
@@ -754,7 +753,7 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		return -ENOMEM;
 
 	/* Now get the entire list */
-	ret = (dev->zbd_drv->zbd_media_query_cvt)(dev, all, use_32_byte_cdb,
+	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						  true, lba, nr_zones,
 						  to_cmr, fg, conv_recs,
 						  &nr_conv_recs);
@@ -770,8 +769,8 @@ int zbc_media_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 int zbc_dhsmr_dev_control(struct zbc_device *dev,
 			  struct zbc_zp_dev_control *ctl, bool set)
 {
-	if (!zbc_dev_is_convt(dev)) {
-		zbc_error("%s: Not a Media Convert device\n",
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Activation device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
@@ -808,7 +807,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		    !zbc_dev_sect_laligned(dev, offset)) {
 			zbc_error("%s: Unaligned read %zu sectors at sector %llu\n",
 				  dev->zbd_filename,
-				  count, (unsigned long long) offset);
+				  count, (unsigned long long)offset);
 			return -EINVAL;
 		}
 

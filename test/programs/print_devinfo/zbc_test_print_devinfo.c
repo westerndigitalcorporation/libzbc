@@ -90,8 +90,8 @@ int main(int argc, char **argv)
 		zbc_device_model_str(info.zbd_model));
 
 	fprintf(stdout,
-		"[TEST][INFO][MEDIA_CONVERT_DEVICE],%x\n",
-		info.zbd_flags & ZBC_MEDIA_CVT_SUPPORT);
+		"[TEST][INFO][ZONE_ACTIVATION_DEVICE],%x\n",
+		info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT);
 
 	fprintf(stdout,
 		"[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",

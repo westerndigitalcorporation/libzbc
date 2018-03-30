@@ -22,12 +22,12 @@ global:
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;
-	zbc_media_report;
+	zbc_domain_report;
 	zbc_list_conv_domains;
-	zbc_media_convert;
-	zbc_media_query;
+	zbc_zone_activate;
+	zbc_zone_query;
 	zbc_get_nr_cvt_records;
-	zbc_media_list;
+	zbc_zone_query_list;
 	zbc_dhsmr_dev_control;
 	zbc_pread;
 	zbc_pwrite;

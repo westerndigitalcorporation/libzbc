@@ -41,8 +41,8 @@ if [ $nr -eq 0 ]; then
     nr=$[nr + 1]
 fi
 
-# Convert the media
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} ${nr} "seq"
+# Convert the domains
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr} "seq"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

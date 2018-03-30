@@ -34,8 +34,8 @@ if [ $nr_cvt_to_conv_domains -eq 0 ]; then
     zbc_test_print_failed
 fi
 
-# Convert the media
-zbc_test_run ${bin_path}/zbc_test_media_convert -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
+# Convert the domains
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh -n ${device}

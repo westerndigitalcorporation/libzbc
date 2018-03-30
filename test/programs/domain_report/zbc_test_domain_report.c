@@ -81,10 +81,10 @@ usage:
 	zbc_get_device_info(dev, &info);
 
 	/* Get the number of conversion domains */
-	ret = zbc_media_report_nr_domains(dev, &nr_domains);
+	ret = zbc_report_nr_domains(dev, &nr_domains);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_media_report_nr_domains failed %d\n",
+			"[TEST][ERROR],zbc_report_nr_domains failed %d\n",
 			ret);
 		ret = 1;
 		goto out;
@@ -101,7 +101,7 @@ usage:
 	}
 
 	/* Get conversion domain information */
-	ret = zbc_media_report(dev, domains, &nr_domains);
+	ret = zbc_domain_report(dev, domains, &nr_domains);
 	if (ret != 0) {
 		struct zbc_errno zbc_err;
 		const char *sk_name;
@@ -112,7 +112,7 @@ usage:
 		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_media_report failed %d\n",
+			"[TEST][ERROR],zbc_domain_report failed %d\n",
 			ret);
 		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);

@@ -104,9 +104,9 @@ usage:
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
 
-	ret = zbc_media_report_nr_domains(dev, &nr_domains);
+	ret = zbc_report_nr_domains(dev, &nr_domains);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_media_report_nr_domains failed %d\n",
+		fprintf(stderr, "zbc_report_nr_domains failed %d\n",
 			ret);
 		ret = 1;
 		goto out;
@@ -132,9 +132,9 @@ usage:
 	}
 
 	/* Get the domain descriptors */
-	ret = zbc_media_report(dev, domains, &nd);
+	ret = zbc_domain_report(dev, domains, &nd);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_media_report failed %d\n", ret);
+		fprintf(stderr, "zbc_domain_report failed %d\n", ret);
 		ret = 1;
 		goto out;
 	}
