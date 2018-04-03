@@ -160,16 +160,16 @@ enum {
 /**
  * Zone Query / Activate command definitions.
  */
-#define ZBC_SG_ZONE_QUERY_CVT_16_CDB_OPCODE	0x9F /* FIXME value TBD */
+#define ZBC_SG_ZONE_QUERY_CVT_16_CDB_OPCODE	0x95 /* FIXME value TBD */
 #define ZBC_SG_ZONE_QUERY_CVT_32_CDB_OPCODE	0x7F /* FIXME value TBD */
 
 #define ZBC_SG_ZONE_QUERY_CVT_16_CDB_LENGTH	16
 #define ZBC_SG_ZONE_QUERY_CVT_32_CDB_LENGTH	32
 
-#define ZBC_SG_ZONE_ACTIVATE_16_CDB_SA		0x01 /* FIXME value TBD */
+#define ZBC_SG_ZONE_ACTIVATE_16_CDB_SA		0x02 /* FIXME value TBD */
 #define ZBC_SG_ZONE_ACTIVATE_32_CDB_SA		0xF800 /* FIXME value TBD */
 
-#define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x02 /* FIXME value TBD */
+#define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x03 /* FIXME value TBD */
 #define ZBC_SG_ZONE_QUERY_32_CDB_SA		0XF801 /*FIXME value TBD */
 
 /**
@@ -302,6 +302,15 @@ static inline void zbc_sg_set_int64(uint8_t *buf, uint64_t val)
 }
 
 /**
+ * Set a 48 bits integer in a command cdb.
+ */
+static inline void zbc_sg_set_int48(uint8_t *buf, uint64_t val)
+{
+	val &= 0xffffffffffff;
+	zbc_sg_set_bytes(buf, &val, 6);
+}
+
+/**
  * Set a 32 bits integer in a command cdb.
  */
 static inline void zbc_sg_set_int32(uint8_t *buf, uint32_t val)
@@ -343,6 +352,18 @@ static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
 	zbc_sg_get_bytes(buf, &conv, 8);
 
 	return conv.val64;
+}
+
+/**
+ * Get a 48 bits integer from a command output buffer.
+ */
+static inline uint64_t zbc_sg_get_int48(uint8_t *buf)
+{
+	union converter conv;
+
+	zbc_sg_get_bytes(buf, &conv, 6);
+
+	return conv.val64 & 0xffffffffffff;
 }
 
 /**

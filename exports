@@ -28,7 +28,7 @@ global:
 	zbc_zone_query;
 	zbc_get_nr_cvt_records;
 	zbc_zone_query_list;
-	zbc_dhsmr_dev_control;
+	zbc_zone_activation_ctl;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

@@ -768,9 +768,9 @@ out:
  *  Perform Zone Query / Activate operation using the 16-byte CDB.
  */
 static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
-				    uint64_t start_zone_lba, bool query,
-				    uint32_t nr_zones, bool to_cmr,
-				    bool fg, struct zbc_conv_rec *conv_recs,
+				    uint64_t zone_start_id, bool query,
+				    uint32_t nr_zones, unsigned int new_type,
+				    struct zbc_conv_rec *conv_recs,
 				    unsigned int *nr_conv_recs)
 {
 	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
@@ -787,6 +787,11 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 				dev->zbd_filename, *nr_conv_recs);
 			return -EINVAL;
 		}
+	if (zone_start_id > 0xffffffffffffLL) {
+		zbc_error("%s: # Zone start ID %lu is too high\n",
+			dev->zbd_filename, zone_start_id);
+		return -EINVAL;
+	}
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -806,17 +811,17 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
 	 * |=====+=======================================================================|
-	 * | 0   |                        Operation Code (4Ah)                           |
+	 * | 0   |                        Operation Code (95h)                           |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |  All   |  DIR   | Rsrvd  |          Service Action (01h/02h)          |
+	 * | 1   |  All   |  ZSRC  | Rsvrd  |          Service Action (02h/03h)          |
 	 * |-----+--------+--------------------------------------------------------------|
-	 * | 2   |  FGND  |                   Reserved                          |  ZSRC  |
+	 * | 2   |        Deactivate Zone Type       |         Activate Zone Type        |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 3   | (MSB)                                                                 |
-	 * |- - -+---                  Starting Zone Locator (LBA)                    ---|
-	 * | 10  |                                                                 (LSB) |
+	 * |- - -+---                        Zone Start ID                            ---|
+	 * | 8   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 11  | (MSB)                                                                 |
+	 * | 9   | (MSB)                                                                 |
 	 * |- - -+---                      Allocated Length                           ---|
 	 * | 12  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
@@ -832,17 +837,15 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 		cmd.cdb[1] = ZBC_SG_ZONE_QUERY_16_CDB_SA;
 	else
 		cmd.cdb[1] = ZBC_SG_ZONE_ACTIVATE_16_CDB_SA;
-	if (to_cmr)
-		cmd.cdb[1] |= 0x40; /* DIR */
 	if (all)
 		cmd.cdb[1] |= 0x80; /* All */
 	if (nr_zones) {
-		cmd.cdb[2] |= 0x01; /* ZSRC */
+		cmd.cdb[1] |= 0x40; /* ZSRC */
 		zbc_sg_set_int16(&cmd.cdb[13], (uint16_t)nr_zones);
 	}
-	if (fg)
-		cmd.cdb[2] |= 0x80; /* FGND */
-	zbc_sg_set_int64(&cmd.cdb[3], start_zone_lba);
+	cmd.cdb[2] = new_type & 0x0f; /* Activate Zone Type */
+	/* FIXME add Deactivate Zone Type */
+	zbc_sg_set_int48(&cmd.cdb[3], zone_start_id);
 	zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)bufsz);
 
 	/* Send the SG_IO command */
@@ -899,7 +902,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 		conv_recs[i].zbe_type = buf[0] & 0x0f;
 		conv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
 		conv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
-		conv_recs[i].zbe_start_lba =
+		conv_recs[i].zbe_start_zone =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 
 		buf += ZBC_CONV_RES_RECORD_SIZE;
@@ -919,10 +922,10 @@ out:
  *  Perform Zone Query / Activate operation using the 32-byte CDB.
  */
 static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
-				    uint64_t start_zone_lba, bool query,
-				    uint32_t nr_zones, bool to_cmr,
-				    bool fg, struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs)
+				    uint64_t zone_start_id, bool query,
+				    uint32_t nr_zones, uint32_t new_type,
+				    struct zbc_conv_rec *conv_recs,
+				    uint32_t *nr_conv_recs)
 {
 	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
@@ -966,12 +969,12 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 	 * |-----+---     Service Action (F800h for Convert, F810h for Query)         ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  |  All   |  FGND  |  DIR   |  ZSRC  |          Reserved                 |
+	 * | 10  |  All   |  ZSRC  |                     Reserved                        |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 11  |                             Reserved                                  |
+	 * | 11  |         Deactivate Zone Type      |        Activate Zone Type         |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 12  | (MSB)                                                                 |
-	 * |-----+---                   Starting Zone Locator (LBA)                   ---|
+	 * |-----+---                         Starting Zone ID                        ---|
 	 * | 19  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 20  |                                                                       |
@@ -991,16 +994,15 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 	cmd.cdb[7] = 0x18;
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_ZONE_QUERY_32_CDB_SA :
 					      ZBC_SG_ZONE_ACTIVATE_32_CDB_SA);
-	cmd.cdb[10] = to_cmr ? 0x20 : 0; /* DIR */
 	if (nr_zones) {
-		cmd.cdb[10] |= 0x10; /* ZSRC */
+		cmd.cdb[10] |= 0x40; /* ZSRC */
 		zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
 	}
-	if (fg)
-		cmd.cdb[10] |= 0x40; /* FGND */
 	if (all)
 		cmd.cdb[10] |= 0x80; /* All */
-	zbc_sg_set_int64(&cmd.cdb[12], start_zone_lba);
+	cmd.cdb[11] = new_type & 0x0f; /* Activate Zone Type */
+	/* FIXME add Deactivate Zone Type */
+	zbc_sg_set_int64(&cmd.cdb[12], zone_start_id);
 	zbc_sg_set_int32(&cmd.cdb[28], bufsz);
 
 	/* Send the SG_IO command */
@@ -1057,7 +1059,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 		conv_recs[i].zbe_type = buf[0] & 0x0f;
 		conv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
 		conv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
-		conv_recs[i].zbe_start_lba =
+		conv_recs[i].zbe_start_zone =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 
 		buf += ZBC_CONV_RES_RECORD_SIZE;
@@ -1077,15 +1079,15 @@ out:
 static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
-					bool to_cmr, bool fg,
+					unsigned int new_type,
 				  struct zbc_conv_rec *conv_recs,
-				  uint32_t *nr_conv_recs)
+					unsigned int *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-	       zbc_scsi_zone_activate32(dev, all, lba, query, nr_zones, to_cmr,
-					fg, conv_recs, nr_conv_recs) :
-	       zbc_scsi_zone_activate16(dev, all, lba, query, nr_zones, to_cmr,
-					fg, conv_recs, nr_conv_recs);
+	       zbc_scsi_zone_activate32(dev, all, lba, query, nr_zones,
+					new_type, conv_recs, nr_conv_recs) :
+	       zbc_scsi_zone_activate16(dev, all, lba, query, nr_zones,
+					new_type, conv_recs, nr_conv_recs);
 }
 
 /**

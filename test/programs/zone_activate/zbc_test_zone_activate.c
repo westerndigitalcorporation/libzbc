@@ -30,9 +30,9 @@ int main(int argc, char **argv)
 	char *path;
 	struct zbc_errno zbc_err;
 	uint64_t start;
-	unsigned int oflags, nr_units, nr_domains, nr_conv_recs = 0;
+	unsigned int oflags, nr_units, nr_domains, new_type, nr_conv_recs = 0;
 	int i, ret, end;
-	bool zone_addr = false, to_cmr, fg = false, all = false, cdb32 = false, fsnoz = false;
+	bool zone_addr = false, all = false, cdb32 = false, fsnoz = false;
 
 	/* Check command line */
 	if (argc < 5) {
@@ -40,7 +40,6 @@ int main(int argc, char **argv)
 		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq>\n"
 		       "Options:\n"
 		       "    -a            : Try to convert all, even if not every zone can be\n"
-		       "    -f            : Convert in foreground (slower)\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n"
 		       "    -n            : Set the number of zones to convert via FSNOZ\n"
 		       "    -v            : Verbose mode\n",
@@ -58,8 +57,6 @@ int main(int argc, char **argv)
 			all = true;
 		else if (strcmp(argv[i], "-z") == 0)
 			zone_addr = true;
-		else if (strcmp(argv[i], "-f") == 0)
-			fg = true;
 		else if (strcmp(argv[i], "-32") == 0)
 			cdb32 = true;
 		else if (strcmp(argv[i], "-n") == 0)
@@ -99,16 +96,19 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	if (strcmp(argv[i], "conv") == 0)
-		to_cmr = true;
+		new_type = ZBC_ZT_CONVENTIONAL;
 	else if (strcmp(argv[i], "seq") == 0)
-		to_cmr = false;
+		new_type = ZBC_ZT_SEQUENTIAL_REQ;
 	else {
 		fprintf(stderr, "[TEST][ERROR],Invalid new zone type\n");
 		return 1;
 	}
 
-	if (++i < argc)
-		fg = atoi(argv[i]);
+	if (++i < argc) {
+		fprintf(stderr, "[TEST][ERROR],Extra argument '%s'\n",
+			argv[i]);
+		return 1;
+	}
 
 	/* Open device */
 	oflags = ZBC_O_DEVTEST | ZBC_O_DRV_ATA;
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 			goto out;
 		}
 		end = start + nr_units;
-		if (to_cmr) {
+		if (new_type == ZBC_ZT_CONVENTIONAL) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += domains[i].zbr_seq_length;
 			start = domains[start].zbr_seq_start;
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		ctl.zbm_nr_zones = nr_units;
 		ctl.zbm_smr_zone_type = 0xff;
 		ctl.zbm_cmr_wp_check = 0xff;
-		ret = zbc_dhsmr_dev_control(dev, &ctl, true);
+		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {
 			zbc_errno(dev, &zbc_err);
 			sk_name = zbc_sk_str(zbc_err.sk);
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 	}
 
 	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,
-				     nr_units, to_cmr, fg);
+				     nr_units, new_type);
 	if (ret < 0) {
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);
@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 
 	/* Convert zones */
 	ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
-				to_cmr, fg, conv_recs, &nr_conv_recs);
+				new_type, conv_recs, &nr_conv_recs);
 	if (ret != 0) {
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 	for (i = 0; i < (int)nr_conv_recs; i++) {
 		cr = &conv_recs[i];
 		printf("[CVT_RECORD],%lu,%u,%x,%x\n",
-		       cr->zbe_start_lba,
+		       cr->zbe_start_zone,
 		       cr->zbe_nr_zones,
 		       cr->zbe_type,
 		       cr->zbe_condition);

@@ -327,23 +327,23 @@ struct zbc_zone {
 struct zbc_cvt_domain {
 
 	/**
-	 * Conversion domain start LBA when the domain type is CONVENTIONAL.
-	 * If the domain is not convertible to this zone type, then it is
-	 * set to zero.
+	 * Conversion domain start zone ID when the domain type is
+	 * CONVENTIONAL. If the domain is not convertible to this
+	 * zone type, then it is set to zero.
 	 */
 	uint64_t		zbr_conv_start;
 
 	/**
-	 * Conversion domain length in zones when the domain type is CONVENTIONAL.
-	 * If the domain is not convertible to this zone type, then it's
-	 * set to zero.
+	 * Conversion domain length in zones when the domain type is
+	 * CONVENTIONAL. If the domain is not convertible to this zone
+	 * type, then it's set to zero.
 	 */
 	uint32_t		zbr_conv_length;
 
 	/**
-	 * Conversion domain start LBA when the domain is SEQUENTIAL WRITE
-	 * REQUIRED. If the domain is not convertible to this zone type,
-	 * then it is set to zero.
+	 * Conversion domain start zone ID when the domain is
+	 * SEQUENTIAL WRITE REQUIRED. If the domain is not convertible
+	 * to this zone type, then it is set to zero.
 	 */
 	uint64_t		zbr_seq_start;
 
@@ -397,14 +397,14 @@ struct zbc_cvt_domain {
 #define zbc_cvt_domain_sequential(r) \
 	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Get the domain start LBA if it is CONVENTIONAL as a 512B sector */
+/** @brief Get domain start zone ID if it is CONVENTIONAL as a 512B sector */
 #define zbc_cvt_domain_conv_start(r) \
 	((unsigned long long)(r)->zbr_conv_start)
 
 /** @brief Get the number of zones of a domain if it is CONVENTIONAL */
 #define zbc_cvt_domain_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
 
-/** @brief Get the domain start LBA if it's SEQUENTIAL WR as a 512B sector */
+/** @brief Get domain start zone ID if it's SEQUENTIAL WR as a 512B sector */
 #define zbc_cvt_domain_seq_start(r) \
 	((unsigned long long)(r)->zbr_seq_start)
 
@@ -426,15 +426,15 @@ struct zbc_cvt_domain {
  * @brief Zone Conversion Results record.
  *
  * A list of these descriptors is returned by ZONE ACTIVATE or ZONE QUERY
- * command to provide the caller with LBAs and other information about
+ * command to provide the caller with zone IDs and other information about
  * the converted zones.
  */
 struct zbc_conv_rec {
 
 	/**
-	 * @brief Starting zone locator (LBA).
+	 * @brief Starting zone ID.
 	 */
-	uint64_t		zbe_start_lba;
+	uint64_t		zbe_start_zone;
 
 	/**
 	 * @brief Number of contiguous converted zones.
@@ -1302,72 +1302,68 @@ extern int zbc_list_conv_domains(struct zbc_device *dev,
 				 unsigned int *nr_domains);
 
 /**
- * @brief Convert a number of zones at the specified LBA to the new type
+ * @brief Convert a number of zones at the specified start to the new type
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
  * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
- * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] start_zone	512B sector of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
- * @param[in] dir		Conversion direction
- * @param[in] fg		Foreground flag
+ * @param[in] new_type		Zone type after conversion
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
 extern int zbc_zone_activate(struct zbc_device *dev, bool all,
-			     bool use_32_byte_cdb, uint64_t lba,
-			     uint32_t nr_zones, bool to_cmr,
-			     bool fg, struct zbc_conv_rec *conv_recs,
-			     uint32_t *nr_conv_recs);
+			     bool use_32_byte_cdb, uint64_t start_zone,
+			     unsigned int nr_zones, unsigned int new_type,
+			     struct zbc_conv_rec *conv_recs,
+			     unsigned int *nr_conv_recs);
 
 /**
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
- * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
+ * @param[in] start_zone	512B sector of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
- * @param[in] dir		Conversion direction
- * @param[in] fg		Foreground flag
+ * @param[in] new_zone		Zone type after conversion
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
 extern int zbc_zone_query(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
-			   uint32_t nr_zones, bool to_cmr,
-			   bool fg, struct zbc_conv_rec *conv_recs,
-			   uint32_t *nr_conv_recs);
+			  unsigned int nr_zones, unsigned int new_type,
+			  struct zbc_conv_rec *conv_recs,
+			  unsigned int *nr_conv_recs);
 
 /**
  * @brief Return the expected number of conversion records
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
- * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] use_32_byte_cdb	If true, use 32-byte SCSI command
+ * @param[in] start_zone	512B sector of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
- * @param[in] dir		Conversion direction
- * @param[in] fg		Foreground flag
+ * @param[in] new_type		Zone type after conversion
  */
 extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 				  bool use_32_byte_cdb, uint64_t lba,
-				  uint32_t nr_zones, bool to_cmr, bool fg);
+				  unsigned int nr_zones, unsigned int new_type);
 
 /**
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] all		If set, try to convert maximum number of zones
- * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
- * @param[in] lba		Start LBA of the first zone to convert
+ * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
+ * @param[in] start_zone	512B sector of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
- * @param[in] dir		Conversion direction
- * @param[in] fg		Foreground flag
+ * @param[in] new_type		Zone type after conversion
  * @param[out] conv_recs	Points to the returned array of convert records
  * @param[out] nr_conv_recs	Number of returned conversion results records
  */
 extern int zbc_zone_query_list(struct zbc_device *dev, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,
-			  uint32_t nr_zones, bool to_cmr,
-			  bool fg, struct zbc_conv_rec **pconv_recs,
-			  uint32_t *pnr_conv_recs);
+			       unsigned int nr_zones, unsigned int new_type,
+			       struct zbc_conv_rec **pconv_recs,
+			       unsigned int *pnr_conv_recs);
 /**
  * @brief Read or change persistent DH-SMR device settings
  * @param[in] dev		Device handle obtained with \a zbc_open
@@ -1379,7 +1375,7 @@ extern int zbc_zone_query_list(struct zbc_device *dev, bool all,
  * that need to be modified and then calls this function again with
  * \a set = true.
  */
-extern int zbc_dhsmr_dev_control(struct zbc_device *dev,
+extern int zbc_zone_activation_ctl(struct zbc_device *dev,
 				 struct zbc_zp_dev_control *ctl, bool set);
 
 /**

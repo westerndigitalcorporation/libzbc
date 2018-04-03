@@ -900,7 +900,7 @@ static int zbc_block_domain_report(struct zbc_device *dev,
 static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
-					 bool to_cmr, bool fg,
+					 uint32_t new_type,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {
@@ -976,7 +976,7 @@ static int zbc_block_domain_report(struct zbc_device *dev,
 static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
-					 bool to_cmr, bool fg,
+					 unt32_t new_type,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {

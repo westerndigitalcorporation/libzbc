@@ -639,9 +639,9 @@ int zbc_list_conv_domains(struct zbc_device *dev,
  * zbc_zone_activate - Convert all zones in a specified range to a new type
  */
 int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		      uint64_t lba, uint32_t nr_zones, bool to_cmr,
-		      bool fg, struct zbc_conv_rec *conv_recs,
-		      uint32_t *nr_conv_recs)
+		      uint64_t lba, unsigned int nr_zones,
+		      unsigned int new_type, struct zbc_conv_rec *conv_recs,
+		      unsigned int *nr_conv_recs)
 {
 	if (!zbc_dev_is_zone_act(dev)) {
 		zbc_error("%s: Not a Zone Activation device\n",
@@ -658,7 +658,7 @@ int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						   false, lba, nr_zones,
-						   to_cmr, fg, conv_recs,
+						  new_type, conv_recs,
 						   nr_conv_recs);
 }
 
@@ -668,9 +668,8 @@ int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
  *                   the conversion process
  */
 int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		    uint64_t lba, uint32_t nr_zones, bool to_cmr,
-		    bool fg, struct zbc_conv_rec *conv_recs,
-		    uint32_t *nr_conv_recs)
+		   uint64_t lba, unsigned int nr_zones, unsigned int new_type,
+		   struct zbc_conv_rec *conv_recs, unsigned int *nr_conv_recs)
 {
 	if (!zbc_dev_is_zone_act(dev)) {
 		zbc_error("%s: Not a Zone Activation device\n",
@@ -687,18 +686,17 @@ int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						   true, lba, nr_zones,
-						   to_cmr, fg, conv_recs,
+						  new_type, conv_recs,
 						   nr_conv_recs);
 }
 
 /**
- * zbc_get_nr_cvt_records - Get the expected number of conversion records for
- * 			    a ZONE ACTIVATE or ZONE QUERY operation
+ * zbc_get_nr_cvt_records - Get the expected number of conversion records
+ * 			    for a ZONE ACTIVATE or ZONE QUERY operation
  */
 int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
-			   uint32_t nr_zones, bool to_cmr,
-			   bool fg)
+			   unsigned int nr_zones, unsigned int new_type)
 {
 	uint32_t nr_conv_recs;
 	int ret;
@@ -717,7 +715,7 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						  true, lba, nr_zones,
-						  to_cmr, fg, NULL,
+						 new_type, NULL,
 						  &nr_conv_recs);
 	return ret ? ret : (int)nr_conv_recs;
 }
@@ -732,16 +730,17 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  *                       this buffer
  */
 int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
-		   uint64_t lba, uint32_t nr_zones, bool to_cmr,
-		   bool fg, struct zbc_conv_rec **pconv_recs,
-		   uint32_t *pnr_conv_recs)
+			uint64_t lba, unsigned int nr_zones,
+			unsigned int new_type,
+			struct zbc_conv_rec **pconv_recs,
+			unsigned int *pnr_conv_recs)
 {
 	struct zbc_conv_rec *conv_recs = NULL;
 	uint32_t nr_conv_recs;
 	int ret;
 
 	ret = zbc_get_nr_cvt_records(dev, all, use_32_byte_cdb,
-				     lba, nr_zones, to_cmr, fg);
+				     lba, nr_zones, new_type);
 	if (ret < 0)
 		return ret;
 	nr_conv_recs = (uint32_t)ret;
@@ -755,7 +754,7 @@ int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	/* Now get the entire list */
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
 						  true, lba, nr_zones,
-						  to_cmr, fg, conv_recs,
+						 new_type, conv_recs,
 						  &nr_conv_recs);
 	*pconv_recs = conv_recs;
 	*pnr_conv_recs = nr_conv_recs;
@@ -764,9 +763,9 @@ int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 }
 
 /**
- * zbc_dhsmr_dev_control - Get or set device DH-SMR configuration parameters
+ * zbc_zone_activation_ctl - Get or set device DH-SMR configuration parameters
  */
-int zbc_dhsmr_dev_control(struct zbc_device *dev,
+int zbc_zone_activation_ctl(struct zbc_device *dev,
 			  struct zbc_zp_dev_control *ctl, bool set)
 {
 	if (!zbc_dev_is_zone_act(dev)) {

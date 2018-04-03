@@ -32,17 +32,17 @@ int main(int argc, char **argv)
 	char *path;
 	struct zbc_zp_dev_control ctl;
 	uint64_t start;
-	unsigned int nr_units, nr_domains, nr_conv_recs = 0;
-	int i, fg = 0, ret = 1, end;
-	bool query = false, to_cmr, fsnoz = false;
+	unsigned int nr_units, nr_domains, nr_conv_recs = 0, new_type;
+	int i, ret = 1, end;
+	bool query = false, fsnoz = false;
 	bool all = false, zone_addr = false, list = false, cdb32 = false;
 
 	/* Check command line */
 	if (argc < 5) {
 		fprintf(stderr, "Not enough arguments\n");
 usage:
-		printf("Usage:\n%s [options] <dev> <start domain> <num domains> <conv | seq> [<fg>]\n"
-		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv | seq> [<fg>]\n"
+		printf("Usage:\n%s [options] <dev> <start domain> <num domains> <conv | seq>\n"
+		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv | seq>\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
 		       "    -q            : Query only\n"
@@ -104,17 +104,19 @@ usage:
 		goto usage;
 	}
 	if (strcmp(argv[i], "conv") == 0)
-		to_cmr = true;
+		new_type = ZBC_ZT_CONVENTIONAL;
 	else if (strcmp(argv[i], "seq") == 0)
-		to_cmr = false;
+		new_type = ZBC_ZT_SEQUENTIAL_REQ;
 	else {
 		fprintf(stderr, "Invalid new zone type\n");
 		goto usage;
 	}
 
 	i++;
-	if (i < argc)
-		fg = atoi(argv[i]);
+	if (i < argc) {
+		fprintf(stderr, "Extra parameter '%s'\n", argv[i]);
+		goto usage;
+	}
 
 	/* Open device */
 	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDWR, &dev);
@@ -152,7 +154,7 @@ usage:
 			goto out;
 		}
 		end = start + nr_units;
-		if (to_cmr) {
+		if (new_type == ZBC_ZT_CONVENTIONAL) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += domains[i].zbr_seq_length;
 			start = domains[start].zbr_seq_start;
@@ -164,7 +166,7 @@ usage:
 	}
 
 	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,
-				     nr_units, to_cmr, fg);
+				     nr_units, new_type);
 	if (ret < 0) {
 		fprintf(stderr,
 			"Can't receive the number of conversion records, err %i (%s)\n",
@@ -195,7 +197,7 @@ usage:
 		ctl.zbm_nr_zones = nr_units;
 		ctl.zbm_smr_zone_type = 0xff;
 		ctl.zbm_cmr_wp_check = 0xff;
-		ret = zbc_dhsmr_dev_control(dev, &ctl, true);
+		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {
 			fprintf(stderr, "Can't set FSNOZ, err %i (%s)\n",
 				ret, strerror(-ret));
@@ -207,13 +209,13 @@ usage:
 
 	if (query)
 		ret = zbc_zone_query(dev, all, cdb32, start, nr_units,
-				     to_cmr, fg, conv_recs, &nr_conv_recs);
+				     new_type, conv_recs, &nr_conv_recs);
 	else if (list)
 		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
-					to_cmr, fg, conv_recs, &nr_conv_recs);
+					new_type, conv_recs, &nr_conv_recs);
 	else
 		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
-					to_cmr, fg, NULL, &nr_conv_recs);
+					new_type, NULL, &nr_conv_recs);
 
 	if (ret != 0) {
 		fprintf(stderr,
@@ -226,7 +228,7 @@ usage:
 	if (list) {
 		for (i = 0; i < (int)nr_conv_recs; i++) {
 			printf("%03i LBA:%012lu Size:%08u Type:%02Xh Cond:%02Xh\n",
-			       i, conv_recs[i].zbe_start_lba,
+			       i, conv_recs[i].zbe_start_zone,
 			       conv_recs[i].zbe_nr_zones,
 			       conv_recs[i].zbe_type,
 			       conv_recs[i].zbe_condition);

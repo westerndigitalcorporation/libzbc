@@ -118,9 +118,9 @@ usage:
 	zbc_print_device_info(&info, stdout);
 
 	/* Query the device about persistent DH-SMR settings */
-	ret = zbc_dhsmr_dev_control(dev, &ctl, false);
+	ret = zbc_zone_activation_ctl(dev, &ctl, false);
 	if (ret != 0) {
-		fprintf(stderr, "zbc_dhsmr_dev_control get failed %d\n",
+		fprintf(stderr, "zbc_zone_activation_ctl get failed %d\n",
 			ret);
 		ret = 1;
 		goto out;
@@ -141,9 +141,9 @@ usage:
 
 	if (upd) {
 		/* Need to change some values, request the device to update */
-		ret = zbc_dhsmr_dev_control(dev, &ctl, true);
+		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {
-			fprintf(stderr, "zbc_dhsmr_dev_control get failed %d\n",
+			fprintf(stderr, "zbc_zone_activation_ctl set failed %d\n",
 				ret);
 			ret = 1;
 			goto out;
