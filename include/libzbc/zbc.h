@@ -466,10 +466,6 @@ struct zbc_zp_dev_control {
 	uint32_t		zbm_nr_zones;
 
 	/**
-	 * @brief SMR zone type.
-	 */
-	uint8_t			zbm_smr_zone_type;
-	/**
 	 * @brief CMR WP Check setting. Zero value means off.
 	 */
 	uint8_t			zbm_cmr_wp_check;

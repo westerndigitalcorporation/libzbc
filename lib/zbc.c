@@ -430,9 +430,11 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			     " is %ssupported\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) ?
 			 "" : "not ");
+		if (info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) {
 		fprintf(out, "    Conventional zone write pointer check"
 			     " is %senabled\n",
 			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
+		}
 		if (info->zbd_max_conversion != 0)
 			fprintf(out, "    Maximum number of domains to convert: %u\n",
 				info->zbd_max_conversion);

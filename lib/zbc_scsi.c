@@ -1091,6 +1091,140 @@ static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool all,
 }
 
 /**
+ * Read or set values in one of device mode pages.
+ */
+static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
+				 uint32_t subpg, uint8_t *buf,
+				 uint32_t buf_len, bool set, uint32_t *pg_len)
+{
+	struct zbc_sg_cmd cmd;
+	uint8_t *data = NULL;
+	uint32_t len, bufsz = buf_len + ZBC_MODE_PAGE_OFFSET, max_bufsz;
+	int ret;
+
+	if (pg_len)
+		*pg_len = 0;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	data = calloc(1, bufsz);
+	if (!data)
+		return -ENOMEM;
+
+	if (!set) {
+		memset(data, 0, bufsz);
+
+		/* MODE SENSE 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SENSE,
+				      data, bufsz);
+	} else {
+		memset(data, 0, ZBC_MODE_PAGE_OFFSET);
+		memcpy(&data[ZBC_MODE_PAGE_OFFSET], buf, buf_len);
+
+		/* MODE SELECT 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SELECT,
+				      data, bufsz);
+	}
+	if (ret != 0)
+		goto err;
+
+	/* Fill command CDB */
+	cmd.cdb[1] = 0x10; /* PF */
+	if (!set) {
+		cmd.cdb[0] = MODE_SENSE_10;
+		cmd.cdb[2] = pg & 0x3f;
+		cmd.cdb[3] = subpg;
+	} else {
+		cmd.cdb[0] = MODE_SELECT_10;
+		data[8] = pg & 0x3f;
+		data[8] |= 0x40;
+		data[9] = subpg;
+		zbc_sg_set_int16(&data[10], buf_len);
+	}
+	zbc_sg_set_int16(&cmd.cdb[7], bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (!set) {
+		len = zbc_sg_get_int16(&data[0]);
+		if (len > buf_len)
+			len = buf_len;
+		memcpy(buf, &data[ZBC_MODE_PAGE_OFFSET], len);
+		if (pg_len)
+			*pg_len = len;
+	}
+out:
+	zbc_sg_cmd_destroy(&cmd);
+
+err:
+	if (data)
+		free(data);
+
+	return ret;
+}
+
+/**
+ * Read or set DH-SMR configuration parameters.
+ */
+static int zbc_scsi_dev_control(struct zbc_device *dev,
+				struct zbc_zp_dev_control *ctl, bool set)
+{
+	int ret;
+	unsigned int pg_len;
+	bool update = false;
+	uint8_t mode_page[ZBC_SCSI_MODE_PG_SIZE];
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_PROV_MODE_PG,
+				    ZBC_ZONE_PROV_MODE_SUBPG, mode_page,
+				    ZBC_SCSI_MODE_PG_SIZE, false, &pg_len);
+	if (ret) {
+		zbc_error("%s: Can't read Zone Provisioning mode page\n",
+			  dev->zbd_filename);
+		return ret;
+	}
+	if (pg_len < ZBC_SCSI_MIN_MODE_PG_SIZE) {
+		zbc_error("%s: Zone Provisioning mode page too short, %iB\n",
+			  dev->zbd_filename, pg_len);
+		return -EINVAL;
+	}
+
+	if (!set) {
+		memset(ctl, 0, sizeof(*ctl));
+		ctl->zbm_nr_zones = zbc_sg_get_int32(&mode_page[0]);
+		ctl->zbm_cmr_wp_check = mode_page[6];
+		return ret;
+	}
+
+	if (ctl->zbm_nr_zones != 0xffffffff) {
+		zbc_sg_set_int32(&mode_page[0], ctl->zbm_nr_zones);
+		update = true;
+	}
+	if (ctl->zbm_cmr_wp_check != 0xff) {
+		mode_page[6] = ctl->zbm_cmr_wp_check;
+		update = true;
+	}
+
+	if (!update)
+		return ret;
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_PROV_MODE_PG,
+				    ZBC_ZONE_PROV_MODE_SUBPG,
+				    mode_page, pg_len,
+				    true, NULL);
+	if (ret)
+		zbc_error("%s: Can't update Zone Provisioning mode page\n",
+			  dev->zbd_filename);
+
+	return ret;
+}
+
+/**
  * Get a device capacity information (total sectors & sector sizes).
  */
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
@@ -1199,6 +1333,7 @@ out:
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
+	struct zbc_device_info *di = &dev->zbd_info;
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	uint32_t val;
 	int ret;
@@ -1214,12 +1349,12 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	}
 
 	/* URSWRZ, Zone Activation support and CWPCS flags */
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;
+	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
+	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
+	di->zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;
 
 	/* Maximum number of zones for resource management */
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE) {
+	if (di->zbd_model == ZBC_DM_HOST_AWARE) {
 
 		val = zbc_sg_get_int32(&buf[8]);
 		if (!val) {
@@ -1229,24 +1364,24 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = val;
+		di->zbd_opt_nr_open_seq_pref = val;
 
 		val = zbc_sg_get_int32(&buf[12]);
 		if (!val) {
 			/* Handle this case as "not reported" */
 			zbc_warning("%s: invalid optimal number of randomly "
-				    "writen sequential write preferred zones\n",
+				    "written sequential write preferred zones\n",
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = val;
+		di->zbd_opt_nr_non_seq_write_seq_pref = val;
 
-		dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+		di->zbd_max_nr_open_seq_req = 0;
 
 	} else {
 
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+		di->zbd_opt_nr_open_seq_pref = 0;
+		di->zbd_opt_nr_non_seq_write_seq_pref = 0;
 
 		val = zbc_sg_get_int32(&buf[16]);
 		if (!val) {
@@ -1256,11 +1391,22 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NO_LIMIT;
 		}
-		dev->zbd_info.zbd_max_nr_open_seq_req = val;
+		di->zbd_max_nr_open_seq_req = val;
 
 	}
 
-	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
+	di->zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
+
+	if ((di->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) &&
+	    (di->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT)) {
+		struct zbc_zp_dev_control ctl;
+
+		/* Get the current CMR write pointer check setting */
+		ret = zbc_scsi_dev_control(dev, &ctl, false);
+		if (!ret)
+			di->zbd_flags |= ctl.zbm_cmr_wp_check ?
+					 ZBC_CONV_WP_CHECK : 0;
+	}
 
 	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
 
@@ -1394,145 +1540,6 @@ static int zbc_scsi_close(struct zbc_device *dev)
 	free(dev);
 
 	return 0;
-}
-
-/**
- * Read or set values in one of device mode pages.
- */
-static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
-				 uint32_t subpg, uint8_t *buf,
-				 uint32_t buf_len, bool set, uint32_t *pg_len)
-{
-	struct zbc_sg_cmd cmd;
-	uint8_t *data = NULL;
-	uint32_t len, bufsz = buf_len + ZBC_MODE_PAGE_OFFSET, max_bufsz;
-	int ret;
-
-	if (pg_len)
-		*pg_len = 0;
-	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
-	if (bufsz > max_bufsz)
-		bufsz = max_bufsz;
-
-	data = calloc(1, bufsz);
-	if (!data)
-		return -ENOMEM;
-
-	if (!set) {
-		memset(data, 0, bufsz);
-
-		/* MODE SENSE 10 */
-		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SENSE,
-				      data, bufsz);
-	} else {
-		memset(data, 0, ZBC_MODE_PAGE_OFFSET);
-		memcpy(&data[ZBC_MODE_PAGE_OFFSET], buf, buf_len);
-
-		/* MODE SELECT 10 */
-		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SELECT,
-				      data, bufsz);
-	}
-	if (ret != 0)
-		goto err;
-
-	/* Fill command CDB */
-	cmd.cdb[1] = 0x10; /* PF */
-	if (!set) {
-		cmd.cdb[0] = MODE_SENSE_10;
-		cmd.cdb[2] = pg & 0x3f;
-		cmd.cdb[3] = subpg;
-	} else {
-		cmd.cdb[0] = MODE_SELECT_10;
-		data[8] = pg & 0x3f;
-		data[8] |= 0x40;
-		data[9] = subpg;
-		zbc_sg_set_int16(&data[10], buf_len);
-	}
-	zbc_sg_set_int16(&cmd.cdb[7], bufsz);
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0)
-		goto out;
-
-	if (!set) {
-		len = zbc_sg_get_int16(&data[0]);
-		if (len > buf_len)
-			len = buf_len;
-		memcpy(buf, &data[ZBC_MODE_PAGE_OFFSET], len);
-		if (pg_len)
-			*pg_len = len;
-	}
-out:
-	zbc_sg_cmd_destroy(&cmd);
-
-err:
-	if (data)
-		free(data);
-
-	return ret;
-}
-
-/**
- * Read or set DH-SMR configuration parameters.
- */
-static int zbc_scsi_dev_control(struct zbc_device *dev,
-				struct zbc_zp_dev_control *ctl, bool set)
-{
-	int ret;
-	unsigned int pg_len;
-	bool update = false;
-	uint8_t mode_page[ZBC_SCSI_MODE_PG_SIZE];
-
-	ret = zbc_scsi_get_set_mode(dev,
-				    ZBC_ZONE_PROV_MODE_PG,
-				    ZBC_ZONE_PROV_MODE_SUBPG, mode_page,
-				    ZBC_SCSI_MODE_PG_SIZE, false, &pg_len);
-	if (ret) {
-		zbc_error("%s: Can't read Zone Provisioning mode page\n",
-			  dev->zbd_filename);
-		return ret;
-	}
-	if (pg_len < ZBC_SCSI_MIN_MODE_PG_SIZE) {
-		zbc_error("%s: Zone Provisioning mode page too short, %iB\n",
-			  dev->zbd_filename, pg_len);
-		return -EINVAL;
-	}
-
-	if (!set) {
-		memset(ctl, 0, sizeof(*ctl));
-		ctl->zbm_nr_zones = zbc_sg_get_int32(&mode_page[0]);
-		ctl->zbm_smr_zone_type = mode_page[4];
-		ctl->zbm_cmr_wp_check = mode_page[6];
-		return ret;
-	}
-
-	if (ctl->zbm_nr_zones != 0xffffffff) {
-		zbc_sg_set_int32(&mode_page[0], ctl->zbm_nr_zones);
-		update = true;
-	}
-	if (ctl->zbm_smr_zone_type != 0xff) {
-		mode_page[4] = ctl->zbm_smr_zone_type;
-		update = true;
-	}
-	if (ctl->zbm_cmr_wp_check != 0xff) {
-		mode_page[6] = ctl->zbm_cmr_wp_check;
-		update = true;
-	}
-
-	if (!update)
-		return ret;
-
-	ret = zbc_scsi_get_set_mode(dev,
-				    ZBC_ZONE_PROV_MODE_PG,
-				    ZBC_ZONE_PROV_MODE_SUBPG,
-				    mode_page, pg_len,
-				    true, NULL);
-	if (ret)
-		zbc_error("%s: Can't update Zone Provisioning mode page\n",
-			  dev->zbd_filename);
-
-	return ret;
 }
 
 /**

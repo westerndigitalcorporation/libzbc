@@ -195,7 +195,6 @@ usage:
 	if (fsnoz) {
 		/* Set the number of zones to convert via a separate command */
 		ctl.zbm_nr_zones = nr_units;
-		ctl.zbm_smr_zone_type = 0xff;
 		ctl.zbm_cmr_wp_check = 0xff;
 		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {

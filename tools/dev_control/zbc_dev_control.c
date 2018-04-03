@@ -23,11 +23,10 @@
 
 #define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
-static void zbc_print_dhsmr_settings(struct zbc_zp_dev_control *ctl)
+static void zbc_print_zone_activation_settings(struct zbc_zp_dev_control *ctl)
 {
-	printf("FSONZ: %u, SMR Zone: 0x%x, CMR WP Check: %s\n",
-	       ctl->zbm_nr_zones, ctl->zbm_smr_zone_type,
-	       ctl->zbm_cmr_wp_check ? "Y" : "N");
+	printf("FSONZ: %u, CMR WP Check: %s\n",
+	       ctl->zbm_nr_zones, ctl->zbm_cmr_wp_check ? "Y" : "N");
 }
 
 int main(int argc, char **argv)
@@ -36,7 +35,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_zp_dev_control ctl;
 	int i, ret = 1, nz, szt, wpc;
-	bool upd = false, set_nz = false, set_szt = false, set_wpc = false;
+	bool upd = false, set_nz = false, set_wp_chk = false;
 	char *path;
 
 	/* Check command line */
@@ -46,7 +45,6 @@ usage:
 		       "Options:\n"
 		       "  -v		  : Verbose mode\n"
 		       "  -nz <num>	  : Set the default number of zones to convert\n"
-		       "  -szt <num>	  : Set SMR zone type\n"
 		       "  -wpc y|n        : Enable of disable CMR write pointer check\n",
 		       argv[0]);
 		return 1;
@@ -68,17 +66,6 @@ usage:
 				goto usage;
 			}
 			set_nz = true;
-		} else if (strcmp(argv[i], "-szt") == 0) {
-			if (i >= (argc - 1))
-				goto usage;
-			i++;
-
-			szt = strtol(argv[i], NULL, 10);
-			if (szt <= 0 || szt > 255) {
-				fprintf(stderr, "invalid -szt value\n");
-				goto usage;
-			}
-			set_szt = true;
 		} else if (strcmp(argv[i], "-wpc") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
@@ -92,7 +79,7 @@ usage:
 				fprintf(stderr, "-wpc value must be y or n\n");
 				goto usage;
 			}
-			set_wpc = true;
+			set_wp_chk = true;
 		} else if (argv[i][0] == '-') {
 			fprintf(stderr, "Unknown option \"%s\"\n",
 				argv[i]);
@@ -130,11 +117,7 @@ usage:
 		ctl.zbm_nr_zones = nz;
 		upd = true;
 	}
-	if (set_szt) {
-		ctl.zbm_smr_zone_type = szt;
-		upd = true;
-	}
-	if (set_wpc) {
+	if (set_wp_chk) {
 		ctl.zbm_cmr_wp_check = wpc ? 0x01 : 0x00;
 		upd = true;
 	}
@@ -150,7 +133,7 @@ usage:
 		}
 	}
 
-	zbc_print_dhsmr_settings(&ctl);
+	zbc_print_zone_activation_settings(&ctl);
 
 out:
 	zbc_close(dev);
