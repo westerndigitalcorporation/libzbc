@@ -34,8 +34,8 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	struct zbc_device_info info;
 	struct zbc_zp_dev_control ctl;
-	int i, ret = 1, nz, szt, wpc;
-	bool upd = false, set_nz = false, set_wp_chk = false;
+	int i, ret = 1, nz;
+	bool upd = false, wp_check, set_nz = false, set_wp_chk = false;
 	char *path;
 
 	/* Check command line */
@@ -72,9 +72,9 @@ usage:
 			i++;
 
 			if (strcmp(argv[i], "y") == 0)
-				wpc = 1;
+				wp_check = true;
 			else if (strcmp(argv[i], "n") == 0)
-				wpc = 0;
+				wp_check = false;
 			else {
 				fprintf(stderr, "-wpc value must be y or n\n");
 				goto usage;
@@ -118,7 +118,7 @@ usage:
 		upd = true;
 	}
 	if (set_wp_chk) {
-		ctl.zbm_cmr_wp_check = wpc ? 0x01 : 0x00;
+		ctl.zbm_cmr_wp_check = wp_check ? 0x01 : 0x00;
 		upd = true;
 	}
 

@@ -85,6 +85,12 @@ enum zbc_zone_type {
 	 */
 	ZBC_ZT_SEQUENTIAL_PREF	= 0x03,
 
+	/**
+	 * Write pointer conventional zone: requires additional initialization
+	 * to become a regular conventional, but it can be converted from SMR
+	 * quickly.
+	 */
+	ZBC_ZT_WP_CONVENTIONAL	= 0x04,
 };
 
 /**
@@ -132,9 +138,29 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
-	 * Conventional WP zone (for Zone Activation devices only).
+	 * Conventional WP zone (Zone Activation devices only).
 	 */
 	ZBC_ZC_CONV_WP		= 0x05,
+
+	/**
+	 *  Conventional Clear zone (Zone Activation devices only).
+	 */
+	ZBC_ZC_CMR_CLEAR	= 0x6,
+
+	/**
+	 *  Write Pinter Conventional Empty zone (Zone Activation only).
+	 */
+	ZBC_ZC_WPC_EMPTY	= 0x7,
+
+	/**
+	 *  Write Pinter Conventional WP zone (Zone Activation devices only).
+	 */
+	ZBC_ZC_WPC_WP		= 0x8,
+
+	/**
+	 *  Write Pinter Conventional Full zone (Zone Activation devices only).
+	 */
+	ZBC_ZC_WPC_FULL		= 0x9,
 
 	/**
 	 * Inacive zone: an unmapped zone of a Zone Activation device.
@@ -998,7 +1024,32 @@ enum zbc_reporting_options {
 	 */
 	ZBC_RO_NON_SEQ		= 0x11,
 
-	/* 12h to 3Eh Reserved */
+	/* 12h to 39h Reserved */
+
+	/**
+	 * List of the zones with a Zone Condition of CMR CLEAR.
+	 */
+        ZBC_RO_CMR_CLEAR        = 0x3a,
+
+        /**
+         * List of the zones with a Zone Condition of CMR WP.
+         */
+        ZBC_RO_CMR_WP           = 0x3b,
+
+        /**
+         * List of the zones with a Zone Condition of WPC EMPTY.
+         */
+        ZBC_RO_WPC_EMPTY        = 0x3c,
+
+        /**
+         * List of the zones with a Zone Condition of WPC WP.
+         */
+        ZBC_RO_WPC_WP           = 0x3d,
+
+        /**
+         * List of the zones with a Zone Condition of WPC FULL.
+         */
+        ZBC_RO_WPC_FULL         = 0x3e,
 
 	/**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
@@ -1373,6 +1424,60 @@ extern int zbc_zone_query_list(struct zbc_device *dev, bool all,
  */
 extern int zbc_zone_activation_ctl(struct zbc_device *dev,
 				 struct zbc_zp_dev_control *ctl, bool set);
+
+/**
+ * @brief Target types for device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_target {
+
+	/**
+	 * Unknown mutation target.
+	 */
+	ZBC_MT_UNKNOWN		= 0x00,
+
+	/**
+	 * Legacy (non-zoned) device.
+	 */
+	ZBC_MT_NON_ZONED	= 0x01,
+
+	/**
+	 * Host-managed zoned device.
+	 */
+	ZBC_MT_HM_ZONED		= 0x02,
+
+	/**
+	 * Host-aware zoned device.
+	 */
+	ZBC_MT_HA_ZONED		= 0x03,
+
+	/**
+	 * DH-SMR Zone Activation device, no CMR-only zones.
+	 */
+	ZBC_MT_ZA_NO_CMR	= 0x04,
+
+	/**
+	 * DH-SMR Zone Activation device, 1 CMR-only zone at the bottom.
+	 */
+	ZBC_MT_ZA_1_CMR_BOT	= 0x05,
+
+	/**
+	 * DH-SMR Zone Activation device, 1 CMR-only domain
+	 * at the bottom and 1 CMR-only domain at the top.
+	 */
+	ZBC_MT_ZA_1_CMR_BOT_TOP	= 0x06,
+};
+
+/**
+ * @brief Mutate this device to a new type (legacy, SMR, DH-SMR, etc.)
+ * @param[in] mt		Mutation target type
+ *
+ * Mutation can be performed either between the fundamental types, such as
+ * Legacy CMR to zoned SMR, or in more fine tuned way, such as adding
+ * or removing CMR-only zones (FIXME need to have a way to find supported
+ * types - GET MUTATION TYPES command?).
+ */
+extern int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt);
 
 /**
  * @brief Read sectors from a device

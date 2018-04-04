@@ -183,6 +183,8 @@ const char *zbc_zone_type_str(enum zbc_zone_type type)
 		return "Sequential-write-required";
 	case ZBC_ZT_SEQUENTIAL_PREF:
 		return "Sequential-write-preferred";
+	case ZBC_ZT_WP_CONVENTIONAL:
+		return "Write-pointer-conventional";
 	case ZBC_ZT_UNKNOWN:
 	default:
 		return "Unknown-zone-type";
@@ -207,6 +209,14 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 		return "Closed";
 	case ZBC_ZC_CONV_WP:
 		return "Conv-WP";
+	case ZBC_ZC_CMR_CLEAR:
+		return "Conv-clear";
+	case ZBC_ZC_WPC_EMPTY:
+		return "WPC-empty";
+	case ZBC_ZC_WPC_WP:
+		return "WPC-write-pointer";
+	case ZBC_ZC_WPC_FULL:
+		return "WPC-full";
 	case ZBC_ZC_INACTIVE:
 		return "Inactive";
 	case ZBC_ZC_RDONLY:
