@@ -47,6 +47,7 @@ enum {
 	ZBC_SG_ZONE_QUERY_16,
 	ZBC_SG_ZONE_ACTIVATE_32,
 	ZBC_SG_ZONE_QUERY_32,
+	ZBC_SG_MUTATE,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -171,6 +172,13 @@ enum {
 
 #define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x03 /* FIXME value TBD */
 #define ZBC_SG_ZONE_QUERY_32_CDB_SA		0XF801 /*FIXME value TBD */
+
+/**
+ * Mutate command definition.
+ */
+#define ZBC_SG_MUTATE_CDB_OPCODE		0x94 /* FIXME opcode/SA TBD */
+#define ZBC_SG_MUTATE_CDB_SA			0x05
+#define ZBC_SG_MUTATE_CDB_LENGTH		16
 
 /**
  * ATA pass through 16.

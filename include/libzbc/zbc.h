@@ -627,6 +627,13 @@ enum zbc_dev_flags {
 	ZBC_ZONE_ACTIVATION_SUPPORT = 0x00000002,
 
 	/**
+	 * Indicates that the device supports Mutation command set
+	 * to allow it to change between different device types,
+	 * such as Zoned to Legacy or Zone Activation.
+	 */
+	ZBC_MUTATE_SUPPORT = 0x00000004,
+
+	/**
 	 * Indicates that checking write pointer for conventional zones
 	 * is enabled. It can only be set if ZBC_CONV_WP_CHECK_SUPPORT
 	 * is set.
@@ -1457,7 +1464,7 @@ enum zbc_mutation_target {
 	ZBC_MT_ZA_NO_CMR	= 0x04,
 
 	/**
-	 * DH-SMR Zone Activation device, 1 CMR-only zone at the bottom.
+	 * DH-SMR Zone Activation device, 1 CMR-only domain at the bottom.
 	 */
 	ZBC_MT_ZA_1_CMR_BOT	= 0x05,
 

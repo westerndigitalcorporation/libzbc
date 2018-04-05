@@ -225,6 +225,15 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_FROM_DEV
 	},
 
+	[ZBC_SG_MUTATE] =
+	{
+		"MUTATE",
+		ZBC_SG_MUTATE_CDB_OPCODE,
+		ZBC_SG_MUTATE_CDB_SA,
+		ZBC_SG_MUTATE_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
 	[ZBC_SG_ATA16] =
 	{
 		"ATA 16",

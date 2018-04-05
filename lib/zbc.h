@@ -84,6 +84,12 @@ struct zbc_drv {
 					     uint32_t *);
 
 	/**
+	 * Mutate the device to a different type.
+	 */
+	int		(*zbd_mutate)(struct zbc_device *,
+				      enum zbc_mutation_target);
+
+	/**
 	 * Read from a ZBC device.
 	 */
 	ssize_t		(*zbd_pread)(struct zbc_device *, void *,
@@ -173,6 +179,8 @@ struct zbc_device {
 #define zbc_dev_is_zone_act(dev) (zbc_dev_is_zoned(dev) && \
 				 (dev)->zbd_info.zbd_flags & \
 				 ZBC_ZONE_ACTIVATION_SUPPORT)
+#define zbc_dev_supports_mutate(dev) ((dev)->zbd_info.zbd_flags & \
+				 ZBC_MUTATE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

@@ -307,6 +307,9 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -EIO;
 	}
 
+	if (buf[9] & 0x01)
+		dev->zbd_info.zbd_flags |= ZBC_MUTATE_SUPPORT;
+
 	zoned = (buf[8] & 0x30) >> 4;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 		if (zbc_test_mode(dev) && zoned != 0) {
@@ -1225,6 +1228,49 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 }
 
 /**
+ * Mutate a device to a different type, PMR <-> SMR <-> DH-SMR.
+ */
+static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
+{
+	struct zbc_sg_cmd cmd;
+	int ret;
+
+	/* Allocate and intialize MUTATE command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MUTATE, NULL, 0);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (94h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |         Reserved         |             Service Action (05h)           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                             Mutation target                           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                                                                       |
+	 * |- - -+---                             Reserved                            ---|
+	 * | 14  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                                Control                                |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_MUTATE_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_MUTATE_CDB_SA;
+	cmd.cdb[2] = mt;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
  * Get a device capacity information (total sectors & sector sizes).
  */
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
@@ -1646,5 +1692,6 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_domain_report	= zbc_scsi_domain_report,
 	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
+	.zbd_mutate		= zbc_scsi_mutate,
 };
 

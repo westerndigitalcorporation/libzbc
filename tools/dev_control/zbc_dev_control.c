@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -34,8 +35,9 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	struct zbc_device_info info;
 	struct zbc_zp_dev_control ctl;
-	int i, ret = 1, nz;
-	bool upd = false, wp_check, set_nz = false, set_wp_chk = false;
+	enum zbc_mutation_target mt = ZBC_MT_UNKNOWN;
+	int i, ret = 1, nz = 0;
+	bool upd = false, wp_check = false, set_nz = false, set_wp_chk = false;
 	char *path;
 
 	/* Check command line */
@@ -43,9 +45,20 @@ int main(int argc, char **argv)
 usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
-		       "  -v		  : Verbose mode\n"
-		       "  -nz <num>	  : Set the default number of zones to convert\n"
-		       "  -wpc y|n        : Enable of disable CMR write pointer check\n",
+		       "  -v              : Verbose mode\n"
+		       "  -mu <to>        : Mutate to the specified target\n"
+		       "  -nz <num>       : Set the default number of zones to convert\n"
+		       "  -wpc y|n        : Enable of disable CMR write pointer check\n\n"
+		       "Mutation targets:\n"
+		       "  PMR             : A classic, not zoned, device\n"
+		       "  HM              : Host-managed SMR device\n"
+		       "  HA              : Host-aware SMR device\n"
+		       "  ZA              : DH-SMR device supporting Zone Activation"
+		       " command set, no CMR-only zones\n"
+		       "  ZABD            : Same as ZA, but the first conversion domain"
+		       " is CMR-only\n"
+		       "  ZABDTD          : Same as ZA, but the first and last conversion"
+		       " domains are CMR-only\n",
 		       argv[0]);
 		return 1;
 	}
@@ -55,6 +68,29 @@ usage:
 
 		if (strcmp(argv[i], "-v") == 0) {
 			zbc_set_log_level("debug");
+		} else if (strcmp(argv[i], "-mu") == 0) {
+			if (i >= (argc - 1))
+				goto usage;
+			i++;
+			if (isdigit(argv[i][0]))
+				mt = strtol(argv[i], NULL, 0);
+			else if (strcmp(argv[i], "legacy") == 0)
+				mt = ZBC_MT_NON_ZONED;
+			else if (strcmp(argv[i], "HM") == 0)
+				mt = ZBC_MT_HM_ZONED;
+			else if (strcmp(argv[i], "HA") == 0)
+				mt = ZBC_MT_HA_ZONED;
+			else if (strcmp(argv[i], "ZA") == 0)
+				mt = ZBC_MT_ZA_NO_CMR;
+			else if (strcmp(argv[i], "ZABD") == 0)
+				mt = ZBC_MT_ZA_1_CMR_BOT;
+			else if (strcmp(argv[i], "ZABDTD") == 0)
+				mt = ZBC_MT_ZA_1_CMR_BOT_TOP;
+			if (mt == ZBC_MT_UNKNOWN) {
+				fprintf(stderr, "unknown mutation target %s\n",
+					argv[i]);
+				goto usage;
+			}
 		} else if (strcmp(argv[i], "-nz") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
@@ -103,6 +139,38 @@ usage:
 
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
+
+	if (mt != ZBC_MT_UNKNOWN) {
+		if (!(info.zbd_flags & ZBC_MUTATE_SUPPORT)) {
+			fprintf(stderr, "Device doesn't support MUTATE\n");
+			ret = 1;
+			goto out;
+		}
+
+		/* Try to mutate the device */
+		ret = zbc_mutate(dev, mt);
+		if (ret != 0) {
+			fprintf(stderr, "zbc_mutate failed %d\n", ret);
+			ret = 1;
+			goto out;
+		}
+
+		/* Need to reopen the device to receive the updated info */
+		zbc_close(dev);
+		ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDONLY, &dev);
+		if (ret != 0)
+			return 1;
+
+		zbc_get_device_info(dev, &info);
+	}
+
+	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+		if (set_nz || set_wp_chk) {
+			fprintf(stderr, "Not a Zone Activation device\n");
+			ret = 1;
+		}
+		goto out;
+	}
 
 	/* Query the device about persistent DH-SMR settings */
 	ret = zbc_zone_activation_ctl(dev, &ctl, false);

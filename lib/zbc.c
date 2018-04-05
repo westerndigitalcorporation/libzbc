@@ -453,6 +453,9 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 				     " to convert is unlimited\n");
 	}
 
+	fprintf(out, "    MUTATE command set is %ssupported\n",
+		(info->zbd_flags & ZBC_MUTATE_SUPPORT) ? "" : "NOT ");
+
 	fflush(out);
 }
 
@@ -940,6 +943,23 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	return wr_count;
+}
+
+int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
+{
+	if (!zbc_dev_supports_mutate(dev)) {
+		zbc_error("%s: Device doesn't support MUTATE\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_mutate) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: MUTATE is not implemented in driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	return (dev->zbd_drv->zbd_mutate)(dev, mt);
 }
 
 /**
