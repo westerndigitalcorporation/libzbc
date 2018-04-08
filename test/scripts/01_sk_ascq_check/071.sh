@@ -16,17 +16,19 @@
 
 zbc_test_init $0 "WRITE sequential zone boundary violation" $*
 
-# Set expected error code
-expected_sk="Illegal-request"
-expected_asc="Write-boundary-violation"
-
 # Get drive information
 zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
+    # No error expected
+    expected_sk=""
+    expected_asc=""
 else
     zone_type="0x2"
+    # Set expected error code
+    expected_sk="Illegal-request"
+    expected_asc="Write-boundary-violation"
 fi
 
 # Get zone information

@@ -16,17 +16,19 @@
 
 zbc_test_init $0 "WRITE unaligned write in sequential zone" $*
 
-# Set expected error code
-expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"
-
 # Get drive information
 zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
+    # No error expected
+    expected_sk=""
+    expected_asc=""
 else
     zone_type="0x2"
+    # Set expected error code
+    expected_sk="Illegal-request"
+    expected_asc="Unaligned-write-command"
 fi
 
 # Get zone information
