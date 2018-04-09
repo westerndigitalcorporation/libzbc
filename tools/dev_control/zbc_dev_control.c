@@ -74,7 +74,7 @@ usage:
 			i++;
 			if (isdigit(argv[i][0]))
 				mt = strtol(argv[i], NULL, 0);
-			else if (strcmp(argv[i], "legacy") == 0)
+			else if (strcmp(argv[i], "PMR") == 0)
 				mt = ZBC_MT_NON_ZONED;
 			else if (strcmp(argv[i], "HM") == 0)
 				mt = ZBC_MT_HM_ZONED;
@@ -154,6 +154,9 @@ usage:
 			ret = 1;
 			goto out;
 		}
+
+		if (mt == ZBC_MT_NON_ZONED)
+			return 0;
 
 		/* Need to reopen the device to receive the updated info */
 		zbc_close(dev);

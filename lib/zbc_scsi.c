@@ -328,6 +328,9 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		zbc_debug("%s: Standard SCSI block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+		if (dev->zbd_info.zbd_flags & ZBC_MUTATE_SUPPORT)
+			return 0;
+		else
 		return -ENXIO;
 
 	case 0x01:

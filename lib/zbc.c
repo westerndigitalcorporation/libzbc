@@ -433,6 +433,7 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
 	}
 
+	if (info->zbd_model != ZBC_DM_STANDARD)
 	fprintf(out, "    Zone Activation command set is %ssupported\n",
 		(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
 	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
