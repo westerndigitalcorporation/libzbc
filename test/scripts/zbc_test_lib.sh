@@ -822,7 +822,7 @@ function zbc_test_calc_nr_domain_zones()
 		if [ "$(expr ${2} + 0)" -ge "${domain_num}" ]; then
 
 			nr_conv_zones=$(expr ${nr_conv_zones} + ${5})
-			nr_seq_zones=$(expr ${nr_conv_zones} + ${7})
+			nr_seq_zones=$(expr ${nr_seq_zones} + ${7})
 			_nr_domains=$(expr ${_nr_domains} - 1)
 
 		fi

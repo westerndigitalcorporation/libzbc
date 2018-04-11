@@ -1461,30 +1461,107 @@ enum zbc_mutation_target {
 	/**
 	 * DH-SMR Zone Activation device, no CMR-only zones.
 	 */
-	ZBC_MT_ZA_NO_CMR	= 0x04,
+	ZBC_MT_ZONE_ACT		= 0x04,
 
-	/**
-	 * DH-SMR Zone Activation device, 1 CMR-only domain at the bottom.
-	 */
-	ZBC_MT_ZA_1_CMR_BOT	= 0x05,
-
-	/**
-	 * DH-SMR Zone Activation device, 1 CMR-only domain
-	 * at the bottom and 1 CMR-only domain at the top.
-	 */
-	ZBC_MT_ZA_1_CMR_BOT_TOP	= 0x06,
 };
 
 /**
+ * @brief Options for PMR device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+	 */
+enum zbc_mutation_opt_nz {
+	ZBC_MO_UNKNOWN		= 0x00,
+
+	/*
+	 * Legacy PMR device.
+	 */
+	ZBC_MO_NZ_GENERIC	= 0x01,
+};
+
+/**
+ * @brief Options for HM and HA SMR device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_opt_smr {
+	ZBC_MO_SMR_UNKNOWN      = 0x00, /* Reserved */
+	ZBC_MO_SMR_NO_CMR       = 0x01, /* SMR with no CMR zones */
+	ZBC_MO_SMR_1PCNT_B      = 0x02, /* SMR with 1% of CMR zones at bottom */
+	ZBC_MO_SMR_2PCNT_BT     = 0x03, /* SMR with 2% of CMR zones at bottom */
+					/* and one CMR zone below high LBA */
+ };
+
+/**
+ * @brief Options Zone Activation device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_opt_za {
+	ZBC_MO_ZA_UNKNOWN       = 0x00, /* Reserved */
+	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR domains */
+	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR domain at bottom */
+	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR domains at bottom and top */
+};
+
+/*
+ * @brief Combined options for all mutation types.
+ */
+union zbc_mutation_opt {
+	enum zbc_mutation_opt_nz nz;
+	enum zbc_mutation_opt_smr smr;
+	enum zbc_mutation_opt_za za;
+};
+
+/*
+ * @brief The record returned by REPORT MUTATIONS command.
+ */
+struct zbc_supported_mutation {
+	enum zbc_mutation_target zbs_mt;
+	union zbc_mutation_opt zbs_opt;
+};
+
+/*
+ * @brief Provide the list of mutation types/options supported by the device.
+ *
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] sm		Caller supplied buffer to get supported mutations.
+ * @param[out] nr_sm_recs	The number of returned supported mutations
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_report_mutations(struct zbc_device *dev,
+				struct zbc_supported_mutation *sm,
+				unsigned int *nr_sm_recs);
+
+/**
+ * @brief Provide the number of mutation types/options supported by the device.
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] nr_sm_recs	The number of returned supported mutations
+ *
+ * Similar to \a zbc_report_mutations, but returns only the number of
+ * supported mutation records that \a zbc_report_mutations would have returned.
+ * This is useful to determine the total number of records in order to
+ * to allocate an array of supported mutation records for use with
+ * \a zbc_report_mutations.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_report_nr_rpt_mutations(struct zbc_device *dev,
+					      unsigned int *nr_sm_recs)
+{
+	return zbc_report_mutations(dev, NULL, nr_sm_recs);
+}
+
+/**
  * @brief Mutate this device to a new type (legacy, SMR, DH-SMR, etc.)
- * @param[in] mt		Mutation target type
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] mt	Mutation target device type
+ * @param[in] opt	Mutation option (model)
  *
  * Mutation can be performed either between the fundamental types, such as
  * Legacy CMR to zoned SMR, or in more fine tuned way, such as adding
- * or removing CMR-only zones (FIXME need to have a way to find supported
- * types - GET MUTATION TYPES command?).
+ * or removing CMR-only zones.
  */
-extern int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt);
+extern int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+		      union zbc_mutation_opt opt);
 
 /**
  * @brief Read sectors from a device

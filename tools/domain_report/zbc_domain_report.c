@@ -23,7 +23,7 @@
 
 #define ZBC_O_DRV_MASK (ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
-static void zbc_report_print_domain(struct zbc_device_info *info,
+static void zbc_print_domain(struct zbc_device_info *info,
 				    struct zbc_cvt_domain *d)
 {
 	if (zbc_cvt_domain_conventional(d) || zbc_cvt_domain_sequential(d)) {
@@ -140,7 +140,7 @@ usage:
 	}
 
 	for (i = 0; i < (int)nd; i++)
-		zbc_report_print_domain(&info, &domains[i]);
+		zbc_print_domain(&info, &domains[i]);
 
 out:
 	if (domains)

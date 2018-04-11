@@ -84,10 +84,18 @@ struct zbc_drv {
 					     uint32_t *);
 
 	/**
-	 * Mutate the device to a different type.
+	 * Receive a list of supported mutation types and options.
+	 */
+	int		(*zbd_report_mutations)(struct zbc_device *,
+						struct zbc_supported_mutation *,
+						unsigned int *);
+
+	/**
+	 * Mutate the device to a different type/model.
 	 */
 	int		(*zbd_mutate)(struct zbc_device *,
-				      enum zbc_mutation_target);
+				      enum zbc_mutation_target,
+				      union zbc_mutation_opt);
 
 	/**
 	 * Read from a ZBC device.

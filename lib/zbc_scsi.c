@@ -78,12 +78,23 @@
  * to the first byte of the actual page.
  */
 #define ZBC_MODE_PAGE_OFFSET		12
+
 /**
  * ZONE PROVISIONING mode page and subpage numbers.
  * FIXME The values below are in vendor-specific range and will change
  */
 #define ZBC_ZONE_PROV_MODE_PG		0x3d
 #define ZBC_ZONE_PROV_MODE_SUBPG	0x08
+
+/**
+ * REPORT MUTATIONS output header size
+ */
+#define ZBC_MUTATE_RPT_HEADER_SIZE	32
+
+/**
+ * REPORT MUTATIONS output record size
+ */
+#define ZBC_MUTATE_RPT_RECORD_SIZE	8
 
 /**
  * Fill the buffer with the result of INQUIRY command.
@@ -1230,10 +1241,104 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	return ret;
 }
 
+int zbc_scsi_report_mutations(struct zbc_device *dev,
+			      struct zbc_supported_mutation *sm,
+			      unsigned int *nr_sm_recs)
+{
+	size_t bufsz = ZBC_MUTATE_RPT_HEADER_SIZE;
+	unsigned int i, nrecs = 0, buf_nrecs;
+	struct zbc_sg_cmd cmd;
+	size_t max_bufsz;
+	uint8_t *buf;
+	int ret;
+
+	if (*nr_sm_recs)
+		bufsz += (size_t)*nr_sm_recs * ZBC_MUTATE_RPT_RECORD_SIZE;
+
+	/* For in kernel ATA translation: align to 512 B */
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize report mutations command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_MUTATIONS, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (04h)                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                                                                       |
+	 * |- - -+---                             Reserved                            ---|
+	 * | 9   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                                 Control                               |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_MUTATIONS_CDB_SA;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_MUTATE_RPT_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_MUTATE_RPT_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get number of records in result */
+	buf = (uint8_t *)cmd.out_buf;
+	nrecs = zbc_sg_get_int32(buf) / ZBC_MUTATE_RPT_RECORD_SIZE;
+
+	if (!*nr_sm_recs)
+		goto done;
+	if (!sm || !nrecs)
+		goto out;
+
+	/* Calculate the number of records to output */
+	if (nrecs > *nr_sm_recs)
+		nrecs = *nr_sm_recs;
+
+	buf_nrecs = (cmd.out_bufsz - ZBC_MUTATE_RPT_HEADER_SIZE)
+		/ ZBC_MUTATE_RPT_RECORD_SIZE;
+	if (nrecs > buf_nrecs)
+		nrecs = buf_nrecs;
+
+	/* Output the supported mutation records */
+	buf += ZBC_MUTATE_RPT_HEADER_SIZE;
+	for (i = 0; i < nrecs; i++) {
+		sm[i].zbs_mt = buf[0] & 0x0f;
+		sm[i].zbs_opt.nz = zbc_sg_get_int32(&buf[4]);
+
+		buf += ZBC_MUTATE_RPT_RECORD_SIZE;
+	}
+
+out:
+	/* Return number of supported mutations */
+	*nr_sm_recs = nrecs;
+done:
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
 /**
  * Mutate a device to a different type, PMR <-> SMR <-> DH-SMR.
  */
-static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
+static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+			   union zbc_mutation_opt opt)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
@@ -1252,9 +1357,15 @@ static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 1   |         Reserved         |             Service Action (05h)           |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |                             Mutation target                           |
+	 * | 2   |                          Mutation target type                         |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   |                                                                       |
+	 * | 3   |                                Reserved                               |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   | (MSB)                                                                 |
+	 * |- - -+---                     Mutation option (model)                     ---|
+	 * | 7   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 8   |                                                                       |
 	 * |- - -+---                             Reserved                            ---|
 	 * | 14  |                                                                       |
 	 * |-----+-----------------------------------------------------------------------|
@@ -1264,6 +1375,7 @@ static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
 	cmd.cdb[0] = ZBC_SG_MUTATE_CDB_OPCODE;
 	cmd.cdb[1] = ZBC_SG_MUTATE_CDB_SA;
 	cmd.cdb[2] = mt;
+	zbc_sg_set_int32(&cmd.cdb[4], (unsigned int)opt.nz);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -1695,6 +1807,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_domain_report	= zbc_scsi_domain_report,
 	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
+	.zbd_report_mutations	= zbc_scsi_report_mutations,
 	.zbd_mutate		= zbc_scsi_mutate,
 };
 

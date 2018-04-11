@@ -946,13 +946,54 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	return wr_count;
 }
 
-int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
+/**
+ * zbc_report_mutations - Get all the mutation types and options
+ * 			  supported by the device.
+ */
+int zbc_report_mutations(struct zbc_device *dev,
+			struct zbc_supported_mutation *sm,
+			unsigned int *nr_sm_recs)
+{
+	int ret;
+
+	if (!zbc_dev_supports_mutate(dev)) {
+		zbc_error("%s: Device doesn't support MUTATE\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_report_mutations) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: REPORT MUTATIONS is not implemented in driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!sm)
+		/* Just get the number of supported options */
+		return (dev->zbd_drv->zbd_report_mutations)(dev, NULL, nr_sm_recs);
+
+	/* Get the mutation types/options */
+	ret = (dev->zbd_drv->zbd_report_mutations)(dev, sm, nr_sm_recs);
+	if (ret != 0) {
+		zbc_error("%s: REPORT MUTATIONS failed %d (%s)\n",
+			  dev->zbd_filename,
+			  ret, strerror(-ret));
+		return ret;
+	}
+
+	return 0;
+}
+
+int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+	       union zbc_mutation_opt opt)
 {
 	if (!zbc_dev_supports_mutate(dev)) {
 		zbc_error("%s: Device doesn't support MUTATE\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
+
 	if (!dev->zbd_drv->zbd_mutate) {
 		/* FIXME need to implement! */
 		zbc_warning("%s: MUTATE is not implemented in driver\n",
@@ -960,7 +1001,7 @@ int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt)
 		return -ENOTSUP;
 	}
 
-	return (dev->zbd_drv->zbd_mutate)(dev, mt);
+	return (dev->zbd_drv->zbd_mutate)(dev, mt, opt);
 }
 
 /**

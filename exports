@@ -29,6 +29,7 @@ global:
 	zbc_get_nr_cvt_records;
 	zbc_zone_query_list;
 	zbc_zone_activation_ctl;
+	zbc_report_mutations;
 	zbc_mutate;
 	zbc_pread;
 	zbc_pwrite;

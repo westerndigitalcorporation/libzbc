@@ -47,6 +47,7 @@ enum {
 	ZBC_SG_ZONE_QUERY_16,
 	ZBC_SG_ZONE_ACTIVATE_32,
 	ZBC_SG_ZONE_QUERY_32,
+	ZBC_SG_REPORT_MUTATIONS,
 	ZBC_SG_MUTATE,
 	ZBC_SG_ATA16,
 
@@ -172,6 +173,13 @@ enum {
 
 #define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x03 /* FIXME value TBD */
 #define ZBC_SG_ZONE_QUERY_32_CDB_SA		0XF801 /*FIXME value TBD */
+
+/**
+ * Report mutations command definition.
+ */
+#define ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE	0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_MUTATIONS_CDB_SA		0x04
+#define ZBC_SG_REPORT_MUTATIONS_CDB_LENGTH	16
 
 /**
  * Mutate command definition.
