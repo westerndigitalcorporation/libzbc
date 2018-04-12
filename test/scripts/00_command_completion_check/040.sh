@@ -35,7 +35,7 @@ zbc_test_get_zone_info
 target_lba="0"
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 -a "${zone_activation_device}" != "0" ]; then
-    zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0xc"
+    zbc_test_print_not_applicable
 fi
 target_lba=${target_slba}
 
