@@ -32,7 +32,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all convertable domains are contiguious
+zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_seq_domains
+if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -ge ${nr_domains} ]; then
+    nr_cvt_to_seq_domains=$(expr "${nr_domains}" - 1)
+fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} ${nr_cvt_to_seq_domains} "seq"

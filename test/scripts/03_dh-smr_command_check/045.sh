@@ -32,7 +32,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all convertable domains are contiguious
+zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_conv_domains
+if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -ge ${nr_domains} ]; then
+    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - 1)
+fi
 
 # Calculate the total number of zones in this range of domains
 zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_conv_domains}

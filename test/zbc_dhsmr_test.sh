@@ -39,6 +39,7 @@ function zbc_print_usage()
 	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
 	echo "  -f | --format            : Force formatting of the test device. By default, only"
 	echo "                             TCMU emulated device is formatted."
+	echo "  -n | --noformat          : Skip formatting of the test device."
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -107,6 +108,7 @@ print_list=0
 batch_mode=0
 force_ata=0
 format_dut=0
+skip_format_dut=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -135,6 +137,9 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-f | --format )
 		format_dut=1
+		;;
+	-n | --noformat )
+		skip_format_dut=1
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -333,10 +338,12 @@ function zbc_run_section()
 }
 
 # Reset the device if needed
-zbc_reset_test_device
-if [ $? -ne 0 ]; then
-	echo "Can't reset test device"
-	exit 1
+if [ ${skip_format_dut} -eq 0 ]; then
+    zbc_reset_test_device
+        if [ $? -ne 0 ]; then
+	    echo "Can't reset test device"
+	    exit 1
+    fi
 fi
 
 # Run tests
