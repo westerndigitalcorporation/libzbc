@@ -1213,7 +1213,7 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	if (!set) {
 		memset(ctl, 0, sizeof(*ctl));
 		ctl->zbm_nr_zones = zbc_sg_get_int32(&mode_page[0]);
-		ctl->zbm_cmr_wp_check = mode_page[6];
+		ctl->zbm_urswrz = mode_page[6];
 		return ret;
 	}
 
@@ -1221,8 +1221,8 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 		zbc_sg_set_int32(&mode_page[0], ctl->zbm_nr_zones);
 		update = true;
 	}
-	if (ctl->zbm_cmr_wp_check != 0xff) {
-		mode_page[6] = ctl->zbm_cmr_wp_check;
+	if (ctl->zbm_urswrz != 0xff) {
+		mode_page[6] = ctl->zbm_urswrz;
 		update = true;
 	}
 
@@ -1509,10 +1509,10 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ, Zone Activation support and CWPCS flags */
+	/* URSWRZ, Zone Activation support and WRSWRZ_SET flags */
 	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
-	di->zbd_flags |= (buf[4] & 0x10) ? ZBC_CONV_WP_CHECK_SUPPORT : 0;
+	di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
 
 	/* Maximum number of zones for resource management */
 	if (di->zbd_model == ZBC_DM_HOST_AWARE) {
@@ -1557,19 +1557,6 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	}
 
 	di->zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
-
-	if ((di->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) &&
-	    (di->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT)) {
-		struct zbc_zp_dev_control ctl;
-
-		/* Get the current CMR write pointer check setting */
-		ret = zbc_scsi_dev_control(dev, &ctl, false);
-		if (!ret)
-			di->zbd_flags |= ctl.zbm_cmr_wp_check ?
-					 ZBC_CONV_WP_CHECK : 0;
-	}
-
-	dev->zbd_info.zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
 
 	return 0;
 }

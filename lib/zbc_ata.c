@@ -525,7 +525,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		 * proposal, layout is preliminary.
 		 */
 		dev->zbd_info.zbd_flags |= (qwd & 0x08ULL) ?
-					   ZBC_CONV_WP_CHECK_SUPPORT : 0;
+					   ZBC_URSWRZ_SET_SUPPORT : 0;
 
 		/*
 		 * FIXME the following field is not in

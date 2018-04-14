@@ -31,8 +31,8 @@ static void zbc_print_supported_mutations(struct zbc_supported_mutation *sm)
 
 static void zbc_print_zone_activation_settings(struct zbc_zp_dev_control *ctl)
 {
-	printf("FSONZ: %u, CMR WP Check: %s\n",
-	       ctl->zbm_nr_zones, ctl->zbm_cmr_wp_check ? "Y" : "N");
+	printf("FSONZ: %u, URSWRZ: %s\n",
+	       ctl->zbm_nr_zones, ctl->zbm_urswrz ? "Y" : "N");
 }
 
 int main(int argc, char **argv)
@@ -45,8 +45,8 @@ int main(int argc, char **argv)
 	struct zbc_supported_mutation *sm = NULL;
 	unsigned int nr_sm_recs, nrecs;
 	int i, ret = 1, nz = 0;
-	bool upd = false, wp_check = false, set_nz = false;
-	bool list_mu = false, set_wp_chk = false;
+	bool upd = false, urswrz = false, set_nz = false;
+	bool list_mu = false, set_urswrz = false;
 	char *path;
 
 	/* Check command line */
@@ -59,7 +59,7 @@ usage:
 		       "  -mu <type> <model>      : Mutate to the specified numeric type and model\n"
 		       "  -mu <target>            : Mutate to the specified target\n\n"
 		       "  -nz <num>               : Set the default number of zones to convert\n"
-		       "  -wpc y|n                : Enable of disable CMR write pointer check\n\n"
+		       "  -ur y|n                 : Enable of disable unrestricted reads\n\n"
 		       "Mutation targets:\n"
 		       "  NON_ZONED               : A classic, not zoned, device\n"
 		       "  HM_ZONED                : Host-managed SMR device, no CMR zones\n"
@@ -142,20 +142,20 @@ usage:
 			set_nz = true;
 		} else if (strcmp(argv[i], "-lm") == 0) {
 			list_mu = true;
-		} else if (strcmp(argv[i], "-wpc") == 0) {
+		} else if (strcmp(argv[i], "-ur") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
 
 			if (strcmp(argv[i], "y") == 0)
-				wp_check = true;
+				urswrz = true;
 			else if (strcmp(argv[i], "n") == 0)
-				wp_check = false;
+				urswrz = false;
 			else {
-				fprintf(stderr, "-wpc value must be y or n\n");
+				fprintf(stderr, "-ur value must be y or n\n");
 				goto usage;
 			}
-			set_wp_chk = true;
+			set_urswrz = true;
 		} else if (argv[i][0] == '-') {
 			fprintf(stderr, "Unknown option \"%s\"\n",
 				argv[i]);
@@ -256,7 +256,7 @@ skip_lm:
 	}
 
 	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
-		if (set_nz || set_wp_chk) {
+		if (set_nz || set_urswrz) {
 			fprintf(stderr, "Not a Zone Activation device\n");
 			ret = 1;
 		}
@@ -276,8 +276,8 @@ skip_lm:
 		ctl.zbm_nr_zones = nz;
 		upd = true;
 	}
-	if (set_wp_chk) {
-		ctl.zbm_cmr_wp_check = wp_check ? 0x01 : 0x00;
+	if (set_urswrz) {
+		ctl.zbm_urswrz = urswrz ? 0x01 : 0x00;
 		upd = true;
 	}
 

@@ -437,20 +437,15 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	fprintf(out, "    Zone Activation command set is %ssupported\n",
 		(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
 	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
-		fprintf(out, "    Conventional zone write pointer check"
-			     " is %ssupported\n",
-			(info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) ?
+		if (info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT)
+			fprintf(out, "    Unrestricted read control is %ssupported\n",
+				(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ?
 			 "" : "not ");
-		if (info->zbd_flags & ZBC_CONV_WP_CHECK_SUPPORT) {
-		fprintf(out, "    Conventional zone write pointer check"
-			     " is %senabled\n",
-			(info->zbd_flags & ZBC_CONV_WP_CHECK) ? "" : "not ");
-		}
 		if (info->zbd_max_conversion != 0)
-			fprintf(out, "    Maximum number of domains to convert: %u\n",
+			fprintf(out, "    Maximum number of zones to convert: %u\n",
 				info->zbd_max_conversion);
 		else
-			fprintf(out, "    Maximum number of domains"
+			fprintf(out, "    Maximum number of zones"
 				     " to convert is unlimited\n");
 	}
 

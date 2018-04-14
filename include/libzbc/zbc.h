@@ -492,9 +492,12 @@ struct zbc_zp_dev_control {
 	uint32_t		zbm_nr_zones;
 
 	/**
-	 * @brief CMR WP Check setting. Zero value means off.
+	 * @brief URSWRZ setting. Zero value means off.
+	 *
+	 * FIXME setting URSWRZ this way is vendor-specific.
+	 * A standard method should be eventually defined.
 	 */
-	uint8_t			zbm_cmr_wp_check;
+	uint8_t			zbm_urswrz;
 
 };
 
@@ -635,16 +638,9 @@ enum zbc_dev_flags {
 
 	/**
 	 * Indicates that checking write pointer for conventional zones
-	 * is enabled. It can only be set if ZBC_CONV_WP_CHECK_SUPPORT
-	 * is set.
-	 */
-	ZBC_CONV_WP_CHECK = 0x00000008,
-
-	/**
-	 * Indicates that checking write pointer for conventional zones
 	 * is supported.
 	 */
-	ZBC_CONV_WP_CHECK_SUPPORT = 0x00000010,
+	ZBC_URSWRZ_SET_SUPPORT = 0x00000008,
 };
 
 /**
