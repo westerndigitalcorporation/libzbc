@@ -861,7 +861,6 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 		zbc_sg_set_int16(&cmd.cdb[13], (uint16_t)nr_zones);
 	}
 	cmd.cdb[2] = new_type & 0x0f; /* Activate Zone Type */
-	/* FIXME add Deactivate Zone Type */
 	zbc_sg_set_int48(&cmd.cdb[3], zone_start_id);
 	zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)bufsz);
 
@@ -887,7 +886,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 	 * to return if they are set. For now, just check
 	 * CONVERTED bit.
 	 */
-	if ((buf[5] & 0x80) == 0) {
+	if ((buf[4] & 0x80) == 0) {
 		zbc_warning("%s: Zones %s converted\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not");
@@ -1044,7 +1043,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 	 * to return if they are set. For now, just check
 	 * CONVERTED bit.
 	 */
-	if ((buf[5] & 0x80) == 0) {
+	if ((buf[4] & 0x80) == 0) {
 		zbc_warning("%s: Zones %s converted\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not");
@@ -1214,6 +1213,7 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 		memset(ctl, 0, sizeof(*ctl));
 		ctl->zbm_nr_zones = zbc_sg_get_int32(&mode_page[0]);
 		ctl->zbm_urswrz = mode_page[6];
+		ctl->zbm_max_activate = zbc_sg_get_int16(&mode_page[12]);
 		return ret;
 	}
 
@@ -1223,6 +1223,10 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	}
 	if (ctl->zbm_urswrz != 0xff) {
 		mode_page[6] = ctl->zbm_urswrz;
+		update = true;
+	}
+	if (ctl->zbm_max_activate != 0xffff) {
+		zbc_sg_set_int16(&mode_page[12], ctl->zbm_max_activate);
 		update = true;
 	}
 

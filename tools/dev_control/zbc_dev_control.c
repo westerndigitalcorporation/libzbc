@@ -31,8 +31,8 @@ static void zbc_print_supported_mutations(struct zbc_supported_mutation *sm)
 
 static void zbc_print_zone_activation_settings(struct zbc_zp_dev_control *ctl)
 {
-	printf("FSONZ: %u, URSWRZ: %s\n",
-	       ctl->zbm_nr_zones, ctl->zbm_urswrz ? "Y" : "N");
+	printf("FSONZ: %u, URSWRZ: %s, MAX ACTIVATION: %u\n",
+	       ctl->zbm_nr_zones, ctl->zbm_urswrz ? "Y" : "N", ctl->zbm_max_activate);
 }
 
 int main(int argc, char **argv)
@@ -44,9 +44,9 @@ int main(int argc, char **argv)
 	union zbc_mutation_opt opt;
 	struct zbc_supported_mutation *sm = NULL;
 	unsigned int nr_sm_recs, nrecs;
-	int i, ret = 1, nz = 0;
+	int i, ret = 1, nz = 0, max_activate = 0;
 	bool upd = false, urswrz = false, set_nz = false;
-	bool list_mu = false, set_urswrz = false;
+	bool list_mu = false, set_urswrz = false, set_max_activate = false;
 	char *path;
 
 	/* Check command line */
@@ -59,7 +59,8 @@ usage:
 		       "  -mu <type> <model>      : Mutate to the specified numeric type and model\n"
 		       "  -mu <target>            : Mutate to the specified target\n\n"
 		       "  -nz <num>               : Set the default number of zones to convert\n"
-		       "  -ur y|n                 : Enable of disable unrestricted reads\n\n"
+		       "  -ur y|n                 : Enable of disable unrestricted reads\n"
+		       "  -maxd <num>|\"unlimited\" : Set the maximum number of domains to activate\n\n"
 		       "Mutation targets:\n"
 		       "  NON_ZONED               : A classic, not zoned, device\n"
 		       "  HM_ZONED                : Host-managed SMR device, no CMR zones\n"
@@ -140,6 +141,21 @@ usage:
 				goto usage;
 			}
 			set_nz = true;
+		} else if (strcmp(argv[i], "-maxd") == 0) {
+			if (i >= (argc - 1))
+				goto usage;
+			i++;
+
+			if (strcmp(argv[i], "unlimited") == 0) {
+				max_activate = 0xfffe;
+			} else {
+				max_activate = strtol(argv[i], NULL, 10);
+				if (max_activate <= 0) {
+					fprintf(stderr, "invalid -maxd value\n");
+					goto usage;
+				}
+			}
+			set_max_activate = true;
 		} else if (strcmp(argv[i], "-lm") == 0) {
 			list_mu = true;
 		} else if (strcmp(argv[i], "-ur") == 0) {
@@ -256,7 +272,7 @@ skip_lm:
 	}
 
 	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
-		if (set_nz || set_urswrz) {
+		if (set_nz || set_urswrz || set_max_activate) {
 			fprintf(stderr, "Not a Zone Activation device\n");
 			ret = 1;
 		}
@@ -280,12 +296,32 @@ skip_lm:
 		ctl.zbm_urswrz = urswrz ? 0x01 : 0x00;
 		upd = true;
 	}
+	if (set_max_activate) {
+		ctl.zbm_max_activate = max_activate;
+		upd = true;
+	}
 
 	if (upd) {
+		if (!set_nz)
+			ctl.zbm_nr_zones = 0xffffffff;
+		if (!set_urswrz)
+			ctl.zbm_urswrz = 0xff;
+		if (!set_max_activate)
+			ctl.zbm_max_activate = 0xffff;
+
 		/* Need to change some values, request the device to update */
 		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {
 			fprintf(stderr, "zbc_zone_activation_ctl set failed %d\n",
+				ret);
+			ret = 1;
+			goto out;
+		}
+
+		/* Read back all the persistent DH-SMR settings */
+		ret = zbc_zone_activation_ctl(dev, &ctl, false);
+		if (ret != 0) {
+			fprintf(stderr, "zbc_zone_activation_ctl get failed %d\n",
 				ret);
 			ret = 1;
 			goto out;

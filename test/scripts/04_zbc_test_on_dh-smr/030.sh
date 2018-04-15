@@ -29,9 +29,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # Find the total number of convertible domains
+zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_conv_domains
 if [ $nr_cvt_to_conv_domains -eq 0 ]; then
     zbc_test_print_failed
+fi
+if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -ge ${nr_domains} ]; then
+    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - 1)
 fi
 
 # Convert the domains

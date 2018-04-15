@@ -492,6 +492,11 @@ struct zbc_zp_dev_control {
 	uint32_t		zbm_nr_zones;
 
 	/**
+	 * @brief Maximum number of LBA domains that can be activated at once.
+	 */
+	uint16_t		zbm_max_activate;
+
+	/**
 	 * @brief URSWRZ setting. Zero value means off.
 	 *
 	 * FIXME setting URSWRZ this way is vendor-specific.

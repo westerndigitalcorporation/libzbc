@@ -442,11 +442,11 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 				(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ?
 			 "" : "not ");
 		if (info->zbd_max_conversion != 0)
-			fprintf(out, "    Maximum number of zones to convert: %u\n",
+			fprintf(out, "    Maximum number of zones to activate: %u\n",
 				info->zbd_max_conversion);
 		else
 			fprintf(out, "    Maximum number of zones"
-				     " to convert is unlimited\n");
+				     " to activate is unlimited\n");
 	}
 
 	fprintf(out, "    MUTATE command set is %ssupported\n",
