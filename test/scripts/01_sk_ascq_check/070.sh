@@ -39,8 +39,8 @@ no_zones=0
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc"
 if [ $? -ne 0 -a "${zone_activation_device}" != "0" ]; then
     no_zones=1
-    expected_sk="Medium-error"
-    expected_asc="Zone-is-offline"
+    expected_sk="Aborted-command"
+    expected_asc="Zone-is-inactive"
 fi
 target_lba=$(( ${target_ptr} + 1 ))
 

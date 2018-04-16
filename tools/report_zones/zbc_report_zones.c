@@ -67,9 +67,9 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_condition_str(zbc_zone_condition(z)),
 		       start,
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-		       zbc_zone_start(z),
+				  zbc_zone_start(z),
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-		       zbc_zone_length(z),
+				  zbc_zone_length(z),
 		       length);
 		return;
 	}
@@ -197,6 +197,8 @@ usage:
 				ro = ZBC_RO_RDONLY;
 			} else if (strcmp(argv[i], "offline") == 0) {
 				ro = ZBC_RO_OFFLINE;
+			} else if (strcmp(argv[i], "inactive") == 0) {
+				ro = ZBC_RO_INACTIVE;
 			} else if (strcmp(argv[i], "reset") == 0) {
 				ro = ZBC_RO_RWP_RECOMMENDED;
 			} else if (strcmp(argv[i], "non_seq") == 0) {

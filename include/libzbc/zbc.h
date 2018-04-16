@@ -138,31 +138,6 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
-	 * Conventional WP zone (Zone Activation devices only).
-	 */
-	ZBC_ZC_CONV_WP		= 0x05,
-
-	/**
-	 *  Conventional Clear zone (Zone Activation devices only).
-	 */
-	ZBC_ZC_CMR_CLEAR	= 0x6,
-
-	/**
-	 *  Write Pinter Conventional Empty zone (Zone Activation only).
-	 */
-	ZBC_ZC_WPC_EMPTY	= 0x7,
-
-	/**
-	 *  Write Pinter Conventional WP zone (Zone Activation devices only).
-	 */
-	ZBC_ZC_WPC_WP		= 0x8,
-
-	/**
-	 *  Write Pinter Conventional Full zone (Zone Activation devices only).
-	 */
-	ZBC_ZC_WPC_FULL		= 0x9,
-
-	/**
 	 * Inacive zone: an unmapped zone of a Zone Activation device.
 	 */
 	ZBC_ZC_INACTIVE		= 0x0c,
@@ -281,6 +256,9 @@ struct zbc_zone {
 /** @brief Test if a zone type is sequential write preferred */
 #define zbc_zone_sequential_pref(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
 
+/** @brief Test if a zone type is write pointer conventional */
+#define zbc_zone_conv_wp(z) ((z)->zbz_type == ZBC_ZT_WP_CONVENTIONAL)
+
 /** @brief Test if a zone type is sequential write required or preferred */
 #define zbc_zone_sequential(z) 	(zbc_zone_sequential_req(z) || \
 				 zbc_zone_sequential_pref(z))
@@ -290,9 +268,6 @@ struct zbc_zone {
 
 /** @brief Test if a zone condition is "not write pointer zone" */
 #define zbc_zone_not_wp(z)	((z)->zbz_condition == ZBC_ZC_NOT_WP)
-
-/** @brief Test if a zone condition is "CMR write pointer" */
-#define zbc_zone_conv_wp(z)	((z)->zbz_condition == ZBC_ZC_CONV_WP)
 
 /** @brief Test if a zone condition is empty */
 #define zbc_zone_empty(z)	((z)->zbz_condition == ZBC_ZC_EMPTY)
@@ -318,6 +293,9 @@ struct zbc_zone {
 
 /** @brief Test if a zone condition is offline */
 #define zbc_zone_offline(z)	((z)->zbz_condition == ZBC_ZC_OFFLINE)
+
+/** @brief Test if a zone condition is inactive */
+#define zbc_zone_inactive(z)	((z)->zbz_condition == ZBC_ZC_INACTIVE)
 
 /** @brief Test if a zone has the reset recommended flag set */
 #define zbc_zone_rwp_recommended(z) ((z)->zbz_attributes & \
@@ -820,6 +798,19 @@ enum zbc_asc_ascq {
 	/** Conversion type unsupported */
 	/* FIXME the exact sense code TBD */
 	ZBC_ASC_CONVERSION_TYPE_UNSUPP			= 0x210A,
+
+	/** Zone is inactive */
+	/* FIXME the exact sense code TBD */
+	ZBC_ASC_ZONE_IS_INACTIVE			= 0x2C11,
+
+	/** Read error */
+	ZBC_ASC_READ_ERROR				= 0x1100,
+
+	/** Write error */
+	ZBC_ASC_WRITE_ERROR				= 0x0C00,
+
+	/** Format in progress */
+	ZBC_ASC_FORMAT_IN_PROGRESS			= 0x0404,
 };
 
 /**
@@ -1019,6 +1010,11 @@ enum zbc_reporting_options {
 	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
 	 */
 	ZBC_RO_OFFLINE		= 0x07,
+
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_INACTIVE.
+	 */
+	ZBC_RO_INACTIVE		= 0x08,
 
 	/* 08h to 0Fh Reserved */
 
