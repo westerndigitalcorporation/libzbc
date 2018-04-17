@@ -801,7 +801,11 @@ enum zbc_asc_ascq {
 
 	/** Zone is inactive */
 	/* FIXME the exact sense code TBD */
-	ZBC_ASC_ZONE_IS_INACTIVE			= 0x2C11,
+	ZBC_ASC_ZONE_IS_INACTIVE			= 0x210B,
+
+	/** Zone needs resetting */
+	/* FIXME the exact sense code TBD */
+	ZBC_ASC_ZONE_NEEDS_RESETTING			= 0x210C,
 
 	/** Read error */
 	ZBC_ASC_READ_ERROR				= 0x1100,

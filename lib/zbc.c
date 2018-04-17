@@ -101,6 +101,10 @@ static struct zbc_sg_asc_ascq_s {
 		"Zone-is-inactive"
 	},
 	{
+		ZBC_ASC_ZONE_NEEDS_RESETTING,
+		"Zone-needs-resetting"
+	},
+	{
 		0,
 		NULL
 	}
