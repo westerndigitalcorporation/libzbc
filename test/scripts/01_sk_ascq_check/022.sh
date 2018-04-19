@@ -43,6 +43,8 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable
 fi
 
+nr_sect=$((physical_block_size/512))
+
 # Create closed zones
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do
@@ -54,7 +56,7 @@ for i in `seq $(( ${max_open} + 1 ))`; do
     zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
     target_lba=${target_slba}
 
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${nr_sect}
     zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
 done

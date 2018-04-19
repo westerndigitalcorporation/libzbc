@@ -39,7 +39,8 @@ zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
 
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} 8
+nr_sect=$((physical_block_size/512))
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${nr_sect}
 
 # Check result
 zbc_test_get_sk_ascq
