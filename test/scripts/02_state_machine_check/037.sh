@@ -38,7 +38,8 @@ zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+nr_sect=$((physical_block_size/512))
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${nr_sect}
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
 

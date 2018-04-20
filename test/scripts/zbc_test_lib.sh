@@ -110,6 +110,16 @@ function zbc_test_get_device_info()
 	max_lba=${2}
 	zbc_check_string "Failed to get maximum LBA" ${max_lba}
 
+	logical_block_size_line=`cat ${log_file} | grep -F "[LOGICAL_BLOCK_SIZE]"`
+	set -- ${logical_block_size_line}
+	logical_block_size=${2}
+	zbc_check_string "Failed to get logical block size" ${logical_block_size}
+
+	physical_block_size_line=`cat ${log_file} | grep -F "[PHYSICAL_BLOCK_SIZE]"`
+	set -- ${physical_block_size_line}
+	physical_block_size=${2}
+	zbc_check_string "Failed to get physical block size" ${physical_block_size}
+
 	unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
 	unrestricted_read=${2}

@@ -98,6 +98,14 @@ int main(int argc, char **argv)
 		(unsigned long long)info.zbd_lblocks - 1);
 
 	fprintf(stdout,
+		"[TEST][INFO][LOGICAL_BLOCK_SIZE],%llu\n",
+		(unsigned long long)info.zbd_lblock_size);
+
+	fprintf(stdout,
+		"[TEST][INFO][PHYSICAL_BLOCK_SIZE],%llu\n",
+		(unsigned long long)info.zbd_pblock_size);
+
+	fprintf(stdout,
 		"[TEST][INFO][URSWRZ],%x\n",
 		info.zbd_flags);
 

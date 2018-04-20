@@ -37,9 +37,11 @@ zbc_test_get_zone_info
 zbc_test_search_vals_from_zone_type ${zone_type}
 target_lba=$(( ${target_ptr} ))
 
+nr_sect=$((physical_block_size/512))
+
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 8
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${nr_sect}
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} ${nr_sect}
 
 # Check result
 zbc_test_get_sk_ascq
