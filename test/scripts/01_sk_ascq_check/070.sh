@@ -41,8 +41,10 @@ if [ $? -ne 0 -a "${zone_activation_device}" != "0" ]; then
     no_zones=1
     expected_sk="Aborted-command"
     expected_asc="Zone-is-inactive"
+    target_lba=$(( ${target_slba} ))
+else
+    target_lba=$(( ${target_ptr} + 1 ))
 fi
-target_lba=$(( ${target_ptr} + 1 ))
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}

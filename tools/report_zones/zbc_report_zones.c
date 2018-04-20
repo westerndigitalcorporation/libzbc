@@ -57,7 +57,7 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		return;
 	}
 
-	if (zbc_zone_conventional(z)) {
+	if (zbc_zone_conventional(z) || zbc_zone_inactive(z)) {
 		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
 		       "%llu %s\n",
 		       zno,
