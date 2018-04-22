@@ -843,6 +843,8 @@ function zbc_test_get_sk_ascq()
 {
 	sk=""
 	asc=""
+	err_za=""
+	err_cbf=""
 
 	local _IFS="${IFS}"
 	IFS=$',\n'
@@ -854,6 +856,14 @@ function zbc_test_get_sk_ascq()
 	local asc_line=`cat ${log_file} | grep -m 1 -F "[ASC_ASCQ]"`
 	set -- ${asc_line}
 	asc=${2}
+
+	err_za_line=`cat ${log_file} | grep -m 1 -F "[ERR_ZA]"`
+	set -- ${err_za_line}
+	err_za=${2}
+
+	err_cbf_line=`cat ${log_file} | grep -m 1 -F "[ERR_CBF]"`
+	set -- ${err_cbf_line}
+	err_cbf=${2}
 
 	IFS="$_IFS"
 }
@@ -892,12 +902,14 @@ function zbc_test_print_failed_sk()
 {
 	zbc_test_print_res "${red}" "Failed"
 
-	echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
 	echo "            => Expected ${expected_sk} / ${expected_asc}"
-	echo "               Got ${sk} / ${asc}"
 
-	if [ -n "$1" ]; then
-		echo "           FAIL INFO: $*" | tee -a ${log_file}
+	if [ -z "${err_za}" -a -z "${err_cbf}" ] ; then
+		echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
+	echo "               Got ${sk} / ${asc}"
+	else
+		echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})" >> ${log_file} 2>&1
+		echo "               Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})"
 	fi
 }
 
