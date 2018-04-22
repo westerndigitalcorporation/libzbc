@@ -45,7 +45,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} $
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
-+if [ -z "${sk}" ]; then
+if [ -z "${sk}" ]; then
     # Verify that no convertable conventional domains present
     zbc_test_get_cvt_domain_info
     zbc_test_search_domain_by_type_and_cvt "1" "seq"

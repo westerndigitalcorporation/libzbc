@@ -53,7 +53,7 @@ if [ ${func_ret} -gt 0 ]; then
 fi
 
 if [ ${next_zone_slba} != ${target_slba} ]; then
-    zbc_test_print_not_applicable "First active sequential zone at LBA={target_slba} is not contiguous with the last conventional zone"
+    zbc_test_print_not_applicable "First active sequential zone at LBA=${target_slba} is not contiguous with the last conventional zone"
 fi
 
 target_lba=$(( ${target_slba} - 1 ))
