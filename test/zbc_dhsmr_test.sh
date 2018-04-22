@@ -342,10 +342,12 @@ function zbc_run_section()
 # Reset the device if needed
 if [ ${skip_format_dut} -eq 0 ]; then
     zbc_reset_test_device
-        if [ $? -ne 0 ]; then
-	    echo "Can't reset test device"
-	    exit 1
+    if [ $? -ne 0 ]; then
+	echo "Can't reset test device"
+	exit 1
     fi
+    # Allow the main ACTIVATE tests to run unhindered
+    zbc_dev_control -maxd unlimited ${device}
 fi
 
 # Run tests
