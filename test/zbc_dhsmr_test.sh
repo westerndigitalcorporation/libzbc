@@ -95,7 +95,9 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     exit
 fi
 
-ZBC_TEST_LOG_PATH=log
+if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
+	ZBC_TEST_LOG_PATH=log
+fi
 
 # Handle arguments
 argv=("$@")
@@ -105,7 +107,7 @@ argimax=$((argc-1))
 exec_list=()
 skip_list=()
 print_list=0
-batch_mode=0
+export batch_mode=0
 force_ata=0
 format_dut=0
 skip_format_dut=0

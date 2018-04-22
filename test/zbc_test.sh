@@ -93,7 +93,7 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     exit
 fi
 
-if [[ -z ${ZBC_TEST_LOG_PATH} ]] ; then
+if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
 	ZBC_TEST_LOG_PATH=log
 fi
 
