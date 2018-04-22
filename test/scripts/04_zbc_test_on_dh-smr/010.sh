@@ -23,8 +23,13 @@ expected_asc=""
 
 #zbc_reset_test_device
 
+arg_b=""
+if [ ${batch_mode} -ne 0 ] ; then
+	arg_b="-b"
+fi
+
 # Start ZBC test
-zbc_test_meta_run ./zbc_test.sh -n ${device}
+zbc_test_meta_run ./zbc_test.sh ${arg_b} -n ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
     asc="ZBC test failed"

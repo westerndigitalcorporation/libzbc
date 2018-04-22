@@ -43,8 +43,13 @@ fi
 # Convert the domains
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
 
+arg_b=""
+if [ ${batch_mode} -ne 0 ] ; then
+	arg_b="-b"
+fi
+
 # Start ZBC test
-zbc_test_meta_run ./zbc_test.sh -n ${device}
+zbc_test_meta_run ./zbc_test.sh ${arg_b} -n ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
     asc="ZBC test failed"
