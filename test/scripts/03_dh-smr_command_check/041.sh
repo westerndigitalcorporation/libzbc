@@ -28,7 +28,7 @@ zbc_test_get_cvt_domain_info
 # Find the first SMR domain that is not convertible to SMR
 zbc_test_search_domain_by_type_and_cvt "2" "noconv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No domain currently SWR is convertible to conventional"
 fi
 
 # Start testing

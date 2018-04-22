@@ -31,7 +31,7 @@ zbc_test_get_target_zone_from_type "0x1"
 func_ret=$?
 
 if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No conventional zones"
 fi
 
 target_lba=$(( ${target_slba} ))

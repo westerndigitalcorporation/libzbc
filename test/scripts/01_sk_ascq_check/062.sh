@@ -33,7 +33,7 @@ zbc_test_search_last_zone_vals_from_zone_type "0x1"
 func_ret=$?
 
 if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No conventional zones"
 fi
 
 next_zone_slba=$(( ${target_slba} + ${target_size} ))
@@ -48,8 +48,12 @@ fi
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc"
 func_ret=$?
 
-if [ ${func_ret} -gt 0 -o ${next_zone_slba} != ${target_slba} ]; then
-    zbc_test_print_not_applicable
+if [ ${func_ret} -gt 0 ]; then
+    zbc_test_print_not_applicable "No active sequential zones"
+fi
+
+if [ ${next_zone_slba} != ${target_slba} ]; then
+    zbc_test_print_not_applicable "First active sequential zone at LBA={target_slba} is not contiguous with the last conventional zone"
 fi
 
 target_lba=$(( ${target_slba} - 1 ))
