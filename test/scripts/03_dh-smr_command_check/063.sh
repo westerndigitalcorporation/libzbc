@@ -28,7 +28,7 @@ zbc_test_get_cvt_domain_info
 # Find the first SMR domain that is convertable to CMR
 zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No domain currently SWR is convertible to conventional"
 fi
 
 # Assume that all convertable domains are contiguious
@@ -53,7 +53,7 @@ zbc_test_get_cvt_domain_info
 zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -eq 0 ]; then
     sk=${domain_num}
-    expected_sk=""
+    expected_sk="no-seq-to-conv"
     zbc_test_print_failed_sk
 fi
 

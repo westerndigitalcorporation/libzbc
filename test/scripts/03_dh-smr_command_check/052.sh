@@ -28,7 +28,7 @@ zbc_test_get_cvt_domain_info
 # Find a CMR domain that is convertable to SMR
 zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No domain currently conventional is convertible to sequential"
 fi
 
 # Assume that all convertable domains are contiguious
@@ -50,7 +50,7 @@ zbc_test_get_cvt_domain_info
 zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -eq 0 ]; then
     sk=${domain_num}
-    expected_sk=""
+    expected_sk="no-conv-to-seq"
     zbc_test_print_failed_sk
 fi
 
