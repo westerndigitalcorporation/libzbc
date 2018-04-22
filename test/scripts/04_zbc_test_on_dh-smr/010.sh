@@ -15,6 +15,8 @@
 
 zbc_test_init $0 "Run ZBC test on all-CMR device" $*
 
+export ZBC_TEST_LOG_PATH=allcmr
+
 # Set expected error code
 expected_sk=""
 expected_asc=""

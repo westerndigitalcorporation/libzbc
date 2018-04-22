@@ -15,6 +15,8 @@
 
 zbc_test_init $0 "Run ZBC test on mixed CMR-SMR device" $*
 
+export ZBC_TEST_LOG_PATH=mixed
+
 # Set expected error code
 expected_sk=""
 expected_asc=""
@@ -26,13 +28,17 @@ zbc_test_get_cvt_domain_info
 # Find a CMR domain that is convertible to SMR
 zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "No domain currently conventional is convertible to sequential"
 fi
 
 # Find the total number of convertible domains
+zbc_test_count_cvt_domains		# nr_domains
 zbc_test_count_cvt_to_seq_domains
 if [ $nr_cvt_to_seq_domains -eq 0 ]; then
     zbc_test_print_failed
+fi
+if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -gt ${nr_domains} ]; then
+    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
 fi
 
 # Take the first half
