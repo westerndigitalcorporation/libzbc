@@ -93,7 +93,9 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     exit
 fi
 
-ZBC_TEST_LOG_PATH=log
+if [[ -z ${ZBC_TEST_LOG_PATH} ]] ; then
+	ZBC_TEST_LOG_PATH=log
+fi
 
 # Handle arguments
 argv=("$@")
