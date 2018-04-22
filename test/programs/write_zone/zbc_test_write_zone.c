@@ -124,7 +124,7 @@ usage:
 	while (nio) {
 
 		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
-		if (ret <= 0) {
+		if (ret < 0) {
 			struct zbc_errno zbc_err;
 			const char *sk_name;
 			const char *ascq_name;
