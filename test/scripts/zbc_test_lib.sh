@@ -274,7 +274,7 @@ function zbc_zone_filter_out_cond()
 
 function zbc_test_count_zones()
 {
-	nr_zones=`zbc_zones | wc -l`
+	nr_zones=`cat ${zone_info_file} | grep "\[ZONE_INFO\]" | wc -l`
 }
 
 function zbc_test_count_conv_zones()
@@ -661,7 +661,7 @@ function zbc_test_get_cvt_domain_info()
 
 function zbc_test_count_cvt_domains()
 {
-	nr_domains=`cat ${cvt_domain_info_file} | wc -l`
+	nr_domains=`cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]" | wc -l`
 }
 
 function zbc_test_count_conv_domains()
@@ -827,6 +827,8 @@ function zbc_test_calc_nr_domain_zones()
 
 		fi
 
+		IFS="$_IFS"
+
 		if [ "${_nr_domains}" -eq 0 ]; then
 			return 0
 		fi
@@ -877,8 +879,8 @@ function zbc_test_print_passed()
 
 function zbc_test_print_not_applicable()
 {
-	zbc_test_print_res "" " N/A  $*"
-	exit 0
+	zbc_test_print_res "" " N/A  $1"
+	exit
 }
 
 function zbc_test_print_failed()
