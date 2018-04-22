@@ -24,7 +24,7 @@ expected_asc="Insufficient-zone-resources"
 zbc_test_get_device_info
 
 if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "Device is Host-aware"
 fi
 
 zone_type="0x2"
@@ -41,8 +41,14 @@ zbc_test_count_inactive_zones
 # Check number of sequential zones
 zbc_test_count_seq_zones
 
+#XXX Shouldn't this be subtracting the number of inactive SEQUENTIAL zones?
 if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_inactive_zones})) ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "Not enough active zones: (max_open=${max_open}) >= (nr_seq_zones=${nr_seq_zones}) - (nr_inactive_zones=${nr_inactive_zones})"
+fi
+
+# if max_open == -1 then it is "not reported"
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable "max_open not reported"
 fi
 
 # Open zones

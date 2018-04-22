@@ -41,17 +41,14 @@ zbc_test_count_inactive_zones
 # Check number of sequential zones
 zbc_test_count_seq_zones
 
+#XXX Shouldn't this be subtracting the number of inactive SEQUENTIAL zones?
 if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_inactive_zones})) ]; then
-    zbc_test_print_not_applicable
+    zbc_test_print_not_applicable "Not enough active zones: (max_open=${max_open}) >= (nr_seq_zones=${nr_seq_zones}) - (nr_inactive_zones=${nr_inactive_zones})"
 fi
 
-# Get the number of available sequential zones of the type we are using
-nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
-			      | zbc_zone_filter_in_cond "0x1" | wc -l`
-
-if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) available zones" \
-				  "of type ${zone_type} to exceed max_open (${max_open})"
+# if max_open == -1 then it is "not reported"
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable "max_open not reported"
 fi
 
 # Open zones
