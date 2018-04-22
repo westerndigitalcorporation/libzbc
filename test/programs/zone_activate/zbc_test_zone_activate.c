@@ -28,7 +28,9 @@ int main(int argc, char **argv)
 	const char *sk_name, *ascq_name;
 	struct zbc_zp_dev_control ctl;
 	char *path;
-	struct zbc_errno zbc_err;
+	struct zbc_err_ext zbc_err;
+	uint64_t err_cbf;
+	uint16_t err_za;
 	uint64_t start;
 	unsigned int oflags, nr_units, nr_domains, new_type, nr_conv_recs = 0;
 	int i, ret, end;
@@ -132,7 +134,7 @@ int main(int argc, char **argv)
 		 */
 		ret = zbc_list_conv_domains(dev, &domains, &nr_domains);
 		if (ret != 0) {
-			zbc_errno(dev, &zbc_err);
+			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 			sk_name = zbc_sk_str(zbc_err.sk);
 			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 			fprintf(stderr,
@@ -173,7 +175,7 @@ int main(int argc, char **argv)
 		ctl.zbm_max_activate = 0xffff;
 		ret = zbc_zone_activation_ctl(dev, &ctl, true);
 		if (ret != 0) {
-			zbc_errno(dev, &zbc_err);
+			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 			sk_name = zbc_sk_str(zbc_err.sk);
 			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 			fprintf(stderr, "Can't set FSNOZ, err %i (%s)\n",
@@ -189,14 +191,20 @@ int main(int argc, char **argv)
 	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,
 				     nr_units, new_type);
 	if (ret < 0) {
-		zbc_errno(dev, &zbc_err);
+		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 		sk_name = zbc_sk_str(zbc_err.sk);
 		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+		err_za = zbc_err.err_za;
+		err_cbf = zbc_err.err_cbf;
 		fprintf(stderr,
 			"[TEST][ERROR],Can't get the number of conversion records, err %i (%s)\n",
 			ret, strerror(-ret));
 		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+		if (err_za || err_cbf) {
+			printf("[TEST][ERROR][ERR_ZA],0x%04x\n", err_za);
+			printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
+		}
 		ret = 1;
 		goto out;
 	}
@@ -214,11 +222,17 @@ int main(int argc, char **argv)
 	ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
 				new_type, conv_recs, &nr_conv_recs);
 	if (ret != 0) {
-		zbc_errno(dev, &zbc_err);
+		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 		sk_name = zbc_sk_str(zbc_err.sk);
 		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+		err_za = zbc_err.err_za;
+		err_cbf = zbc_err.err_cbf;
 		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+		if (err_za || err_cbf) {
+			printf("[TEST][ERROR][ERR_ZA],0x%04x\n", err_za);
+			printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
+		}
 	}
 	for (i = 0; i < (int)nr_conv_recs; i++) {
 		cr = &conv_recs[i];

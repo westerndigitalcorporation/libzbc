@@ -43,6 +43,7 @@ static struct zbc_sg_sk_s {
 } zbc_sg_sk_list[] = {
 	{ ZBC_SK_ILLEGAL_REQUEST,	"Illegal-request"	},
 	{ ZBC_SK_DATA_PROTECT,		"Data-protect"		},
+	{ ZBC_SK_HARDWARE_ERROR,	"Hardware-error"	},
 	{ ZBC_SK_ABORTED_COMMAND,	"Aborted-command"	},
 	{ ZBC_SK_MEDIUM_ERROR,		"Medium-error"		},
 	{ 0,				NULL }
@@ -103,6 +104,39 @@ static struct zbc_sg_asc_ascq_s {
 	{
 		ZBC_ASC_ZONE_NEEDS_RESETTING,
 		"Zone-needs-resetting"
+	},
+	{
+		ZBC_ASC_READ_ERROR,
+		"Read-error"
+	},
+	{
+		ZBC_ASC_WRITE_ERROR,
+		"Write-error"
+	},
+	{
+		ZBC_ASC_FORMAT_IN_PROGRESS,
+		"Format-in-progress"
+	},
+
+	{
+		ZBC_ASC_INTERNAL_TARGET_FAILURE,
+		"Internal-target-failure"
+	},
+	{
+		ZBC_ASC_INVALID_COMMAND_OPERATION_CODE,
+		"Invalid-command-operation-code"
+	},
+	{
+		ZBC_ASC_INVALID_FIELD_IN_PARAMETER_LIST,
+		"Invalid-field-in-parameter-list"
+	},
+	{
+		ZBC_ASC_PARAMETER_LIST_LENGTH_ERROR,
+		"Parameter-list-length-error"
+	},
+	{
+		ZBC_ASC_ZONE_RESET_WP_RECOMMENDED,
+		"Zone-reset-wp-recommended"
 	},
 	{
 		0,
@@ -228,12 +262,26 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 	}
 }
 
+/* zbc_errno_ext - Get detailed error code of last operation
+ *
+ * If size >= sizeof(struct zbc_err) then return the entire zbc_err structure;
+ * otherwise return the first size bytes of the structure.
+ */
+
+void zbc_errno_ext(struct zbc_device *dev, struct zbc_err_ext *err, size_t size)
+{
+	if (size > sizeof(struct zbc_err_ext))
+		size = sizeof(struct zbc_err_ext);
+
+	memcpy(err, &dev->zbd_errno, size);
+}
+
 /**
  * zbc_errno - Get detailed error code of last operation
  */
 void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
 {
-        memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
+	zbc_errno_ext(dev, (struct zbc_err_ext *)err, sizeof(struct zbc_errno));
 }
 
 /**

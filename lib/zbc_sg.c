@@ -286,6 +286,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
 	unsigned int sense_buf_len = 0;
 	uint8_t *sense_buf = NULL;
+	dev->zbd_errno = (struct zbc_err_ext){ };
 
 	if (cmd) {
 		sense_buf = cmd->sense_buf;
@@ -294,32 +295,56 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 	if (sense_buf == NULL ||
 	    sense_buf_len < 4) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
 	}
 
+	/* Descriptor Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x72 ||
 	    (sense_buf[0] & 0x7F) == 0x73) {
 		/* store sense key, ASC/ASCQ */
 		dev->zbd_errno.sk = sense_buf[1] & 0x0F;
 		dev->zbd_errno.asc_ascq =
 			((int)sense_buf[2] << 8) | (int)sense_buf[3];
+
+		if (zbc_test_mode(dev)) {
+			/* Walk the descriptors looking for anything of interest */
+			int nbytes = (int)sense_buf[7];
+			uint8_t *desc = &sense_buf[8];
+			while (nbytes > 0) {
+				if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
+					/* Sense Data Information */
+					dev->zbd_errno.err_info = zbc_sg_get_int64(&desc[4]);
+				} else if (desc[0] == 1 && nbytes >= 12) {
+					/* Sense Data Command-Specific Info */
+					dev->zbd_errno.err_csinfo = zbc_sg_get_int64(&desc[4]);
+				}
+				nbytes -= 2 + desc[1];
+				desc += 2 + desc[1];
+			}
+		}
+
 		return;
 	}
 
 	if (sense_buf_len < 14) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
 	}
 
+	/* Fixed Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x70 ||
 	    (sense_buf[0] & 0x7F) == 0x71) {
 		/* store sense key, ASC/ASCQ */
 		dev->zbd_errno.sk = sense_buf[2] & 0x0F;
 		dev->zbd_errno.asc_ascq =
 			((int)sense_buf[12] << 8) | (int)sense_buf[13];
+
+		if (zbc_test_mode(dev)) {
+			/* Sense Data Information Field */
+			dev->zbd_errno.err_info = zbc_sg_get_int32(&sense_buf[3]);
+
+			/* Sense Data Command-Specific Information Field */
+			dev->zbd_errno.err_csinfo = zbc_sg_get_int32(&sense_buf[8]);
+		}
 	}
 }
 

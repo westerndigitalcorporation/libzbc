@@ -12,6 +12,7 @@ global:
 	zbc_zone_type_str;
 	zbc_zone_condition_str;
 	zbc_errno;
+	zbc_errno_ext;
 	zbc_sk_str;
 	zbc_asc_ascq_str;
 	zbc_device_is_zoned;

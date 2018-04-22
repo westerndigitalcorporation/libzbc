@@ -750,6 +750,9 @@ enum zbc_sk {
 	/** Medium error */
 	ZBC_SK_MEDIUM_ERROR	= 0x3,
 
+	/** Hardware Error */
+	ZBC_SK_HARDWARE_ERROR	= 0x4,
+
 	/** Illegal request */
 	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
 
@@ -815,6 +818,21 @@ enum zbc_asc_ascq {
 
 	/** Format in progress */
 	ZBC_ASC_FORMAT_IN_PROGRESS			= 0x0404,
+
+	/** Parameter list length error */
+	ZBC_ASC_PARAMETER_LIST_LENGTH_ERROR		= 0x1a00,
+
+	/** Invalid field in parameter list */
+	ZBC_ASC_INVALID_FIELD_IN_PARAMETER_LIST		= 0x2600,
+
+	/** Internal target failure */
+	ZBC_ASC_INTERNAL_TARGET_FAILURE			= 0x4400,
+
+	/** Invalid command operation code */
+	ZBC_ASC_INVALID_COMMAND_OPERATION_CODE		= 0x2000,
+
+	/** Zone reset WP recommended */
+	ZBC_ASC_ZONE_RESET_WP_RECOMMENDED		= 0x2A16,
 };
 
 /**
@@ -822,8 +840,11 @@ enum zbc_asc_ascq {
  *
  * Standard and ZBC defined SCSI sense key and additional
  * sense codes are used to describe the error.
+ *
+ * Some commands return additional information identifying
+ * the location of the failure.
  */
-struct zbc_errno {
+struct zbc_err_ext {
 
 	/** Sense code */
 	enum zbc_sk		sk;
@@ -831,17 +852,52 @@ struct zbc_errno {
 	/** Additional sense code and sense code qualifier */
 	enum zbc_asc_ascq	asc_ascq;
 
+	/** Sense Data Information Field */
+	unsigned long long	err_info;
+
+	/** Sense Data Command Specific Information Field */
+	unsigned long long	err_csinfo;
+
+	/*** Conversion Boundary Failure field (48 bits) */
+	uint64_t		err_cbf;
+
+	/** Error information from ZONE ACTIVATE results header bytes 4-5 */
+	uint16_t		err_za;
 };
 
 /**
  * @brief Get detailed error code of last operation
  * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] size	Number of bytes of error report to return
  * @param[out] err	Address where to return the error report
  *
  * Returns at the address specified by \a err a detailed error report
- * of the last command execued. The error report is composed of the
+ * of the last command executed. If size >= sizeof(struct zbc_err) then
+ * the entire zbc_err structure is returned; otherwise the first size
+ * bytes are returned.
+ *
+ * For successsful commands, all fields are set to 0.
+ */
+extern void zbc_errno_ext(struct zbc_device *dev, struct zbc_err_ext *err, size_t size);
+
+/* Legacy zbc_errno structure */
+struct zbc_errno {
+        enum zbc_sk             sk;
+        enum zbc_asc_ascq       asc_ascq;
+};
+
+/**
+ * @brief Get legacy error code of last operation
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[out] err	Address where to return the error report
+ *
+ * Returns at the address specified by \a err a detailed error report
+ * of the last command executed. The error report is composed of the
  * SCSI sense key, sense code and sense code qualifier.
  * For successsful commands, all three information are set to 0.
+ *
+ * The values returned here are the same as the first two fields
+ * returned by zbc_errno_ext().
  */
 extern void zbc_errno(struct zbc_device *dev, struct zbc_errno  *err);
 

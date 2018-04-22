@@ -174,7 +174,7 @@ struct zbc_device {
 	/**
 	 * Command execution error info.
 	 */
-	struct zbc_errno	zbd_errno;
+	struct zbc_err_ext	zbd_errno;
 
 };
 
