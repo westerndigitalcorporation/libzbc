@@ -882,20 +882,25 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 	buf = (uint8_t *)cmd.out_buf;
 
 	/*
-	 * FIXME analyze error bits and choose an error code
-	 * to return if they are set. For now, just check
-	 * CONVERTED bit.
+	 * Collect the status bits and the boundary failure LBA
+	 * if CONVERTED bit is not set.
 	 */
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[0x4]);
-	       	dev->zbd_errno.err_cbf = zbc_sg_get_int64(&buf[0xc]);
+		if (buf[4] & 0x40) /* CBI bit */
+			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[10]);
 		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not",
 			    dev->zbd_errno.err_za, dev->zbd_errno.err_cbf,
 			    ((dev->zbd_errno.err_za & 0x4000) ? "" : "in"));
 		ret = -EIO;
-		/* Not bailing here, gonna try to get the descriptors */
+		/*
+		 * If any status bits are set, there will be no descriptors.
+		 * Otherwise, try to read them.
+		 */
+		if (dev->zbd_errno.err_za)
+			goto out;
 	}
 
 	/* Get number of conversion records in result */
