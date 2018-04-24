@@ -897,7 +897,7 @@ static int zbc_block_domain_report(struct zbc_device *dev,
  * Convert zones from one type to another or query
  * about the outcome of such conversion.
  */
-static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
 					 uint32_t new_type,
@@ -973,7 +973,7 @@ static int zbc_block_domain_report(struct zbc_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_zone_query_activate(struct zbc_device *dev, bool all,
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, uint32_t nr_zones,
 					 unt32_t new_type,

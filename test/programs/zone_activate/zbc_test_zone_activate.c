@@ -188,7 +188,7 @@ int main(int argc, char **argv)
 		nr_units = 0;
 	}
 
-	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,
+	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
 				     nr_units, new_type);
 	if (ret < 0) {
 		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Convert zones */
-	ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
+	ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
 				new_type, conv_recs, &nr_conv_recs);
 	if (ret != 0) {
 		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));

@@ -165,7 +165,7 @@ usage:
 		}
 	}
 
-	ret = zbc_get_nr_cvt_records(dev, all, cdb32, start,
+	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
 				     nr_units, new_type);
 	if (ret < 0) {
 		fprintf(stderr,
@@ -208,13 +208,13 @@ usage:
 	}
 
 	if (query)
-		ret = zbc_zone_query(dev, all, cdb32, start, nr_units,
+		ret = zbc_zone_query(dev, !fsnoz, all, cdb32, start, nr_units,
 				     new_type, conv_recs, &nr_conv_recs);
 	else if (list)
-		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
+		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
 					new_type, conv_recs, &nr_conv_recs);
 	else
-		ret = zbc_zone_activate(dev, all, cdb32, start, nr_units,
+		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
 					new_type, NULL, &nr_conv_recs);
 
 	if (ret != 0) {

@@ -784,7 +784,7 @@ out:
 /**
  *  Perform Zone Query / Activate operation using the 16-byte CDB.
  */
-static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
 				    uint32_t nr_zones, unsigned int new_type,
 				    struct zbc_conv_rec *conv_recs,
@@ -856,7 +856,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 		cmd.cdb[1] = ZBC_SG_ZONE_ACTIVATE_16_CDB_SA;
 	if (all)
 		cmd.cdb[1] |= 0x80; /* All */
-	if (nr_zones) {
+	if (zsrc) {
 		cmd.cdb[1] |= 0x40; /* ZSRC */
 		zbc_sg_set_int16(&cmd.cdb[13], (uint16_t)nr_zones);
 	}
@@ -946,7 +946,7 @@ out:
 /**
  *  Perform Zone Query / Activate operation using the 32-byte CDB.
  */
-static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
 				    uint32_t nr_zones, uint32_t new_type,
 				    struct zbc_conv_rec *conv_recs,
@@ -1019,13 +1019,17 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool all,
 	cmd.cdb[7] = 0x18;
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_ZONE_QUERY_32_CDB_SA :
 					      ZBC_SG_ZONE_ACTIVATE_32_CDB_SA);
-	if (nr_zones) {
+
+	if (zsrc) {
 		cmd.cdb[10] |= 0x40; /* ZSRC */
 		zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
 	}
+
 	if (all)
 		cmd.cdb[10] |= 0x80; /* All */
+
 	cmd.cdb[11] = new_type & 0x0f; /* Activate Zone Type */
+
 	/* FIXME add Deactivate Zone Type */
 	zbc_sg_set_int64(&cmd.cdb[12], zone_start_id);
 	zbc_sg_set_int32(&cmd.cdb[28], bufsz);
@@ -1109,7 +1113,7 @@ out:
 	return ret;
 }
 
-static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool all,
+static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
 					unsigned int new_type,
@@ -1117,9 +1121,9 @@ static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool all,
 					unsigned int *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
-	       zbc_scsi_zone_activate32(dev, all, lba, query, nr_zones,
+	       zbc_scsi_zone_activate32(dev, zsrc, all, lba, query, nr_zones,
 					new_type, conv_recs, nr_conv_recs) :
-	       zbc_scsi_zone_activate16(dev, all, lba, query, nr_zones,
+	       zbc_scsi_zone_activate16(dev, zsrc, all, lba, query, nr_zones,
 					new_type, conv_recs, nr_conv_recs);
 }
 

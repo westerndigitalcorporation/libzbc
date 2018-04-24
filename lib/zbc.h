@@ -70,18 +70,18 @@ struct zbc_drv {
 	 * Report conversion domain configuration.
 	 */
 	int		(*zbd_domain_report)(struct zbc_device *,
-					    struct zbc_cvt_domain *,
-					    unsigned int *);
+					     struct zbc_cvt_domain *,
+					     unsigned int *);
 
 	/**
 	 * Convert zones from one CMR/SMR type to the other or query
 	 * about the possible results of such conversion.
 	 */
-	int		(*zbd_zone_query_cvt)(struct zbc_device *, bool,
-					       bool, bool, uint64_t,
+	int		(*zbd_zone_query_cvt)(struct zbc_device *, bool, bool,
+					      bool, bool, uint64_t,
 					      uint32_t, uint32_t,
-					       struct zbc_conv_rec *,
-					     uint32_t *);
+					      struct zbc_conv_rec *,
+					      uint32_t *);
 
 	/**
 	 * Receive a list of supported mutation types and options.

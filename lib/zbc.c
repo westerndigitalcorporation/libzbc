@@ -697,7 +697,8 @@ int zbc_list_conv_domains(struct zbc_device *dev,
 /**
  * zbc_zone_activate - Convert all zones in a specified range to a new type
  */
-int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
+		      bool all, bool use_32_byte_cdb,
 		      uint64_t lba, unsigned int nr_zones,
 		      unsigned int new_type, struct zbc_conv_rec *conv_recs,
 		      unsigned int *nr_conv_recs)
@@ -715,7 +716,8 @@ int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
+	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
+						  all, use_32_byte_cdb,
 						   false, lba, nr_zones,
 						  new_type, conv_recs,
 						   nr_conv_recs);
@@ -726,7 +728,8 @@ int zbc_zone_activate(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
  *                   specific range to a new type without actually performing
  *                   the conversion process
  */
-int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_query(struct zbc_device *dev, bool zsrc,
+		   bool all, bool use_32_byte_cdb,
 		   uint64_t lba, unsigned int nr_zones, unsigned int new_type,
 		   struct zbc_conv_rec *conv_recs, unsigned int *nr_conv_recs)
 {
@@ -743,7 +746,8 @@ int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
+	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
+						  all, use_32_byte_cdb,
 						   true, lba, nr_zones,
 						  new_type, conv_recs,
 						   nr_conv_recs);
@@ -753,7 +757,7 @@ int zbc_zone_query(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
  * zbc_get_nr_cvt_records - Get the expected number of conversion records
  * 			    for a ZONE ACTIVATE or ZONE QUERY operation
  */
-int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
+int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
 			   unsigned int nr_zones, unsigned int new_type)
 {
@@ -772,7 +776,8 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 		return -ENOTSUP;
 	}
 
-	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
+	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
+						 all, use_32_byte_cdb,
 						  true, lba, nr_zones,
 						 new_type, NULL,
 						  &nr_conv_recs);
@@ -788,7 +793,7 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  *                       results. It is responsibility of the caller to free
  *                       this buffer
  */
-int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
+int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32_byte_cdb,
 			uint64_t lba, unsigned int nr_zones,
 			unsigned int new_type,
 			struct zbc_conv_rec **pconv_recs,
@@ -798,7 +803,7 @@ int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 	uint32_t nr_conv_recs;
 	int ret;
 
-	ret = zbc_get_nr_cvt_records(dev, all, use_32_byte_cdb,
+	ret = zbc_get_nr_cvt_records(dev, zsrc, all, use_32_byte_cdb,
 				     lba, nr_zones, new_type);
 	if (ret < 0)
 		return ret;
@@ -811,7 +816,8 @@ int zbc_zone_query_list(struct zbc_device *dev, bool all, bool use_32_byte_cdb,
 		return -ENOMEM;
 
 	/* Now get the entire list */
-	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, all, use_32_byte_cdb,
+	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
+						 all, use_32_byte_cdb,
 						  true, lba, nr_zones,
 						 new_type, conv_recs,
 						  &nr_conv_recs);

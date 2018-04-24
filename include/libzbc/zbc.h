@@ -1414,6 +1414,7 @@ extern int zbc_list_conv_domains(struct zbc_device *dev,
 /**
  * @brief Convert a number of zones at the specified start to the new type
  * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
  * @param[in] all		If set, try to convert maximum number of zones
  * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
  * @param[in] start_zone	512B sector of the first zone to convert
@@ -1422,7 +1423,7 @@ extern int zbc_list_conv_domains(struct zbc_device *dev,
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
-extern int zbc_zone_activate(struct zbc_device *dev, bool all,
+extern int zbc_zone_activate(struct zbc_device *dev, bool zsrc, bool all,
 			     bool use_32_byte_cdb, uint64_t start_zone,
 			     unsigned int nr_zones, unsigned int new_type,
 			     struct zbc_conv_rec *conv_recs,
@@ -1431,6 +1432,7 @@ extern int zbc_zone_activate(struct zbc_device *dev, bool all,
 /**
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
  * @param[in] all		If set, try to convert maximum number of zones
  * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
  * @param[in] start_zone	512B sector of the first zone to convert
@@ -1439,7 +1441,7 @@ extern int zbc_zone_activate(struct zbc_device *dev, bool all,
  * @param[out] conv_recs	Array of conversion results records
  * @param[out] nr_conv_recs	The number of conversion results records
  */
-extern int zbc_zone_query(struct zbc_device *dev, bool all,
+extern int zbc_zone_query(struct zbc_device *dev, bool zsrc, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
 			  unsigned int nr_zones, unsigned int new_type,
 			  struct zbc_conv_rec *conv_recs,
@@ -1448,19 +1450,21 @@ extern int zbc_zone_query(struct zbc_device *dev, bool all,
 /**
  * @brief Return the expected number of conversion records
  * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
  * @param[in] all		If set, try to convert maximum number of zones
  * @param[in] use_32_byte_cdb	If true, use 32-byte SCSI command
  * @param[in] start_zone	512B sector of the first zone to convert
  * @param[in] nr_zones		The total number of zones to convert
  * @param[in] new_type		Zone type after conversion
  */
-extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
+extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 				  bool use_32_byte_cdb, uint64_t lba,
 				  unsigned int nr_zones, unsigned int new_type);
 
 /**
  * @brief Query about possible conversion results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
  * @param[in] all		If set, try to convert maximum number of zones
  * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
  * @param[in] start_zone	512B sector of the first zone to convert
@@ -1469,7 +1473,7 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
  * @param[out] conv_recs	Points to the returned array of convert records
  * @param[out] nr_conv_recs	Number of returned conversion results records
  */
-extern int zbc_zone_query_list(struct zbc_device *dev, bool all,
+extern int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,
 			       unsigned int nr_zones, unsigned int new_type,
 			       struct zbc_conv_rec **pconv_recs,
