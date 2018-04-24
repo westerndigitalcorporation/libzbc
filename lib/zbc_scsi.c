@@ -1219,7 +1219,7 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	if (pg_len < ZBC_SCSI_MIN_MODE_PG_SIZE) {
 		zbc_error("%s: Zone Provisioning mode page too short, %iB\n",
 			  dev->zbd_filename, pg_len);
-		return -EINVAL;
+		return -EIO;
 	}
 
 	if (!set) {

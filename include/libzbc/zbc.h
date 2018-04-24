@@ -54,7 +54,7 @@
  * "debug"   : Verbose output decribing internally executed commands
  * The default level is "warning".
  */
-extern void zbc_set_log_level(char *log_level);
+extern void zbc_set_log_level(char const *log_level);
 
 /**
  * @brief Zone type definitions
@@ -620,8 +620,7 @@ enum zbc_dev_flags {
 	ZBC_MUTATE_SUPPORT = 0x00000004,
 
 	/**
-	 * Indicates that checking write pointer for conventional zones
-	 * is supported.
+	 * Indicates that modification of the URSWRZ setting is supported.
 	 */
 	ZBC_URSWRZ_SET_SUPPORT = 0x00000008,
 };

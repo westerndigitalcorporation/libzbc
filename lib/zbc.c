@@ -150,7 +150,7 @@ static struct zbc_sg_asc_ascq_s {
  * zbc_set_log_level - Set the library log level
  */
 void
-zbc_set_log_level(char *log_level)
+zbc_set_log_level(char const *log_level)
 {
 	if (!log_level) {
 		/* Set default */
@@ -623,9 +623,11 @@ int zbc_domain_report(struct zbc_device *dev,
 		return -ENOTSUP;
 	}
 
-	if (!domains)
+	if (!domains) {
 		/* Just get the number of conversion domains */
+		*nr_domains = 0;
 		return (dev->zbd_drv->zbd_domain_report)(dev, NULL, nr_domains);
+	}
 
 	/* Get conversion domain information */
 	ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
@@ -755,7 +757,7 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
 			   unsigned int nr_zones, unsigned int new_type)
 {
-	uint32_t nr_conv_recs;
+	uint32_t nr_conv_recs = 0;
 	int ret;
 
 	if (!zbc_dev_is_zone_act(dev)) {
