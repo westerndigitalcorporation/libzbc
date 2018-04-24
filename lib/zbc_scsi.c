@@ -862,7 +862,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool all,
 	}
 	cmd.cdb[2] = new_type & 0x0f; /* Activate Zone Type */
 	zbc_sg_set_int48(&cmd.cdb[3], zone_start_id);
-	zbc_sg_set_int16(&cmd.cdb[11], (uint16_t)bufsz);
+	zbc_sg_set_int32(&cmd.cdb[9], (uint32_t)bufsz);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
