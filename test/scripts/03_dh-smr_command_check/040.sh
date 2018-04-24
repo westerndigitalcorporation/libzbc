@@ -16,8 +16,10 @@
 zbc_test_init $0 "ZONE ACTIVATE(16) non-convertible CMR domain to SMR (domain addr, FSNOZ)" $*
 
 # Set expected error code
-expected_sk="Aborted-command"
-expected_asc="Conversion-type-unsupported"
+expected_sk="Unknown-sense-key 0x00"
+expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_err_za="0x4080"
+expected_err_cbf="0"
 
 # Get drive information
 zbc_test_get_device_info
@@ -36,7 +38,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} 1 
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed

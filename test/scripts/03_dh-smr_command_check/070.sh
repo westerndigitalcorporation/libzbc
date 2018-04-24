@@ -18,7 +18,7 @@ zbc_test_init $0 "ZONE ACTIVATE(32) in excess of max_activate (domain addressing
 # Set expected error code
 expected_sk="Unknown-sense-key 0x00"
 expected_asc="Unknown-additional-sense-code-qualifier 0x00"
-expected_err_za="0x0004"
+expected_err_za="0x0400"
 expected_err_cbf="0"
 
 # Get drive information
