@@ -44,8 +44,8 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	struct zbc_zone *zones = NULL, *tgt = NULL;;
-	long long start = 0;
-	unsigned long long start_sector;
+	long long start = -1LL;
+	unsigned long long start_sector = -1ULL;
 	unsigned int flags = 0;
 	int i, ret = 1;
 	unsigned int nr_zones, tgt_idx;
@@ -54,9 +54,9 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	char *path;
 
 	/* Check command line */
-	if (argc < 2) {
+	if (!argc) {
 usage:
-		printf("Usage: %s [options] <dev> <zone>\n"
+		printf("Usage: %s [options] <dev> [<zone>]\n"
 		       "  By default <zone> is interpreted as a zone number.\n"
 		       "  If the -lba option is used, <zone> is interpreted\n"
 		       "  as the start LBA of the target zone. If the\n"
@@ -105,13 +105,15 @@ usage:
 
 	}
 
+	if (i > argc - 1) {
+		fprintf(stderr, "No device specified\n");
+		return 1;
+	}
+
 	if (lba_unit && sector_unit) {
 		fprintf(stderr, "-lba and -sector cannot be used together\n");
 		return 1;
 	}
-
-	if (i != (argc - 2))
-		goto usage;
 
 	/* Open device */
 	path = argv[i];
@@ -122,24 +124,26 @@ usage:
 		return 1;
 	}
 
+	if (flags & ZBC_OP_ALL_ZONES) {
+		if (i != argc - 1) {
+			fprintf(stderr, "Too many arguments\n");
+			return 1;
+		}
+	} else {
+		if (argc < 2 || i < argc - 2) {
+			fprintf(stderr, "No zone specified\n");
+			return 1;
+		}
+		if (i > argc - 2) {
+			fprintf(stderr, "Too many arguments\n");
+			return 1;
+		}
+	}
+
 	zbc_get_device_info(dev, &info);
 
 	printf("Device %s:\n", path);
 	zbc_print_device_info(&info, stdout);
-
-	/* Get target zone */
-	start = strtoll(argv[i + 1], NULL, 10);
-	if (start < 0) {
-		fprintf(stderr, "Invalid zone\n");
-		ret = 1;
-		goto out;
-	}
-	if (lba_unit)
-		start_sector = zbc_lba2sect(&info, start);
-	else if (sector_unit)
-		start_sector = start;
-	else
-		start_sector = 0;
 
 	if (flags & ZBC_OP_ALL_ZONES) {
 
@@ -147,6 +151,20 @@ usage:
 		start_sector = 0;
 
 	} else {
+
+		/* Get target zone */
+		start = strtoll(argv[i + 1], NULL, 10);
+		if (start < 0) {
+			fprintf(stderr, "Invalid zone\n");
+			ret = 1;
+			goto out;
+		}
+		if (lba_unit)
+			start_sector = zbc_lba2sect(&info, start);
+		else if (sector_unit)
+			start_sector = start;
+		else
+			start_sector = 0;
 
 		/* Get zone list */
 		ret = zbc_list_zones(dev, start, ZBC_RO_ALL, &zones, &nr_zones);
