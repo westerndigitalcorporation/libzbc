@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "Run ZBC test on another mixed CMR-SMR device" $*
 
-export ZBC_TEST_LOG_PATH=mix2
+export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/mix2
 
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then

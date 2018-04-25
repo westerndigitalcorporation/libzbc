@@ -76,6 +76,7 @@ test_progs=( \
     zbc_test_close_zone \
     zbc_test_finish_zone \
     zbc_test_read_zone \
+    zbc_test_write_zone \
     zbc_test_domain_report \
     zbc_test_zone_activate \
 )
@@ -93,10 +94,6 @@ ZBC_TEST_SCR_PATH=scripts
 if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
     exit
-fi
-
-if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
-	ZBC_TEST_LOG_PATH=log
 fi
 
 # Handle arguments
@@ -297,7 +294,7 @@ function zbc_run_section()
 		exit
 	fi
 
-	log_path=${ZBC_TEST_LOG_PATH}/${dev_name}/${section_num}
+	log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
 	if [ ${print_list} -eq 1 ]; then
@@ -351,7 +348,9 @@ if [ ${skip_format_dut} -eq 0 ]; then
 fi
 
 # Run tests
-for section in ${section_list[@]}; do
+function zbc_run_config()
+{
+    for section in ${section_list[@]}; do
 
 	case "${section}" in
 	"03")
@@ -374,4 +373,29 @@ for section in ${section_list[@]}; do
 		exit 1
 	fi
 
-done
+    done
+}
+
+if [ -z ${ZBC_TEST_LOG_PATH_BASE} ] ; then
+	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
+fi
+
+function zbc_run_gamut()
+{
+    echo "###### Run the entire dhsmr suite with URSWRZ enabled"
+    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+    zbc_dev_control -ur y ${device}
+    zbc_run_config "$@"
+
+    echo "###### Run the entire dhsmr suite with URSWRZ disabled"
+    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+    zbc_dev_control -ur n ${device}
+    zbc_run_config "$@"
+
+    # When done leave the device with URSWRZ set
+    zbc_dev_control -ur y ${device}
+}
+
+export ZBC_TEST_LOG_PATH
+
+zbc_run_gamut "$@"

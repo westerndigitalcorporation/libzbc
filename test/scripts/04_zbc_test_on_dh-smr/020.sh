@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "Run ZBC test on mixed CMR-SMR device" $*
 
-export ZBC_TEST_LOG_PATH=mixed
+export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/mixed
 
 # Set expected error code
 expected_sk=""
