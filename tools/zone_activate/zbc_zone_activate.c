@@ -41,15 +41,20 @@ int main(int argc, char **argv)
 	if (argc < 5) {
 		fprintf(stderr, "Not enough arguments\n");
 usage:
-		printf("Usage:\n%s [options] <dev> <start domain> <num domains> <conv | seq>\n"
-		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv | seq>\n"
+		printf("Usage:\n%s [options] <dev> <start domain> <num domains> <conv|seq[p]|wpc|seqr>\n"
+		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv|seq[p]|wpc|seqr>\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
 		       "    -q            : Query only\n"
 		       "    -a            : Convert all\n"
 		       "    -n            : Set the number of zones to convert via separate call\n"
 		       "    -32           : Use 32-byte SCSI commands, default is 16\n"
-		       "    -l            : List conversion records\n",
+		       "    -l            : List conversion records\n\n"
+		       "Zone conversion types:\n"
+		       "    conv          : conventional\n"
+		       "    wpc           : write pointer conventional\n"
+		       "    seq or seqr   : sequential write required\n"
+		       "    seqp          : sequential write preferred\n",
 		       argv[0], argv[0]);
 		return 1;
 	}
@@ -105,8 +110,12 @@ usage:
 	}
 	if (strcmp(argv[i], "conv") == 0)
 		new_type = ZBC_ZT_CONVENTIONAL;
-	else if (strcmp(argv[i], "seq") == 0)
+	else if (strcmp(argv[i], "wpc") == 0)
+		new_type = ZBC_ZT_WP_CONVENTIONAL;
+	else if (strcmp(argv[i], "seq") == 0 ||	strcmp(argv[i], "seqr") == 0)
 		new_type = ZBC_ZT_SEQUENTIAL_REQ;
+	else if (strcmp(argv[i], "seqp") == 0)
+		new_type = ZBC_ZT_SEQUENTIAL_PREF;
 	else {
 		fprintf(stderr, "Invalid new zone type\n");
 		goto usage;
@@ -154,7 +163,8 @@ usage:
 			goto out;
 		}
 		end = start + nr_units;
-		if (new_type == ZBC_ZT_CONVENTIONAL) {
+		if (new_type == ZBC_ZT_CONVENTIONAL ||
+		    new_type == ZBC_ZT_WP_CONVENTIONAL) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += domains[i].zbr_seq_length;
 			start = domains[start].zbr_seq_start;

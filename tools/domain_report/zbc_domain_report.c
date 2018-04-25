@@ -26,7 +26,8 @@
 static void zbc_print_domain(struct zbc_device_info *info,
 				    struct zbc_cvt_domain *d)
 {
-	if (zbc_cvt_domain_conventional(d) || zbc_cvt_domain_sequential(d)) {
+	if (zbc_cvt_domain_conventional(d) || zbc_cvt_domain_wpc(d) ||
+	    zbc_cvt_domain_sequential(d) ||zbc_cvt_domain_seq_pref(d)) {
 		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
 		       "%u zones, seq LBA %08llu:%u zones, kpo %u, "
 		       "cvt to conv: %s, cvt to seq: %s\n",

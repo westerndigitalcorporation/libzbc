@@ -397,9 +397,16 @@ struct zbc_cvt_domain {
 /** @brief Test if a conversion domain type is CONVENTIONAL */
 #define zbc_cvt_domain_conventional(r)	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
+/** @brief Test if a conversion domain type is WRITE POINTER CONVENTIONAL */
+#define zbc_cvt_domain_wpc(r)	((r)->zbr_type == ZBC_ZT_WP_CONVENTIONAL)
+
 /** @brief Test if a conversion domain type is SEQUENTIAL WRITE REQUIRED */
 #define zbc_cvt_domain_sequential(r) \
 	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if a conversion domain type is SEQUENTIAL WRITE PREFERRED */
+#define zbc_cvt_domain_seq_pref(r) \
+	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
 
 /** @brief Get domain start zone ID if it is CONVENTIONAL as a 512B sector */
 #define zbc_cvt_domain_conv_start(r) \
