@@ -120,7 +120,7 @@ enum zbc_zone_condition {
 	ZBC_ZC_EMPTY		= 0x01,
 
 	/**
-	 * Implicitely open zone (i.e. a write command was issued to
+	 * Implicitly open zone (i.e. a write command was issued to
 	 * the zone).
 	 */
 	ZBC_ZC_IMP_OPEN		= 0x02,
@@ -148,12 +148,12 @@ enum zbc_zone_condition {
 	ZBC_ZC_RDONLY		= 0x0d,
 
 	/**
-	 * Full zone (a write pointer zones only).
+	 * Full zone (write pointer zones only).
 	 */
 	ZBC_ZC_FULL		= 0x0e,
 
 	/**
-	 * Offline zone: unuseable zone.
+	 * Offline zone: unusable zone.
 	 */
 	ZBC_ZC_OFFLINE		= 0x0f,
 
@@ -1556,9 +1556,10 @@ enum zbc_mutation_opt_smr {
  */
 enum zbc_mutation_opt_za {
 	ZBC_MO_ZA_UNKNOWN       = 0x00, /* Reserved */
-	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR domains */
-	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR domain at bottom */
-	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR domains at bottom and top */
+	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR-only domains */
+	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR-only domain at bottom */
+	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR-only domains at bottom and top */
+	ZBC_MO_ZA_WPC_NO_CMR    = 0x04, /* Zone Activation, WPC, no CMR-only domains */
 };
 
 /*

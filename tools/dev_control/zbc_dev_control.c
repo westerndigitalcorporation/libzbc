@@ -70,11 +70,13 @@ usage:
 		       "  HA_ZONED_1PCNT_B        : Host-aware SMR device, 1%% CMR at bottom\n"
 		       "  HA_ZONED_2PCNT_BT       : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
 		       "  ZONE_ACT                : DH-SMR device supporting Zone Activation"
-		       " command set, no CMR-only zones\n"
+		       " command set, conventional CMR zones, no CMR-only domains\n"
 		       "  ZA_1CMR_BOT             : Same as ZONE_ACT, but the first conversion domain"
 		       " is CMR-only\n"
 		       "  ZA_1CMR_BOT_TOP         : Same as ZONE_ACT, but the first and last conversion"
-		       " domains are CMR-only\n",
+		       " domains are CMR-only\n"
+		       "  ZONE_ACT_WPC            : DH-SMR device supporting Zone Activation"
+		       " command set, WPC CMR zones, no CMR-only domains\n",
 		       argv[0]);
 		return 1;
 	}
@@ -124,6 +126,9 @@ usage:
 			} else if (strcmp(argv[i], "ZA_1CMR_BOT_TOP") == 0) {
 				mt = ZBC_MT_ZONE_ACT;
 				opt.za = ZBC_MO_ZA_1_CMR_BOT_TOP;
+			} else if (strcmp(argv[i], "ZONE_ACT_WPC") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_WPC_NO_CMR;
 			}
 			if (mt == ZBC_MT_UNKNOWN) {
 				fprintf(stderr, "unknown mutation target %s\n",

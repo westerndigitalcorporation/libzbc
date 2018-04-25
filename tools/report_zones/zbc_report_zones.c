@@ -39,21 +39,38 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 	}
 
 	if (zbc_zone_conv_wp(z)) {
-		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
-		       "%llu %s, wp %llu\n",
-		       zno,
-		       zbc_zone_type(z),
-		       zbc_zone_type_str(zbc_zone_type(z)),
-		       zbc_zone_condition(z),
-		       zbc_zone_condition_str(zbc_zone_condition(z)),
-		       start,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-				  zbc_zone_start(z),
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-				  zbc_zone_length(z),
-		       length,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
-				  zbc_zone_wp(z));
+		if (zbc_zone_condition(z) == ZBC_ZC_IMP_OPEN ||
+		    zbc_zone_condition(z) == ZBC_ZC_EMPTY) {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s, wp %llu\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+					  zbc_zone_wp(z));
+		} else {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length);
+		}
 		return;
 	}
 
