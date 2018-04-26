@@ -13,11 +13,13 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SWR to Conventional (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible Conventional to SWP (domain addressing)" $*
 
 # Set expected error code
-expected_sk="Aborted-command"
-expected_asc="Conversion-type-unsupported"
+expected_sk="Unknown-sense-key 0x00"
+expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_err_za="0x4080"
+expected_err_cbf="0"
 
 # Get drive information
 zbc_test_get_device_info
@@ -25,18 +27,18 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SWR domain that is not convertible to CMR
-zbc_test_search_domain_by_type_and_cvt "2" "noconv"
+# Find the first conventional domain that is not convertible to SMR
+zbc_test_search_domain_by_type_and_cvt "1" "noseq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently SWR is NON-convertible to conventional"
+    zbc_test_print_not_applicable "No domain currently conventional is NON-convertible to sequential"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_conv_start} ${domain_conv_len} "seqp"
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed

@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): all Conventional to SWR (zone addressing, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): all SWP to Conventional (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -25,37 +25,34 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find a conventional domain that is convertable to SMR
-zbc_test_search_domain_by_type_and_cvt "1" "seq"
+# Find the first SWP domain that is convertable to CMR
+zbc_test_search_domain_by_type_and_cvt "3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently conventional is convertible to sequential"
+    zbc_test_print_not_applicable "No domain currently SWP is convertible to conventional"
 fi
 
 # Assume that all convertable domains are contiguious
 zbc_test_count_cvt_domains
-zbc_test_count_cvt_to_seq_domains
-if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -ge ${nr_domains} ]; then
-    nr_cvt_to_seq_domains=$(expr "${nr_domains}" - 1)
+zbc_test_count_cvt_to_conv_domains
+if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -ge ${nr_domains} ]; then
+    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
 fi
 
-# Calculate the total number of zones in this range of domains
-zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_seq_domains}
-
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -n ${device} ${domain_conv_start} ${nr_conv_zones} "seq"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
-    # Verify that no convertable conventional domains present
+    # Verify that no convertable SWP domains are present
     zbc_test_get_cvt_domain_info
-    zbc_test_search_domain_by_type_and_cvt "1" "seq"
+    zbc_test_search_domain_by_type_and_cvt "3" "conv"
     if [ $? -eq 0 ]; then
-	sk=${domain_num}
-	expected_sk="no-conv-to-seq"
-	zbc_test_print_failed_sk
+        sk=${domain_num}
+        expected_sk="no-seq-to-conv"
+        zbc_test_print_failed_sk
     fi
 fi
 

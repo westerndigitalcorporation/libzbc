@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) non-convertible SMR domain to CMR (domain addr, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SWR to Conventional (domain addr, FSNOZ)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"

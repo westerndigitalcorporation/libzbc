@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) conversion to CMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): SWR to Conventional (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -44,7 +44,7 @@ if [ -z "${sk}" ]; then
     zbc_test_search_cvt_domain_by_number ${domain_num}
     if [ $? -ne 0 -o "${domain_type}" != "0x1" ]; then
         sk=${domain_type}
-        expected_sk="0x2"
+        expected_sk="0x1"
         zbc_test_print_failed_sk
     fi
 fi

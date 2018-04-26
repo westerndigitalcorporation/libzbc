@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) non-convertible CMR domain to SMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible Conventional to SWR (domain addressing)" $*
 
 # Set expected error code
 expected_sk="Unknown-sense-key 0x00"
@@ -27,7 +27,7 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SMR domain that is not convertible to SMR
+# Find the first conventional domain that is not convertible to SMR
 zbc_test_search_domain_by_type_and_cvt "1" "noseq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain currently conventional is NON-convertible to sequential"

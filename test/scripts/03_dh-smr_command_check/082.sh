@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): all Conventional to SWR (zone addressing, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): all Conventional to SWP (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -38,11 +38,8 @@ if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -ge ${nr_domains} ]; t
     nr_cvt_to_seq_domains=$(expr "${nr_domains}" - 1)
 fi
 
-# Calculate the total number of zones in this range of domains
-zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_seq_domains}
-
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -n ${device} ${domain_conv_start} ${nr_conv_zones} "seq"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_seq_domains} "seqp"
 
 # Check result
 zbc_test_get_sk_ascq

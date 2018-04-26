@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	/* Check command line */
 	if (argc < 5) {
 		printf("Usage: %s [options] <dev> <start conversion domain> <num domains> <conv|seq>\n"
-		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq>\n"
+		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq|wpc|seqp>\n"
 		       "Options:\n"
 		       "    -a            : Try to convert all, even if not every zone can be\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n"
@@ -99,8 +99,12 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[i], "conv") == 0)
 		new_type = ZBC_ZT_CONVENTIONAL;
+	else if (strcmp(argv[i], "wpc") == 0)
+		new_type = ZBC_ZT_WP_CONVENTIONAL;
 	else if (strcmp(argv[i], "seq") == 0)
 		new_type = ZBC_ZT_SEQUENTIAL_REQ;
+	else if (strcmp(argv[i], "seqp") == 0)
+		new_type = ZBC_ZT_SEQUENTIAL_PREF;
 	else {
 		fprintf(stderr, "[TEST][ERROR],Invalid new zone type\n");
 		return 1;
@@ -154,7 +158,8 @@ int main(int argc, char **argv)
 			goto out;
 		}
 		end = start + nr_units;
-		if (new_type == ZBC_ZT_CONVENTIONAL) {
+		if (new_type == ZBC_ZT_CONVENTIONAL ||
+		    new_type == ZBC_ZT_WP_CONVENTIONAL) {
 			for (nr_units = 0, i = start; i < end; i++)
 				nr_units += domains[i].zbr_seq_length;
 			start = domains[start].zbr_seq_start;

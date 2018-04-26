@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) conversion to SMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): Conventional to SWR (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""

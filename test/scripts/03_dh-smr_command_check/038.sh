@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) all domains to SMR (domain addressing, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): all Conventional to SWR (domain addressing, FSNOZ)" $*
 
 # Set expected error code
 expected_sk=""

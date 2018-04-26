@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SWR to Conventional (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SWP to Conventional (domain addressing)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"
@@ -25,10 +25,10 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SWR domain that is not convertible to CMR
-zbc_test_search_domain_by_type_and_cvt "2" "noconv"
+# Find the first SWP domain that is not convertible to CMR
+zbc_test_search_domain_by_type_and_cvt "3" "noconv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently SWR is NON-convertible to conventional"
+    zbc_test_print_not_applicable "No domain currently SWP is NON-convertible to conventional"
 fi
 
 # Start testing

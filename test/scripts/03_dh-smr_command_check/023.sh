@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16) all domains to CMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): all SWR to Conventional (domain addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -46,7 +46,7 @@ zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
-    # Verify that no convertable sequential domains is present
+    # Verify that no convertable SWR domains are present
     zbc_test_get_cvt_domain_info
     zbc_test_search_domain_by_type_and_cvt "2" "conv"
     if [ $? -eq 0 ]; then

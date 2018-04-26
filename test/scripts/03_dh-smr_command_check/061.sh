@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32) conversion to CMR (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): SWR to Conventional (zone addressing)" $*
 
 # Set expected error code
 expected_sk=""
@@ -25,7 +25,7 @@ zbc_test_get_device_info
 # Get domain information
 zbc_test_get_cvt_domain_info
 
-# Find an SMR domain that is convertable to CMR
+# Find an SWR domain that is convertable to CMR
 zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain currently SWR is convertible to conventional"
@@ -44,7 +44,7 @@ if [ -z "${sk}" ]; then
     zbc_test_search_cvt_domain_by_number ${domain_num}
     if [ $? -ne 0 -o "${domain_type}" != "0x1" ]; then
         sk=${domain_type}
-        expected_sk="0x2"
+        expected_sk="0x1"
         zbc_test_print_failed_sk
     fi
 fi
