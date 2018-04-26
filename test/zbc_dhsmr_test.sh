@@ -382,12 +382,12 @@ fi
 
 function zbc_run_gamut()
 {
-    echo "###### Run the entire dhsmr suite with URSWRZ enabled"
+    echo "###### Run the dhsmr suite with URSWRZ enabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
     zbc_dev_control -ur y ${device}
     zbc_run_config "$@"
 
-    echo "###### Run the entire dhsmr suite with URSWRZ disabled"
+    echo "###### Run the dhsmr suite with URSWRZ disabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
     zbc_dev_control -ur n ${device}
     zbc_run_config "$@"
