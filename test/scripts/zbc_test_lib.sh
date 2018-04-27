@@ -65,6 +65,12 @@ function _trim()
 	echo $1 | sed -e "s/^00*\(.\)/\1/"
 }
 
+# Trim leading zeros off of result strings so expr doesn't think they are octal
+function trim()
+{
+	echo $1 | sed -e "s/^00*\(.\)/\1/"
+}
+
 # For test script creation:
 function zbc_test_init()
 {
@@ -696,9 +702,9 @@ function zbc_test_search_cvt_domain_by_number()
 		set -- ${_line}
 
 		domain_type=${3}
-		domain_conv_start=${4}
+		domain_conv_start=`trim ${4}`
 		domain_conv_len=${5}
-		domain_seq_start=${6}
+		domain_seq_start=`trim ${6}`
 		domain_seq_len=${7}
 		domain_cvt_to_conv=${9}
 		domain_cvt_to_seq=${10}
@@ -727,9 +733,9 @@ function zbc_test_search_cvt_domain_by_type()
 			set -- ${_line}
 
 			domain_num=$(expr ${2} + 0)
-			domain_conv_start=${4}
+			domain_conv_start=`trim ${4}`
 			domain_conv_len=${5}
-			domain_seq_start=${6}
+			domain_seq_start=`trim ${6}`
 			domain_seq_len=${7}
 			domain_cvt_to_conv=${9}
 			domain_cvt_to_seq=${10}
@@ -786,9 +792,9 @@ function zbc_test_search_domain_by_type_and_cvt()
 			set -- ${_line}
 
 			domain_num=$(expr ${2} + 0)
-			domain_conv_start=${4}
+			domain_conv_start=`trim ${4}`
 			domain_conv_len=${5}
-			domain_seq_start=${6}
+			domain_seq_start=`trim ${6}`
 			domain_seq_len=${7}
 			domain_cvt_to_conv=${9}
 			domain_cvt_to_seq=${10}
