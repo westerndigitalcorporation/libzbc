@@ -16,8 +16,8 @@
 zbc_test_init $0 "ZONE ACTIVATE(32) attempt to deactivate NON-EMPTY non-first zone in non-first domain (zone addressing)" $*
 
 # Set expected error code
-expected_sk="0"
-expected_asc="0"
+expected_sk="Unknown-sense-key 0x00"
+expected_asc="Unknown-additional-sense-code-qualifier 0x00"
 
 # Get information
 zbc_test_get_device_info
