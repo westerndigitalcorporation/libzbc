@@ -33,7 +33,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${last_zone_lba} 0 "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} 0 "seq"
 
 # Check result
 zbc_test_get_sk_ascq
