@@ -1079,6 +1079,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	 */
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[4]);
+		if (buf[4] & 0x40) /* CBI bit */
 		dev->zbd_errno.err_cbf = zbc_sg_get_int64(&buf[12]);
 		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
