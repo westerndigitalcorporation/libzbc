@@ -881,6 +881,17 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 
 	buf = (uint8_t *)cmd.out_buf;
 
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		size_t sz = ZBC_CONV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		if (sz > cmd.out_bufsz)
+			sz = cmd.out_bufsz;
+		zbc_debug("%s: %s REPLY (%ld/%ld B):\n",
+				(query ? "QUERY" : "ACTIVATE"),
+				dev->zbd_filename,
+				sz, cmd.out_bufsz);
+		zbc_sg_print_bytes(dev, buf, sz);
+	}
+
 	/*
 	 * Collect the status bits and the boundary failure LBA
 	 * if CONVERTED bit is not set.
@@ -1050,6 +1061,17 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	}
 
 	buf = (uint8_t *)cmd.out_buf;
+
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		size_t sz = ZBC_CONV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		if (sz > cmd.out_bufsz)
+			sz = cmd.out_bufsz;
+		zbc_debug("%s: %s REPLY (%ld/%ld B):\n",
+				(query ? "QUERY" : "ACTIVATE"),
+				dev->zbd_filename,
+				sz, cmd.out_bufsz);
+		zbc_sg_print_bytes(dev, buf, sz);
+	}
 
 	/*
 	 * Collect the status bits and the boundary failure LBA
