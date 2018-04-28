@@ -16,10 +16,9 @@
 zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible Conventional to SWP (domain addressing)" $*
 
 # Set expected error code
-expected_sk="Unknown-sense-key 0x00"
-expected_asc="Unknown-additional-sense-code-qualifier 0x00"
-expected_err_za="0x4080"
-expected_err_cbf="0"
+expected_sk="${ERR_ZA_SK}"
+expected_asc="${ERR_ZA_ASC}"
+expected_err_za="0x0080"
 
 # Get drive information
 zbc_test_get_device_info
