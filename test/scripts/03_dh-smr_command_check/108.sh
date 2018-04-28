@@ -16,8 +16,9 @@
 zbc_test_init $0 "ZONE ACTIVATE(32) attempt to deactivate NON-EMPTY non-first zone in non-first domain (zone addressing)" $*
 
 # Set expected error code
-expected_sk="Unknown-sense-key 0x00"
-expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_sk="${ERR_ZA_SK}"
+expected_asc="${ERR_ZA_ASC}"
+expected_err_za="0x4100"	# CBI | ZNRESET
 
 # Get information
 zbc_test_get_device_info
@@ -48,7 +49,6 @@ zbc_test_search_vals_from_slba ${domain_seq_start}	# into ${target_*}
 
 # Calculate the start LBA of the second domain's second zone
 write_zlba=$(( ${target_slba} + ${target_size} ))
-expected_err_za="0x4100"	# CBI | ZNRESET
 expected_err_cbf="${write_zlba}"
 
 # Start testing
@@ -59,7 +59,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${conv_lba} 
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} 1
 
 # Now try to convert the domain from SWR back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} "conv"
 
 # Check result
 zbc_test_get_sk_ascq
@@ -69,5 +69,5 @@ zbc_test_check_err
 zbc_test_check_failed
 
 # Post-processing -- put the domain back the way we found it
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${domain_seq_start}
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} "conv"
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} "conv"

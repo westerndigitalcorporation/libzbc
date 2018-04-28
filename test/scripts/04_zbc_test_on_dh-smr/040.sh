@@ -26,6 +26,8 @@ fi
 expected_sk=""
 expected_asc=""
 
+zbc_test_reset_device
+
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
@@ -55,3 +57,6 @@ zbc_test_check_no_sk_ascq
 # Check failed
 zbc_test_check_failed
 
+# Post-process cleanup
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
+zbc_test_reset_device

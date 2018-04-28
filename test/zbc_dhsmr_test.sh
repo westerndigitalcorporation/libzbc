@@ -183,27 +183,6 @@ if [ ! -z ${device} ]; then
 	fi
 fi
 
-# Reset the DUT to factory conditions
-function zbc_reset_test_device()
-{
-	vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
-
-	case "${vendor}" in
-	"LIO-ORG TCMU DH-SMR" )
-		echo "Resetting the device..."
-		sg_sanitize -CQw ${device}
-		;;
-	* )
-		if [ ${format_dut} -eq 1 ]; then
-			echo "Formatting the device..."
-			sg_format ${device}
-		fi
-		;;
-	esac
-
-	return $?
-}
-
 # Build run list
 function get_exec_list()
 {
@@ -336,16 +315,15 @@ function zbc_run_section()
 	return ${ret}
 }
 
-# Reset the device if needed
-if [ ${skip_format_dut} -eq 0 ]; then
-    zbc_reset_test_device
-    if [ $? -ne 0 ]; then
-	echo "Can't reset test device"
-	exit 1
-    fi
-    # Allow the main ACTIVATE tests to run unhindered
-    zbc_dev_control -maxd unlimited ${device}
-fi
+. scripts/zbc_test_lib.sh	# for zbc_test_reset_device
+
+function reset_device()
+{
+	# Reset the device if needed
+	if [ ${skip_format_dut} -eq 0 ]; then
+		zbc_test_reset_device
+	fi
+}
 
 # Run tests
 function zbc_run_config()
@@ -384,11 +362,13 @@ function zbc_run_gamut()
 {
     echo "###### Run the dhsmr suite with URSWRZ enabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+    reset_device
     zbc_dev_control -ur y ${device}
     zbc_run_config "$@"
 
     echo "###### Run the dhsmr suite with URSWRZ disabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+    reset_device
     zbc_dev_control -ur n ${device}
     zbc_run_config "$@"
 

@@ -21,7 +21,7 @@ export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/allcmr
 expected_sk=""
 expected_asc=""
 
-#zbc_reset_test_device
+zbc_test_reset_device
 
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then
@@ -41,3 +41,5 @@ zbc_test_check_no_sk_ascq
 # Check failed
 zbc_test_check_failed
 
+# Post-process cleanup
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1

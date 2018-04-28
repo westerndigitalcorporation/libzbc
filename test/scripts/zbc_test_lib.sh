@@ -65,6 +65,10 @@ function _trim()
 	echo $1 | sed -e "s/^00*\(.\)/\1/"
 }
 
+# Expected Sense strings for ACTIVATE/QUERY status returns
+ERR_ZA_SK="Unknown-sense-key 0x00"
+ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
+
 # Trim leading zeros off of result strings so expr doesn't think they are octal
 function trim()
 {
@@ -116,6 +120,39 @@ function zbc_test_init()
 
 	# Dump conversion domain info file
 	dump_cvt_domain_info_file="${log_path}/${case_num}_cvt_domain_info.log"
+}
+
+# Reset the DUT to factory conditions
+function zbc_reset_test_device()
+{
+	vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
+
+	case "${vendor}" in
+	"LIO-ORG TCMU DH-SMR" )
+		echo "Resetting the device..."
+		sg_sanitize -CQw ${device}
+		;;
+	* )
+		if [ ${format_dut} -eq 1 ]; then
+			echo "Formatting the device..."
+			sg_format ${device}
+		fi
+		;;
+	esac
+
+	return $?
+}
+
+function zbc_test_reset_device()
+{
+	zbc_reset_test_device
+	if [ $? -ne 0 ]; then
+		echo "Can't reset test device"
+		exit 1
+	fi
+
+	# Allow the main ACTIVATE tests to run unhindered
+	zbc_dev_control -maxd unlimited ${device}
 }
 
 function zbc_test_run()
@@ -921,6 +958,20 @@ function zbc_test_print_failed_sk()
 
 function zbc_test_check_err()
 {
+	if [ -n "${expected_err_za}" ] ; then
+		# An ERR_ZA is expected...
+		if [[ $(( "${expected_err_za}" & 0x4000 )) -eq 0 ]] ; then
+			# ERR_ZA is expected with CBI bit 0x4000 clear, so our caller should not be expecting a (nonzero) CBF
+			if [[ -n "${expected_err_cbf}" && "${expected_err_cbf}" != "0" ]] ; then
+				echo "WARNING: TEST SCRIPT ${FUNCNAME[1]}:${BASH_LINENO[0]} called ${FUNCNAME[0]} with nonzero expected_err_cbf=${expected_err_cbf} but not 0x4000 & expected_err_za=${expected_err_za}"
+			fi
+		fi
+		if [ -z ${expected_err_cbf} ] ; then
+			# Our caller expects ERR_ZA with CBI bit 0x4000 set, but specified no expected CBF
+			local expected_err_cbf=0	# expect (CBF == 0)
+		fi
+	fi
+	
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" -a "${err_za}" = "${expected_err_za}" -a "${err_cbf}" = "${expected_err_cbf}" ]; then
 		zbc_test_print_passed
 	else

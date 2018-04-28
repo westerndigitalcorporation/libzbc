@@ -61,3 +61,5 @@ zbc_test_check_no_sk_ascq
 # Check failed
 zbc_test_check_failed
 
+# Post-process cleanup
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
