@@ -889,6 +889,8 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 				(query ? "QUERY" : "ACTIVATE"),
 				dev->zbd_filename,
 				sz, cmd.out_bufsz);
+		if (sz > 1024)
+			sz = 1024;	/* limit the amount printed */
 		zbc_sg_print_bytes(dev, buf, sz);
 	}
 
@@ -1070,6 +1072,8 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 				(query ? "QUERY" : "ACTIVATE"),
 				dev->zbd_filename,
 				sz, cmd.out_bufsz);
+		if (sz > 1024)
+			sz = 1024;	/* limit the amount printed */
 		zbc_sg_print_bytes(dev, buf, sz);
 	}
 
