@@ -16,8 +16,9 @@
 zbc_test_init $0 "ZONE ACTIVATE(32) attempt to deactivate NON-EMPTY zone (zone addressing)" $*
 
 # Set expected error code
-expected_sk="Unknown-sense-key 0x00"
-expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_sk="${ERR_ZA_SK}"
+expected_asc="${ERR_ZA_ASC}"
+expected_err_za="0x4100"	# CBI | ZNRESET
 
 # Get drive information
 zbc_test_get_device_info
@@ -30,7 +31,6 @@ zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
 	zbc_test_print_not_applicable "No domain currently conventional is convertible to SWR"
 fi
-expected_err_za="0x4100"	# CBI | ZNRESET
 expected_err_cbf="${domain_seq_start}"
 
 # Start testing

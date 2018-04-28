@@ -16,10 +16,9 @@
 zbc_test_init $0 "ZONE ACTIVATE(32) NZONE not domain-integral (zone addressing)" $*
 
 # Set expected error code
-expected_sk="Unknown-sense-key 0x00"
-expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_sk="${ERR_ZA_SK}"
+expected_asc="${ERR_ZA_ASC}"
 expected_err_za="0x0200"	# BADNRZ
-expected_err_cbf="0"
 
 # Get information
 zbc_test_get_device_info

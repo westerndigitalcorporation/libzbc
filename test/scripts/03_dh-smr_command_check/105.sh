@@ -16,8 +16,9 @@
 zbc_test_init $0 "ZONE ACTIVATE(32) LBA not domain-aligned (zone addressing)" $*
 
 # Set expected error code
-expected_sk="Unknown-sense-key 0x00"
-expected_asc="Unknown-additional-sense-code-qualifier 0x00"
+expected_sk="${ERR_ZA_SK}"
+expected_asc="${ERR_ZA_ASC}"
+expected_err_za="0x4001"	# CBI | Zone Boundary Violation
 
 # Get information
 zbc_test_get_device_info
@@ -33,11 +34,7 @@ fi
 # Add one zone-size to the starting zone to domain-misalign it for the test
 zbc_test_search_vals_from_slba ${domain_conv_start}
 
-
-echo "${domain_conv_start}" + "${target_size}"
-
 start_lba=$(expr "${domain_conv_start}" + "${target_size}")
-expected_err_za="0x4001"	# CBI | Zone Boundary Violation
 expected_err_cbf="${start_lba}"
 
 # Start testing
