@@ -334,7 +334,7 @@ for section in ${section_list[@]}; do
 	esac
 
 	zbc_run_section "${section}" "${section_name}"
-	if [ $? -ne 0 ]; then
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
 		exit 1
 	fi
 
