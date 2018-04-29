@@ -362,20 +362,30 @@ function zbc_run_gamut()
 {
     echo "###### Run the dhsmr suite with URSWRZ enabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+    log_path=${ZBC_TEST_LOG_PATH}/0
+    mkdir -p ${log_path}
+    log_file="${log_path}/zbc_dhsmr_test.log"
     reset_device
     zbc_dev_control -ur y ${device}
     zbc_run_config "$@"
 
     echo "###### Run the dhsmr suite with URSWRZ disabled"
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+    log_path=${ZBC_TEST_LOG_PATH}/0
+    mkdir -p ${log_path}
+    log_file="${log_path}/zbc_dhsmr_test.log"
     reset_device
     zbc_dev_control -ur n ${device}
     zbc_run_config "$@"
 
     # When done leave the device with URSWRZ set
+    reset_device
     zbc_dev_control -ur y ${device}
 }
 
 export ZBC_TEST_LOG_PATH
+
+# Establish log file for early failures before reaching another zbc_test_init
+zbc_test_init $0 "Main test for dhsmr device" ${ZBC_TEST_BIN_PATH} ${ZBC_TEST_LOG_PATH_BASE}/dhsmr 0 ${device}
 
 zbc_run_gamut "$@"
