@@ -40,3 +40,6 @@ zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed
+
+# Post process
+rm -f ${zone_info_file}

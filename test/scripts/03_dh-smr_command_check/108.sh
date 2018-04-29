@@ -71,3 +71,6 @@ zbc_test_check_failed
 # Post-processing -- put the domain back the way we found it
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} "conv"
+
+# Post process
+rm -f ${zone_info_file}
