@@ -31,7 +31,7 @@ static void zbc_print_supported_mutations(struct zbc_supported_mutation *sm)
 
 static void zbc_print_zone_activation_settings(struct zbc_zp_dev_control *ctl)
 {
-	printf("FSONZ: %u, URSWRZ: %s, MAX ACTIVATION: %u\n",
+	printf("FSNOZ: %u, URSWRZ: %s, MAX ACTIVATION: %u\n",
 	       ctl->zbm_nr_zones, ctl->zbm_urswrz ? "Y" : "N", ctl->zbm_max_activate);
 }
 
