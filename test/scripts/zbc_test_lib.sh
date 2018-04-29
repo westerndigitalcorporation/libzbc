@@ -153,6 +153,7 @@ function zbc_test_reset_device()
 
 	# Allow the main ACTIVATE tests to run unhindered
 	zbc_dev_control -maxd unlimited ${device}
+	zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 }
 
 function zbc_test_run()
