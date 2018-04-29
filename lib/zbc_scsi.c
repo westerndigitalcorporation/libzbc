@@ -901,7 +901,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[4]);
 		if (buf[4] & 0x40) /* CBI bit */
-			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[12]);
+			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[14]);
 		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not",
@@ -916,15 +916,15 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 			goto out;
 	}
 
-	/* Get number of conversion records in result */
+	/* Get number of descriptors in result */
 	nr = zbc_sg_get_int32(buf) / ZBC_CONV_RES_RECORD_SIZE;
 
 	if (!conv_recs || !nr)
 		goto out;
 
 	/*
-	 * Only get as many conversion descriptors as
-	 * the allocated buffer allows
+	 * Only get as many conversion descriptors
+	 * as the allocated buffer allows.
 	 */
 	if (nr > *nr_conv_recs)
 		nr = *nr_conv_recs;
@@ -1084,7 +1084,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[4]);
 		if (buf[4] & 0x40) /* CBI bit */
-		dev->zbd_errno.err_cbf = zbc_sg_get_int64(&buf[12]);
+			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[14]);
 		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not",
