@@ -42,6 +42,10 @@ fi
 
 # Convert the domains
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration"
+	exit 1
+fi
 
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then

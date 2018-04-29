@@ -36,13 +36,48 @@ zbc_test_count_cvt_domains		# nr_domains
 
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
 # This ends up with all conversion domains SWR except domains 0-10 and the last domain.
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 	4			  "conv"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6  $(( ${nr_domains} - 6 ))  "conv"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1	4			  "seq"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6	$(( ${nr_domains} - 6 ))  "seq"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1	4			  "conv"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6	5			  "conv"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 ))  1  "conv"
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (1 4 conv)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (6 $(( ${nr_domains} - 6 )) conv)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "seq"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (1 4 seq)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "seq"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (6 $(( ${nr_domains} - 6 )) seq)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (1 4 conv)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 5 "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration (6 5 conv)"
+	exit 1
+fi
+
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 "conv"
+if [ $? != 0 ]; then
+	echo "Failed to convert device to intended test configuration ($(( ${nr_domains} - 1 )) 1 conv)"
+	exit 1
+fi
 
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh ${arg_b} -n ${device}
