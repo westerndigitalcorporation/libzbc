@@ -173,9 +173,7 @@ function zbc_test_meta_run()
 {
 	local _cmd="$*"
 
-	echo "" >> ${log_file} 2>&1
-	echo "### Executing: ${_cmd}" >> ${log_file} 2>&1
-	echo "" 2>&1 | tee -a ${log_file} 2>&1
+	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
 	${_cmd} 2>&1 | tee -a ${log_file} 2>&1
 	ret=${PIPESTATUS[0]}
