@@ -14,9 +14,9 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "READ conventional/sequential zones boundary violation" $*
+zbc_test_init $0 "READ conventional zone space end boundary violation" $*
 
-# Set expected error code
+# Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
 expected_sk="Illegal-request"
 expected_asc="Attempt-to-read-invalid-data"
 
@@ -26,40 +26,25 @@ zbc_test_get_device_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Search target LBA
+# Search first sequential zone info
+zbc_test_search_last_zone_vals_from_zone_type "0x2"
+func_ret=$?
+if [ ${func_ret} -ne 0 ]; then
+    zbc_test_print_not_applicable "No sequential zone LBA space"
+fi
+
 # Search last conventional zone info
 zbc_test_search_last_zone_vals_from_zone_type "0x1"
-
 func_ret=$?
-
-if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable "No conventional zones"
+if [ ${func_ret} -ne 0 ]; then
+    zbc_test_print_not_applicable "No conventional zone LBA space"
 fi
 
-next_zone_slba=$(( ${target_slba} + ${target_size} ))
-
-# Search first sequential zone info
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
-
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc"
-func_ret=$?
-
-if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable "No active sequential zones"
-fi
-
-if [ ${next_zone_slba} != ${target_slba} ]; then
-    zbc_test_print_not_applicable "First active sequential zone at LBA=${target_slba} is not contiguous with the last conventional zone"
-fi
-
-target_lba=$(( ${target_slba} - 1 ))
+# last conventional LBA
+target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+# Read across the boundary between conventional LBA space and whatever follows it in LBA space
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 
 # Check result
@@ -72,6 +57,5 @@ else
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
 rm -f ${zone_info_file}
 
