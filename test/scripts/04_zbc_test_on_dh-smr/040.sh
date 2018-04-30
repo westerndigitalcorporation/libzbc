@@ -37,46 +37,45 @@ zbc_test_count_cvt_domains		# nr_domains
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
 # This ends up with all conversion domains SWR except domains 0-10 and the last domain.
 
+activate_fail()
+{
+	echo "Failed to convert device to intended test configuration ($*)"
+	exit 1
+}
+
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (1 4 conv)"
-	exit 1
+	activate_fail "1 4 conv"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "conv"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (6 $(( ${nr_domains} - 6 )) conv)"
-	exit 1
+	activate_fail "6 $(( ${nr_domains} - 6 )) conv"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "seq"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (1 4 seq)"
-	exit 1
+	activate_fail "1 4 seq"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "seq"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (6 $(( ${nr_domains} - 6 )) seq)"
-	exit 1
+	activate_fail "6 $(( ${nr_domains} - 6 )) seq"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (1 4 conv)"
-	exit 1
+	activate_fail "1 4  conv"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 5 "conv"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration (6 5 conv)"
-	exit 1
+	activate_fail "6 5 conv"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 "conv"
 if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration ($(( ${nr_domains} - 1 )) 1 conv)"
-	exit 1
+	activate_fail "$(( ${nr_domains} - 1 )) 1 conv"
 fi
 
 # Start ZBC test
