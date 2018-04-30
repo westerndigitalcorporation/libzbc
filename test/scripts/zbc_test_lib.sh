@@ -69,6 +69,26 @@ function _trim()
 ERR_ZA_SK="Unknown-sense-key 0x00"
 ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
 
+stacktrace()
+{
+	local RET=
+	local -i FRAME=2
+	local STR=${FUNCNAME[${FRAME}]}
+	while [[ ! -z ${STR} ]] ; do
+		RET+=" ${STR}:${BASH_LINENO[$((${FRAME}-1))]}"
+		FRAME=$(( ${FRAME} + 1 ))
+		STR=${FUNCNAME[${FRAME}]}
+		if [[ -z ${FUNCNAME[$((${FRAME}+1))]} ]] ; then break; fi
+	done
+	echo ${RET}
+}
+
+stacktrace_exit()
+{
+	echo "$* (from `stacktrace`)"
+	exit 1
+}
+
 # Trim leading zeros off of result strings so expr doesn't think they are octal
 function trim()
 {
@@ -147,13 +167,21 @@ function zbc_test_reset_device()
 {
 	zbc_reset_test_device
 	if [ $? -ne 0 ]; then
-		echo "Can't reset test device"
-		exit 1
+		stacktrace_exit "Can't reset test device"
 	fi
 
 	# Allow the main ACTIVATE tests to run unhindered
 	zbc_dev_control -maxd unlimited ${device}
+	if [ $? -ne 0 ]; then
+		stacktrace_exit "Failed to set max_conversion unlimited"
+	fi
+
 	zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
+	if [ $? -ne 0 ]; then
+		stacktrace_exit "Failed to zone_reset ALL"
+	fi
+
+	echo "max_conversion set to unlimited; did zone_reset ALL"
 }
 
 function zbc_test_run()
