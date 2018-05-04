@@ -483,16 +483,25 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	fprintf(out, "    Zone Activation command set is %ssupported\n",
 		(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
 	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
-		if (info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT)
 			fprintf(out, "    Unrestricted read control is %ssupported\n",
-				(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ?
-			 "" : "not ");
+			(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ? "" : "NOT ");
 		if (info->zbd_max_conversion != 0)
 			fprintf(out, "    Maximum number of zones to activate: %u\n",
 				info->zbd_max_conversion);
 		else
 			fprintf(out, "    Maximum number of zones"
 				     " to activate is unlimited\n");
+		fprintf(out, "    DOMAIN REPORT command is %ssupported\n",
+			(info->zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    ZONE QUERY command is %ssupported\n",
+			(info->zbd_flags & ZBC_ZONE_QUERY_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    ZA (FSNOZ) control is %ssupported\n",
+			(info->zbd_flags & ZBC_ZA_CONTROL_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    Supported zone types: %s%s%s%s\n",
+			(info->zbd_flags & ZBC_CONV_ZONE_SUPPORT) ? "Conv " : "",
+			(info->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) ? "SWR " : "",
+			(info->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) ? "SWP " : "",
+			(info->zbd_flags & ZBC_WPC_ZONE_SUPPORT) ? "WPC " : "");
 	}
 
 	fprintf(out, "    MUTATE command set is %ssupported\n",
@@ -1005,7 +1014,7 @@ int zbc_report_mutations(struct zbc_device *dev,
 {
 	int ret;
 
-	if (!zbc_dev_supports_mutate(dev)) {
+	if (!zbc_supp_mutate(dev)) {
 		zbc_error("%s: Device doesn't support MUTATE\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
@@ -1037,7 +1046,7 @@ int zbc_report_mutations(struct zbc_device *dev,
 int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
 	       union zbc_mutation_opt opt)
 {
-	if (!zbc_dev_supports_mutate(dev)) {
+	if (!zbc_supp_mutate(dev)) {
 		zbc_error("%s: Device doesn't support MUTATE\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;

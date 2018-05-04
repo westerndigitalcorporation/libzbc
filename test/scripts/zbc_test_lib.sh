@@ -267,6 +267,48 @@ function zbc_test_get_device_info()
 	zone_activation_device=${2}
 	zbc_check_string "Failed to get Zone Activation device support" ${zone_activation_device}
 
+	if [ "${zone_activation_device}" != "0" ]; then
+		ur_control_line=`cat ${log_file} | grep -F "[UR_CONTROL]"`
+		set -- ${ur_control_line}
+		ur_control=${2}
+		zbc_check_string "Failed to get unrestricted read control" ${ur_control}
+
+		domain_report_line=`cat ${log_file} | grep -F "[DOMAIN_REPORT]"`
+		set -- ${domain_report_line}
+		domain_report=${2}
+		zbc_check_string "Failed to get DOMAIN REPORT support" ${domain_report}
+
+		zone_query_line=`cat ${log_file} | grep -F "[ZONE_QUERY]"`
+		set -- ${zone_query_line}
+		zone_query=${2}
+		zbc_check_string "Failed to get ZONE QUERY support" ${zone_query}
+
+		za_control_line=`cat ${log_file} | grep -F "[ZA_CONTROL]"`
+		set -- ${za_control_line}
+		za_control=${2}
+		zbc_check_string "Failed to get zone activation control" ${za_control}
+
+		conv_zone_line=`cat ${log_file} | grep -F "[CONV_ZONE]"`
+		set -- ${conv_zone_line}
+		conv_zone=${2}
+		zbc_check_string "Failed to get Conventional zone support" ${conv_zone}
+
+		seq_req_zone_line=`cat ${log_file} | grep -F "[SEQ_REQ_ZONE]"`
+		set -- ${seq_req_zone_line}
+		seq_req_zone=${2}
+		zbc_check_string "Failed to get Sequential Write Required zone support" ${seq_req_zone}
+
+		seq_pref_zone_line=`cat ${log_file} | grep -F "[SEQ_PREF_ZONE]"`
+		set -- ${seq_pref_zone_line}
+		seq_pref_zone=${2}
+		zbc_check_string "Failed to get Sequential Write Preferred zone support" ${seq_pref_zone}
+
+		wpc_zone_line=`cat ${log_file} | grep -F "[WPC_ZONE]"`
+		set -- ${wpc_zone_line}
+		wpc_zone=${2}
+		zbc_check_string "Failed to get Write Pointer Conventional zone support" ${wpc_zone}
+	fi
+
 	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
 	last_zone_lba=${2}

@@ -1561,10 +1561,20 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ, Zone Activation support and WRSWRZ_SET flags */
+	/* URSWRZ, Zone Activation support */
 	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
+	if (di->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
+		/* Check what Zone Activation features are supported */
 	di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_DOMAIN_REPORT_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x40) ? ZBC_ZONE_QUERY_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x80) ? ZBC_ZA_CONTROL_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x02) ? ZBC_CONV_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x04) ? ZBC_SEQ_REQ_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x08) ? ZBC_SEQ_PREF_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x10) ? ZBC_WPC_ZONE_SUPPORT : 0;
+	}
 
 	/* Maximum number of zones for resource management */
 	if (di->zbd_model == ZBC_DM_HOST_AWARE) {

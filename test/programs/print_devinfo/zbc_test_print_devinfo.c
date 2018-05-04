@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
 	fprintf(stdout,
 		"[TEST][INFO][ZONE_ACTIVATION_DEVICE],%x\n",
-		info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT);
+		(bool)(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",
@@ -111,7 +111,43 @@ int main(int argc, char **argv)
 
 	fprintf(stdout,
 		"[TEST][INFO][URSWRZ],%x\n",
-		info.zbd_flags & ZBC_UNRESTRICTED_READ);
+		(bool)(info.zbd_flags & ZBC_UNRESTRICTED_READ));
+
+	fprintf(stdout,
+		"[TEST][INFO][MUTATE],%x\n",
+		(bool)(info.zbd_flags & ZBC_MUTATE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][UR_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_URSWRZ_SET_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][DOMAIN_REPORT],%x\n",
+		(bool)(info.zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][ZONE_QUERY],%x\n",
+		(bool)(info.zbd_flags & ZBC_ZONE_QUERY_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][ZA_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][CONV_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_CONV_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][SEQ_REQ_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][SEQ_PREF_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][WPC_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_WPC_ZONE_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][LAST_ZONE_LBA],%llu\n",

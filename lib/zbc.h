@@ -184,11 +184,28 @@ struct zbc_device {
 #define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
 #define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+/*
+ * Zone Activation device property checks.
+ */
 #define zbc_dev_is_zone_act(dev) (zbc_dev_is_zoned(dev) && \
-				 (dev)->zbd_info.zbd_flags & \
-				 ZBC_ZONE_ACTIVATION_SUPPORT)
-#define zbc_dev_supports_mutate(dev) ((dev)->zbd_info.zbd_flags & \
+				  (dev)->zbd_info.zbd_flags & \
+				  ZBC_ZONE_ACTIVATION_SUPPORT)
+#define zbc_supp_mutate(dev)	((dev)->zbd_info.zbd_flags & \
 				 ZBC_MUTATE_SUPPORT)
+#define zbc_supp_domain_report	((dev)->zbd_info.zbd_flags & \
+				 ZBC_DOMAIN_REPORT_SUPPORT)
+#define zbc_supp_zone_query	((dev)->zbd_info.zbd_flags & \
+				 ZBC_ZONE_QUERY_SUPPORT)
+#define zbc_supp_za_control	((dev)->zbd_info.zbd_flags & \
+				 ZBC_ZA_CONTROL_SUPPORT)
+#define zbc_supp_conv_zone	((dev)->zbd_info.zbd_flags & \
+				 ZBC_CONV_ZONE_SUPPORT)
+#define zbc_supp_seq_req_zone	((dev)->zbd_info.zbd_flags & \
+				 ZBC_SEQ_REQ_ZONE_SUPPORT)
+#define zbc_supp_seq_pref_zone	((dev)->zbd_info.zbd_flags & \
+				 ZBC_SEQ_PREF_ZONE_SUPPORT)
+#define zbc_supp_wpc_zone	((dev)->zbd_info.zbd_flags & \
+				 ZBC_WPC_ZONE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.
