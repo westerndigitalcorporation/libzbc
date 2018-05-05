@@ -149,7 +149,7 @@ usage:
 	}
 	if (set_urswrz && !(info.zbd_flags & ZBC_URSWRZ_SET_SUPPORT)) {
 		fprintf(stderr,
-			"[TEST][ERROR],device doesn't support unlimited reads control\n");
+			"[TEST][ERROR],device doesn't support unrestricted read control\n");
 			ret = 1;
 		goto out;
 	}

@@ -199,7 +199,8 @@ usage:
 	zbc_get_device_info(dev, &info);
 
 	printf("Device %s:\n", path);
-	zbc_print_device_info(&info, stdout);
+	if (mt == ZBC_MT_UNKNOWN)
+		zbc_print_device_info(&info, stdout);
 
 	if (list_mu) {
 		if (!(info.zbd_flags & ZBC_MUTATE_SUPPORT)) {
@@ -332,6 +333,9 @@ skip_lm:
 			goto out;
 		}
 	}
+
+	if (mt != ZBC_MT_UNKNOWN)
+		zbc_print_device_info(&info, stdout);
 
 	zbc_print_zone_activation_settings(&ctl);
 

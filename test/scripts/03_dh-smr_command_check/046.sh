@@ -23,6 +23,10 @@ expected_err_za="0x0080"
 # Get drive information
 zbc_test_get_device_info
 
+if [ "${za_control}" == 0 ]; then
+    zbc_test_print_not_applicable "Device does not support setting FSNOZ"
+fi
+
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 

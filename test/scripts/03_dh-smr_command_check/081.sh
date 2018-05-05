@@ -22,6 +22,10 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
+if [ "${seq_pref_zone}" == 0 ]; then
+    zbc_test_print_not_applicable "Device does not support conversion from SWP zone"
+fi
+
 # Get domain information
 zbc_test_get_cvt_domain_info
 

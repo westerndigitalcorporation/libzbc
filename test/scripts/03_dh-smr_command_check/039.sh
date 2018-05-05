@@ -22,10 +22,14 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
+if [ "${za_control}" == 0 ]; then
+    zbc_test_print_not_applicable "Device does not support setting FSNOZ"
+fi
+
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SWR domain that is convertable to CMR
+# Find the first SWR domain that is convertible to CMR
 zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain currently SWR is convertible to conventional"

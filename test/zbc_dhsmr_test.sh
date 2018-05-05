@@ -361,27 +361,50 @@ fi
 
 function zbc_run_gamut()
 {
-    echo -e "\n###### Run the dhsmr suite with URSWRZ enabled"
-    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
     log_path=${ZBC_TEST_LOG_PATH}/0
-    mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
-    reset_device
-    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
-    zbc_run_config "$@"
-
-    echo -e "\n###### Run the dhsmr suite with URSWRZ disabled"
-    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
-    log_path=${ZBC_TEST_LOG_PATH}/0
+    rm ${log_file}
     mkdir -p ${log_path}
-    log_file="${log_path}/zbc_dhsmr_test.log"
-    reset_device
-    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
-    zbc_run_config "$@"
+    zbc_test_get_device_info
 
-    # When done leave the device with URSWRZ set
-    reset_device
-    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+    if [ "${ur_control}" == 0 ]; then
+        echo -e "\n###### Device doesn't support unrestricted reads control"
+        if [ "${unrestricted_read}" == 0 ]; then
+            echo "###### Run the dhsmr suite with URSWRZ disabled"
+            ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+        else
+            echo "###### Run the dhsmr suite with URSWRZ enabled"
+            ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+        fi
+        log_path=${ZBC_TEST_LOG_PATH}/0
+        mkdir -p ${log_path}
+        log_file="${log_path}/zbc_dhsmr_test.log"
+        reset_device
+        zbc_run_config "$@"
+    else
+        echo -e "\n###### Run the dhsmr suite with URSWRZ enabled"
+        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+        log_path=${ZBC_TEST_LOG_PATH}/0
+        mkdir -p ${log_path}
+        log_file="${log_path}/zbc_dhsmr_test.log"
+        reset_device
+        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+        zbc_run_config "$@"
+
+        echo -e "\n###### Run the dhsmr suite with URSWRZ disabled"
+        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+        log_path=${ZBC_TEST_LOG_PATH}/0
+        mkdir -p ${log_path}
+        log_file="${log_path}/zbc_dhsmr_test.log"
+        reset_device
+        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
+        zbc_run_config "$@"
+
+        # When done leave the device with URSWRZ set
+        reset_device
+        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+    fi
 }
 
 export ZBC_TEST_LOG_PATH

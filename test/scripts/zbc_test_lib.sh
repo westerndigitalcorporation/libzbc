@@ -170,10 +170,21 @@ function zbc_test_reset_device()
 		stacktrace_exit "Can't reset test device"
 	fi
 
+	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
+	log_path=${ZBC_TEST_LOG_PATH}/0
+	log_file="${log_path}/zbc_dhsmr_test.log"
+	rm ${log_file}
+	mkdir -p ${log_path}
+	zbc_test_get_device_info
+
+	if [ "${ur_control}" != 0 ]; then
 	# Allow the main ACTIVATE tests to run unhindered
 	zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
 	if [ $? -ne 0 ]; then
 		stacktrace_exit "Failed to set max_conversion unlimited"
+	fi
+
+		echo "max_conversion set to unlimited"
 	fi
 
 	zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
@@ -181,7 +192,7 @@ function zbc_test_reset_device()
 		stacktrace_exit "Failed to zone_reset ALL"
 	fi
 
-	echo "max_conversion set to unlimited; did zone_reset ALL"
+	echo "did zone_reset ALL"
 }
 
 function zbc_test_run()
