@@ -26,15 +26,16 @@ int main(int argc, char **argv)
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
 	struct zbc_cvt_domain *domains = NULL;
 	const char *sk_name, *ascq_name;
-	struct zbc_zp_dev_control ctl;
 	char *path;
+	struct zbc_device_info info;
+	struct zbc_zp_dev_control ctl;
 	struct zbc_err_ext zbc_err;
 	uint64_t err_cbf;
 	uint16_t err_za;
 	uint64_t start;
 	unsigned int oflags, nr_units, nr_domains, new_type, nr_conv_recs = 0;
 	int i, ret, end;
-	bool zone_addr = false, all = false, cdb32 = false, fsnoz = false;
+	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
 
 	/* Check command line */
 	if (argc < 5) {
@@ -131,7 +132,18 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (!zone_addr) {
+	zbc_get_device_info(dev, &info);
+
+	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+		fprintf(stderr,
+			"[TEST][ERROR],not a Zone Activation device\n");
+		ret = 1;
+		goto out;
+	}
+	if (!(info.zbd_flags & ZBC_ZONE_QUERY_SUPPORT))
+		no_query = true;
+
+	if (!zone_addr || no_query) {
 		/*
 		 * Have to call zbc_list_conv_domains() to find the
 		 * starting zone and number of zones to convert.
@@ -149,24 +161,28 @@ int main(int argc, char **argv)
 			ret = 1;
 			goto out;
 		}
+		if (no_query)
+			nr_conv_recs = nr_domains << 1;
 
-		if (start + nr_units > nr_domains) {
-			fprintf(stderr,
-				"[TEST][ERROR],Domain [%lu/%u] out of range\n",
-				start, nr_units);
-			ret = 1;
-			goto out;
-		}
-		end = start + nr_units;
-		if (new_type == ZBC_ZT_CONVENTIONAL ||
-		    new_type == ZBC_ZT_WP_CONVENTIONAL) {
-			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += domains[i].zbr_seq_length;
-			start = domains[start].zbr_seq_start;
-		} else {
-			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += domains[i].zbr_conv_length;
-			start = domains[start].zbr_conv_start;
+		if (!zone_addr) {
+			if (start + nr_units > nr_domains) {
+				fprintf(stderr,
+					"[TEST][ERROR],Domain [%lu/%u] out of range\n",
+					start, nr_units);
+				ret = 1;
+				goto out;
+			}
+			end = start + nr_units;
+			if (new_type == ZBC_ZT_CONVENTIONAL ||
+			    new_type == ZBC_ZT_WP_CONVENTIONAL) {
+				for (nr_units = 0, i = start; i < end; i++)
+					nr_units += domains[i].zbr_seq_length;
+				start = domains[start].zbr_seq_start;
+			} else {
+				for (nr_units = 0, i = start; i < end; i++)
+					nr_units += domains[i].zbr_conv_length;
+				start = domains[start].zbr_conv_start;
+			}
 		}
 	}
 
@@ -174,6 +190,14 @@ int main(int argc, char **argv)
 		fsnoz = false;
 
 	if (fsnoz) {
+		/* Make sure the device supports this */
+		if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+			fprintf(stderr,
+				"[TEST][ERROR],device doesn't support setting FSNOZ\n");
+			ret = 1;
+			goto out;
+		}
+
 		/* Set the number of zones to convert via a separate command */
 		ctl.zbm_nr_zones = nr_units;
 		ctl.zbm_urswrz = 0xff;
@@ -193,27 +217,29 @@ int main(int argc, char **argv)
 		nr_units = 0;
 	}
 
-	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
-				     nr_units, new_type);
-	if (ret < 0) {
-		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
-		sk_name = zbc_sk_str(zbc_err.sk);
-		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
-		err_za = zbc_err.err_za;
-		err_cbf = zbc_err.err_cbf;
-		fprintf(stderr,
-			"[TEST][ERROR],Can't get the number of conversion records, err %i (%s)\n",
-			ret, strerror(-ret));
-		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-		if (err_za || err_cbf) {
-			printf("[TEST][ERROR][ERR_ZA],0x%04x\n", err_za);
-			printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
+	if (!no_query) {
+		ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
+					nr_units, new_type);
+		if (ret < 0) {
+			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
+			sk_name = zbc_sk_str(zbc_err.sk);
+			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+			err_za = zbc_err.err_za;
+			err_cbf = zbc_err.err_cbf;
+			fprintf(stderr,
+				"[TEST][ERROR],Can't get the number of conversion records, err %i (%s)\n",
+				ret, strerror(-ret));
+			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+			if (err_za || err_cbf) {
+				printf("[TEST][ERROR][ERR_ZA],0x%04x\n", err_za);
+				printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
+			}
+			ret = 1;
+			goto out;
 		}
-		ret = 1;
-		goto out;
+		nr_conv_recs = (uint32_t)ret;
 	}
-	nr_conv_recs = (uint32_t)ret;
 
 	/* Allocate conversion record array */
 	conv_recs = (struct zbc_conv_rec *)calloc(nr_conv_recs,

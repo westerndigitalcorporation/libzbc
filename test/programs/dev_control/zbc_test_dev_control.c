@@ -143,7 +143,7 @@ usage:
 
 	if (set_nz && !(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT)) {
 		fprintf(stderr,
-			"[TEST][ERROR],device doesn't support Zone Activation\n");
+			"[TEST][ERROR],device doesn't support ZA control\n");
 			ret = 1;
 		goto out;
 	}
