@@ -485,6 +485,11 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
 			fprintf(out, "    Unrestricted read control is %ssupported\n",
 			(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ? "" : "NOT ");
+		if (info->zbd_flags & ZBC_MAXACT_SET_SUPPORT) {
+			fprintf(out,
+				"    Setting maximum number of zones "
+				"to activate is supported\n");
+		}
 		if (info->zbd_max_conversion != 0)
 			fprintf(out, "    Maximum number of zones to activate: %u\n",
 				info->zbd_max_conversion);

@@ -79,6 +79,7 @@ test_progs=( \
     zbc_test_write_zone \
     zbc_test_domain_report \
     zbc_test_zone_activate \
+    zbc_test_dev_control \
 )
 
 for p in ${test_progs[@]}; do
@@ -366,7 +367,7 @@ function zbc_run_gamut()
     mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
     reset_device
-    zbc_dev_control -ur y ${device}
+    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
     zbc_run_config "$@"
 
     echo -e "\n###### Run the dhsmr suite with URSWRZ disabled"
@@ -375,12 +376,12 @@ function zbc_run_gamut()
     mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
     reset_device
-    zbc_dev_control -ur n ${device}
+    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
     zbc_run_config "$@"
 
     # When done leave the device with URSWRZ set
     reset_device
-    zbc_dev_control -ur y ${device}
+    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
 }
 
 export ZBC_TEST_LOG_PATH

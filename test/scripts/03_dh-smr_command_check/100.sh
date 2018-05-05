@@ -26,7 +26,7 @@ zbc_test_get_device_info
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find a CMR domain that is convertable to SMR
+# Find a CMR domain that is convertible to SMR
 zbc_test_search_domain_by_type_and_cvt "1" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain currently conventional is convertible to sequential"
@@ -38,8 +38,14 @@ zbc_test_count_cvt_to_seq_domains
 # Set the maximum domains convertible too small for the number of zones
 maxd=$(( ${nr_cvt_to_seq_domains} - 1 ))
 
+# Lower the maximum number of domains to activate
+zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd ${maxd} ${device}
+
+# Make sure the command succeeded
+zbc_test_check_no_sk_ascq
+zbc_test_check_failed
+
 # Start testing
-zbc_dev_control -maxd ${maxd} ${device} > /dev/null
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} ${nr_cvt_to_seq_domains} "seq"
 
 # Check result
@@ -50,4 +56,4 @@ zbc_test_check_err
 zbc_test_check_failed
 
 # Post-process
-zbc_dev_control -maxd unlimited ${device} > /dev/null
+zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd unlimited ${device}

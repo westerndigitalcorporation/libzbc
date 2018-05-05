@@ -632,39 +632,44 @@ enum zbc_dev_flags {
 	ZBC_URSWRZ_SET_SUPPORT = 0x00000008,
 
 	/**
-	 * Indicates that DOMAIN REPORT command is supported by device.
+	 * Indicates that modiifcation of MAXIMUM ACTIVATION is supported by device.
 	 */
-	ZBC_DOMAIN_REPORT_SUPPORT = 0x00000010,
+	ZBC_MAXACT_SET_SUPPORT = 0x00000010,
 
 	/**
 	 * Indicates that DOMAIN REPORT command is supported by device.
 	 */
-	ZBC_ZONE_QUERY_SUPPORT = 0x00000020,
+	ZBC_DOMAIN_REPORT_SUPPORT = 0x00000020,
+
+	/**
+	 * Indicates that DOMAIN REPORT command is supported by device.
+	 */
+	ZBC_ZONE_QUERY_SUPPORT = 0x00000040,
 
 	/**
 	 * Indicates that setting FSNOZ value is supported by device.
 	 */
-	ZBC_ZA_CONTROL_SUPPORT = 0x00000040,
+	ZBC_ZA_CONTROL_SUPPORT = 0x00000080,
 
 	/**
 	 * Indicates that Conventional zone type is supported by device.
 	 */
-	ZBC_CONV_ZONE_SUPPORT = 0x00000080,
+	ZBC_CONV_ZONE_SUPPORT = 0x00000100,
 
 	/**
 	 * Indicates that Sequential Write Required zone type is supported.
 	 */
-	ZBC_SEQ_REQ_ZONE_SUPPORT = 0x00000100,
+	ZBC_SEQ_REQ_ZONE_SUPPORT = 0x00000200,
 
 	/**
 	 * Indicates that Sequential Write Preferred zone type is supported.
 	 */
-	ZBC_SEQ_PREF_ZONE_SUPPORT = 0x00000200,
+	ZBC_SEQ_PREF_ZONE_SUPPORT = 0x00000400,
 
 	/**
 	 * Indicates that Write Pointer Conventional zone type is supported.
 	 */
-	ZBC_WPC_ZONE_SUPPORT = 0x00000400,
+	ZBC_WPC_ZONE_SUPPORT = 0x00000800,
 };
 
 /**

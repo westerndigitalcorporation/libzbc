@@ -134,6 +134,10 @@ int main(int argc, char **argv)
 		(bool)(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT));
 
 	fprintf(stdout,
+		"[TEST][INFO][MAXACT_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_MAXACT_SET_SUPPORT));
+
+	fprintf(stdout,
 		"[TEST][INFO][CONV_ZONE],%x\n",
 		(bool)(info.zbd_flags & ZBC_CONV_ZONE_SUPPORT));
 

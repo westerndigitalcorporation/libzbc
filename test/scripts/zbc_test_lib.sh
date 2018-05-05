@@ -171,7 +171,7 @@ function zbc_test_reset_device()
 	fi
 
 	# Allow the main ACTIVATE tests to run unhindered
-	zbc_dev_control -maxd unlimited ${device}
+	zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
 	if [ $? -ne 0 ]; then
 		stacktrace_exit "Failed to set max_conversion unlimited"
 	fi
@@ -287,6 +287,11 @@ function zbc_test_get_device_info()
 		set -- ${za_control_line}
 		za_control=${2}
 		zbc_check_string "Failed to get zone activation control" ${za_control}
+
+		maxact_control_line=`cat ${log_file} | grep -F "[MAXACT_CONTROL]"`
+		set -- ${maxact_control_line}
+		maxact_control=${2}
+		zbc_check_string "Failed to get maximum activation domains control" ${maxact_control}
 
 		conv_zone_line=`cat ${log_file} | grep -F "[CONV_ZONE]"`
 		set -- ${conv_zone_line}
