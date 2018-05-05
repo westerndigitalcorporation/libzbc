@@ -42,7 +42,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${domain_conv_st
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
+zbc_test_fail_if_sk_ascq
 
 if [ -z "${sk}" ]; then
     # Verify that no convertable conventional domains present
@@ -51,10 +51,10 @@ if [ -z "${sk}" ]; then
     if [ $? -eq 0 ]; then
 	sk=${domain_num}
 	expected_sk="no-conv-to-seq"
-	zbc_test_print_failed_sk
     fi
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 

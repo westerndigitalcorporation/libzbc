@@ -363,9 +363,9 @@ function zbc_run_gamut()
 {
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
     log_path=${ZBC_TEST_LOG_PATH}/0
-    log_file="${log_path}/zbc_dhsmr_test.log"
-    rm ${log_file}
     mkdir -p ${log_path}
+    log_file="${log_path}/zbc_dhsmr_test.log"
+    rm -f ${log_file}
     zbc_test_get_device_info
 
     if [ "${ur_control}" == 0 ]; then

@@ -38,7 +38,7 @@ fi
 # Assume that all convertable domains are contiguious
 zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_conv_domains
-if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -ge ${nr_domains} ]; then
+if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; then
     nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
 fi
 
@@ -47,7 +47,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
+zbc_test_fail_if_sk_ascq
 
 if [ -z "${sk}" ]; then
     # Verify that no convertable SWP domains are present
@@ -56,10 +56,10 @@ if [ -z "${sk}" ]; then
     if [ $? -eq 0 ]; then
         sk=${domain_num}
         expected_sk="no-seq-to-conv"
-        zbc_test_print_failed_sk
     fi
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 

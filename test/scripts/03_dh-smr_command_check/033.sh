@@ -42,7 +42,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${domain_seq_sta
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
+zbc_test_fail_if_sk_ascq
 
 # Verify that no convertable sequential domains is present
 zbc_test_get_cvt_domain_info
@@ -50,9 +50,9 @@ zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -eq 0 ]; then
     sk=${domain_num}
     expected_sk="no-seq-to-conv"
-    zbc_test_print_failed_sk
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 

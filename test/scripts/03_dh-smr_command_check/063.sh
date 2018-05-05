@@ -34,9 +34,6 @@ fi
 # Assume that all convertable domains are contiguious
 zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_conv_domains
-if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -ge ${nr_domains} ]; then
-    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - 1)
-fi
 
 # Calculate the total number of zones in this range of domains
 zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_conv_domains}
@@ -54,9 +51,9 @@ zbc_test_search_domain_by_type_and_cvt "2" "conv"
 if [ $? -eq 0 ]; then
     sk=${domain_num}
     expected_sk="no-seq-to-conv"
-    zbc_test_print_failed_sk
 fi
 
 # Check failed
+zbc_test_fail_if_sk_ascq
 zbc_test_check_failed
 

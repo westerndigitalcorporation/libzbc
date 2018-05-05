@@ -34,6 +34,10 @@ zbc_test_get_cvt_domain_info
 # Find the total number of convertible domains
 zbc_test_count_cvt_domains		# nr_domains
 
+if [ ${nr_domains} -le 6 ]; then
+	zbc_test_print_not_applicable "Not enough domains to run this configuration"
+fi
+
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
 # This ends up with all conversion domains SWR except domains 0-10 and the last domain.
 

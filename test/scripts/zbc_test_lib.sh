@@ -172,9 +172,9 @@ function zbc_test_reset_device()
 
 	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
 	log_path=${ZBC_TEST_LOG_PATH}/0
-	log_file="${log_path}/zbc_dhsmr_test.log"
-	rm ${log_file}
 	mkdir -p ${log_path}
+	log_file="${log_path}/zbc_dhsmr_test.log"
+	rm -f ${log_file}
 	zbc_test_get_device_info
 
 	if [ "${ur_control}" != 0 ]; then
@@ -1090,6 +1090,13 @@ function zbc_test_fail_if_sk_ascq()
 	local expected_asc=""
 	if [ -n "${sk}" -o -n "${asc}" ]; then
 		zbc_test_print_failed_sk "$*"
+	fi
+}
+
+function zbc_test_fail_if_sk_ascq()
+{
+	if [ -n "${sk}" -o -n "${asc}" ]; then
+		zbc_test_print_failed_sk
 	fi
 }
 

@@ -34,9 +34,6 @@ fi
 # Assume that all convertable domains are contiguious
 zbc_test_count_cvt_domains
 zbc_test_count_cvt_to_seq_domains
-if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -ge ${nr_domains} ]; then
-    nr_cvt_to_seq_domains=$(expr "${nr_domains}" - 1)
-fi
 
 # Calculate the total number of zones in this range of domains
 zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_seq_domains}
@@ -46,7 +43,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${domain_con
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
+zbc_test_fail_if_sk_ascq
 
 if [ -z "${sk}" ]; then
     # Verify that no convertable conventional domains present
@@ -55,10 +52,10 @@ if [ -z "${sk}" ]; then
     if [ $? -eq 0 ]; then
 	sk=${domain_num}
 	expected_sk="no-conv-to-seq"
-	zbc_test_print_failed_sk
     fi
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 
