@@ -464,6 +464,29 @@ struct zbc_conv_rec {
 
 };
 
+/** @brief Get conversion record type */
+#define zbc_conv_rec_type(r)		((int)(r)->zbe_type)
+
+/** @brief Test if conversion record type is conventional */
+#define zbc_conv_rec_conventional(r)	((r)->zbe_type == ZBC_ZT_CONVENTIONAL)
+
+/** @brief Test if conversion record type is sequential write required */
+#define zbc_conv_rec_seq_req(r)		((r)->zbe_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if conversion record type is sequential write preferred */
+#define zbc_conv_rec_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+/** @brief Test if conversion record type is write pointer conventional */
+#define zbc_conv_rec_conv_wp(r)		((r)->zbe_type == ZBC_ZT_WP_CONVENTIONAL)
+
+/** @brief Test if conversion record type is conventional of WPC */
+#define zbc_conv_rec_nonseq(r)		(zbc_conv_rec_conventional(r) || \
+					 zbc_conv_rec_conv_wp(r))
+
+/** @brief Test if conversion record type is sequential write required or preferred */
+#define zbc_conv_rec_seq(r)		(zbc_conv_rec_seq_req(r) || \
+					 zbc_conv_rec_seq_pref(r))
+
 /**
  * @brief Zone Provisioning device control structure.
  *
@@ -1147,21 +1170,6 @@ enum zbc_reporting_options {
         ZBC_RO_CMR_WP           = 0x3b,
 
         /**
-         * List of the zones with a Zone Condition of WPC EMPTY.
-         */
-        ZBC_RO_WPC_EMPTY        = 0x3c,
-
-        /**
-         * List of the zones with a Zone Condition of WPC WP.
-         */
-        ZBC_RO_WPC_WP           = 0x3d,
-
-        /**
-         * List of the zones with a Zone Condition of WPC FULL.
-         */
-        ZBC_RO_WPC_FULL         = 0x3e,
-
-	/**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
 	 */
 	ZBC_RO_NOT_WP		= 0x3f,

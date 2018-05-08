@@ -623,12 +623,205 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 	return (dev->zbd_drv->zbd_zone_op)(dev, sector, op, flags);
 }
 
+/*
+ * If DOMAIN REPORT is not supported by the device,
+ * try to emulate it with REPORT ZONES and ZONE QUERY.
+ */
+static int zbc_emulate_domain_report(struct zbc_device *dev,
+				     struct zbc_cvt_domain *domains,
+				     unsigned int *nr_domains)
+{
+	struct zbc_device_info *di = &dev->zbd_info;
+	struct zbc_cvt_domain *d;
+	struct zbc_zone *z, *zones = NULL;
+	struct zbc_conv_rec *conv_recs = NULL, *cr;
+	uint64_t lba, cmr_start = 0LL, smr_start = 0LL;
+	unsigned int nr_zones, nr_conv_recs = 0, zone_type, dnr, space_zones;
+	unsigned int cmr_len = 0, smr_len = 0, cmr_type = 0, smr_type = 0;
+	unsigned int cmr_cond = 0, smr_cond = 0;
+	int i, ret = 1, seam_zone;
+	bool have_cmr, have_smr;
+
+	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RO_ALL, &nr_zones);
+	if (ret != 0)
+		goto out;
+
+	/* Allocate zone array */
+	zones = (struct zbc_zone *)calloc(nr_zones, sizeof(struct zbc_zone));
+	if (!zones) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Get zone information */
+	ret = zbc_report_zones(dev, 0LL, ZBC_RO_ALL, zones, &nr_zones);
+	if (ret != 0)
+		goto out;
+
+	/* Try to find the first SMR zone */
+	z = zones;
+	seam_zone = -1;
+	for (i = 0; i < (int)nr_zones; i++, z++) {
+		if (zbc_zone_sequential(z)) {
+			seam_zone = i;
+			break;
+		}
+	}
+	if (seam_zone < 0) {
+		zbc_error("%s: No seam found\n", dev->zbd_filename);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (di->zbd_flags & ZBC_CONV_ZONE_SUPPORT) {
+	/* Try CMR zone space first for the query */
+		zone_type = ZBC_ZT_CONVENTIONAL;
+		lba = 0L;
+		space_zones = seam_zone + 1;
+	} else if (di->zbd_flags & ZBC_WPC_ZONE_SUPPORT) {
+		zone_type = ZBC_ZT_WP_CONVENTIONAL;
+		lba = 0LL;
+		space_zones = seam_zone + 1;
+	} else {
+		zbc_error("%s: No CMR zone supported\n", dev->zbd_filename);
+		ret = -ENOTSUP;
+		goto out;
+	}
+
+	/* Get the number of conversion records */
+	ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
+				     space_zones, zone_type);
+	if (ret < 0) {
+		/* OK, try in once again with SMR zone space */
+		int j = 0;
+		for (; i < (int)nr_zones; i++, j++, z++) {
+			if (!zbc_zone_offline(z)) {
+				seam_zone = i;
+				break;
+			}
+		}
+		ret = 0;
+		if (di->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) {
+			zone_type = ZBC_ZT_SEQUENTIAL_REQ;
+			lba = zbc_zone_start(z);
+			space_zones = nr_zones - seam_zone - j;
+		} else if (di->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) {
+			zone_type = ZBC_ZT_SEQUENTIAL_PREF;
+			lba = zbc_zone_start(z);
+			space_zones = nr_zones - seam_zone - j;
+		} else {
+			zbc_error("%s: No SMR zone supported\n",
+				  dev->zbd_filename);
+			ret = -ENOTSUP;
+			goto out;
+		}
+
+		ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
+					     space_zones, zone_type);
+		if (ret < 0)
+			goto out;
+	}
+
+	nr_conv_recs = (uint32_t)ret;
+
+	/* Allocate conversion record array */
+	conv_recs = (struct zbc_conv_rec *)calloc(nr_conv_recs,
+						  sizeof(struct zbc_conv_rec));
+	if (!conv_recs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Get the list of conversion records.
+	 * We will report pairs of them as domains.
+	 */
+	ret = zbc_zone_query(dev, true, true, false, lba, space_zones,
+			     zone_type, conv_recs, &nr_conv_recs);
+	if (ret != 0)
+		goto out;
+
+	/* Fill zone domain information */
+	dnr = 0;
+	d = domains;
+	have_cmr = have_smr = false;
+	for (i = 0; i < (int)nr_conv_recs; i++) {
+		cr = &conv_recs[i];
+		if (zbc_conv_rec_nonseq(cr)) {
+			if (have_cmr) {
+				zbc_error("%s: Unsupported CMR CR sequence\n",
+					  dev->zbd_filename);
+				ret = -ENOTSUP;
+				goto out;
+			}
+			cmr_start = cr->zbe_start_zone;
+			cmr_len = cr->zbe_nr_zones;
+			cmr_type = cr->zbe_type;
+			cmr_cond = cr->zbe_condition;
+			have_cmr = true;
+		}
+		if (zbc_conv_rec_seq(cr)) {
+			if (have_smr) {
+				zbc_error("%s: Unsupported SMR CR sequence\n",
+					  dev->zbd_filename);
+				ret = -ENOTSUP;
+				goto out;
+			}
+			smr_start = cr->zbe_start_zone;
+			smr_len = cr->zbe_nr_zones;
+			smr_type = cr->zbe_type;
+			smr_cond = cr->zbe_condition;
+			have_smr = true;
+		}
+		if (have_cmr && have_smr) {
+			if (d) {
+				d->zbr_number = dnr;
+				d->zbr_keep_out = 0;
+				if (cmr_cond == ZBC_ZC_INACTIVE &&
+				    smr_cond == ZBC_ZC_INACTIVE) {
+					zbc_error("%s: Can't determine domain type\n",
+						  dev->zbd_filename);
+					ret = -EINVAL;
+					goto out;
+				}
+				d->zbr_type = (cmr_cond == ZBC_ZC_INACTIVE) ? smr_type : cmr_type;
+				d->zbr_convertible = 0;
+				if (cmr_len)
+					d->zbr_convertible |= ZBC_CVT_TO_CONV;
+				if (smr_len)
+					d->zbr_convertible |= ZBC_CVT_TO_SEQ;
+
+				d->zbr_conv_start = zbc_dev_lba2sect(dev, cmr_start);
+				d->zbr_conv_length = cmr_len;
+				d->zbr_seq_start = zbc_dev_lba2sect(dev, smr_start);
+				d->zbr_seq_length = smr_len;
+
+				d++;
+			}
+			have_cmr = have_smr = false;
+			dnr++;
+		}
+		if (d && dnr >= *nr_domains)
+			break;
+	}
+	*nr_domains = dnr;
+
+out:
+	if (zones)
+		free(zones);
+	if (conv_recs)
+		free(conv_recs);
+
+	return ret;
+}
+
 /**
  * zbc_domain_report - Get conversion domain information
  */
 int zbc_domain_report(struct zbc_device *dev,
 		     struct zbc_cvt_domain *domains, unsigned int *nr_domains)
 {
+	struct zbc_device_info *di = &dev->zbd_info;
 	int ret;
 
 	if (!zbc_dev_is_zone_act(dev)) {
@@ -637,14 +830,17 @@ int zbc_domain_report(struct zbc_device *dev,
 		return -ENOTSUP;
 	}
 
-	if (!domains) {
-		/* Just get the number of conversion domains */
+	/* If domain array is not provided, just get the number of domains */
+	if (!domains)
 		*nr_domains = 0;
-		return (dev->zbd_drv->zbd_domain_report)(dev, NULL, nr_domains);
-	}
 
-	/* Get conversion domain information */
+	/* Get zone domain information */
+	if (di->zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT)
 	ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
+	else if (di->zbd_flags & ZBC_ZONE_QUERY_SUPPORT)
+		ret = zbc_emulate_domain_report(dev, domains, nr_domains);
+	else
+		ret = -ENOTSUP;
 	if (ret != 0) {
 		zbc_error("%s: DOMAIN REPORT failed %d (%s)\n",
 			  dev->zbd_filename,

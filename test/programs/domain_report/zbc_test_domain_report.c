@@ -86,7 +86,6 @@ usage:
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_report_nr_domains failed %d\n",
 			ret);
-		ret = 1;
 		goto out;
 	}
 
@@ -103,21 +102,9 @@ usage:
 	/* Get conversion domain information */
 	ret = zbc_domain_report(dev, domains, &nr_domains);
 	if (ret != 0) {
-		struct zbc_errno zbc_err;
-		const char *sk_name;
-		const char *ascq_name;
-
-		zbc_errno(dev, &zbc_err);
-		sk_name = zbc_sk_str(zbc_err.sk);
-		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
-
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_domain_report failed %d\n",
 			ret);
-		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
-		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
-
-		ret = 1;
 		goto out;
 	}
 
@@ -136,6 +123,28 @@ usage:
 	}
 
 out:
+	if (ret && ret != 1) {
+		struct zbc_err_ext zbc_err;
+		const char *sk_name;
+		const char *ascq_name;
+		uint64_t err_cbf;
+		uint16_t err_za;
+
+		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
+		sk_name = zbc_sk_str(zbc_err.sk);
+		ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
+		err_za = zbc_err.err_za;
+		err_cbf = zbc_err.err_cbf;
+
+		printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
+		printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
+		if (err_za || err_cbf) {
+			printf("[TEST][ERROR][ERR_ZA],0x%04x\n", err_za);
+			printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
+		}
+		ret = 1;
+	}
+
 	if (domains)
 		free(domains);
 	zbc_close(dev);

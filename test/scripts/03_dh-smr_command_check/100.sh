@@ -46,8 +46,8 @@ maxd=$(( ${nr_cvt_to_seq_domains} - 1 ))
 zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd ${maxd} ${device}
 
 # Make sure the command succeeded
-zbc_test_check_no_sk_ascq
-zbc_test_check_failed
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} ${nr_cvt_to_seq_domains} "seq"

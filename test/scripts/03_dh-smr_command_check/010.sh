@@ -23,7 +23,7 @@ expected_asc=""
 zbc_test_get_device_info
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_domain_report -v ${device}
+zbc_test_run ${bin_path}/zbc_test_domain_report ${device}
 
 # Check result
 zbc_test_get_sk_ascq

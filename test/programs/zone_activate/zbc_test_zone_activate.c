@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 
 	if (fsnoz) {
 		/* Make sure the device supports this */
-		if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+		if (!(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT)) {
 			fprintf(stderr,
 				"[TEST][ERROR],device doesn't support setting FSNOZ\n");
 			ret = 1;

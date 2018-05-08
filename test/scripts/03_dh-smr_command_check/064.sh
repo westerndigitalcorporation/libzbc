@@ -18,7 +18,7 @@ zbc_test_init $0 "ZONE ACTIVATE(32): non-convertible Conventional to SWR (zone a
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
 expected_asc="${ERR_ZA_ASC}"
-expected_err_za="0x0080"
+expected_err_za="0x4080"
 
 # Get drive information
 zbc_test_get_device_info
