@@ -1293,7 +1293,7 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	return ret;
 }
 
-int zbc_scsi_report_mutations(struct zbc_device *dev,
+static int zbc_scsi_report_mutations(struct zbc_device *dev,
 			      struct zbc_supported_mutation *sm,
 			      unsigned int *nr_sm_recs)
 {
