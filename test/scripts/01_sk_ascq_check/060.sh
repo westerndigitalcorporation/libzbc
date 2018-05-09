@@ -35,7 +35,8 @@ zbc_test_get_zone_info
 # Search target LBA
 target_ptr="0"
 no_zones=0
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc"
+zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc|0xf"
+
 if [ $? -ne 0 -a "${zone_activation_device}" != "0" ]; then
     no_zones=1
     expected_sk="Aborted-command"

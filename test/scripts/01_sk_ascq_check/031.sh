@@ -27,7 +27,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x1" "0xc"
+zbc_test_search_vals_from_zone_type_and_ignored_cond "0x1" "0xc|0xd|0xf"
 func_ret=$?
 
 if [ ${func_ret} -gt 0 ]; then
