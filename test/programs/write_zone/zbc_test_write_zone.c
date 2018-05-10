@@ -118,8 +118,7 @@ usage:
 		goto out;
 	}
 
-	/* Don't send uninitialized bytes to syscall */
-	memset(iobuf, 0, iosize);
+	memset(iobuf, 0, iosize);  // don't send uninitialized bytes to syscall
 
 	while (nio) {
 
