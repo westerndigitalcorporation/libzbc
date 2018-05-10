@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "Run ZBC test on converted back to CMR device" $*
 
-export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/back_to_cmr
+export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.030_back_to_cmr
 
 # Set expected error code
 expected_sk=""

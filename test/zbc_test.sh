@@ -93,10 +93,6 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     exit
 fi
 
-if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
-	ZBC_TEST_LOG_PATH=log
-fi
-
 # Handle arguments
 argv=("$@")
 argc=$#
@@ -178,6 +174,10 @@ if [ ! -z ${device} ]; then
 			device="/dev/${sg_dev}"
 		fi
 	fi
+fi
+
+if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
+	ZBC_TEST_LOG_PATH=log/${dev_name}
 fi
 
 # Build run list
@@ -270,7 +270,7 @@ function zbc_run_section()
 		exit
 	fi
 
-	log_path=${ZBC_TEST_LOG_PATH}/${dev_name}/${section_num}
+	log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
 	if [ ${print_list} -eq 1 ]; then

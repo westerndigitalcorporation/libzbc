@@ -170,11 +170,6 @@ function zbc_test_reset_device()
 		stacktrace_exit "Can't reset test device"
 	fi
 
-	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
-	log_path=${ZBC_TEST_LOG_PATH}/0
-	mkdir -p ${log_path}
-	log_file="${log_path}/zbc_dhsmr_test.log"
-	rm -f ${log_file}
 	zbc_test_get_device_info
 
 	if [ "${ur_control}" != 0 ]; then
@@ -203,7 +198,7 @@ function zbc_test_run()
 	echo "## Executing: ${_cmd}" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${_cmd} >> ${log_file} 2>&1
+	${VALGRIND} ${_cmd} >> ${log_file} 2>&1
 
 	return $?
 }
@@ -351,7 +346,7 @@ function zbc_test_get_zone_info()
 	echo "## Executing: ${_cmd} > ${zone_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${_cmd} > ${zone_info_file} 2>> ${log_file}
+	${VALGRIND} ${_cmd} > ${zone_info_file} 2>&1
 
 	return 0
 }
@@ -782,7 +777,7 @@ function zbc_test_get_cvt_domain_info()
 	echo "## Executing: ${_cmd} > ${cvt_domain_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${_cmd} > ${cvt_domain_info_file} 2>&1
+	${VALGRIND} ${_cmd} > ${cvt_domain_info_file} 2>&1
 
 	return 0
 }

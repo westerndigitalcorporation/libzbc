@@ -124,6 +124,9 @@ for (( i=0; i<${argc}; i++ )); do
 	-b | --batch)
 		batch_mode=1
 		;;
+	--valgrind )
+		export VALGRIND="valgrind --num-callers=24 --read-var-info=yes --leak-check=full --show-leak-kinds=all --track-origins=yes"
+		;;
 	-e | --exec )
 		i=$((i+1))
 		exec_list+=(${argv[$i]})
@@ -362,7 +365,7 @@ fi
 function zbc_run_gamut()
 {
     ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
-    log_path=${ZBC_TEST_LOG_PATH}/0
+    log_path=${ZBC_TEST_LOG_PATH}
     mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
     rm -f ${log_file}
@@ -377,7 +380,7 @@ function zbc_run_gamut()
             echo "###### Run the dhsmr suite with URSWRZ enabled"
             ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
         fi
-        log_path=${ZBC_TEST_LOG_PATH}/0
+        log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
         reset_device
@@ -385,7 +388,7 @@ function zbc_run_gamut()
     else
         echo -e "\n###### Run the dhsmr suite with URSWRZ enabled"
         ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
-        log_path=${ZBC_TEST_LOG_PATH}/0
+        log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
         reset_device
@@ -394,7 +397,7 @@ function zbc_run_gamut()
 
         echo -e "\n###### Run the dhsmr suite with URSWRZ disabled"
         ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
-        log_path=${ZBC_TEST_LOG_PATH}/0
+        log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
         reset_device
