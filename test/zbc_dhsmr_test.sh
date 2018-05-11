@@ -383,6 +383,7 @@ function zbc_run_gamut()
         log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
+        rm -f ${log_file}
         reset_device
         zbc_run_config "$@"
     else
@@ -391,6 +392,7 @@ function zbc_run_gamut()
         log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
+        rm -f ${log_file}
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
         zbc_run_config "$@"
@@ -400,6 +402,7 @@ function zbc_run_gamut()
         log_path=${ZBC_TEST_LOG_PATH}
         mkdir -p ${log_path}
         log_file="${log_path}/zbc_dhsmr_test.log"
+        rm -f ${log_file}
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
         zbc_run_config "$@"
