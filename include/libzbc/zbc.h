@@ -1616,6 +1616,8 @@ enum zbc_mutation_opt_za {
 	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR-only domains at bottom and top */
 	ZBC_MO_ZA_WPC_NO_CMR    = 0x04, /* Zone Activation, WPC, no CMR-only domains */
 	ZBC_MO_ZA_BBONE         = 0x06, /* ZA, no CMR-only, no setting features */
+	ZBC_MO_ZA_STX           = 0x07, /* ZA, no CMR-only, no DOMAIN REPORT */
+	ZBC_MO_ZA_FAULTY        = 0x08, /* ZA, no CMR-only, read-only/offline zones */
 };
 
 /*

@@ -77,7 +77,9 @@ usage:
 		       " domains are CMR-only\n"
 		       "  ZONE_ACT_WPC            : DH-SMR device supporting Zone Activation"
 		       " command set, WPC CMR zones, no CMR-only domains\n"
-		       "  ZA_BARE_BONE            : DH-SMR device supporting Zone Activation and minimal features\n",
+		       "  ZA_BARE_BONE            : DH-SMR device supporting Zone Activation and minimal features\n"
+		       "  ZA_STX                  : Same as ZONE_ACT, but no DOMAIN REPORT \n"
+		       "  ZA_FAULTY               : Same as ZONE_ACT, several offline and read-only zones injected \n",
 		       argv[0]);
 		return 1;
 	}
@@ -133,6 +135,12 @@ usage:
 			} else if (strcmp(argv[i], "ZA_BARE_BONE") == 0) {
 				mt = ZBC_MT_ZONE_ACT;
 				opt.za = ZBC_MO_ZA_BBONE;
+			} else if (strcmp(argv[i], "ZA_STX") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_STX;
+			} else if (strcmp(argv[i], "ZA_FAULTY") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_FAULTY;
 			}
 			if (mt == ZBC_MT_UNKNOWN) {
 				fprintf(stderr, "unknown mutation target %s\n",

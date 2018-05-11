@@ -673,48 +673,37 @@ static int zbc_emulate_domain_report(struct zbc_device *dev,
 		goto out;
 	}
 
-	if (di->zbd_flags & ZBC_CONV_ZONE_SUPPORT) {
 	/* Try CMR zone space first for the query */
+	if (di->zbd_flags & ZBC_CONV_ZONE_SUPPORT) {
 		zone_type = ZBC_ZT_CONVENTIONAL;
-		lba = 0L;
-		space_zones = seam_zone + 1;
 	} else if (di->zbd_flags & ZBC_WPC_ZONE_SUPPORT) {
 		zone_type = ZBC_ZT_WP_CONVENTIONAL;
-		lba = 0LL;
-		space_zones = seam_zone + 1;
 	} else {
 		zbc_error("%s: No CMR zone supported\n", dev->zbd_filename);
 		ret = -ENOTSUP;
 		goto out;
 	}
+	lba = zbc_zone_start(z);
+	space_zones = nr_zones - seam_zone;
 
 	/* Get the number of conversion records */
 	ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
 				     space_zones, zone_type);
 	if (ret < 0) {
 		/* OK, try in once again with SMR zone space */
-		int j = 0;
-		for (; i < (int)nr_zones; i++, j++, z++) {
-			if (!zbc_zone_offline(z)) {
-				seam_zone = i;
-				break;
-			}
-		}
 		ret = 0;
 		if (di->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) {
 			zone_type = ZBC_ZT_SEQUENTIAL_REQ;
-			lba = zbc_zone_start(z);
-			space_zones = nr_zones - seam_zone - j;
 		} else if (di->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) {
 			zone_type = ZBC_ZT_SEQUENTIAL_PREF;
-			lba = zbc_zone_start(z);
-			space_zones = nr_zones - seam_zone - j;
 		} else {
 			zbc_error("%s: No SMR zone supported\n",
 				  dev->zbd_filename);
 			ret = -ENOTSUP;
 			goto out;
 		}
+		lba = 0LL;
+		space_zones = seam_zone;
 
 		ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
 					     space_zones, zone_type);
