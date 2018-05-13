@@ -24,10 +24,16 @@ expected_asc="Invalid-field-in-cdb"
 zbc_test_get_device_info
 
 # Set target zone type
-if [ ${device_model} = "Host-aware" ]; then
+if [ -n "${test_zone_type}" ]; then
+    zone_type=${test_zone_type}
+elif [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
 else
     zone_type="0x2"
+fi
+
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone is not a write-pointer zone type"
 fi
 
 # Get zone information
@@ -36,7 +42,7 @@ zbc_test_get_zone_info
 # Search target zone
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY sequential zones"
+    zbc_test_print_not_applicable "No EMPTY write-pointer zones of type ${zone_type}"
 fi
 
 # Start testing
@@ -47,7 +53,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ ${zone_type} = "0x3" -o ${zone_type} = "0x4" ]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq
