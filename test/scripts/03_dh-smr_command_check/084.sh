@@ -24,7 +24,7 @@ expected_err_za="0x0080"
 zbc_test_get_device_info
 
 if [ "${seq_pref_zone}" == 0 ]; then
-    zbc_test_print_not_applicable "Device does not support conversion to SWP zone"
+    zbc_test_print_not_applicable "Device does not support conversion to SWP zone type"
 fi
 
 # Get conversion domain information
@@ -33,7 +33,7 @@ zbc_test_get_cvt_domain_info
 # Find the first conventional domain that is not convertible to SMR
 zbc_test_search_domain_by_type_and_cvt "1" "noseq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently conventional is NON-convertible to sequential"
+    zbc_test_print_not_applicable "No domain is currently conventional and NON-convertible to sequential"
 fi
 
 # Start testing

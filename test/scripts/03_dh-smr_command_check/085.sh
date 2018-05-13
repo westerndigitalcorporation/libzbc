@@ -32,7 +32,7 @@ zbc_test_get_cvt_domain_info
 # Find the first SWP domain that is not convertible to CMR
 zbc_test_search_domain_by_type_and_cvt "3" "noconv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently SWP is NON-convertible to conventional"
+    zbc_test_print_not_applicable "No domain is currently SWP and NON-convertible to conventional"
 fi
 
 # Start testing

@@ -29,7 +29,7 @@ zbc_test_get_cvt_domain_info
 # Assume there are two in a row
 zbc_test_search_domain_by_type_and_cvt "1" "seq"	# into ${domain_*}
 if [ $? -ne 0 ]; then
-	zbc_test_print_not_applicable "No domain currently conventional is convertible to SWR"
+	zbc_test_print_not_applicable "No domain is currently conventional and convertible to SWR"
 fi
 
 # Calculate number of zones in two domains starting at ${domain_num}
