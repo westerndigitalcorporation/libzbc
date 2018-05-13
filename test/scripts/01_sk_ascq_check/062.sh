@@ -14,7 +14,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "READ conventional zone space end boundary violation" $*
+zbc_test_init $0 "READ conventional zone space end boundary violation (cross-type)" $*
 
 # Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
 expected_sk="Illegal-request"
@@ -50,11 +50,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_check_no_sk_ascq
-else
-    zbc_test_check_sk_ascq
-fi
+zbc_test_check_sk_ascq
 
 # Post process
 rm -f ${zone_info_file}
