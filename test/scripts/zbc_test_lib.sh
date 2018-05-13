@@ -227,6 +227,20 @@ function zbc_check_string()
 	fi
 }
 
+function zone_file_check()
+{
+	if [ -z "${zone_info_file}" ]; then
+		stacktrace_exit "zone_info_file is unset -- forgot to call zbc_test_init ?"
+	fi
+}
+
+function domain_file_check()
+{
+	if [ -z "${cvt_domain_info_file}" ]; then
+		stacktrace_exit "cvt_domain_info_file is unset -- forgot to call zbc_test_init ?"
+	fi
+}
+
 function zbc_test_get_device_info()
 {
 	zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
@@ -330,13 +344,14 @@ function zbc_test_get_zone_info()
 	else
 		local ro="0"
 	fi
+	zone_file_check
 
 	local _cmd="${bin_path}/zbc_test_report_zones -ro ${ro} ${device}"
 	echo "" >> ${log_file} 2>&1
 	echo "## Executing: ${_cmd} > ${zone_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${VALGRIND} ${_cmd} > ${zone_info_file} 2>&1
+	${VALGRIND} ${_cmd} > ${zone_info_file} 2>> ${log_file}
 
 	return 0
 }
@@ -452,7 +467,7 @@ function zbc_test_close_nr_zones()
 	local -i count=0
 	local -i close_num=${1}
 
-	local zone_type=${1}
+	local zone_type="${1}"
 
 		local zone_type=${3}
 		local zone_cond=${4}
@@ -484,6 +499,8 @@ function zbc_test_get_target_zone_from_slba()
 
 	local start_lba=${1}
 
+	zone_file_check
+
 	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,.*,.*,${start_lba},.*,.*"`; do
 
@@ -511,8 +528,8 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	local zone_type="${1}"
 	local zone_cond="${2}"
 
-	local zone_type=${1}
-	local zone_cond=${2}
+	local zone_type="${1}"
+	local zone_cond="${2}"
 
 	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},${zone_cond},.*,.*,.*"`; do
@@ -539,8 +556,8 @@ function zbc_test_get_target_zone_from_type_and_cond()
 function zbc_test_get_target_zone_from_type_and_ignored_cond()
 {
 
-	local zone_type=${1}
-	local zone_cond_ignore=${2}
+	local zone_type="${1}"
+	local zone_cond_ignore="${2}"
 
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
 				| zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
@@ -573,7 +590,7 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 	local zone_type="${1}"
 
 	Found=False
-	local zone_type=${1}
+	local zone_type="${1}"
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -742,23 +759,27 @@ function zbc_test_zone_tuple_cond()
 
 function zbc_test_get_cvt_domain_info()
 {
+	domain_file_check
+
 	local _cmd="${bin_path}/zbc_test_domain_report ${device}"
 	echo "" >> ${log_file} 2>&1
 	echo "## Executing: ${_cmd} > ${cvt_domain_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${VALGRIND} ${_cmd} > ${cvt_domain_info_file} 2>&1
+	${VALGRIND} ${_cmd} > ${cvt_domain_info_file} 2>> ${log_file}
 
 	return 0
 }
 
 function zbc_test_count_cvt_domains()
 {
+	domain_file_check
 	nr_domains=`cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]" | wc -l`
 }
 
 function zbc_test_count_conv_domains()
 {
+	domain_file_check
 	local _IFS="${IFS}"
 	nr_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x1`
 	IFS="$_IFS"
@@ -766,6 +787,7 @@ function zbc_test_count_conv_domains()
 
 function zbc_test_count_seq_domains()
 {
+	domain_file_check
 	local _IFS="${IFS}"
 	nr_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x2`
 	IFS="$_IFS"
@@ -773,6 +795,7 @@ function zbc_test_count_seq_domains()
 
 function zbc_test_count_cvt_to_conv_domains()
 {
+	domain_file_check
 	local _IFS="${IFS}"
 	nr_cvt_to_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
 	IFS="$_IFS"
@@ -780,6 +803,7 @@ function zbc_test_count_cvt_to_conv_domains()
 
 function zbc_test_count_cvt_to_seq_domains()
 {
+	domain_file_check
 	local _IFS="${IFS}"
 	nr_cvt_to_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
 	IFS="$_IFS"
@@ -788,6 +812,8 @@ function zbc_test_count_cvt_to_seq_domains()
 function zbc_test_search_cvt_domain_by_number()
 {
 	domain_number=`printf "%03u" "${1}"`
+
+	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],${domain_number},.*,.*,.*,.*,.*,.*,.*,.*"`; do
@@ -817,6 +843,8 @@ function zbc_test_search_cvt_domain_by_type()
 {
 	domain_type=${1}
 	local _skip=$(expr ${2:-0})
+
+	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_type},.*,.*,.*,.*,.*,.*,.*"`; do
@@ -878,6 +906,8 @@ function zbc_test_search_domain_by_type_and_cvt()
 		;;
 	esac
 
+	domain_file_check
+
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_type},.*,.*,.*,.*,.*,${cvt}"`; do
 
@@ -915,7 +945,9 @@ function zbc_test_calc_nr_domain_zones()
 	nr_conv_zones=0
 	nr_seq_zones=0
 
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]*"`; do
+	domain_file_check
+	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]"`; do
 
 		local _IFS="${IFS}"
 		IFS=','
@@ -1089,14 +1121,22 @@ function zbc_test_print_failed_zc()
 
 function zbc_test_check_zone_cond()
 {
-	local expected_sk=""
-	local expected_asc=""
-
 	# Check sk_ascq first
-	if [ -n "${sk}" -o -n "${asc}" ]; then
-		zbc_test_print_failed_sk "$*"
+	if [ ! -z "${sk}" -o ! -z "${asc}" ]; then
+		zbc_test_print_failed_sk
         elif [ "${target_cond}" != "${expected_cond}" ]; then
-		zbc_test_print_failed_zc "$*"
+                zbc_test_print_failed_zc
+        else
+                zbc_test_print_passed
+        fi
+}
+
+# I think it never makes sense to call this function (and no one does).
+# The zone condition should always be unchanged after a failed zone op.
+function XXX_zbc_test_check_zone_cond_sk_ascq()
+{
+        if [ ${target_cond} == ${expected_cond} ]; then
+                zbc_test_check_sk_ascq
         else
                 zbc_test_print_passed
         fi
