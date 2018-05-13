@@ -361,6 +361,7 @@ function zbc_test_get_zone_info()
 # Issue all zone records to a pipeline
 function zbc_zones()
 {
+	zone_file_check
 	cat ${zone_info_file} | grep -E "\[ZONE_INFO\]"
 }
 
@@ -402,38 +403,33 @@ function zbc_zone_filter_out_cond()
 
 function zbc_test_count_zones()
 {
-	nr_zones=`cat ${zone_info_file} | grep "\[ZONE_INFO\]" | wc -l`
+	nr_zones=`zbc_zones | wc -l`
 }
 
 function zbc_test_count_conv_zones()
 {
-	local _IFS="${IFS}"
-	nr_conv_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x1`
-	IFS="$_IFS"
+	nr_conv_zones=`zbc_zones | zbc_zone_filter_in_type "0x1" | wc -l`
 }
 
 function zbc_test_count_seq_zones()
 {
-	local _IFS="${IFS}"
-	nr_seq_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x2`
-	IFS="$_IFS"
+	nr_seq_zones=`zbc_zones | zbc_zone_filter_in_type "0x2" | wc -l`
 }
 
 function zbc_test_count_inactive_zones()
 {
-	local _IFS="${IFS}"
-	nr_inactive_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $d; done | grep -c 0xc`
-	IFS="$_IFS"
+	nr_inactive_zones=`zbc_zones | zbc_zone_filter_in_cond "0xc" | wc -l`
 }
 
 function zbc_test_open_nr_zones()
 {
 	local zone_type="0x2"		# SWR
+	local zone_cond="0x1|0x4"	# empty or closed
 	local -i count=0
 
 	local open_num=${1}
 
-	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
 		IFS=','
@@ -447,12 +443,10 @@ function zbc_test_open_nr_zones()
 
 		IFS="$_IFS"
 
-		if [ "${zone_cond}" == "0x1" -o "${zone_cond}" == "0x4" ]; then
 		zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba}
 		count=${count}+1
 		if [ ${count} -eq $(( ${open_num} )) ]; then
 			return 0
-		fi
 		fi
 
 	done
@@ -469,11 +463,7 @@ function zbc_test_close_nr_zones()
 
 	local zone_type="${1}"
 
-		local zone_type=${3}
-		local zone_cond=${4}
-		local start_lba=${5}
-		local zone_size=${6}
-		local write_ptr=${7}
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
 
 		local _IFS="${IFS}"
 		IFS=','
@@ -531,8 +521,7 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	local zone_type="${1}"
 	local zone_cond="${2}"
 
-	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
-	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},${zone_cond},.*,.*,.*"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
 		IFS=','
@@ -559,8 +548,7 @@ function zbc_test_get_target_zone_from_type_and_ignored_cond()
 	local zone_type="${1}"
 	local zone_cond_ignore="${2}"
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
-				| zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
 
 		local _IFS="${IFS}"
 		IFS=','
@@ -574,11 +562,7 @@ function zbc_test_get_target_zone_from_type_and_ignored_cond()
 
 		IFS="$_IFS"
 
-		if [ "${zone_type}" = "${target_type}" ]; then
-			if ! [[ "${target_cond}" =~ ^(${zone_cond_ignore})$ ]]; then
 				return 0
-			fi
-		fi
 
 	done
 
@@ -589,24 +573,9 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 {
 	local zone_type="${1}"
 
-	Found=False
 	local zone_type="${1}"
 
-		local _IFS="${IFS}"
-		IFS=$',\n'
-		set -- ${_line}
-
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
-		target_ptr=${7}
-
-		IFS="$_IFS"
-
-		return 0
-
-	done
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | tail -n 1`; do
 
 	return 1
 }
@@ -669,19 +638,7 @@ function zbc_test_zone_tuple()
 
 		IFS="$_IFS"
 
-		local type=${target_type}
-		local slba=${target_slba}
-		local -i i
-		for (( i=0 ; i<${nz} ; i++ )) ; do
-			if [[ ${target_type} != ${type} ]]; then
-				continue 2	# continue second loop out
-			fi
-			# Reject zones that are OFFLINE, etc
-			if [[ ${target_cond} != @(${ZC_AVAIL}) ]]; then
-				continue 2	# continue second loop out
-			fi
-			zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
-		done
+		return 0
 
 		# Return the info for the first zone of the tuple
 		zbc_test_get_target_zone_from_slba ${slba}
@@ -689,70 +646,6 @@ function zbc_test_zone_tuple()
 	done
 
 	return 1
-}
-
-# zbc_test_zone_tuple_cond type cond1 [cond2...]
-# Sets zbc_test_search_vals from the first zone of a
-#	contiguous sequence with the specified type and conditions
-# Return value is non-zero if the request cannot be met.
-function zbc_test_zone_tuple_cond()
-{
-	local zone_type="${1}"
-	shift
-	local -i nzone=$#
-
-	zbc_test_get_zone_info
-
-	# Get ${nzone} zones in a row, all of the same ${target_type} matching ${zone_type}
-	zbc_test_zone_tuple ${zone_type} ${nzone}
-	if [ $? -ne 0 ]; then
-		return 1
-	fi
-	local start_lba=${target_slba}
-
-	# Set the zones to the requested conditions
-	local -i zn
-	for (( zn=0 ; zn<${nzone} ; zn++ )) ; do
-		local cond="$1"
-		case "${cond}" in
-		"EMPTY")
-			# RESET to EMPTY
-			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			;;
-		"IOPENL")
-			# IMPLICIT OPEN by writing the first ${lblk_per_pblk} LBA of the zone
-			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${lblk_per_pblk}
-			;;
-		"IOPENH")
-			# IMPLICIT OPEN by writing all but the last ${lblk_per_pblk} LBA of the zone
-			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${lblk_per_pblk} ))
-			;;
-		"EOPEN")
-			# EXPLICIT OPEN of an empty zone
-			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_slba}
-			;;
-		"FULL")
-			# FULL by writing the entire zone
-			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
-			;;
-		* )
-			echo "Caller requested unsupported condition ${cond}"
-			exit 1
-			;;
-		esac
-
-		shift
-		zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
-	done
-
-	# Return the info for the first zone of the tuple
-	zbc_test_get_zone_info
-	zbc_test_get_target_zone_from_slba ${start_lba}
-	return 0
 }
 
 # Conversion domain manipulation functions
@@ -1057,7 +950,7 @@ function zbc_test_check_err()
 				echo "WARNING: TEST SCRIPT ${FUNCNAME[1]}:${BASH_LINENO[0]} called ${FUNCNAME[0]} with nonzero expected_err_cbf=${expected_err_cbf} but not 0x4000 & expected_err_za=${expected_err_za}"
 			fi
 		fi
-		if [ -z ${expected_err_cbf} ] ; then
+		if [ -z "${expected_err_cbf}" ] ; then
 			# Our caller expects ERR_ZA with CBI bit 0x4000 set, but specified no expected CBF
 			local expected_err_cbf=0	# expect (CBF == 0)
 		fi
@@ -1131,11 +1024,11 @@ function zbc_test_check_zone_cond()
         fi
 }
 
-# I think it never makes sense to call this function (and no one does).
+# I think it never makes sense to call this function (and no one does call it).
 # The zone condition should always be unchanged after a failed zone op.
 function XXX_zbc_test_check_zone_cond_sk_ascq()
 {
-        if [ ${target_cond} == ${expected_cond} ]; then
+        if [ "${target_cond}" == "${expected_cond}" ]; then
                 zbc_test_check_sk_ascq
         else
                 zbc_test_print_passed
