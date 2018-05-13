@@ -69,7 +69,7 @@ function _trim()
 ERR_ZA_SK="Unknown-sense-key 0x00"
 ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
 
-stacktrace()
+function stacktrace()
 {
 	local RET=
 	local -i FRAME=2
@@ -83,7 +83,7 @@ stacktrace()
 	echo ${RET}
 }
 
-stacktrace_exit()
+function stacktrace_exit()
 {
 	echo "$* (from `stacktrace`)"
 	exit 1
@@ -145,7 +145,9 @@ function zbc_test_init()
 # Reset the DUT to factory conditions
 function zbc_reset_test_device()
 {
+	local _IFS="${IFS}"
 	vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
+	IFS="$_IFS"
 
 	case "${vendor}" in
 	"LIO-ORG TCMU DH-SMR" )
@@ -210,7 +212,7 @@ function zbc_test_meta_run()
 	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
 	${_cmd} 2>&1 | tee -a ${log_file} 2>&1
-	ret=${PIPESTATUS[0]}
+	local ret=${PIPESTATUS[0]}
 
 	return ${ret}
 }
@@ -234,7 +236,7 @@ function zbc_test_get_device_info()
 	fi
 
 	local _IFS="${IFS}"
-	IFS=$',\n'
+	IFS=','
 
 	local device_model_line=`cat ${log_file} | grep -F "[DEVICE_MODEL]"`
 	set -- ${device_model_line}
@@ -251,76 +253,64 @@ function zbc_test_get_device_info()
 	max_lba=${2}
 	zbc_check_string "Failed to get maximum LBA" ${max_lba}
 
-	logical_block_size_line=`cat ${log_file} | grep -F "[LOGICAL_BLOCK_SIZE]"`
-	set -- ${logical_block_size_line}
-	logical_block_size=${2}
-	zbc_check_string "Failed to get logical block size" ${logical_block_size}
-
-	physical_block_size_line=`cat ${log_file} | grep -F "[PHYSICAL_BLOCK_SIZE]"`
-	set -- ${physical_block_size_line}
-	physical_block_size=${2}
-	zbc_check_string "Failed to get physical block size" ${physical_block_size}
-
-	lblk_per_pblk=$((physical_block_size/logical_block_size))
-
 	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
 	unrestricted_read=${2}
 	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
-	zone_activation_device_line=`cat ${log_file} | grep -F "[ZONE_ACTIVATION_DEVICE]"`
+	local zone_activation_device_line=`cat ${log_file} | grep -F "[ZONE_ACTIVATION_DEVICE]"`
 	set -- ${zone_activation_device_line}
 	zone_activation_device=${2}
 	zbc_check_string "Failed to get Zone Activation device support" ${zone_activation_device}
 
 	if [ "${zone_activation_device}" != "0" ]; then
-		ur_control_line=`cat ${log_file} | grep -F "[UR_CONTROL]"`
+		local ur_control_line=`cat ${log_file} | grep -F "[UR_CONTROL]"`
 		set -- ${ur_control_line}
 		ur_control=${2}
 		zbc_check_string "Failed to get unrestricted read control" ${ur_control}
 
-		domain_report_line=`cat ${log_file} | grep -F "[DOMAIN_REPORT]"`
+		local domain_report_line=`cat ${log_file} | grep -F "[DOMAIN_REPORT]"`
 		set -- ${domain_report_line}
 		domain_report=${2}
 		zbc_check_string "Failed to get DOMAIN REPORT support" ${domain_report}
 
-		zone_query_line=`cat ${log_file} | grep -F "[ZONE_QUERY]"`
+		local zone_query_line=`cat ${log_file} | grep -F "[ZONE_QUERY]"`
 		set -- ${zone_query_line}
 		zone_query=${2}
 		zbc_check_string "Failed to get ZONE QUERY support" ${zone_query}
 
-		za_control_line=`cat ${log_file} | grep -F "[ZA_CONTROL]"`
+		local za_control_line=`cat ${log_file} | grep -F "[ZA_CONTROL]"`
 		set -- ${za_control_line}
 		za_control=${2}
 		zbc_check_string "Failed to get zone activation control" ${za_control}
 
-		maxact_control_line=`cat ${log_file} | grep -F "[MAXACT_CONTROL]"`
+		local maxact_control_line=`cat ${log_file} | grep -F "[MAXACT_CONTROL]"`
 		set -- ${maxact_control_line}
 		maxact_control=${2}
 		zbc_check_string "Failed to get maximum activation domains control" ${maxact_control}
 
-		conv_zone_line=`cat ${log_file} | grep -F "[CONV_ZONE]"`
+		local conv_zone_line=`cat ${log_file} | grep -F "[CONV_ZONE]"`
 		set -- ${conv_zone_line}
 		conv_zone=${2}
 		zbc_check_string "Failed to get Conventional zone support" ${conv_zone}
 
-		seq_req_zone_line=`cat ${log_file} | grep -F "[SEQ_REQ_ZONE]"`
+		local seq_req_zone_line=`cat ${log_file} | grep -F "[SEQ_REQ_ZONE]"`
 		set -- ${seq_req_zone_line}
 		seq_req_zone=${2}
 		zbc_check_string "Failed to get Sequential Write Required zone support" ${seq_req_zone}
 
-		seq_pref_zone_line=`cat ${log_file} | grep -F "[SEQ_PREF_ZONE]"`
+		local seq_pref_zone_line=`cat ${log_file} | grep -F "[SEQ_PREF_ZONE]"`
 		set -- ${seq_pref_zone_line}
 		seq_pref_zone=${2}
 		zbc_check_string "Failed to get Sequential Write Preferred zone support" ${seq_pref_zone}
 
-		wpc_zone_line=`cat ${log_file} | grep -F "[WPC_ZONE]"`
+		local wpc_zone_line=`cat ${log_file} | grep -F "[WPC_ZONE]"`
 		set -- ${wpc_zone_line}
 		wpc_zone=${2}
 		zbc_check_string "Failed to get Write Pointer Conventional zone support" ${wpc_zone}
 	fi
 
-	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
+	local last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
 	last_zone_lba=${2}
 	zbc_check_string "Failed to get last zone start LBA" ${last_zone_lba}
@@ -336,7 +326,7 @@ function zbc_test_get_device_info()
 function zbc_test_get_zone_info()
 {
 	if [ $# -eq 1 ]; then
-		local ro="${1}"
+		local ro=${1}
 	else
 		local ro="0"
 	fi
@@ -402,35 +392,36 @@ function zbc_test_count_zones()
 
 function zbc_test_count_conv_zones()
 {
-	nr_conv_zones=`zbc_zones | zbc_zone_filter_in_type "${ZT_CONV}" | wc -l`
+	local _IFS="${IFS}"
+	nr_conv_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x1`
+	IFS="$_IFS"
 }
 
 function zbc_test_count_seq_zones()
 {
-	nr_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${ZT_SEQ}" | wc -l`
-}
-
-function zbc_test_count_seq_zones()
-{
-	nr_zones=`cat ${zone_info_file} | grep Sequential | wc -l`
+	local _IFS="${IFS}"
+	nr_seq_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $c; done | grep -c 0x2`
+	IFS="$_IFS"
 }
 
 function zbc_test_count_inactive_zones()
 {
+	local _IFS="${IFS}"
 	nr_inactive_zones=`cat ${zone_info_file} | while IFS=, read a b c d; do echo $d; done | grep -c 0xc`
+	IFS="$_IFS"
 }
 
 function zbc_test_open_nr_zones()
 {
-	local _zone_type="${ZT_SWR}"
-	local _zone_cond="${ZC_CLOSED}|${ZC_EMPTY}"
+	local zone_type="0x2"		# SWR
 	local -i count=0
-	local -i open_num=${1}
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" \
-				| zbc_zone_filter_in_cond "${_zone_cond}"` ; do
+	local open_num=${1}
+
+	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
+
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		local zone_type=${3}
@@ -461,11 +452,7 @@ function zbc_test_close_nr_zones()
 	local -i count=0
 	local -i close_num=${1}
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" \
-				| zbc_zone_filter_in_cond "${_zone_cond}"` ; do
-		local _IFS="${IFS}"
-		IFS=$',\n'
-		set -- ${_line}
+	local zone_type=${1}
 
 		local zone_type=${3}
 		local zone_cond=${4}
@@ -473,29 +460,8 @@ function zbc_test_close_nr_zones()
 		local zone_size=${6}
 		local write_ptr=${7}
 
-		IFS="$_IFS"
-
-		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${lblk_per_pblk}
-		zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${start_lba}
-
-		count=${count}+1
-		if [ ${count} -eq $(( ${close_num} )) ]; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
-function zbc_test_get_target_zone_from_type()
-{
-
-	local zone_type="${1}"
-
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
-
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		target_type=${3}
@@ -522,7 +488,7 @@ function zbc_test_get_target_zone_from_slba()
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,.*,.*,${start_lba},.*,.*"`; do
 
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		target_type=${3}
@@ -545,11 +511,14 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	local zone_type="${1}"
 	local zone_cond="${2}"
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
-				| zbc_zone_filter_in_cond "${zone_cond}"`; do
+	local zone_type=${1}
+	local zone_cond=${2}
+
+	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
+	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},${zone_cond},.*,.*,.*"`; do
 
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		target_type=${3}
@@ -570,14 +539,14 @@ function zbc_test_get_target_zone_from_type_and_cond()
 function zbc_test_get_target_zone_from_type_and_ignored_cond()
 {
 
-	local zone_type="${1}"
-	local zone_cond_ignore="${2}"
+	local zone_type=${1}
+	local zone_cond_ignore=${2}
 
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
 				| zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
 
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		target_type=${3}
@@ -589,7 +558,7 @@ function zbc_test_get_target_zone_from_type_and_ignored_cond()
 		IFS="$_IFS"
 
 		if [ "${zone_type}" = "${target_type}" ]; then
-			if ! [[ "${target_cond}" =~ ^(${zone_cond})$ ]]; then
+			if ! [[ "${target_cond}" =~ ^(${zone_cond_ignore})$ ]]; then
 				return 0
 			fi
 		fi
@@ -603,7 +572,8 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 {
 	local zone_type="${1}"
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | tail -n 1`; do
+	Found=False
+	local zone_type=${1}
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -671,7 +641,7 @@ function zbc_test_zone_tuple()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
 
 		local _IFS="${IFS}"
-		IFS=$',\n'
+		IFS=','
 		set -- ${_line}
 
 		target_type=${3}
@@ -789,22 +759,30 @@ function zbc_test_count_cvt_domains()
 
 function zbc_test_count_conv_domains()
 {
+	local _IFS="${IFS}"
 	nr_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x1`
+	IFS="$_IFS"
 }
 
 function zbc_test_count_seq_domains()
 {
+	local _IFS="${IFS}"
 	nr_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c 0x2`
+	IFS="$_IFS"
 }
 
 function zbc_test_count_cvt_to_conv_domains()
 {
+	local _IFS="${IFS}"
 	nr_cvt_to_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
+	IFS="$_IFS"
 }
 
 function zbc_test_count_cvt_to_seq_domains()
 {
+	local _IFS="${IFS}"
 	nr_cvt_to_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
+	IFS="$_IFS"
 }
 
 function zbc_test_search_cvt_domain_by_number()
@@ -814,7 +792,7 @@ function zbc_test_search_cvt_domain_by_number()
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],${domain_number},.*,.*,.*,.*,.*,.*,.*,.*"`; do
 
-		_IFS="${IFS}"
+		local _IFS="${IFS}"
 		IFS=','
 		set -- ${_line}
 
@@ -838,14 +816,14 @@ function zbc_test_search_cvt_domain_by_number()
 function zbc_test_search_cvt_domain_by_type()
 {
 	domain_type=${1}
-	_skip=$(expr ${2:-0})
+	local _skip=$(expr ${2:-0})
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_type},.*,.*,.*,.*,.*,.*,.*"`; do
 
 		if [ "${_skip}" -eq "0" ]; then
 
-			_IFS="${IFS}"
+			local _IFS="${IFS}"
 			IFS=','
 			set -- ${_line}
 
@@ -873,7 +851,8 @@ function zbc_test_search_cvt_domain_by_type()
 function zbc_test_search_domain_by_type_and_cvt()
 {
 	domain_type=${1}
-	_skip=$(expr ${3:-0})
+	local _skip=$(expr ${3:-0})
+	local cvt
 
 	case "${2}" in
 	"conv")
@@ -904,7 +883,7 @@ function zbc_test_search_domain_by_type_and_cvt()
 
 		if [ "${_skip}" -eq "0" ]; then
 
-			_IFS="${IFS}"
+			local _IFS="${IFS}"
 			IFS=','
 			set -- ${_line}
 
@@ -932,13 +911,13 @@ function zbc_test_search_domain_by_type_and_cvt()
 function zbc_test_calc_nr_domain_zones()
 {
 	domain_num=${1}
-	_nr_domains=${2}
+	local _nr_domains=${2}
 	nr_conv_zones=0
 	nr_seq_zones=0
 
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]*"`; do
 
-		_IFS="${IFS}"
+		local _IFS="${IFS}"
 		IFS=','
 		set -- ${_line}
 
@@ -970,7 +949,7 @@ function zbc_test_get_sk_ascq()
 	err_cbf=""
 
 	local _IFS="${IFS}"
-	IFS=$',\n'
+	IFS=','
 
 	local sk_line=`cat ${log_file} | grep -m 1 -F "[SENSE_KEY]"`
 	set -- ${sk_line}
@@ -980,11 +959,11 @@ function zbc_test_get_sk_ascq()
 	set -- ${asc_line}
 	asc=${2}
 
-	err_za_line=`cat ${log_file} | grep -m 1 -F "[ERR_ZA]"`
+	local err_za_line=`cat ${log_file} | grep -m 1 -F "[ERR_ZA]"`
 	set -- ${err_za_line}
 	err_za=${2}
 
-	err_cbf_line=`cat ${log_file} | grep -m 1 -F "[ERR_CBF]"`
+	local err_cbf_line=`cat ${log_file} | grep -m 1 -F "[ERR_CBF]"`
 	set -- ${err_cbf_line}
 	err_cbf=${2}
 
@@ -1148,4 +1127,3 @@ function zbc_test_check_failed()
 
 	return 0
 }
-
