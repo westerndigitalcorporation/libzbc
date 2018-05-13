@@ -70,8 +70,8 @@ int main(int argc, char **argv)
 
 	ret = zbc_open(argv[1], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
+			ret, strerror(-ret), argv[1]);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;

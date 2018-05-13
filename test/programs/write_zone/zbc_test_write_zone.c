@@ -97,8 +97,8 @@ usage:
 
 	ret = zbc_open(path, oflags | O_WRONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %zd\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %zd (%s) %s\n",
+			ret, strerror(-ret), path);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;

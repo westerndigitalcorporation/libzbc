@@ -71,8 +71,8 @@ usage:
 
 	ret = zbc_open(argv[i], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
+			ret, strerror(-ret), argv[i]);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
