@@ -293,6 +293,8 @@ skip_lm:
 		if (set_nz || set_urswrz || set_max_activate) {
 			fprintf(stderr, "Not a Zone Activation device\n");
 			ret = 1;
+		} else if (mt != ZBC_MT_UNKNOWN) {
+			zbc_print_device_info(&info, stdout);
 		}
 		goto out;
 	}
