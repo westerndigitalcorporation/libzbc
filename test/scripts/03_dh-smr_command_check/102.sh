@@ -17,9 +17,8 @@ zbc_test_init $0 "ZONE ACTIVATE(32) LBA crossing out of range (zone addressing)"
 
 # Set expected error code
 # ZA-r4 5.y.3.1 ZONE ID plus NUMBER OF ZONES is out of range
-expected_sk="${ERR_ZA_SK}"
-expected_asc="${ERR_ZA_ASC}"
-expected_err_za="0x0200"	# BADNRZ
+expected_sk="Illegal-request"
+expected_asc="Invalid-field-in-cdb"
 
 # Get information
 zbc_test_get_device_info
