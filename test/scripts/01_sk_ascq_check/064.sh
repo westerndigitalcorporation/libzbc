@@ -18,7 +18,7 @@ zbc_test_init $0 "READ conventional/sequential zone type boundary violation" $*
 
 # Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
 expected_sk="Illegal-request"
-expected_asc="Attempt-to-read-invalid-data"
+expected_asc="Attempt-to-read-invalid-data"	# read cross-type
 
 # Get drive information
 zbc_test_get_device_info
@@ -27,7 +27,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search first sequential zone info
-zbc_test_search_last_zone_vals_from_zone_type "0x2"
+zbc_test_search_last_zone_vals_from_zone_type "0x2|0x3"
 func_ret=$?
 if [ ${func_ret} -ne 0 ]; then
     zbc_test_print_not_applicable "No sequential zone LBA space"
@@ -35,7 +35,7 @@ fi
 reach_lba=${target_slba}
 
 # Search last conventional zone info
-zbc_test_search_last_zone_vals_from_zone_type "0x1"
+zbc_test_search_last_zone_vals_from_zone_type "0x1|0x4"
 func_ret=$?
 if [ ${func_ret} -ne 0 ]; then
     zbc_test_print_not_applicable "No conventional zone LBA space"
@@ -51,12 +51,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} ${_nlba}
 
 # Check result
 zbc_test_get_sk_ascq
-
-if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_check_no_sk_ascq
-else
-    zbc_test_check_sk_ascq
-fi
+zbc_test_check_sk_ascq
 
 # Post process
 rm -f ${zone_info_file}

@@ -22,10 +22,17 @@ expected_asc="Invalid-field-in-cdb"
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
+# Set target zone type
+if [ -n "${test_zone_type}" ]; then
+    zone_type=${test_zone_type}
+elif [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
 else
     zone_type="0x2"
+fi
+
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone is not a write-pointer zone type"
 fi
 
 # Get zone information
@@ -34,7 +41,7 @@ zbc_test_get_zone_info
 # Search target LBA
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY sequential zones"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
 fi
 target_lba=$(( ${target_slba} + 1 ))
 

@@ -42,7 +42,7 @@ zbc_test_get_zone_info
 # Search target zone
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY write-pointer zones of type ${zone_type}"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
 fi
 
 # Start testing

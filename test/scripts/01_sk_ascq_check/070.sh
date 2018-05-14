@@ -28,7 +28,7 @@ else
 fi
 
 if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone is not a write-pointer zone type"
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 fi
 
 expected_sk="Illegal-request"
@@ -40,7 +40,7 @@ zbc_test_get_zone_info
 # Search target LBA
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc|0xd|0xf"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone of type ${zone_type} is active but not FULL"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and active but not FULL"
 fi
 target_lba=$(( ${target_ptr} + 1 ))	# unaligned write starting above WP
 

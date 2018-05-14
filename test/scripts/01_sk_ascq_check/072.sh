@@ -23,32 +23,30 @@ expected_asc="Insufficient-zone-resources"
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable "max_open not reported"
+fi
+
+if [ -n "${test_zone_type}" ]; then
+    zone_type=${test_zone_type}
+elif [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
 else
     zone_type="0x2"
 fi
 
-# Let us assume that all the available sequential zones are EMPTY...
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone is not a write-pointer zone type"
+fi
 
 # Get zone information
 zbc_test_get_zone_info
 
-# Check the number of inactive zones
-zbc_test_count_inactive_zones
+# Get the number of active zones of the zone_type
+nr_active_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_out_cond "0xc|0xd|0xe|0xf" | wc -l`
 
-# Check number of sequential zones
-zbc_test_count_seq_zones
-
-#XXX Shouldn't this be subtracting the number of inactive SEQUENTIAL zones?
-if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_inactive_zones})) ]; then
-    zbc_test_print_not_applicable "Not enough active zones: (max_open=${max_open}) >= (nr_seq_zones=${nr_seq_zones}) - (nr_inactive_zones=${nr_inactive_zones})"
-fi
-
-# if max_open == -1 then it is "not reported"
-if [ ${max_open} -eq -1 ]; then
-    zbc_test_print_not_applicable "max_open not reported"
+if [ ${max_open} -ge ${nr_active_zones_of_type} ]; then
+    zbc_test_print_not_applicable "Not enough active zones of type ${zone_type}: (max_open=${max_open}) >= (nr_active_zones_of_type=${nr_active_zones_of_type})"
 fi
 
 # Open zones
@@ -59,18 +57,22 @@ zbc_test_get_zone_info
 
 # Search target LBA
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-target_lba=${target_slba}
-
-# Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
-
-# Check result
-zbc_test_get_sk_ascq
-
-if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_check_no_sk_ascq
+if [ $? -ne 0 ]; then
+    printf "Unexpected failure to find zone of type ${zone_type} after counting enough zones"
 else
+    target_lba=${target_slba}
+
+    # Start testing
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+
+    # Check result
+    zbc_test_get_sk_ascq
+
+    if [ ${zone_type} = "0x3" -o ${zone_type} = "0x4" ]; then
+    zbc_test_check_no_sk_ascq
+    else
     zbc_test_check_sk_ascq
+    fi
 fi
 
 # Post process

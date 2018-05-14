@@ -23,6 +23,10 @@ expected_asc="Insufficient-zone-resources"
 # Get drive information
 zbc_test_get_device_info
 
+if [ ${max_open} -eq -1 ]; then
+    zbc_test_print_not_applicable "max_open not reported"
+fi
+
 if [ ${device_model} != "Host-managed" ]; then
     zbc_test_print_not_applicable "Device is not Host-managed"
 fi
@@ -35,20 +39,11 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# if max_open == -1 then it is "not reported"
-if [ ${max_open} -eq -1 ]; then
-    zbc_test_print_not_applicable "max_open not reported"
-fi
+# Get the number of active zones of the zone_type
+nr_active_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_out_cond "0xc|0xd|0xe|0xf" | wc -l`
 
-# Check the number of inactive zones
-zbc_test_count_inactive_zones
-
-# Check number of sequential zones
-zbc_test_count_seq_zones
-
-#XXX Shouldn't this be subtracting the number of inactive SEQUENTIAL zones?
-if [ ${max_open} -ge $((${nr_seq_zones} - ${nr_inactive_zones})) ]; then
-    zbc_test_print_not_applicable "Not enough active zones: (max_open=${max_open}) >= (nr_seq_zones=${nr_seq_zones}) - (nr_inactive_zones=${nr_inactive_zones})"
+if [ ${max_open} -ge ${nr_active_zones_of_type} ]; then
+    zbc_test_print_not_applicable "Not enough active zones of type ${zone_type}: (max_open=${max_open}) >= (nr_active_zones_of_type=${nr_active_zones_of_type})"
 fi
 
 # Start testing

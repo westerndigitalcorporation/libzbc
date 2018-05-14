@@ -14,49 +14,50 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "READ access sequential zone LBAs after write pointer" $*
-
-# Set expected error code
-expected_sk="Illegal-request"
-expected_asc="Attempt-to-read-invalid-data"
+zbc_test_init $0 "READ access ${device_model} ${test_zone_type} write pointer zone LBAs across write pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
+if [ -n "${test_zone_type}" ]; then
+    zone_type=${test_zone_type}
+elif [ ${device_model} = "Host-aware" ]; then
     zone_type="0x3"
 else
     zone_type="0x2"
 fi
 
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
+fi
+
+expected_sk="Illegal-request"
+expected_asc="Attempt-to-read-invalid-data"	# read above WP
+
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-target_ptr="0"
-no_zones=0
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc|0xf"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No sequential zone is active but not FULL"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and active but not FULL"
 fi
-target_lba=$(( ${target_ptr} ))
+target_lba=${target_ptr}
 
 # Start testing
+# Write 8 LBA starting at the write pointer
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
 if [ $? -ne 0 ]; then
-	if [ no_zones = 0 ]; then
-	    printf "\nInitial write failed"
-	fi
+    printf "\nInitial write failed"
 else
+    # Attempt to read 9 LBA across and beyond the 8 we just wrote
     zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 9
 fi
 
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${no_zones} != 0 ]; then
-    zbc_test_check_sk_ascq
-elif [ "${unrestricted_read}" = "1" -o ${device_model} = "Host-aware" ]; then
+if [ "${unrestricted_read}" = "1" -o ${zone_type} = "0x3" ]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq
