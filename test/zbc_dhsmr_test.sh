@@ -66,6 +66,7 @@ if [ ! -d ${ZBC_TEST_BIN_PATH} ]; then
     echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
     exit
 fi
+bin_path=${ZBC_TEST_BIN_PATH}
 
 # Binary check
 test_progs=( \
@@ -190,9 +191,10 @@ fi
 # Build run list
 function get_exec_list()
 {
+	local secnum casenum
 	for secnum in 03 04; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
-			_IFS="${IFS}"
+			local _IFS="${IFS}"
 			IFS='.'
 			set -- ${file}
 			casenum=`basename ${1}`
@@ -204,8 +206,8 @@ function get_exec_list()
 
 function get_section_num()
 {
-	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${1}"
@@ -214,8 +216,8 @@ function get_section_num()
 
 function get_case_num()
 {
-	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${2}"
@@ -271,13 +273,13 @@ function zbc_run_section()
 	local section_num="$1"
 	local section_name="$2"
 
-	section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
+	local section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
 	if [ -z "${section_path}" ]; then
 		echo "Test script directory ${section_path} does not exist"
 		exit
 	fi
 
-	log_path=${ZBC_TEST_LOG_PATH}/${section_num}
+	local log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
 	if [ ${print_list} -eq 1 ]; then
@@ -291,6 +293,7 @@ function zbc_run_section()
 	fi
 
 	# Execute test cases for this section
+	local t s c res
 	for t in ${run_list[@]}; do
 
 		s=`get_section_num ${t}`
@@ -332,6 +335,7 @@ function reset_device()
 # Run tests
 function zbc_run_config()
 {
+    local section_name
     for section in ${section_list[@]}; do
 
 	case "${section}" in
@@ -358,64 +362,106 @@ function zbc_run_config()
     done
 }
 
-if [ -z ${ZBC_TEST_LOG_PATH_BASE} ] ; then
-	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
-fi
-
-function zbc_run_gamut()
+function set_logfile()
 {
-    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/init
-    log_path=${ZBC_TEST_LOG_PATH}
+    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/$1
+    local log_path=${ZBC_TEST_LOG_PATH}
     mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
     rm -f ${log_file}
+}
+
+function zbc_run_mutation()
+{
     zbc_test_get_device_info
 
     if [ "${ur_control}" == 0 ]; then
         echo -e "\n###### Device doesn't support unrestricted reads control"
         if [ "${unrestricted_read}" == 0 ]; then
-            echo "###### Run the dhsmr suite with URSWRZ disabled"
-            ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
+            echo "###### Run the dhsmr test suite with URSWRZ disabled"
+	    set_logfile urswrz_n
         else
-            echo "###### Run the dhsmr suite with URSWRZ enabled"
-            ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
+            echo "###### Run the dhsmr test suite with URSWRZ enabled"
+	    set_logfile urswrz_y
         fi
-        log_path=${ZBC_TEST_LOG_PATH}
-        mkdir -p ${log_path}
-        log_file="${log_path}/zbc_dhsmr_test.log"
-        rm -f ${log_file}
         reset_device
         zbc_run_config "$@"
     else
-        echo -e "\n###### Run the dhsmr suite with URSWRZ enabled"
-        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_y
-        log_path=${ZBC_TEST_LOG_PATH}
-        mkdir -p ${log_path}
-        log_file="${log_path}/zbc_dhsmr_test.log"
-        rm -f ${log_file}
+        echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
+	set_logfile urswrz_y
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
         zbc_run_config "$@"
 
-        echo -e "\n###### Run the dhsmr suite with URSWRZ disabled"
-        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/urswrz_n
-        log_path=${ZBC_TEST_LOG_PATH}
-        mkdir -p ${log_path}
-        log_file="${log_path}/zbc_dhsmr_test.log"
-        rm -f ${log_file}
+        echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
+	set_logfile urswrz_n
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
         zbc_run_config "$@"
 
-        # When done leave the device with URSWRZ set
+        # When done leave the device with URSWRZ enabled
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
     fi
 }
 
-export ZBC_TEST_LOG_PATH
+function zbc_run_gamut()
+{
+    zbc_test_get_device_info
 
-# Establish log file for early failures before reaching another zbc_test_init
-zbc_test_init $0 "Main test for dhsmr device" ${ZBC_TEST_BIN_PATH} ${ZBC_TEST_LOG_PATH_BASE}/dhsmr 0 ${device}
+    if [ ${mutations} == 0 ]; then
+        echo -e "\n######### Device doesn't support mutation"
+        reset_device
+        zbc_run_mutation "$@"
+	return
+    fi
+
+    for m in ${ZA_MUTATIONS}; do
+	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
+	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}/${m}
+	set_logfile init
+	zbc_dev_control -mu ${m} ${device}
+	zbc_run_mutation "$@"
+    done
+
+    local arg_b=""
+    if [ ${batch_mode} -ne 0 ] ; then
+	arg_b="-b"
+    fi
+
+    for m in ${ZBC_MUTATIONS}; do
+	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
+	ZBC_TEST_LOG_PATH_PATH=log/${dev_name}/${m}
+	set_logfile init
+	zbc_dev_control -mu ${m} ${device}
+
+	./zbc_test.sh ${arg_b} ${device}
+    done
+
+    # When done, set the device back to default
+    zbc_dev_control -mu ZA_1CMR_BOT ${device}
+}
+
+if [ -z ${ZA_MUTATIONS} ]; then
+	# ZA_MUTATIONS="ZONE_ACT ZA_FAULTY ZA_1CMR_BOT ZA_WPC ZA_WPC_EMPTY ZA_1CMR_BOT_SWP ZA_WPC_SWP"
+	ZA_MUTATIONS="ZONE_ACT ZA_FAULTY ZA_1CMR_BOT"
+fi
+
+if [ -z ${ZBC_MUTATIONS} ]; then
+	# ZBC_MUTATIONS="HA_ZONED_1PCNT_B"
+	ZBC_MUTATIONS=""
+fi
+
+#XXX SPEC needs resolving
+# Set to 0 configures test scripts to expect INACTIVE, OFFLINE, RDONLY checks done after boundary checks
+# Set to 1 configures test scripts to expect INACTIVE, OFFLINE, RDONLY checks done before boundary checks
+if [ -z ${CHECK_ZC_BEFORE_ZT} ]; then
+	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
+fi
+
+# Establish log file for early failures
+export ZBC_TEST_LOG_PATH
+ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
+set_logfile init
 
 zbc_run_gamut "$@"

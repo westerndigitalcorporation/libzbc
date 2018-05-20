@@ -183,9 +183,10 @@ fi
 # Build run list
 function get_exec_list()
 {
+	local secnum casenum file
 	for secnum in 00 01 02; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
-			_IFS="${IFS}"
+			local _IFS="${IFS}"
 			IFS='.'
 			set -- ${file}
 			casenum=`basename ${1}`
@@ -197,8 +198,8 @@ function get_exec_list()
 
 function get_section_num()
 {
-	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${1}"
@@ -207,8 +208,8 @@ function get_section_num()
 
 function get_case_num()
 {
-	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${2}"
@@ -264,13 +265,13 @@ function zbc_run_section()
 	local section_num="$1"
 	local section_name="$2"
 
-	section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
+	local section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
 	if [ -z "${section_path}" ]; then
 		echo "Test script directory ${section_path} does not exist"
 		exit
 	fi
 
-	log_path=${ZBC_TEST_LOG_PATH}/${section_num}
+	local log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
 	if [ ${print_list} -eq 1 ]; then
@@ -286,6 +287,7 @@ function zbc_run_section()
 	fi
 
 	# Execute test cases for this section
+	local t s c res
 	for t in ${run_list[@]}; do
 
 		s=`get_section_num ${t}`

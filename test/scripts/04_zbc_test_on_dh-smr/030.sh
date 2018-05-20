@@ -15,19 +15,25 @@
 
 zbc_test_init $0 "Run ZBC test on converted back to CMR device" $*
 
-export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.030_back_to_cmr
+export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.030_allcmr2
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
+zbc_test_get_device_info
+
+if [ ${conv_zone} -ne 0 ]; then
+	cmr_type="conv"
+elif [ ${wpc_zone} -ne 0 ]; then
+	cmr_type="wpc"
+else
+	zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
 # Find the first SMR domain that is convertible to CMR
-zbc_test_search_domain_by_type_and_cvt "2" "conv"
+_zbc_test_search_domain_by_type_and_cvt "0x2|0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SWR and convertible to conventional"
+    zbc_test_print_not_applicable "No domain is currently SMR and convertible to CMR"
 fi
 
 # Find the total number of convertible domains
@@ -40,13 +46,15 @@ if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; 
     nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
 fi
 
-# Convert the domains
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} "conv"
-if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration"
+# Convert the domains to the configuration for the run we invoke below
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} ${cmr_type}
+if [ $? -ne 0 ]; then
+	printf "\nFailed to convert device to intended test configuration"
 	exit 1
 fi
 
+# Pass the batch_mode flag through to the run we invoke below
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then
 	arg_b="-b"

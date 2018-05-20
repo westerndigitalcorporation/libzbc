@@ -1618,6 +1618,9 @@ enum zbc_mutation_opt_za {
 	ZBC_MO_ZA_BBONE         = 0x06, /* ZA, no CMR-only, no setting features */
 	ZBC_MO_ZA_STX           = 0x07, /* ZA, no CMR-only, no DOMAIN REPORT */
 	ZBC_MO_ZA_FAULTY        = 0x08, /* ZA, no CMR-only, read-only/offline zones */
+	ZBC_MO_ZA_SWP           = 0x09, /* ZA, like ZBC_MO_ZA_NO_CMR but SWP */
+	ZBC_MO_ZA_WPC_SWP       = 0x0a, /* ZA, like ZBC_MO_ZA_WPC_NO_CMR, but SWP */
+	ZBC_MO_ZA_WPC_EMPTY     = 0x0b, /* ZA, like ZBC_MO_ZA_WPC_NO_CMR, but start EMPTY */
 };
 
 /*

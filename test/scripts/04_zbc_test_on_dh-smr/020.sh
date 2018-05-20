@@ -15,20 +15,26 @@
 
 zbc_test_init $0 "Run ZBC test on mixed CMR-SMR device" $*
 
-export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.020_mixed
+export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.020_mix
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
+zbc_test_get_device_info
+
+if [ ${seq_req_zone} -ne 0 ]; then
+	smr_type="seq"
+elif [ ${seq_pref_zone} -ne 0 ]; then
+	smr_type="seqp"
+else
+	zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
 # Convert roughly half of the domains to SMR -
 # Find a CMR domain that is convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "1" "seq"
+_zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain currently conventional is convertible to sequential"
+    zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
 fi
 
 # Find the total number of convertible domains
@@ -42,24 +48,26 @@ if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -gt ${nr_domains} ]; t
 fi
 
 # Take the first half
-nr=$[nr_cvt_to_seq_domains/2]
-if [ $nr -eq 0 ]; then
-    nr=$[nr + 1]
+nr=$(( nr_cvt_to_seq_domains/2 ))
+if [ ${nr} -eq 0 ]; then
+    nr=1
 fi
 
-# Convert the domains
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr} "seq"
-if [ $? != 0 ]; then
-	echo "Failed to convert device to intended test configuration"
+# Convert the domains to the configuration for the run we invoke below
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr} ${smr_type}
+if [ $? -ne 0 ]; then
+	printf "\nFailed to convert device to intended test configuration"
 	exit 1
 fi
 
+# Pass the batch_mode flag through to the run we invoke below
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then
 	arg_b="-b"
 fi
 
-# Start ZBC test
+# Start ZBC test on the mixed zone-type configuration
 zbc_test_meta_run ./zbc_test.sh ${arg_b} -n ${device}
 if [ $? -ne 0 ]; then
     sk="fail"

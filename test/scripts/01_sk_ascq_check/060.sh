@@ -38,7 +38,7 @@ expected_asc="Attempt-to-read-invalid-data"	# read above WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc|0xf"
+zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc|0xd|0xe|0xf"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and active but not FULL"
 fi

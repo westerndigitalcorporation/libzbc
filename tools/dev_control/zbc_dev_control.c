@@ -31,7 +31,7 @@ static void zbc_print_supported_mutations(struct zbc_supported_mutation *sm)
 
 static void zbc_print_zone_activation_settings(struct zbc_zp_dev_control *ctl)
 {
-	printf("FSNOZ: %u, URSWRZ: %s, MAX ACTIVATION: %u\n",
+	printf("    FSNOZ: %u, URSWRZ: %s, MAX ACTIVATION: %u\n",
 	       ctl->zbm_nr_zones, ctl->zbm_urswrz ? "Y" : "N", ctl->zbm_max_activate);
 }
 
@@ -69,17 +69,22 @@ usage:
 		       "  HA_ZONED                : Host-aware SMR device, no CMR zones\n"
 		       "  HA_ZONED_1PCNT_B        : Host-aware SMR device, 1%% CMR at bottom\n"
 		       "  HA_ZONED_2PCNT_BT       : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
+
 		       "  ZONE_ACT                : DH-SMR device supporting Zone Activation"
-		       " command set, conventional CMR zones, no CMR-only domains\n"
+							" command set, conventional CMR zones, no CMR-only domains\n"
 		       "  ZA_1CMR_BOT             : Same as ZONE_ACT, but the first conversion domain"
-		       " is CMR-only\n"
+							" is CMR-only\n"
 		       "  ZA_1CMR_BOT_TOP         : Same as ZONE_ACT, but the first and last conversion"
-		       " domains are CMR-only\n"
-		       "  ZONE_ACT_WPC            : DH-SMR device supporting Zone Activation"
-		       " command set, WPC CMR zones, no CMR-only domains\n"
+							" domains are CMR-only\n"
+		       "  ZA_1CMR_BOT_SWP         : Same as ZA_1CMR_BOT, but with SWP zones instead of SWR\n"
+		       "  ZA_WPC or ZONE_ACT_WPC  : DH-SMR device supporting Zone Activation"
+							" command set, WPC CMR zones, no CMR-only domains\n"
+		       "  ZA_WPC_SWP              : Same as ZA_WPC, but with SWP zones instead of SWR\n"
+		       "  ZA_WPC_EMPTY            : Same as ZA_WPC, but WPC zones start EMPTY instead of FULL\n"
 		       "  ZA_BARE_BONE            : DH-SMR device supporting Zone Activation and minimal features\n"
 		       "  ZA_STX                  : Same as ZONE_ACT, but no DOMAIN REPORT \n"
 		       "  ZA_FAULTY               : Same as ZONE_ACT, several offline and read-only zones injected \n",
+
 		       argv[0]);
 		return 1;
 	}
@@ -129,7 +134,19 @@ usage:
 			} else if (strcmp(argv[i], "ZA_1CMR_BOT_TOP") == 0) {
 				mt = ZBC_MT_ZONE_ACT;
 				opt.za = ZBC_MO_ZA_1_CMR_BOT_TOP;
+			} else if (strcmp(argv[i], "ZA_1CMR_BOT_SWP") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_SWP;
+			} else if (strcmp(argv[i], "ZA_WPC_SWP") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_WPC_SWP;
+			} else if (strcmp(argv[i], "ZA_WPC_EMPTY") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_WPC_EMPTY;
 			} else if (strcmp(argv[i], "ZONE_ACT_WPC") == 0) {
+				mt = ZBC_MT_ZONE_ACT;
+				opt.za = ZBC_MO_ZA_WPC_NO_CMR;
+			} else if (strcmp(argv[i], "ZA_WPC") == 0) {
 				mt = ZBC_MT_ZONE_ACT;
 				opt.za = ZBC_MO_ZA_WPC_NO_CMR;
 			} else if (strcmp(argv[i], "ZA_BARE_BONE") == 0) {
@@ -205,8 +222,10 @@ usage:
 
 	/* Open device */
 	ret = zbc_open(path, ZBC_O_DRV_MASK | O_RDONLY, &dev);
-	if (ret != 0)
+	if (ret != 0) {
+		perror(path);
 		return 1;
+	}
 
 	zbc_get_device_info(dev, &info);
 

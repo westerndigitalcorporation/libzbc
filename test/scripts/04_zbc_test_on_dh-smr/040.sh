@@ -17,16 +17,25 @@ zbc_test_init $0 "Run ZBC test on another mixed CMR-SMR device" $*
 
 export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.040_mix2
 
-arg_b=""
-if [ ${batch_mode} -ne 0 ] ; then
-	arg_b="-b"
+zbc_test_reset_device
+
+zbc_test_get_device_info
+
+if [ ${conv_zone} -ne 0 ]; then
+	cmr_type="conv"
+elif [ ${wpc_zone} -ne 0 ]; then
+	cmr_type="wpc"
+else
+	zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
 fi
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
-
-zbc_test_reset_device
+if [ ${seq_req_zone} -ne 0 ]; then
+	smr_type="seq"
+elif [ ${seq_pref_zone} -ne 0 ]; then
+	smr_type="seqp"
+else
+	zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
@@ -39,47 +48,53 @@ if [ ${nr_domains} -le 6 ]; then
 fi
 
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
-# This ends up with all conversion domains SWR except domains 0-10 and the last domain.
+# This ends up with all conversion domains SMR except domains 0-10 and the last domain.
 
 activate_fail()
 {
-	echo "Failed to convert device to intended test configuration ($*)"
+	printf "\nFailed to convert device to intended test configuration ($*)"
 	exit 1
 }
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
-if [ $? != 0 ]; then
-	activate_fail "1 4 conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${cmr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "1 4 ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "conv"
-if [ $? != 0 ]; then
-	activate_fail "6 $(( ${nr_domains} - 6 )) conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${cmr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "6 $(( ${nr_domains} - 6 )) ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "seq"
-if [ $? != 0 ]; then
-	activate_fail "1 4 seq"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${smr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "1 4 ${smr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) "seq"
-if [ $? != 0 ]; then
-	activate_fail "6 $(( ${nr_domains} - 6 )) seq"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${smr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "6 $(( ${nr_domains} - 6 )) ${smr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 "conv"
-if [ $? != 0 ]; then
-	activate_fail "1 4  conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${cmr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "1 4  ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 5 "conv"
-if [ $? != 0 ]; then
-	activate_fail "6 5 conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 5 ${cmr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "6 5 ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 "conv"
-if [ $? != 0 ]; then
-	activate_fail "$(( ${nr_domains} - 1 )) 1 conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 ${cmr_type}
+if [ $? -ne 0 ]; then
+	activate_fail "$(( ${nr_domains} - 1 )) 1 ${cmr_type}"
+fi
+
+# Pass the batch_mode flag through to the run we invoke below
+arg_b=""
+if [ ${batch_mode} -ne 0 ] ; then
+	arg_b="-b"
 fi
 
 # Start ZBC test

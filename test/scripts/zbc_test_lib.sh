@@ -17,54 +17,6 @@ red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
 
-function zbc_test_lib_init()
-{
-	# Zone types with various attributes
-	declare -rg ZT_CONV="0x1"			# Conventional zone
-	declare -rg ZT_SWR="0x2"			# Sequential Write Required zone
-	declare -rg ZT_SWP="0x3"			# Sequential Write Preferred zone
-
-	# Example Usage:  if [[ ${target_type} == @(${ZT_NON_SEQ}) ]]; then...
-	#                 if [[ ${target_type} != @(${ZT_WP}) ]]; then...
-
-	declare -rg ZT_NON_SEQ="${ZT_CONV}"		# CMR
-	declare -rg ZT_SEQ="${ZT_SWR}|${ZT_SWP}"	# SMR
-	declare -rg ZT_WP="${ZT_SEQ}"			# Write Pointer zone
-
-	declare -rg ZT_DISALLOW_WRITE_GT_WP="0x2"	# Write starting above WP disallowed
-	declare -rg ZT_DISALLOW_WRITE_LT_WP="0x2"	# Write starting below WP disallowed
-	declare -rg ZT_DISALLOW_WRITE_XZONE="0x2"	# Write across zone boundary disallowed
-	declare -rg ZT_DISALLOW_WRITE_FULL="0x2"	# Write FULL zone disallowed
-	declare -rg ZT_REQUIRE_WRITE_PHYSALIGN="0x2"	# Write ending >= WP must be physical-block-aligned
-
-	declare -rg ZT_RESTRICT_READ_XZONE="0x2"	# Read across zone boundary disallowed when !URSWRZ
-	declare -rg ZT_RESTRICT_READ_GE_WP="0x2"	# Read ending above WP disallowed when !URSWRZ
-
-	declare -rg ZT_W_OZR="0x2"			# Participates in Open Zone Resources protocol
-
-	# Zone conditions
-	declare -rg ZC_NOT_WP="0x0"			# NOT_WRITE_POINTER zone condition
-	declare -rg ZC_EMPTY="0x1"			# EMPTY zone condition
-	declare -rg ZC_IOPEN="0x2"			# IMPLICITLY OPEN zone condition
-	declare -rg ZC_EOPEN="0x3"			# EXPLICITLY OPEN zone condition
-	declare -rg ZC_OPEN="${ZC_IOPEN}|${ZC_EOPEN}"	# Either OPEN zone condition
-	declare -rg ZC_CLOSED="0x4"			# CLOSED zone condition
-	declare -rg ZC_FULL="0xe"			# FULL zone condition
-	declare -rg ZC_NON_FULL="0x0|0x1|0x2|0x3|0x4"	# Non-FULL available zone conditions
-	declare -rg ZC_AVAIL="${ZC_NON_FULL}|${ZC_FULL}" # available zone conditions
-}
-
-if [ -z "${ZBC_TEST_LIB_INIT}" ]; then
-	zbc_test_lib_init
-	ZBC_TEST_LIB_INIT=1
-fi
-
-# Trim leading zeros off of result strings so expr doesn't think they are octal
-function _trim()
-{
-	echo $1 | sed -e "s/^00*\(.\)/\1/"
-}
-
 # Expected Sense strings for ACTIVATE/QUERY status returns
 ERR_ZA_SK="Unknown-sense-key 0x00"
 ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
@@ -74,11 +26,11 @@ function stacktrace()
 	local RET=
 	local -i FRAME=2
 	local STR=${FUNCNAME[${FRAME}]}
-	while [[ ! -z ${STR} ]] ; do
+	while [ ! -z ${STR} ] ; do
 		RET+=" ${STR}:${BASH_LINENO[$((${FRAME}-1))]}"
 		FRAME=$(( ${FRAME} + 1 ))
 		STR=${FUNCNAME[${FRAME}]}
-		if [[ -z ${FUNCNAME[$((${FRAME}+1))]} ]] ; then break; fi
+		if [ -z ${FUNCNAME[$((${FRAME}+1))]} ] ; then break; fi
 	done
 	echo ${RET}
 }
@@ -146,7 +98,7 @@ function zbc_test_init()
 function zbc_reset_test_device()
 {
 	local _IFS="${IFS}"
-	vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
+	local vendor=`zbc_info ${device} | grep "Vendor ID: .*" | while IFS=: read a b; do echo $b; done`
 	IFS="$_IFS"
 
 	case "${vendor}" in
@@ -174,7 +126,7 @@ function zbc_test_reset_device()
 
 	zbc_test_get_device_info
 
-	if [ "${ur_control}" != 0 ]; then
+	if [ ${ur_control} -ne 0 ]; then
 	# Allow the main ACTIVATE tests to run unhindered
 	zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
 	if [ $? -ne 0 ]; then
@@ -199,7 +151,6 @@ function zbc_test_run()
 	echo "" >> ${log_file} 2>&1
 	echo "## Executing: ${_cmd}" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
-
 	${VALGRIND} ${_cmd} >> ${log_file} 2>&1
 
 	return $?
@@ -208,6 +159,7 @@ function zbc_test_run()
 function zbc_test_meta_run()
 {
 	local _cmd="$*"
+	export CHECK_ZC_BEFORE_ZT
 
 	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
@@ -245,12 +197,12 @@ function zbc_test_get_device_info()
 {
 	zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
 	if [ $? -ne 0 ]; then
-		echo "Failed to get device info for ${device}"
+		echo "Failed to get device info"
 		exit 1
 	fi
 
 	local _IFS="${IFS}"
-	IFS=','
+	IFS=$',\n'
 
 	local device_model_line=`cat ${log_file} | grep -F "[DEVICE_MODEL]"`
 	set -- ${device_model_line}
@@ -277,7 +229,8 @@ function zbc_test_get_device_info()
 	zone_activation_device=${2}
 	zbc_check_string "Failed to get Zone Activation device support" ${zone_activation_device}
 
-	if [ "${zone_activation_device}" != "0" ]; then
+	if [ ${zone_activation_device} -ne 0 ]; then
+
 		local ur_control_line=`cat ${log_file} | grep -F "[UR_CONTROL]"`
 		set -- ${ur_control_line}
 		ur_control=${2}
@@ -322,6 +275,21 @@ function zbc_test_get_device_info()
 		set -- ${wpc_zone_line}
 		wpc_zone=${2}
 		zbc_check_string "Failed to get Write Pointer Conventional zone support" ${wpc_zone}
+	else
+		ur_control=0
+		domain_report=0
+		zone_query=0
+		za_control=0
+		maxact_control=0
+		wpc_zone=0
+		conv_zone=1
+		if [ "${device_model}" = "Host-aware" ]; then
+			seq_pref_zone=1
+			seq_req_zone=0
+		else
+			seq_pref_zone=0
+			seq_req_zone=1
+		fi
 	fi
 
 	local last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
@@ -333,6 +301,11 @@ function zbc_test_get_device_info()
 	set -- ${last_zone_size_line}
 	last_zone_size=${2}
 	zbc_check_string "Failed to get last zone size" ${last_zone_size}
+
+	local mutate_line=`cat ${log_file} | grep -F "[MUTATE]"`
+	set -- ${mutate_line}
+	mutations=${2}
+	zbc_check_string "Failed to get mutation support" ${mutations}
 
 	IFS="$_IFS"
 }
@@ -432,7 +405,7 @@ function zbc_test_open_nr_zones()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		local zone_type=${3}
@@ -466,7 +439,7 @@ function zbc_test_close_nr_zones()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -495,9 +468,10 @@ function zbc_test_get_target_zone_from_slba()
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,.*,.*,${start_lba},.*,.*"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
+		# Warning: ${2} is *not* the zone number, merely the index in the current report
 		target_type=${3}
 		target_cond=${4}
 		target_slba=${5}
@@ -524,7 +498,7 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -551,7 +525,7 @@ function zbc_test_get_target_zone_from_type_and_ignored_cond()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -627,7 +601,7 @@ function zbc_test_zone_tuple()
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -704,7 +678,7 @@ function zbc_test_count_cvt_to_seq_domains()
 
 function zbc_test_search_cvt_domain_by_number()
 {
-	domain_number=`printf "%03u" "${1}"`
+	local domain_number=`printf "%03u" "${1}"`
 
 	domain_file_check
 
@@ -712,7 +686,7 @@ function zbc_test_search_cvt_domain_by_number()
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],${domain_number},.*,.*,.*,.*,.*,.*,.*,.*"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		domain_type=${3}
@@ -732,23 +706,24 @@ function zbc_test_search_cvt_domain_by_number()
 	return 1
 }
 
-function zbc_test_search_cvt_domain_by_type()
+function UNUSED_zbc_test_search_cvt_domain_by_type()
 {
-	domain_type=${1}
-	local _skip=$(expr ${2:-0})
+	local domain_search_type=${1}
+	local -i _skip=$(expr ${2:-0})
 
 	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_type},.*,.*,.*,.*,.*,.*,.*"`; do
+	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_search_type},.*,.*,.*,.*,.*,.*,.*"`; do
 
-		if [ "${_skip}" -eq "0" ]; then
+		if [ ${_skip} -eq 0 ]; then
 
 			local _IFS="${IFS}"
-			IFS=','
+			IFS=$',\n'
 			set -- ${_line}
 
 			domain_num=$(expr ${2} + 0)
+			domain_type=${3}
 			domain_conv_start=`trim ${4}`
 			domain_conv_len=${5}
 			domain_seq_start=`trim ${6}`
@@ -761,7 +736,7 @@ function zbc_test_search_cvt_domain_by_type()
 			return 0
 
 		else
-			_skip=$(expr ${_skip} - 1)
+			_skip=$(( ${_skip} - 1 ))
 		fi
 
 	done
@@ -769,10 +744,10 @@ function zbc_test_search_cvt_domain_by_type()
 	return 1
 }
 
-function zbc_test_search_domain_by_type_and_cvt()
+function _zbc_test_search_domain_by_type_and_cvt()
 {
-	domain_type=${1}
-	local _skip=$(expr ${3:-0})
+	local domain_search_type=${1}
+	local -i _skip=$(expr ${3:-0})
 	local cvt
 
 	case "${2}" in
@@ -802,15 +777,16 @@ function zbc_test_search_domain_by_type_and_cvt()
 	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_type},.*,.*,.*,.*,.*,${cvt}"`; do
+	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],.*,(${domain_search_type}),.*,.*,.*,.*,.*,${cvt}"`; do
 
-		if [ "${_skip}" -eq "0" ]; then
+		if [ ${_skip} -eq 0 ]; then
 
 			local _IFS="${IFS}"
-			IFS=','
+			IFS=$',\n'
 			set -- ${_line}
 
 			domain_num=$(expr ${2} + 0)
+			domain_type=${3}
 			domain_conv_start=`trim ${4}`
 			domain_conv_len=${5}
 			domain_seq_start=`trim ${6}`
@@ -823,7 +799,7 @@ function zbc_test_search_domain_by_type_and_cvt()
 			return 0
 
 		else
-			_skip=$(expr ${_skip} - 1)
+			_skip=$(( ${_skip} - 1 ))
 		fi
 
 	done
@@ -831,10 +807,15 @@ function zbc_test_search_domain_by_type_and_cvt()
 	return 1
 }
 
+function zbc_test_search_domain_by_type_and_cvt()
+{
+	_zbc_test_search_domain_by_type_and_cvt "0x$1" "$2" "$3"
+}
+
 function zbc_test_calc_nr_domain_zones()
 {
-	domain_num=${1}
-	local _nr_domains=${2}
+	local domain_num=${1}
+	local -i _nr_domains=${2}
 	nr_conv_zones=0
 	nr_seq_zones=0
 
@@ -843,20 +824,20 @@ function zbc_test_calc_nr_domain_zones()
 	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]"`; do
 
 		local _IFS="${IFS}"
-		IFS=','
+		IFS=$',\n'
 		set -- ${_line}
 
 		if [ "$(expr ${2} + 0)" -ge "${domain_num}" ]; then
 
 			nr_conv_zones=$(expr ${nr_conv_zones} + ${5})
 			nr_seq_zones=$(expr ${nr_seq_zones} + ${7})
-			_nr_domains=$(expr ${_nr_domains} - 1)
+			_nr_domains=$(( ${_nr_domains} - 1 ))
 
 		fi
 
 		IFS="$_IFS"
 
-		if [ "${_nr_domains}" -eq 0 ]; then
+		if [ ${_nr_domains} -eq 0 ]; then
 			return 0
 		fi
 	done
@@ -874,7 +855,7 @@ function zbc_test_get_sk_ascq()
 	err_cbf=""
 
 	local _IFS="${IFS}"
-	IFS=','
+	IFS=$',\n'
 
 	local sk_line=`cat ${log_file} | grep -m 1 -F "[SENSE_KEY]"`
 	set -- ${sk_line}
@@ -942,16 +923,9 @@ function zbc_test_print_failed_sk()
 
 function zbc_test_check_err()
 {
-	if [ -n "${expected_err_za}" ] ; then
-		# An ERR_ZA is expected...
-		if [[ $(( "${expected_err_za}" & 0x4000 )) -eq 0 ]] ; then
-			# ERR_ZA is expected with CBI bit 0x4000 clear, so our caller should not be expecting a (nonzero) CBF
-			if [[ -n "${expected_err_cbf}" && "${expected_err_cbf}" != "0" ]] ; then
-				echo "WARNING: TEST SCRIPT ${FUNCNAME[1]}:${BASH_LINENO[0]} called ${FUNCNAME[0]} with nonzero expected_err_cbf=${expected_err_cbf} but not 0x4000 & expected_err_za=${expected_err_za}"
-			fi
-		fi
+	if [ -n "${expected_err_za}" ] ; then		# ERR_ZA is expected...
 		if [ -z "${expected_err_cbf}" ] ; then
-			# Our caller expects ERR_ZA with CBI bit 0x4000 set, but specified no expected CBF
+			# Our caller expects ERR_ZA, but specified no expected CBF -- assume zero
 			local expected_err_cbf=0	# expect (CBF == 0)
 		fi
 	fi
@@ -960,6 +934,9 @@ function zbc_test_check_err()
 		zbc_test_print_passed
 	else
 		zbc_test_print_failed_sk
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${log_file}
+		fi
 	fi
 }
 
@@ -968,7 +945,10 @@ function zbc_test_check_sk_ascq()
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
 		zbc_test_print_passed
 	else
-		zbc_test_print_failed_sk "$*"
+		zbc_test_print_failed_sk
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${log_file}
+		fi
 	fi
 }
 
@@ -979,7 +959,10 @@ function zbc_test_check_no_sk_ascq()
 	if [ -z "${sk}" -a -z "${asc}" ]; then
 		zbc_test_print_passed
 	else
-		zbc_test_print_failed_sk "$*"
+		zbc_test_print_failed_sk
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${log_file}
+		fi
 	fi
 }
 
@@ -988,14 +971,10 @@ function zbc_test_fail_if_sk_ascq()
 	local expected_sk=""
 	local expected_asc=""
 	if [ -n "${sk}" -o -n "${asc}" ]; then
-		zbc_test_print_failed_sk "$*"
-	fi
-}
-
-function zbc_test_fail_if_sk_ascq()
-{
-	if [ -n "${sk}" -o -n "${asc}" ]; then
 		zbc_test_print_failed_sk
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${log_file}
+		fi
 	fi
 }
 
@@ -1014,22 +993,20 @@ function zbc_test_print_failed_zc()
 
 function zbc_test_check_zone_cond()
 {
+	local expected_sk=""
+	local expected_asc=""
+
 	# Check sk_ascq first
-	if [ ! -z "${sk}" -o ! -z "${asc}" ]; then
+	if [ -n "${sk}" -o -n "${asc}" ]; then
 		zbc_test_print_failed_sk
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${logfile}
+		fi
         elif [ "${target_cond}" != "${expected_cond}" ]; then
                 zbc_test_print_failed_zc
-        else
-                zbc_test_print_passed
+		if [ -n "$1" ]; then
+			echo "           FAIL INFO: $@" | tee -a ${logfile}
         fi
-}
-
-# I think it never makes sense to call this function (and no one does call it).
-# The zone condition should always be unchanged after a failed zone op.
-function XXX_zbc_test_check_zone_cond_sk_ascq()
-{
-        if [ "${target_cond}" == "${expected_cond}" ]; then
-                zbc_test_check_sk_ascq
         else
                 zbc_test_print_passed
         fi
@@ -1045,6 +1022,7 @@ function zbc_test_dump_cvt_domain_info()
 	zbc_domain_report ${device} > ${dump_cvt_domain_info_file}
 }
 
+# Dump info files after a failed test -- returns 1 if test failed
 function zbc_test_check_failed()
 {
 
@@ -1052,7 +1030,7 @@ function zbc_test_check_failed()
 
 	if [ "Failed" = "${failed}" ]; then
 		zbc_test_dump_zone_info
-		if [ "${zone_activation_device}" != "0" ]; then
+		if [ ${zone_activation_device} -ne 0 ]; then
 			zbc_test_dump_cvt_domain_info
 		fi
 		return 1
