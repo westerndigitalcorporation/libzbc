@@ -9,30 +9,25 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): Conventional to SWP (domain addressing)" $*
-
-# Set expected error code
-expected_sk=""
-expected_asc=""
+zbc_test_init $0 "ZONE ACTIVATE(16): CMR to SMR (domain addressing)" $*
 
 # Get drive information
 zbc_test_get_device_info
 
-if [ "${seq_pref_zone}" == 0 ]; then
+if [ ${seq_pref_zone} -eq 0 ]; then
     zbc_test_print_not_applicable "Device does not support conversion to SWP zone type"
 fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find a CMR domain that is convertable to SMR
-zbc_test_search_domain_by_type_and_cvt "1" "seq"
+# Find a CMR domain that is convertible to SMR
+zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
 fi
 
 # Start testing
@@ -46,7 +41,7 @@ if [ -z "${sk}" ]; then
     # Verify that the domain is converted
     zbc_test_get_cvt_domain_info
     zbc_test_search_cvt_domain_by_number ${domain_num}
-    if [ $? -ne 0 -o "${domain_type}" != "0x3" ]; then
+    if [[ $? -ne 0 || ${domain_type} != @(0x3) ]]; then
         sk=${domain_type}
         expected_sk="0x3"
         zbc_test_print_failed_sk

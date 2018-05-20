@@ -10,39 +10,31 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
 # CLOSE transitions an OPEN zone to EMPTY if the WP is pointing to the start of the zone
 zbc_test_init $0 "CLOSE_ZONE implicit open to empty" $*
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
 expected_cond="0x1"
 
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
-
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
+zbc_test_search_vals_from_zone_type_and_cond "0x2|0x3" "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY sequential zones"
+    zbc_test_print_not_applicable "No EMPTY SMR zones"
 fi
 target_lba=${target_slba}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
 zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
@@ -62,4 +54,3 @@ zbc_test_check_zone_cond
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
 
 rm -f ${zone_info_file}
-

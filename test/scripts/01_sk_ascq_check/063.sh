@@ -10,57 +10,61 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "READ across ${device_model} ${test_zone_type} write-pointer zones (FULL->FULL)" $*
+zbc_test_init $0 "READ across write-pointer zones (FULL->FULL)" $*
 
 # Get drive information
 zbc_test_get_device_info
 
 if [ -n "${test_zone_type}" ]; then
     zone_type=${test_zone_type}
-elif [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
 else
-    zone_type="0x2"
-fi
-
-if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
+    zone_type="0x2|0x3"
 fi
 
 expected_sk="Illegal-request"
 expected_asc="Read-boundary-violation"		# read cross-zone
 
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe|0xc|0xd|0xf"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone of type ${zone_type} is active"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
 fi
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} $(( ${target_lba} + 1 ))
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "Initial write failed (first zone), zone_type=${target_type}"
+
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_slba} + ${target_size} )) ${target_size}
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "Initial write failed (second zone), zone_type=${target_type}"
+
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 
 # Check result
 zbc_test_get_sk_ascq
 
-#				  -o ${zone_type} = "0x4" #XXX this customer requirement not in ZA-r4 SPEC
-if [ "${unrestricted_read}" = "1" -o ${zone_type} = "0x3" ]; then
-    zbc_test_check_no_sk_ascq
+#XXX Customer requirement to allow WPC cross-zone read when !URSWRZ is not in ZA-r4 SPEC
+if [[ ${unrestricted_read} -eq 1 || ${zone_type} == @(0x3|0x4) ]]; then
+    # URSWRZ enabled or SWP zone -- expected to succeed
+    zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
-    zbc_test_check_sk_ascq
+    # URSWRZ disabled and SWR zone -- expected to fail
+    zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 fi
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} $(( ${target_lba} + 1 ))
 rm -f ${zone_info_file}
-

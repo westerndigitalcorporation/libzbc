@@ -9,46 +9,49 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): SWR to Conventional (domain addressing)" $*
-
-# Set expected error code
-expected_sk=""
-expected_asc=""
+zbc_test_init $0 "ZONE ACTIVATE(16): SMR to CMR (domain addressing)" $*
 
 # Get drive information
 zbc_test_get_device_info
 
+if [ ${conv_zone} -ne 0 ]; then
+    cmr_type="conv"
+elif [ ${wpc_zone} -ne 0 ]; then
+    cmr_type="wpc"
+else
+    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+fi
+
 # Get domain information
 zbc_test_get_cvt_domain_info
 
-# Find an SMR domain that is convertable to CMR
-zbc_test_search_domain_by_type_and_cvt "2" "conv"
+# Find a SMR domain that is convertible to CMR
+zbc_test_search_domain_by_type_and_cvt "0x2|0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SWR and convertible to conventional"
+    zbc_test_print_not_applicable "No domain is currently SMR and convertible to CMR"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} 1 ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
+zbc_test_fail_if_sk_ascq "ACTIVATE failed to cmr_type=${cmr_type}"
 
 if [ -z "${sk}" ]; then
     # Verify that the domain is converted
     zbc_test_get_cvt_domain_info
     zbc_test_search_cvt_domain_by_number ${domain_num}
-    if [ $? -ne 0 -o "${domain_type}" != "0x1" ]; then
+    if [[ $? -ne 0 || ${domain_type} != @(0x1|0x4) ]]; then
         sk=${domain_type}
-        expected_sk="0x1"
-        zbc_test_print_failed_sk
+        expected_sk="0x1|0x4"
     fi
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 

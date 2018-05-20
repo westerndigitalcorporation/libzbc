@@ -9,11 +9,10 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SWR to Conventional (domain addr, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SMR to CMR (domain addr, FSNOZ)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"
@@ -22,21 +21,29 @@ expected_asc="Conversion-type-unsupported"
 # Get drive information
 zbc_test_get_device_info
 
-if [ "${za_control}" == 0 ]; then
+if [ ${conv_zone} -ne 0 ]; then
+    cmr_type="conv"
+elif [ ${wpc_zone} -ne 0 ]; then
+    cmr_type="wpc"
+else
+    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+fi
+
+if [ ${za_control} == 0 ]; then
     zbc_test_print_not_applicable "Device does not support setting FSNOZ"
 fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SMR domain that is not convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "2" "noconv"
+# Find the first SMR domain that is not convertible to CMR
+zbc_test_search_domain_by_type_and_cvt "0x2|0x3" "noconv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SWR and NON-convertible to conventional"
+    zbc_test_print_not_applicable "No domain is currently SMR and NON-convertible to CMR"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} 1 "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} 1 ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

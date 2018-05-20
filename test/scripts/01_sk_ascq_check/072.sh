@@ -10,7 +10,6 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
@@ -29,14 +28,12 @@ fi
 
 if [ -n "${test_zone_type}" ]; then
     zone_type=${test_zone_type}
-elif [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
 else
-    zone_type="0x2"
+    zone_type="0x2|0x3"
 fi
 
 if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone is not a write-pointer zone type"
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 fi
 
 # Get zone information
@@ -58,7 +55,7 @@ zbc_test_get_zone_info
 # Search target LBA
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    printf "Unexpected failure to find zone of type ${zone_type} after counting enough zones"
+    printf "\nUnexpected failure to find zone of type ${zone_type} after counting enough zones"
 else
     target_lba=${target_slba}
 
@@ -68,10 +65,10 @@ else
     # Check result
     zbc_test_get_sk_ascq
 
-    if [ ${zone_type} = "0x3" -o ${zone_type} = "0x4" ]; then
-    zbc_test_check_no_sk_ascq
+    if [[ ${target_type} == @(0x3|0x4) ]]; then
+        zbc_test_check_no_sk_ascq "zone_type=${target_type}"
     else
-    zbc_test_check_sk_ascq
+        zbc_test_check_sk_ascq "zone_type=${target_type}"
     fi
 fi
 

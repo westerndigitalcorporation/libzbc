@@ -9,11 +9,10 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32) LBA starting out of range (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): LBA starting out of range (zone addressing)" $*
 
 # Set expected error code
 # ZA-r4 5.y.3.1 ZONE ID does not specify the lowest LBA of a Zone
@@ -22,6 +21,15 @@ expected_asc="Invalid-field-in-cdb"
 
 # Get information
 zbc_test_get_device_info
+
+if [ ${conv_zone} -ne 0 ]; then
+    cmr_type="conv"
+elif [ ${wpc_zone} -ne 0 ]; then
+    cmr_type="wpc"
+else
+    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+fi
+
 zbc_test_get_zone_info
 zbc_test_get_cvt_domain_info
 
@@ -32,7 +40,7 @@ zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
 # Use the size of the last domain when trying ACTIVATE at EOM
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${domain_seq_len} "conv"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${domain_seq_len} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

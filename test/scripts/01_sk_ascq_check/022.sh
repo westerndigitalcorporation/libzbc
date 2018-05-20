@@ -10,7 +10,6 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
@@ -27,8 +26,8 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable "max_open not reported"
 fi
 
-if [ ${device_model} != "Host-managed" ]; then
-    zbc_test_print_not_applicable "Device is not Host-managed"
+if [ ${device_model} = "Host-aware" ]; then
+    zbc_test_print_not_applicable "Device is Host-aware"
 fi
 
 zone_type="0x2"
@@ -45,6 +44,27 @@ nr_active_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zb
 if [ ${max_open} -ge ${nr_active_zones_of_type} ]; then
     zbc_test_print_not_applicable "Not enough active zones of type ${zone_type}: (max_open=${max_open}) >= (nr_active_zones_of_type=${nr_active_zones_of_type})"
 fi
+
+# Create closed zones
+declare -i count=0
+for i in `seq $(( ${max_open} + 1 ))`; do
+
+    # Get zone information
+    zbc_test_get_zone_info
+
+    # Search target LBA
+    zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
+    target_lba=${target_slba}
+
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+    zbc_test_get_sk_ascq
+    zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
+
+    zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
+    zbc_test_get_sk_ascq
+    zbc_test_fail_if_sk_ascq "Zone CLOSE failed, zone_type=${target_type}"
+
+done
 
 # Start testing
 # Create more closed zones than we can have open at one time

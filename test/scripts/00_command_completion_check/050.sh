@@ -10,32 +10,21 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
 zbc_test_init $0 "RESET_WRITE_PTR command completion" $*
 
-expected_sk=""
-expected_asc=""
-
 # Get drive information
 zbc_test_get_device_info
-
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
 
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-target_lba="0"
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-if [ $? -ne 0 -a "${zone_activation_device}" != "0" ]; then
-    zbc_test_print_not_applicable "No EMPTY sequential zones"
+if [ $? -ne 0 ]; then
+    zbc_test_print_not_applicable "No EMPTY SMR zones"
 fi
 target_lba=${target_slba}
 
@@ -51,4 +40,3 @@ rm -f ${zone_info_file}
 
 # Check failed
 zbc_test_check_failed
-

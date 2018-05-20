@@ -10,11 +10,10 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "RESET_WRITE_PTR conventional zone" $*
+zbc_test_init $0 "RESET_WRITE_PTR CMR zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -27,21 +26,25 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond "0x1" "0xc|0xd|0xf"
-func_ret=$?
+zbc_test_search_vals_from_zone_type_and_ignored_cond "0x1|0x4" "0xc|0xd|0xf"
 
-if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable "No conventional zones"
+if [ $? -gt 0 ]; then
+    zbc_test_print_not_applicable "No CMR zone is active"
 fi
 
-target_lba=$(( ${target_slba} ))
+target_lba=${target_slba}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_lba}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+
+if [ ${target_type} = "0x1" ]; then
+	zbc_test_check_sk_ascq		# RESET_WP not allowed on conventional zone
+else
+	zbc_test_check_no_sk_ascq	# RESET_WP allowed on WPC zones
+fi
 
 # Post process
 #rm -f ${zone_info_file}

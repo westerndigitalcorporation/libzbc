@@ -10,25 +10,15 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
 zbc_test_init $0 "CLOSE_ZONE full to full (ALL bit set)" $*
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
 expected_cond="0xe"
 
 # Get drive information
 zbc_test_get_device_info
-
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
 
 # Get zone information
 zbc_test_get_zone_info
@@ -36,12 +26,15 @@ zbc_test_get_zone_info
 # Search target LBA
 zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY sequential zones"
+    zbc_test_print_not_applicable "No EMPTY SMR zones"
 fi
 target_lba=${target_slba}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_lba}
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "Zone FINISH failed, zone_type=${target_type}"
+
 zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} -1
 
 # Get SenseKey, ASC/ASCQ
@@ -60,4 +53,3 @@ zbc_test_check_zone_cond
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
 
 rm -f ${zone_info_file}
-

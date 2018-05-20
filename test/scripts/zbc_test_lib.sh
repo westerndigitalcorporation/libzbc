@@ -683,7 +683,7 @@ function zbc_test_search_cvt_domain_by_number()
 	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],${domain_number},.*,.*,.*,.*,.*,.*,.*,.*"`; do
+	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],(${domain_number}),.*,.*,.*,.*,.*,.*,.*,.*"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -714,7 +714,7 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 	domain_file_check
 
 	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\],.*,0x${domain_search_type},.*,.*,.*,.*,.*,.*,.*"`; do
+	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],.*,(${domain_search_type}),.*,.*,.*,.*,.*,.*,.*"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
@@ -744,7 +744,7 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 	return 1
 }
 
-function _zbc_test_search_domain_by_type_and_cvt()
+function zbc_test_search_domain_by_type_and_cvt()
 {
 	local domain_search_type=${1}
 	local -i _skip=$(expr ${3:-0})
@@ -805,11 +805,6 @@ function _zbc_test_search_domain_by_type_and_cvt()
 	done
 
 	return 1
-}
-
-function zbc_test_search_domain_by_type_and_cvt()
-{
-	_zbc_test_search_domain_by_type_and_cvt "0x$1" "$2" "$3"
 }
 
 function zbc_test_calc_nr_domain_zones()

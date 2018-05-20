@@ -9,7 +9,6 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
@@ -22,19 +21,19 @@ zbc_test_reset_device
 zbc_test_get_device_info
 
 if [ ${conv_zone} -ne 0 ]; then
-	cmr_type="conv"
+    cmr_type="conv"
 elif [ ${wpc_zone} -ne 0 ]; then
-	cmr_type="wpc"
+    cmr_type="wpc"
 else
-	zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
 fi
 
 if [ ${seq_req_zone} -ne 0 ]; then
-	smr_type="seq"
+    smr_type="seq"
 elif [ ${seq_pref_zone} -ne 0 ]; then
-	smr_type="seqp"
+    smr_type="seqp"
 else
-	zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+    zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
 fi
 
 # Get conversion domain information
@@ -44,7 +43,7 @@ zbc_test_get_cvt_domain_info
 zbc_test_count_cvt_domains		# nr_domains
 
 if [ ${nr_domains} -le 6 ]; then
-	zbc_test_print_not_applicable "Not enough domains to run this configuration"
+    zbc_test_print_not_applicable "Not enough domains to run this configuration"
 fi
 
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
@@ -52,49 +51,49 @@ fi
 
 activate_fail()
 {
-	printf "\nFailed to convert device to intended test configuration ($*)"
-	exit 1
+    printf "\nFailed to convert device to intended test configuration ($*)"
+    exit 1
 }
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${cmr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "1 4 ${cmr_type}"
+    activate_fail "1 4 ${cmr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${cmr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "6 $(( ${nr_domains} - 6 )) ${cmr_type}"
+    activate_fail "6 $(( ${nr_domains} - 6 )) ${cmr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${smr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "1 4 ${smr_type}"
+    activate_fail "1 4 ${smr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${smr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "6 $(( ${nr_domains} - 6 )) ${smr_type}"
+    activate_fail "6 $(( ${nr_domains} - 6 )) ${smr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${cmr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "1 4  ${cmr_type}"
+    activate_fail "1 4  ${cmr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 5 ${cmr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "6 5 ${cmr_type}"
+    activate_fail "6 5 ${cmr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 ${cmr_type}
 if [ $? -ne 0 ]; then
-	activate_fail "$(( ${nr_domains} - 1 )) 1 ${cmr_type}"
+    activate_fail "$(( ${nr_domains} - 1 )) 1 ${cmr_type}"
 fi
 
 # Pass the batch_mode flag through to the run we invoke below
 arg_b=""
 if [ ${batch_mode} -ne 0 ] ; then
-	arg_b="-b"
+    arg_b="-b"
 fi
 
 # Start ZBC test
