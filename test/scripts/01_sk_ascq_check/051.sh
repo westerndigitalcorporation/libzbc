@@ -47,5 +47,4 @@ else
 fi
 
 # Post process
-#rm -f ${zone_info_file}
-
+rm -f ${zone_info_file}

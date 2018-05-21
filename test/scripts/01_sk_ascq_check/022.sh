@@ -30,6 +30,7 @@ if [ ${device_model} = "Host-aware" ]; then
     zbc_test_print_not_applicable "Device is Host-aware"
 fi
 
+# Only SWR zones return this error
 zone_type="0x2"
 
 # Let us assume that all the available sequential zones are EMPTY...

@@ -56,7 +56,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 zbc_test_get_sk_ascq
 
 #XXX Customer requirement to allow WPC cross-zone read when !URSWRZ is not in ZA-r4 SPEC
-if [[ ${unrestricted_read} -eq 1 || ${zone_type} == @(0x3|0x4) ]]; then
+if [[ ${unrestricted_read} -eq 1 || ${target_type} == @(0x3|0x4) ]]; then
     # URSWRZ enabled or SWP zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else

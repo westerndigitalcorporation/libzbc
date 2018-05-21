@@ -1087,7 +1087,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	if (zbc_test_mode(dev) && count == 0) {
 		ret = (dev->zbd_drv->zbd_pread)(dev, buf, count, offset);
 		if (ret < 0) {
-			zbc_error("%s: read of zero sectors at sector %llu failed %ld (%s)\n",
+			zbc_error("%s: Read of zero sectors at sector %llu failed %ld (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) offset,
 				  -ret, strerror(-ret));

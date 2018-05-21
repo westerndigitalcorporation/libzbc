@@ -50,7 +50,7 @@ zbc_test_get_sk_ascq
 if [ ${target_type} = "0x3" ]; then
     zbc_test_check_no_sk_ascq		# Unaligned write allowed on SWP zones
 else
-    zbc_test_check_sk_ascq		# Unaligned write fails on SWR zones
+    zbc_test_check_sk_ascq		# Unaligned write fails on SWR and WPC zones
 fi
 
 # Post process

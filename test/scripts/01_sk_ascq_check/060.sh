@@ -54,7 +54,7 @@ fi
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -eq 1 -o ${zone_type} = "0x3" ]; then
+if [ ${unrestricted_read} -eq 1 -o ${target_type} = "0x3" ]; then
     # URSWRZ enabled or SWP zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else

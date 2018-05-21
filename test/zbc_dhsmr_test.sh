@@ -172,7 +172,7 @@ if [ ${print_list} -eq 1 ]; then
 fi
 
 # Check device path
-if [ ! -z ${device} ]; then
+if [ ! -z "${device}" ]; then
 	if [ ! -e ${device} ]; then
 		echo "Device \"${device}\" not found"
 		exit 1
@@ -416,7 +416,7 @@ function zbc_run_gamut()
 	return
     fi
 
-    for m in ${ZA_MUTATIONS}; do
+    for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
 	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}/${m}
 	set_logfile init
@@ -431,31 +431,37 @@ function zbc_run_gamut()
 
     for m in ${ZBC_MUTATIONS}; do
 	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
-	ZBC_TEST_LOG_PATH_PATH=log/${dev_name}/${m}
+	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}/${m}
+	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}
 	set_logfile init
 	zbc_dev_control -mu ${m} ${device}
-
-	./zbc_test.sh ${arg_b} ${device}
+	zbc_test_meta_run ./zbc_test.sh ${arg_b} ${device}
     done
 
     # When done, set the device back to default
     zbc_dev_control -mu ZA_1CMR_BOT ${device}
 }
 
-if [ -z ${ZA_MUTATIONS} ]; then
-	# ZA_MUTATIONS="ZONE_ACT ZA_FAULTY ZA_1CMR_BOT ZA_WPC ZA_WPC_EMPTY ZA_1CMR_BOT_SWP ZA_WPC_SWP"
-	ZA_MUTATIONS="ZONE_ACT ZA_FAULTY ZA_1CMR_BOT"
+# Configure mutations to be tested
+
+if [ -z "${ZBC_MUTATIONS}" ]; then
+	ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
+		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT  
 fi
 
-if [ -z ${ZBC_MUTATIONS} ]; then
-	# ZBC_MUTATIONS="HA_ZONED_1PCNT_B"
-	ZBC_MUTATIONS=""
+if [ -z "${ZA_MUTATIONS}" ]; then
+	ZA_MUTATIONS="ZA_1CMR_BOT  ZA_1CMR_BOT_SWP  ZA_FAULTY"
+		# ZA_1CMR_BOT_TOP  ZONE_ACT  ZA_1CMR_BT_SMR  ZA_BARE_BONE  ZA_STX
+fi
+
+if [ -z "${WPC_MUTATIONS}" ]; then
+	WPC_MUTATIONS="ZA_WPC  ZA_WPC_EMPTY  ZA_WPC_SWP"
 fi
 
 #XXX SPEC needs resolving
 # Set to 0 configures test scripts to expect INACTIVE, OFFLINE, RDONLY checks done after boundary checks
 # Set to 1 configures test scripts to expect INACTIVE, OFFLINE, RDONLY checks done before boundary checks
-if [ -z ${CHECK_ZC_BEFORE_ZT} ]; then
+if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
 	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
 fi
 

@@ -56,7 +56,7 @@ zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -eq 1 -o ${zone_type} = "0x3" ]; then
+if [ ${unrestricted_read} -eq 1 -o ${target_type} = "0x3" ]; then
     # URSWRZ enabled or SWP zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
