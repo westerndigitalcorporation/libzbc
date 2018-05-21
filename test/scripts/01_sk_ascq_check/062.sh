@@ -83,4 +83,4 @@ zbc_test_get_sk_ascq
 zbc_test_check_sk_ascq
 
 # Post process
-#rm -f ${zone_info_file}
+rm -f ${zone_info_file}

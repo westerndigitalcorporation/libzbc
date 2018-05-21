@@ -14,7 +14,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE unaligned ending below write pointer" $*
+zbc_test_init $0 "WRITE unaligned crossing write pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
@@ -30,7 +30,7 @@ if [ ${zone_type} = "0x1" ]; then
 fi
 
 expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"		# Write starting and ending below WP
+expected_asc="Unaligned-write-command"		# Write starting below and ending above WP
 
 # Get zone information
 zbc_test_get_zone_info
@@ -43,13 +43,13 @@ fi
 target_lba=${target_ptr}
 
 # Start testing
-# Write 8 LBA starting at the write pointer
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+# Write 4 LBA starting at the write pointer
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 4
 if [ $? -ne 0 ]; then
     printf "\nInitial write failed"
 else
-    # Attempt to write 4 of the same LBA again
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 4
+    # Attempt to write 8 LBA from the same starting LBA, overwriting the 4 just written
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
 fi
 
 # Check result
