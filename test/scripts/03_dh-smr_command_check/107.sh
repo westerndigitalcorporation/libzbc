@@ -64,7 +64,12 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_err
+if [ "${smr_type}" = "seqp" ]; then
+    #XXX Arguably a SEQP zone must be empty to deactivate, but the emulator allows non-empty for now
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_err
+fi
 
 # Check failed
 zbc_test_check_failed

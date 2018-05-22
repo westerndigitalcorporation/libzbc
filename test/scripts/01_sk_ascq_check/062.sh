@@ -22,6 +22,11 @@ expected_asc="Attempt-to-read-invalid-data"	# read cross-type
 # Get drive information
 zbc_test_get_device_info
 
+if [ ${conv_zone} -eq 0 ]; then
+       #XXX Crossing WPC->SEQ returns a different error as per bogosity in ZA-r4 SPEC
+       expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
