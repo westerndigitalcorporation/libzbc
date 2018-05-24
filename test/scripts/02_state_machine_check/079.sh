@@ -13,45 +13,41 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE (zero-length) empty to implicit open" $*
+zbc_test_init $0 "WRITE explicit open to explicit open" $*
 
-expected_cond="0x2"
+expected_cond="0x3"
 
 # Get drive information
 zbc_test_get_device_info
-
-if [ -n "${test_zone_type}" ]; then
-    zone_type=${test_zone_type}
-else
-    zone_type="0x2|0x3"
-fi
-
-if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
-fi
 
 # Get zone information
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
+zbc_test_search_vals_from_zone_type_and_cond "0x2|0x3" "0x1"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
+    zbc_test_print_not_applicable "No EMPTY SMR zones"
 fi
-
 target_lba=${target_slba}
 
 # Start testing
-# Write zero LBA at start of zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
+zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "Initial Zone OPEN failed, zone_type=${target_type}"
+
+# Write part of the zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
-if [ -z "${sk}" ]; then
-    zbc_test_get_zone_info
-    zbc_test_search_vals_from_slba ${target_lba}
-    zbc_test_check_zone_cond
-fi
+# Get zone information
+zbc_test_get_zone_info
+
+# Get target zone condition
+zbc_test_search_vals_from_slba ${target_lba}
+
+# Check result
+zbc_test_check_zone_cond
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}

@@ -13,9 +13,9 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE (zero-length) implicit open to implicit open" $*
+zbc_test_init $0 "WRITE full to full" $*
 
-expected_cond="0x2"
+expected_cond="0xe"
 
 # Get drive information
 zbc_test_get_device_info
@@ -42,19 +42,23 @@ fi
 target_lba=${target_slba}
 
 # Start testing
-# Write the first few blocks of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
+# Write all the blocks of the zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${target_size}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
 if [ -z "${sk}" ]; then
-    # Write zero more blocks in the zone
+    # Write some blocks into the FULL zone
 
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_lba} + 5 )) 0
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
-    if [ -z "${sk}" ]; then
+    if [[ ${target_type} = "0x2" ]]; then
+        # FULL SWR zone should fail writing
+        expected_sk="Illegal-request"
+        expected_asc="Invalid-field-in-cdb"
+        zbc_test_check_sk_ascq
+    else
         zbc_test_get_zone_info
         zbc_test_search_vals_from_slba ${target_lba}
         zbc_test_check_zone_cond

@@ -316,6 +316,10 @@ function zbc_run_section()
 	return ${ret}
 }
 
+if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
+	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
+fi
+
 # Run tests
 for section in ${section_list[@]}; do
 
