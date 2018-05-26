@@ -77,6 +77,11 @@ else
 fi
 
 # Start testing
+# SWR zones need to be filled before the read
+if [ "${target_type}" = "0x3" ]; then
+    zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+fi
+
 # Read across the boundary at the end of a zone-type in LBA space
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 

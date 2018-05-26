@@ -313,7 +313,7 @@ function zbc_test_get_device_info()
 function zbc_test_get_zone_info()
 {
 	if [ $# -eq 1 ]; then
-		local ro=${1}
+		local ro="${1}"
 	else
 		local ro="0"
 	fi
@@ -396,13 +396,13 @@ function zbc_test_count_inactive_zones()
 
 function zbc_test_open_nr_zones()
 {
-	local zone_type="0x2"		# SWR
+	local _zone_type="0x2"		# SWR
 	local zone_cond="0x1|0x4"	# empty or closed
 	local -i count=0
 
 	local open_num=${1}
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -892,7 +892,7 @@ function zbc_test_print_passed()
 
 function zbc_test_print_not_applicable()
 {
-	zbc_test_print_res "" " N/A  $1"
+	zbc_test_print_res "" " N/A  $*"
 	exit
 }
 
