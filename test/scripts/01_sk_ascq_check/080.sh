@@ -12,38 +12,21 @@
 
 . scripts/zbc_test_lib.sh
 
-zone_cond_1=FULL
-zone_cond_2=IOPENL	# one physical block will be written
+zbc_test_init $0 "WRITE zero blocks exactly at EOM" $*
 
-zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} and ending above Write Pointer" $*
+# Set expected error code
+expected_sk="Illegal-request"
+expected_asc="Logical-block-address-out-of-range"
 
 # Get drive information
 zbc_test_get_device_info
 
-# Get a pair of zones
-zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
-
-expected_sk="Illegal-request"
-expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
-if [[ ${unrestricted_read} -eq 0 && ${target_type} == @(${ZT_RESTRICT_READ_XZONE}) ]]; then
-    expected_asc="Read-boundary-violation"	# read cross-zone
-fi
-
-# Compute the last LBA of the first zone
-target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+target_lba=$(( ${max_lba} + 1 ))
 
 # Start testing
-# Read across the zone boundary and beyond the WP of the second zone
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${lblk_per_pblk} + 2 ))
+# Write zero blocks at the first LBA beyond EOM
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
 
 # Check result
 zbc_test_get_sk_ascq
-if [[ ${unrestricted_read} -ne 0 || \
-	${target_type} != @(${ZT_RESTRICT_READ_GE_WP}|${ZT_RESTRICT_READ_XZONE}) ]]; then
-    zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
-else
-    zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
-fi
-
-# Post process
-rm -f ${zone_info_file}
+zbc_test_check_sk_ascq
