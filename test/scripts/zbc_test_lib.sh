@@ -673,6 +673,8 @@ function zbc_test_zone_tuple_cond()
 	shift
 	local -i nzone=$#
 
+	zbc_test_get_zone_info
+
 	# Get ${nzone} zones in a row, all of the same ${target_type} matching ${zone_type}
 	zbc_test_zone_tuple ${zone_type} ${nzone}
 	if [ $? -ne 0 ]; then
@@ -715,6 +717,7 @@ function zbc_test_zone_tuple_cond()
 	done
 
 	# Return the info for the first zone of the tuple
+	zbc_test_get_zone_info
 	zbc_test_search_vals_from_slba ${start_lba}
 	return 0
 }
