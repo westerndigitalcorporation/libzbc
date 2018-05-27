@@ -22,6 +22,8 @@
 #   01.002 - xxxx
 #...
 
+progname=$0
+
 function zbc_print_usage()
 {
 
@@ -30,6 +32,7 @@ function zbc_print_usage()
 	echo "  -h | --help              : Print this usage"
 	echo "  -l | --list              : List all test cases"
 	echo "  -b | --batch             : Use batch mode (do not stop on failed tests)"
+	echo "  -q | --quick             : Test only one activation per mutation and fewer mutations"
 	echo "  -e | --exec <test number>: Execute only the specified test."
 	echo "                             This option may be repeated multiple times"
 	echo "                             to execute multiple tests in one run."
@@ -104,9 +107,10 @@ argc=$#
 argimax=$((argc-1))
 
 exec_list=()
-skip_list=()
+_eexec_list=()		# -ee args passed down to meta-children as -e
+skip_list=()		# The skip_list argument may be a regular expression
 print_list=0
-export batch_mode=0
+export batch_mode=0	# If set, do not stop on first failed test script
 force_ata=0
 format_dut=0
 skip_format_dut=0
@@ -132,9 +136,14 @@ for (( i=0; i<${argc}; i++ )); do
 		i=$((i+1))
 		exec_list+=(${argv[$i]})
 		;;
+	-ee )
+		i=$((i+1))
+		_eexec_list+=" -e "
+		_eexec_list+="${argv[$i]}"
+		;;
 	-s | --skip )
 		i=$((i+1))
-		skip_list+=(${argv[$i]})
+		skip_list+=("${argv[$i]}")
 		;;
 	-a | --ata )
 		force_ata=1
@@ -144,6 +153,14 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-n | --noformat )
 		skip_format_dut=1
+		;;
+	-q | --quick )
+		ZBC_MUTATIONS=" "
+		ZA_MUTATIONS="ZA_1CMR_BOT ZA_1CMR_BOT_SWP"
+		WPC_MUTATIONS="ZA_WPC"
+		skip_list+=("04.010")
+		skip_list+=("04.030")
+		skip_list+=("04.040")
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -164,6 +181,8 @@ if [ ${force_ata} -eq 1 ]; then
 else
 	unset ZBC_TEST_FORCE_ATA
 fi
+
+export eexec_list="${_eexec_list[*]}"
 
 if [ ${print_list} -eq 1 ]; then
 	exec_list=()
@@ -191,8 +210,8 @@ fi
 # Build run list
 function get_exec_list()
 {
-	local secnum casenum
-	for secnum in 03 04; do
+	local secnum casenum file
+	for secnum in ${ZBC_TEST_SECTION_LIST:-"03" "04"} ; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
 			local _IFS="${IFS}"
 			IFS='.'
@@ -248,7 +267,7 @@ for e in ${exec_list[@]}; do
 	run=1
 
 	for s in ${skip_list[@]}; do
-		if [ "${e}" == "${s}" ]; then
+		if [[ "${e}" == @(${s}) ]]; then
 			run=0
 			break
 		fi
@@ -322,6 +341,10 @@ function zbc_run_section()
 	return ${ret}
 }
 
+if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
+	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
+fi
+
 . scripts/zbc_test_lib.sh	# for zbc_test_reset_device
 
 function reset_device()
@@ -339,6 +362,15 @@ function zbc_run_config()
     for section in ${section_list[@]}; do
 
 	case "${section}" in
+	"00")
+		section_name="command completion"
+		;;
+	"01")
+		section_name="sense key, sense code"
+		;;
+	"02")
+		section_name="zone state machine"
+		;;
 	"03")
 		section_name="DH-SMR command check"
 		;;
@@ -346,7 +378,7 @@ function zbc_run_config()
 		section_name="DH-SMR device ZBC"
 		;;
 	"05")
-		section_name="DH-SMR zone checks"
+		section_name="DH-SMR WPC zone checks"
 		;;
 	* )
 		echo "Unknown test section ${section}"
@@ -371,6 +403,7 @@ function set_logfile()
     rm -f ${log_file}
 }
 
+# $1 is mutation name
 function zbc_run_mutation()
 {
     zbc_test_get_device_info
@@ -379,25 +412,27 @@ function zbc_run_mutation()
         echo -e "\n###### Device doesn't support unrestricted reads control"
         if [ "${unrestricted_read}" == 0 ]; then
             echo "###### Run the dhsmr test suite with URSWRZ disabled"
-	    set_logfile urswrz_n
+	    set_logfile $1/urswrz_n
         else
             echo "###### Run the dhsmr test suite with URSWRZ enabled"
-	    set_logfile urswrz_y
+	    set_logfile $1/urswrz_y
         fi
         reset_device
-        zbc_run_config "$@"
+        zbc_run_config
     else
         echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
-	set_logfile urswrz_y
+	set_logfile $1/urswrz_y
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
-        zbc_run_config "$@"
+        zbc_run_config
 
         echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
-	set_logfile urswrz_n
+	set_logfile $1/urswrz_n
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
-        zbc_run_config "$@"
+        zbc_run_config
+
+	set_logfile $1/fini
 
         # When done leave the device with URSWRZ enabled
         reset_device
@@ -412,16 +447,15 @@ function zbc_run_gamut()
     if [ ${mutations} == 0 ]; then
         echo -e "\n######### Device doesn't support mutation"
         reset_device
-        zbc_run_mutation "$@"
+        zbc_run_mutation ""
 	return
     fi
 
     for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
-	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}/${m}
-	set_logfile init
+	set_logfile ${m}/init
 	zbc_dev_control -mu ${m} ${device}
-	zbc_run_mutation "$@"
+	zbc_run_mutation "${m}"
     done
 
     local arg_b=""
@@ -431,15 +465,10 @@ function zbc_run_gamut()
 
     for m in ${ZBC_MUTATIONS}; do
 	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
-	ZBC_TEST_LOG_PATH_BASE=log/${dev_name}/${m}
-	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}
-	set_logfile init
+	set_logfile ${m}/init
 	zbc_dev_control -mu ${m} ${device}
-	zbc_test_meta_run ./zbc_test.sh ${arg_b} ${device}
+	zbc_test_meta_run ${progname} ${arg_b} ${eexec_list} ${device}
     done
-
-    # When done, set the device back to default
-    zbc_dev_control -mu ZA_1CMR_BOT ${device}
 }
 
 # Configure mutations to be tested
@@ -466,8 +495,19 @@ if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
 fi
 
 # Establish log file for early failures
-export ZBC_TEST_LOG_PATH
-ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
-set_logfile init
+if [ -z "${ZBC_TEST_LOG_PATH_BASE}" ]; then
+    ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
+fi
 
-zbc_run_gamut "$@"
+export ZBC_TEST_LOG_PATH_BASE
+
+if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
+    set_logfile ""
+    zbc_run_config
+else
+    set_logfile "init"
+    zbc_run_gamut
+fi
+
+# When done, set the device back to default
+zbc_dev_control -mu ZA_1CMR_BOT ${device}

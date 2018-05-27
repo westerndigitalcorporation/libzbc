@@ -160,6 +160,7 @@ function zbc_test_meta_run()
 {
 	local _cmd="$*"
 	export CHECK_ZC_BEFORE_ZT
+	export ZBC_TEST_SECTION_LIST="00 01 02 05"
 
 	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
@@ -197,8 +198,7 @@ function zbc_test_get_device_info()
 {
 	zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
 	if [ $? -ne 0 ]; then
-		echo "Failed to get device info"
-		exit 1
+		stacktrace_exit "Failed to get device info for ${device}"
 	fi
 
 	local _IFS="${IFS}"
@@ -622,6 +622,103 @@ function zbc_test_zone_tuple()
 	return 1
 }
 
+# zbc_test_zone_tuple type nz
+# Returns the first zone of a contiguous sequence of length nz with the specified type
+function zbc_test_zone_tuple()
+{
+	local zone_type="${1}"
+	local -i nz=${2}
+
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
+
+		local _IFS="${IFS}"
+		IFS=$',\n'
+		set -- ${_line}
+
+		target_type=${3}
+		target_cond=${4}
+		target_slba=${5}
+		target_size=${6}
+		target_ptr=${7}
+
+		IFS="$_IFS"
+
+		local type=${target_type}
+		local slba=${target_slba}
+		local -i i
+		for (( i=0 ; i<${nz} ; i++ )) ; do
+			if [[ ${target_type} != ${type} ]]; then
+				continue 2	# continue second loop out
+			fi
+			# No OFFLINE or RDONLY zones
+			if [[ ${target_cond} = @(0xc|0xd|0xf) ]]; then
+				continue 2	# continue second loop out
+			fi
+			zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+		done
+
+		# Return the info for the first zone of the tuple
+		zbc_test_search_vals_from_slba ${slba}
+		return 0
+	done
+	
+	return 1
+}
+
+# zbc_test_zone_tuple_cond type cond1 [cond2...]
+# Returns the first zone of a contiguous sequence with the specified type and conditions
+function zbc_test_zone_tuple_cond()
+{
+	local zone_type="${1}"
+	shift
+	local -i nzone=$#
+
+	# Get ${nzone} zones in a row, all of the same ${target_type} matching ${zone_type}
+	zbc_test_zone_tuple ${zone_type} ${nzone}
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+	local start_lba=${target_slba}
+
+	# Set the zones to the requested conditions
+	local -i zn
+	for (( zn=0 ; zn<${nzone} ; zn++ )) ; do
+		zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
+		local cond="$1"
+		case "${cond}" in
+		"EMPTY" | "empty" | "0x1")
+			# already did the reset above
+			;;
+		"OPEN" | "open" | "0x2")
+			# IMPLICIT OPEN by writing the first 8 LBA of the zone
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 8
+			;;
+		"OPENH" | "openh")
+			# IMPLICIT OPEN by writing all but the last 8 LBA of the zone
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - 8 ))
+			;;
+		"FULL" | "full" | "0xe")
+			# FULL by writing the entire zone
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
+			;;
+		"INACTIVE" | "inactive" | "0xc")
+ 			stacktrace_exit "Caller requested unsupported condition ${cond}"	#XXX
+			;;
+		* )
+ 			stacktrace_exit "Caller requested unsupported condition ${cond}"
+			exit 1
+			;;
+		esac
+
+		shift
+		zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+	done
+
+	# Return the info for the first zone of the tuple
+	zbc_test_search_vals_from_slba ${start_lba}
+	return 0
+}
+		
 # Conversion domain manipulation functions
 
 function zbc_test_get_cvt_domain_info()

@@ -14,7 +14,7 @@
 
 zbc_test_init $0 "Run ZBC test on converted back to CMR device" $*
 
-export ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH}/04.030_allcmr2
+export ZBC_TEST_LOG_PATH_BASE=${2}/allcmr2
 
 zbc_test_get_device_info
 
@@ -60,7 +60,7 @@ if [ ${batch_mode} -ne 0 ] ; then
 fi
 
 # Start ZBC test
-zbc_test_meta_run ./zbc_test.sh ${arg_b} -n ${device}
+zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_b} -n ${eexec_list} ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
     asc="ZBC test failed"

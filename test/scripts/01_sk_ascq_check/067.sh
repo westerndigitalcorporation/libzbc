@@ -56,9 +56,9 @@ fi
 zbc_test_get_sk_ascq
 
 if [ ${unrestricted_read} -eq 1 -o ${target_type} = "0x3" ]; then
-    zbc_test_check_no_sk_ascq zone_type=${zone_type} URSWRZ=${unrestricted_read}
+    zbc_test_check_no_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
 else
-    zbc_test_check_sk_ascq zone_type=${zone_type} URSWRZ=${unrestricted_read}
+    zbc_test_check_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
 fi
 
 # Post process

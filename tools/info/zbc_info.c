@@ -76,11 +76,11 @@ usage:
 		zbc_print_device_info(&info, stdout);
 		ret = 0;
 	} else if (ret == 0) {
-		printf("%s is not a zoned block device\n", argv[i]);
+		printf("%s: %s is not a zoned block device\n", argv[0], argv[i]);
 	} else {
 		fprintf(stderr,
-			"zbc_device_is_zoned failed %d (%s)\n",
-			ret, strerror(-ret));
+			"%s: zbc_device_is_zoned failed %d (%s)\n",
+			argv[0], ret, strerror(-ret));
 		ret = 1;
 	}
 

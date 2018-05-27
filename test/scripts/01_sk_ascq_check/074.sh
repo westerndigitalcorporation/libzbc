@@ -17,7 +17,7 @@ function write_check_inactive()
 {
     local target_cond="$1"
     #XXX Emulator may check these zone conditions before boundary checks
-    if [ -n "${CHECK_ZC_BEFORE_ZT}" ]; then
+    if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
         if [ "${target_cond}" = "0xc" ]; then
 	    expected_sk="Aborted-command"
 	    expected_asc="Zone-is-inactive"
