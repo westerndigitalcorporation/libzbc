@@ -22,6 +22,7 @@ function read_check_inactive()
 	    expected_sk="Aborted-command"
 	    expected_asc="Zone-is-inactive"
         elif [ "${target_cond}" = "0xf" ]; then
+	    # expected_sk="Data-protect"
 	    expected_sk="Medium-error"
 	    expected_asc="Zone-is-offline"
         fi
@@ -61,25 +62,27 @@ fi
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
 target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
 
+# Start testing
+
 if [ ${boundary_lba} -gt ${max_lba} ]; then
     # Boundary is at EOM
     expected_sk="Illegal-request"
     expected_asc="Logical-block-address-out-of-range"
 else
-    # Check the the zone just before the boundary for inactive, offline, or rdonly
+    # Check the the zone just before the boundary for inactive, or offline
     read_check_inactive ${target_cond}		# sets expected_* if so
+
+    # SWR and WPC zones need to be filled before the read
+    if [[ ${sk} = "" && "${target_type}" = @(0x3|0x4) ]]; then
+        zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
+        zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
+    fi
 
     # Get info on the zone just after the boundary
     zbc_test_search_vals_from_slba ${boundary_lba}
 
-    # Check the the zone just after the boundary for inactive, offline, or rdonly
+    # Check the the zone just after the boundary for inactive, or offline
     read_check_inactive ${target_cond}		# sets expected_* if so
-fi
-
-# Start testing
-# SWR zones need to be filled before the read
-if [ "${target_type}" = "0x3" ]; then
-    zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
 fi
 
 # Read across the boundary at the end of a zone-type in LBA space
@@ -90,4 +93,4 @@ zbc_test_get_sk_ascq
 zbc_test_check_sk_ascq
 
 # Post process
-rm -f ${zone_info_file}
+# rm -f ${zone_info_file}
