@@ -10,11 +10,10 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE physical sector unaligned write to sequential zone" $*
+zbc_test_init $0 "WRITE physical sector unaligned write to write-pointer zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -23,27 +22,35 @@ expected_asc="Unaligned-write-command"
 # Get drive information
 zbc_test_get_device_info
 
-# if device model is host-aware or physical block size == logical block size
-# then it is "not reported"
-if [ ${device_model} = "Host-aware" \
-     -o $((physical_block_size)) -eq $((logical_block_size)) ]; then
-    zbc_test_print_not_applicable
+zone_type=${test_zone_type:-"0x2|0x3"}
+
+#XXX
+physical_block_size=`zbc_info ${device} | grep "physical blocks of" | sed -e "s/ B$//" -e "s/.* //"`
+logical_block_size=`zbc_info ${device} | grep "logical blocks of" | sed -e "s/ B$//" -e "s/.* //"`
+
+# if physical block size == logical block size then this failure cannot occur
+if [ ${physical_block_size} -eq ${logical_block_size} ]; then
+    zbc_test_print_not_applicable "physical_block_size=logical_block_size (${logical_block_size} B)"
 fi
 
 # Get zone information
-zone_type="0x2"
 zbc_test_get_zone_info
 
 # Search target LBA
 zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc|0xd|0xe|0xf"
-target_lba=$((target_ptr))
+target_lba=${target_ptr}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+
+if [ ${target_type} = "0x3" ]; then
+    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+else
+    zbc_test_check_sk_ascq "zone_type=${target_type}"
+fi
 
 # Post process
 rm -f ${zone_info_file}
