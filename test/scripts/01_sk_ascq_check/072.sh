@@ -26,12 +26,7 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable "max_open not reported"
 fi
 
-if [ -n "${test_zone_type}" ]; then
-    zone_type=${test_zone_type}
-else
-    zone_type="0x2|0x3"
-fi
-
+zone_type=${test_zone_type:-"0x2|0x3"}
 if [ ${zone_type} = "0x1" ]; then
     zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 fi

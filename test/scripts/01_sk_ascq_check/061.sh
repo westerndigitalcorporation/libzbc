@@ -18,11 +18,7 @@ zbc_test_init $0 "READ across write-pointer zones (FULL->EMPTY)" $*
 # Get drive information
 zbc_test_get_device_info
 
-if [ -n "${test_zone_type}" ]; then
-    zone_type=${test_zone_type}
-else
-    zone_type="0x2|0x3"
-fi
+zone_type=${test_zone_type:-"0x2|0x3"}
 
 expected_sk="Illegal-request"
 expected_asc="Read-boundary-violation"		# read cross-zone
