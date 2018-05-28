@@ -67,7 +67,7 @@ cd `dirname $0`
 ZBC_TEST_BIN_PATH=programs
 if [ ! -d ${ZBC_TEST_BIN_PATH} ]; then
     echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
-    exit
+    exit 1
 fi
 bin_path=${ZBC_TEST_BIN_PATH}
 
@@ -91,14 +91,14 @@ for p in ${test_progs[@]}; do
 	if [ ! -e ${path} ]; then
 		echo "Test program ${p} not found in directory ${ZBC_TEST_BIN_PATH}"
 		echo "Re-configure with option \"--with-test\" and recompile"
-		exit
+		exit 1
 	fi
 done
 
 ZBC_TEST_SCR_PATH=scripts
 if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
-    exit
+    exit 1
 fi
 
 # Handle arguments
@@ -176,7 +176,7 @@ for (( i=0; i<${argc}; i++ )); do
 
 done
 
-if [ ${force_ata} -eq 1 ]; then
+if [ ${force_ata} -ne 0 ]; then
 	export ZBC_TEST_FORCE_ATA="ATA"
 else
 	unset ZBC_TEST_FORCE_ATA
@@ -184,7 +184,7 @@ fi
 
 export eexec_list="${_eexec_list[*]}"
 
-if [ ${print_list} -eq 1 ]; then
+if [ ${print_list} -ne 0 ]; then
 	exec_list=()
 	skip_list=()
 	device=""
@@ -207,11 +207,11 @@ if [ ! -z "${device}" ]; then
 	fi
 fi
 
-# Build run list
+# Build run list from section number arguments
 function get_exec_list()
 {
 	local secnum casenum file
-	for secnum in ${ZBC_TEST_SECTION_LIST:-"03" "04"} ; do
+	for secnum in "$@" ; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
 			local _IFS="${IFS}"
 			IFS='.'
@@ -243,47 +243,50 @@ function get_case_num()
 	IFS="$_IFS"
 }
 
-if [ ${#exec_list[@]} -eq 0 ]; then
-	get_exec_list
-fi
-
-# Sort lists
-_IFS="$IFS"
-IFS="\n"
-if [ ${#exec_list[@]} -gt 0 ]; then
-	exec_list=(`for e in ${exec_list[@]}; do echo "${e}"; done | sort -u`)
-fi
-if [ ${#skip_list[@]} -gt 0 ]; then
-	skip_list=(`for s in ${skip_list[@]}; do echo "${s}"; done | sort -u`)
-fi
-IFS="$_IFS"
-
-# Subtract skip list from exec list. At the same time,
-# extract the section list.
-run_list=()
-section_list=()
-for e in ${exec_list[@]}; do
-
-	run=1
-
-	for s in ${skip_list[@]}; do
-		if [[ "${e}" == @(${s}) ]]; then
-			run=0
-			break
-		fi
-	done
-
-	if [ ${run} -eq 0 ]; then
-		continue
+# Prepare run lists based on arguments which are section numbers
+function prepare_lists()
+{
+	if [ ${#exec_list[@]} -eq 0 ]; then
+		get_exec_list "$@"
 	fi
 
-	run_list+=(${e})
-	section_num=`get_section_num ${e}`
-	section_list+=(${section_num})
+	_IFS="$IFS"
+	IFS="\n"
+	if [ ${#exec_list[@]} -gt 0 ]; then
+		exec_list=(`for e in ${exec_list[@]}; do echo "${e}"; done | sort -u`)
+	fi
+	if [ ${#skip_list[@]} -gt 0 ]; then
+		skip_list=(`for s in ${skip_list[@]}; do echo "${s}"; done | sort -u`)
+	fi
+	IFS="$_IFS"
 
-done
+	# Subtract skip list from exec list. At the same time,
+	# extract the section list.
+	run_list=()
+	section_list=()
+	for e in ${exec_list[@]}; do
 
-section_list=(`for s in ${section_list[@]}; do echo "${s}"; done | sort -u`)
+		run=1
+
+		for s in ${skip_list[@]}; do
+			if [[ "${e}" == @(${s}) ]]; then
+				run=0
+				break
+			fi
+		done
+
+		if [ ${run} -eq 0 ]; then
+			continue
+		fi
+
+		run_list+=(${e})
+		section_num=`get_section_num ${e}`
+		section_list+=(${section_num})
+
+	done
+
+	section_list=(`for s in ${section_list[@]}; do echo "${s}"; done | sort -u`)
+}
 
 # Run test cases of a section
 function zbc_run_section()
@@ -295,13 +298,13 @@ function zbc_run_section()
 	local section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
 	if [ -z "${section_path}" ]; then
 		echo "Test script directory ${section_path} does not exist"
-		exit
+		exit 1
 	fi
 
 	local log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
-	if [ ${print_list} -eq 1 ]; then
+	if [ ${print_list} -ne 0 ]; then
 		# Printing test cases only
 		echo "Section ${section} - ${section_name} tests"
 	else
@@ -322,17 +325,15 @@ function zbc_run_section()
 
 		c=`get_case_num ${t}`
 		./${section_path}/${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${section_num} ${device}
-		ret=$?
-
-		if [ ${batch_mode} -eq 1 ]; then
-			continue
-		fi
+		ret=$(( ${ret} | $? ))
 
 		if [ ${print_list} -ne 1 ]; then
 			res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
 			if [ ${ret} -ne 0 -o "${res}" = "TESTRESULT==Failed" ]; then
 				ret=1
-				break
+				if [ ${batch_mode} -eq 0 ]; then
+					break
+				fi
 			fi
 		fi
 
@@ -340,10 +341,6 @@ function zbc_run_section()
 
 	return ${ret}
 }
-
-if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
-	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
-fi
 
 . scripts/zbc_test_lib.sh	# for zbc_test_reset_device
 
@@ -359,7 +356,9 @@ function reset_device()
 function zbc_run_config()
 {
     local section_name
-    for section in ${section_list[@]}; do
+    local rc=0
+
+    for section in "$@" ; do
 
 	case "${section}" in
 	"00")
@@ -387,11 +386,14 @@ function zbc_run_config()
 	esac
 
 	zbc_run_section "${section}" "${section_name}"
-	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
-		exit 1
+	rc=$(( ${rc} | $? ))
+	if [ ${rc} -ne 0 -a ${batch_mode} -eq 0 ]; then
+		break
 	fi
 
     done
+
+    return ${rc}
 }
 
 function set_logfile()
@@ -411,32 +413,26 @@ function zbc_run_mutation()
     if [ "${ur_control}" == 0 ]; then
         echo -e "\n###### Device doesn't support unrestricted reads control"
         if [ "${unrestricted_read}" == 0 ]; then
-            echo "###### Run the dhsmr test suite with URSWRZ disabled"
+            echo "###### Running the dhsmr test suite with URSWRZ disabled"
 	    set_logfile $1/urswrz_n
         else
-            echo "###### Run the dhsmr test suite with URSWRZ enabled"
+            echo "###### Running the dhsmr test suite with URSWRZ enabled"
 	    set_logfile $1/urswrz_y
         fi
         reset_device
-        zbc_run_config
+        zbc_run_config ${section_list[@]}
     else
         echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
 	set_logfile $1/urswrz_y
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
-        zbc_run_config
+        zbc_run_config ${section_list[@]}
 
         echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
 	set_logfile $1/urswrz_n
         reset_device
         ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
-        zbc_run_config
-
-	set_logfile $1/fini
-
-        # When done leave the device with URSWRZ enabled
-        reset_device
-        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+        zbc_run_config ${section_list[@]}
     fi
 }
 
@@ -446,29 +442,46 @@ function zbc_run_gamut()
 
     if [ ${mutations} == 0 ]; then
         echo -e "\n######### Device doesn't support mutation"
-        reset_device
         zbc_run_mutation ""
 	return
     fi
 
     for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
-	set_logfile ${m}/init
+	set_logfile ${m}
 	zbc_dev_control -mu ${m} ${device}
+        reset_device
 	zbc_run_mutation "${m}"
     done
 
-    local arg_b=""
-    if [ ${batch_mode} -ne 0 ] ; then
-	arg_b="-b"
-    fi
-
-    for m in ${ZBC_MUTATIONS}; do
+    for m in ${ZBC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
-	set_logfile ${m}/init
+	set_logfile ${m}
 	zbc_dev_control -mu ${m} ${device}
-	zbc_test_meta_run ${progname} ${arg_b} ${eexec_list} ${device}
+        reset_device
+
+	local arg_b=""
+	if [ ${batch_mode} -ne 0 ] ; then
+	    arg_b="-b"
+	fi
+
+	local arg_a=""
+	if [ ${force_ata} -ne 0 ]; then
+		arg_a="-a"
+	fi
+
+	(   # subshell protects outer ZBC_TEST_LOG_PATH_BASE from change here
+	    ZBC_TEST_LOG_PATH_BASE=${ZBC_TEST_LOG_PATH_BASE}/${m}
+	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${device}
+	)
     done
+
+    set_logfile "fini"
+
+    # When done, set the device back to default
+    zbc_dev_control -mu ZA_1CMR_BOT ${device}
+    reset_device
+    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
 }
 
 # Configure mutations to be tested
@@ -498,16 +511,15 @@ fi
 if [ -z "${ZBC_TEST_LOG_PATH_BASE}" ]; then
     ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
 fi
-
 export ZBC_TEST_LOG_PATH_BASE
+set_logfile ""
 
+# Run the tests
 if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
-    set_logfile ""
-    zbc_run_config
+    prepare_lists ${ZBC_TEST_SECTION_LIST}
+    zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
-    set_logfile "init"
+    prepare_lists "03" "04"			# our section list
+    export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for meta-children
     zbc_run_gamut
 fi
-
-# When done, set the device back to default
-zbc_dev_control -mu ZA_1CMR_BOT ${device}

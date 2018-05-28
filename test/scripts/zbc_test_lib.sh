@@ -166,8 +166,12 @@ function zbc_test_run()
 function zbc_test_meta_run()
 {
 	local _cmd="$*"
+
+	export ZBC_TEST_LOG_PATH_BASE
+	export ZBC_TEST_SECTION_LIST
+	export ZBC_TEST_FORCE_ATA
 	export CHECK_ZC_BEFORE_ZT
-	export ZBC_TEST_SECTION_LIST="00 01 02 05"
+	export VALGRIND
 
 	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
