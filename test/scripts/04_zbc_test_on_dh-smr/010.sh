@@ -16,8 +16,6 @@ zbc_test_init $0 "Run ZBC test on all-CMR device" $*
 
 export ZBC_TEST_LOG_PATH_BASE=${2}/allcmr
 
-zbc_test_reset_device
-
 zbc_test_get_device_info
 
 # Pass the batch_mode flag through to the run we invoke below
@@ -30,7 +28,7 @@ fi
 zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_b} -n ${eexec_list} ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
-    asc="ZBC test failed"
+    asc="ZBC test 04.010 failed"
 fi
 
 # Check result

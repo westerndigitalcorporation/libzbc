@@ -126,22 +126,29 @@ function zbc_test_reset_device()
 
 	zbc_test_get_device_info
 
-	if [ ${ur_control} -ne 0 ]; then
+	local reason=""
+
+	if [ ${maxact_control} -ne 0 ]; then
 	# Allow the main ACTIVATE tests to run unhindered
 	zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
 	if [ $? -ne 0 ]; then
-		stacktrace_exit "Failed to set max_conversion unlimited"
+			reason="because \'zbc_test_dev_control -maxd unlimited\' failed"
+		else
+			reason="even though \'zbc_test_dev_control -maxd unlimited\' returned success"
+		fi
+	else
+		reason="because maxact_control=${maxact_control}"
 	fi
 
-		echo "max_conversion set to unlimited"
+	local max_act=`zbc_info ${device} | grep "Maximum number of zones to activate" | sed -e "s/.* //"`  #XXX
+	if [ -n "${max_act}" -a "${max_act}" != "unlimited" ]; then
+		echo "WARNING: zbc_test_reset_device did not set (max_conversion=${max_act}) to unlimited ${reason}" `stacktrace`
 	fi
 
 	zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 	if [ $? -ne 0 ]; then
-		stacktrace_exit "Failed to zone_reset ALL"
+		echo "WARNING: zbc_test_reset_device failed to zone_reset ALL" `stacktrace`
 	fi
-
-	echo "did zone_reset ALL"
 }
 
 function zbc_test_run()

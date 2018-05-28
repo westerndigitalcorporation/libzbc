@@ -56,7 +56,7 @@ fi
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr} ${smr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to convert device to intended test configuration"
+    printf "\nFailed to convert device to intended test configuration ${domain_num} ${nr} ${smr_type}"
     exit 1
 fi
 
@@ -70,7 +70,7 @@ fi
 zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_b} -n ${eexec_list} ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
-    asc="ZBC test failed"
+    asc="ZBC test 04.020 failed"
 fi
 
 # Check result
