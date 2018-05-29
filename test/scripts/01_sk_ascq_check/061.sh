@@ -25,8 +25,6 @@ expected_asc="Read-boundary-violation"		# read cross-zone
 
 if [ ${zone_type} = "0x1" ]; then
     zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
-elif [ ${zone_type} = "0x4" ]; then
-    expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
 fi
 
 # Get zone information
@@ -38,6 +36,10 @@ if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
 fi
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+
+if [ ${target_type} = "0x4" ]; then
+    expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
+fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
