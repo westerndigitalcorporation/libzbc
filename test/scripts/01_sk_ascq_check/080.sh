@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE zero blocks exactly at EOM" $*
+zbc_test_init $0 "WRITE zero blocks exactly at End of Medium" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -24,7 +24,7 @@ zbc_test_get_device_info
 target_lba=$(( ${max_lba} + 1 ))
 
 # Start testing
-# Write zero blocks at the first LBA beyond EOM
+# Write zero blocks at the first LBA beyond End of Medium
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
 
 # Check result

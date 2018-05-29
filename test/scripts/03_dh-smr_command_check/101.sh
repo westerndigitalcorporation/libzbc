@@ -37,7 +37,7 @@ zbc_test_get_cvt_domain_info
 zbc_test_count_cvt_domains		# into nr_domains
 zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
 
-# Use the size of the last domain when trying ACTIVATE at EOM
+# Use the size of the last domain when trying ACTIVATE at End of Medium
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${domain_seq_len} ${cmr_type}

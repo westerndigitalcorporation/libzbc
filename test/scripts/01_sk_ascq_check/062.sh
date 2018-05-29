@@ -65,7 +65,7 @@ target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
 # Start testing
 
 if [ ${boundary_lba} -gt ${max_lba} ]; then
-    # Boundary is at EOM
+    # Boundary is at End of Medium
     expected_sk="Illegal-request"
     expected_asc="Logical-block-address-out-of-range"
 else
