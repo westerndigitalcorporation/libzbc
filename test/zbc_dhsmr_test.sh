@@ -107,7 +107,8 @@ argc=$#
 argimax=$((argc-1))
 
 exec_list=()
-_eexec_list=()		# -ee args passed down to meta-children as -e
+_eexec_list=()		# -ee args passed down to ZA meta-children as -e
+_cexec_list=()		# -e args passed down to HA/HM meta-children as -e
 skip_list=()		# The skip_list argument may be a regular expression
 print_list=0
 export batch_mode=0	# If set, do not stop on first failed test script
@@ -135,6 +136,8 @@ for (( i=0; i<${argc}; i++ )); do
 	-e | --exec )
 		i=$((i+1))
 		exec_list+=(${argv[$i]})
+		_cexec_list+=" -e "
+		_cexec_list+="${argv[$i]}"
 		;;
 	-ee )
 		i=$((i+1))
@@ -183,6 +186,7 @@ else
 fi
 
 export eexec_list="${_eexec_list[*]}"
+export cexec_list="${_cexec_list[*]}"
 
 if [ ${print_list} -ne 0 ]; then
 	exec_list=()
@@ -472,7 +476,7 @@ function zbc_run_gamut()
 
 	(   # subshell protects outer ZBC_TEST_LOG_PATH_BASE from change here
 	    ZBC_TEST_LOG_PATH_BASE=${ZBC_TEST_LOG_PATH_BASE}/${m}
-	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${device}
+	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${cexec_list} ${device}
 	)
     done
 
