@@ -14,7 +14,7 @@
 
 zbc_test_init $0 "Run ZBC test on all-CMR device" $*
 
-export ZBC_TEST_LOG_PATH_BASE=${2}/allcmr
+ZBC_TEST_LOG_PATH_BASE=${2}/allcmr
 
 zbc_test_get_device_info
 
@@ -30,7 +30,7 @@ if [ "${ZBC_TEST_FORCE_ATA}" = "ATA" ]; then
 fi
 
 # Start ZBC test
-zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${device}
+zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${cexec_list} ${cskip_list} ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
     asc="ZBC test 04.010 failed"
