@@ -22,12 +22,9 @@ zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} and ending abov
 zbc_test_get_device_info
 
 zone_type=${test_zone_type:-"0x2|0x3"}
-if [ ${zone_type} == 0x1 ]; then
+if [ ${zone_type} == "0x1" ]; then
     zbc_test_print_not_applicable "Requested test type is ${zone_type} but test requires a write-pointer zone"
 fi
-
-# Get zone information
-zbc_test_get_zone_info
 
 # Get a pair of zones
 zbc_test_zone_tuple_cond ${zone_type} ${zone_cond_1} ${zone_cond_2}
@@ -54,7 +51,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 16
 
 # Check result
 zbc_test_get_sk_ascq
-if [[ ${unrestricted_read} -ne 0 || ${target_type} != @(0x2|0x4) ]]; then
+if [ ${unrestricted_read} -ne 0 -o ${target_type} = "0x3" ]; then
     zbc_test_check_no_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
 else
     zbc_test_check_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}

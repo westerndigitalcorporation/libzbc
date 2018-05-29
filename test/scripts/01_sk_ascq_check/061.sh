@@ -26,7 +26,6 @@ expected_asc="Read-boundary-violation"		# read cross-zone
 if [ ${zone_type} = "0x1" ]; then
     zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 elif [ ${zone_type} = "0x4" ]; then
-    #XXX Customer requires to allow WPC cross-zone reads; ZA-r4 says RBV
     expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
 fi
 
@@ -56,7 +55,7 @@ if [ ${unrestricted_read} -eq 1 -o ${target_type} = "0x3" ]; then
     # URSWRZ enabled or SWP zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
-    # URSWRZ disabled and SWR zone -- expected to fail
+    # URSWRZ disabled and non-SWP write-pointer zone -- expected to fail
     zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 fi
 

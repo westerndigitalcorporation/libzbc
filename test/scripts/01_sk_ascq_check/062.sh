@@ -13,22 +13,6 @@
 
 . scripts/zbc_test_lib.sh
 
-function read_check_inactive()
-{
-    local target_cond="$1"
-    #XXX Emulator may check these zone conditions before boundary checks
-    if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
-        if [ "${target_cond}" = "0xc" ]; then
-	    expected_sk="Aborted-command"
-	    expected_asc="Zone-is-inactive"
-        elif [ "${target_cond}" = "0xf" ]; then
-	    # expected_sk="Data-protect"
-	    expected_sk="Medium-error"
-	    expected_asc="Zone-is-offline"
-        fi
-    fi
-}
-
 zbc_test_init $0 "READ across zone-type spaces (cross-type boundary violation)" $*
 
 # Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
@@ -55,7 +39,7 @@ if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
 fi
 
 if [ $? -ne 0 ]; then
-    # Most likely the test is broken somehow...
+    # Most likely the test is broken...
     zbc_test_print_not_applicable "Device has no zones of any valid type"
 fi
 
@@ -69,11 +53,11 @@ if [ ${boundary_lba} -gt ${max_lba} ]; then
     expected_sk="Illegal-request"
     expected_asc="Logical-block-address-out-of-range"
 else
-    # Check the the zone just before the boundary for inactive, or offline
-    read_check_inactive ${target_cond}		# sets expected_* if so
+    # Check the the zone just before the boundary for availability
+    read_check_available ${target_cond}		# sets expected_* if not
 
-    # SWR and WPC zones need to be filled before the read
-    if [[ ${sk} = "" && "${target_type}" = @(0x3|0x4) ]]; then
+    # Zone types other than SWP need to be filled before the read
+    if [ ${sk} = "" -a ${target_type} != "0x3" ]; then
         zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
         zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
     fi
@@ -81,8 +65,8 @@ else
     # Get info on the zone just after the boundary
     zbc_test_search_vals_from_slba ${boundary_lba}
 
-    # Check the the zone just after the boundary for inactive, or offline
-    read_check_inactive ${target_cond}		# sets expected_* if so
+    # Check the the zone just after the boundary for availability
+    read_check_available ${target_cond}		# sets expected_* if not
 fi
 
 # Read across the boundary at the end of a zone-type in LBA space

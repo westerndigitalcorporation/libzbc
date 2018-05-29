@@ -29,7 +29,7 @@ zbc_test_get_zone_info
 zbc_test_search_vals_from_zone_type_and_ignored_cond "0x1|0x4" "0xc|0xd|0xf"
 
 if [ $? -gt 0 ]; then
-    zbc_test_print_not_applicable "No CMR zone is active"
+    zbc_test_print_not_applicable "No CMR zone is available"
 fi
 
 target_lba=${target_slba}
@@ -43,7 +43,7 @@ zbc_test_get_sk_ascq
 if [ ${target_type} = "0x1" ]; then
 	zbc_test_check_sk_ascq		# RESET_WP not allowed on conventional zone
 else
-	zbc_test_check_no_sk_ascq	# RESET_WP allowed on WPC zones
+	zbc_test_check_no_sk_ascq	# RESET_WP allowed on other types of zones
 fi
 
 # Post process

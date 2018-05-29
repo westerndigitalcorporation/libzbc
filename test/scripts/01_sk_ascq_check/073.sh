@@ -14,7 +14,6 @@
 . scripts/zbc_test_lib.sh
 
 zbc_test_init $0 "WRITE full zone" $*
-# Also checks that writes to FULL zones succeed on SWP and WPC zones
 
 # Get drive information
 zbc_test_get_device_info
@@ -46,7 +45,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${
 # Check result
 zbc_test_get_sk_ascq
 
-if [[ ${target_type} == @(0x3|0x4) ]]; then
+if [ ${target_type} != "0x2" ]; then
     zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"

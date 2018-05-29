@@ -14,7 +14,6 @@
 . scripts/zbc_test_lib.sh
 
 zbc_test_init $0 "WRITE write-pointer zone boundary violation (cross-zone)" $*
-# Also checks that cross-zone writes succeed on SWP and WPC zones
 
 # Get drive information
 zbc_test_get_device_info
@@ -42,7 +41,6 @@ nio=$(( (${target_size} - 1) / 8 ))
 # Write the zone from empty to within a few LBA of the end
 zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} 8
 if [ $? -ne 0 ]; then
-    #XXX How could this happen?  What error should be expected?
     printf "\nInitial write zone failed (target_size=${target_size} zone_type=${target_type})"
 else
     # Attempt to write through the remaining LBA of the zone and cross over into the next zone
@@ -53,9 +51,8 @@ fi
 # Check result
 zbc_test_get_sk_ascq
 
-#XXX Customer requires that 0x4 succeed here -- fix SPEC to match
-if [[ ${target_type} == @(0x3|0x4) ]]; then
-    # Permissible to write cross-zone in WPC and SWP zones
+if [ ${target_type} != "0x2" ]; then
+    # Permissible to write cross-zone in non-SWR zones
     zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 else
     # Not allowed to write cross-zone in SWR zones

@@ -13,24 +13,6 @@
 
 . scripts/zbc_test_lib.sh
 
-function write_check_inactive()
-{
-    local target_cond="$1"
-    #XXX Emulator may check these zone conditions before boundary checks
-    if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
-        if [ "${target_cond}" = "0xc" ]; then
-	    expected_sk="Aborted-command"
-	    expected_asc="Zone-is-inactive"
-        elif [ "${target_cond}" = "0xf" ]; then
-	    expected_sk="Medium-error"
-	    expected_asc="Zone-is-offline"
-        elif [ "${target_cond}" = "0xd" ]; then
-	    expected_sk="Medium-error"
-	    expected_asc="Zone-is-read-only"
-        fi
-    fi
-}
-
 zbc_test_init $0 "WRITE across zone-type spaces (cross-type boundary violation)" $*
 
 # Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
@@ -52,15 +34,15 @@ if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
 fi
 
 if [ $? -ne 0 ]; then
-    # Most likely the test is broken somehow...
+    # Most likely the test is broken...
     zbc_test_print_not_applicable "Device has no zones of any valid type"
 fi
 
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
 target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
 
-if [[ ${target_type} = @(0x2|0x4) ]]; then
-    # Prepare SWR/WPC zone for the cross-type write -- get WP close to the boundary
+if [[ ${target_type} != @(0x1|0x3) ]]; then
+    # Prepare zone for the cross-type write -- get WP close to the boundary
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
     zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"
 
@@ -73,14 +55,14 @@ if [ ${boundary_lba} -gt ${max_lba} ]; then
     expected_sk="Illegal-request"
     expected_asc="Logical-block-address-out-of-range"
 else
-    # Check the the zone just before the boundary for inactive, offline, or rdonly
-    write_check_inactive ${target_cond}		# sets expected_* if so
+    # Check the the zone just before the boundary for availability
+    write_check_available ${target_cond}		# sets expected_* if not
 
     # Get info on the zone just after the boundary
     zbc_test_search_vals_from_slba ${boundary_lba}
 
-    # Check the the zone just after the boundary for inactive, offline, or rdonly
-    write_check_inactive ${target_cond}		# sets expected_* if so
+    # Check the the zone just after the boundary for availability
+    write_check_available ${target_cond}		# sets expected_* if not
 fi
 
 # Start testing

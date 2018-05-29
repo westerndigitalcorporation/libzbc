@@ -405,6 +405,40 @@ function zbc_test_count_inactive_zones()
 	nr_inactive_zones=`zbc_zones | zbc_zone_filter_in_cond "0xc" | wc -l`
 }
 
+function write_check_available()
+{
+    local target_cond="$1"
+    #XXX Emulator may check these zone conditions before boundary checks
+    if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
+        if [ "${target_cond}" = "0xc" ]; then
+           expected_sk="Aborted-command"
+           expected_asc="Zone-is-inactive"
+        elif [ "${target_cond}" = "0xf" ]; then
+           expected_sk="Medium-error"
+           expected_asc="Zone-is-offline"
+        elif [ "${target_cond}" = "0xd" ]; then
+           expected_sk="Medium-error"
+           expected_asc="Zone-is-read-only"
+        fi
+    fi
+}
+
+function read_check_available()
+{
+    local target_cond="$1"
+    #XXX Emulator may check these zone conditions before boundary checks
+    if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
+        if [ "${target_cond}" = "0xc" ]; then
+           expected_sk="Aborted-command"
+           expected_asc="Zone-is-inactive"
+        elif [ "${target_cond}" = "0xf" ]; then
+           # expected_sk="Data-protect"        #XXX ZBC 5.3(b)(B)
+           expected_sk="Medium-error"          #XXX ZBC 4.4.3.5.8(f)
+           expected_asc="Zone-is-offline"
+        fi
+    fi
+}
+
 function zbc_test_open_nr_zones()
 {
 	local _zone_type="0x2"		# SWR
