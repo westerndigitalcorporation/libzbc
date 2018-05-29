@@ -56,8 +56,8 @@ else
     # Check the the zone just before the boundary for availability
     read_check_available ${target_cond}		# sets expected_* if not
 
-    # Zone types other than SWP need to be filled before the read
-    if [ ${sk} = "" -a ${target_type} != "0x3" ]; then
+    # Zone types other than conventional/SWP need to be filled before the read
+    if [[ "${sk}" = "" && ${target_type} != @(0x1|0x3) ]]; then
         zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
         zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
     fi
