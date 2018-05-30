@@ -37,7 +37,7 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc|0xd|0xe|0xf"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
 target_lba=${target_ptr}
 
 # Start testing

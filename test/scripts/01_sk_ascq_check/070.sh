@@ -30,9 +30,9 @@ expected_asc="Unaligned-write-command"		# Write starting and ending above WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xc|0xd|0xe|0xf"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and active but NON-FULL"
+    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and available but NON-FULL"
 fi
 target_lba=$(( ${target_ptr} + 1 ))	# unaligned write starting above WP
 
