@@ -32,12 +32,12 @@ if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No zone pairs ${zone_type} ${zone_cond_1} ${zone_cond_2}"
 fi
 
-if [ ${target_type} = "0x2" ]; then
+expected_sk="Illegal-request"
+expected_asc="Write-boundary-violation"		# SWR Write cross-zone
+
+if [ ${target_type} = "0x4" ]; then
     expected_sk="Illegal-request"
-    expected_asc="Write-boundary-violation"		# SWR Write cross-zone
-elif [ ${target_type} = "0x4" ]; then
-    expected_sk="Illegal-request"
-    expected_asc="Unaligned-write-command"		# WPC Write starting above WP
+    expected_asc="Unaligned-write-command"	# WPC Write starting above WP
 fi
 
 # Compute the last LBA of the first zone

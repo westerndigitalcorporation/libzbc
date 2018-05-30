@@ -32,14 +32,12 @@ if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No zone pairs ${zone_type} ${zone_cond_1} ${zone_cond_2}"
 fi
 
-if [ ${unrestricted_read} -eq 0 ]; then
-    if [ ${target_type} = "0x2" ]; then
-	expected_sk="Illegal-request"
-	expected_asc="Read-boundary-violation"		# SWR read cross-zone
-    elif [ ${target_type} = "0x4" ]; then
-	expected_sk="Illegal-request"
-	expected_asc="Attempt-to-read-invalid-data"	# WPC Read ending above WP
-    fi
+expected_sk="Illegal-request"
+expected_asc="Read-boundary-violation"		# SWR read cross-zone
+
+if [ ${target_type} = "0x4" ]; then
+    expected_sk="Illegal-request"
+    expected_asc="Attempt-to-read-invalid-data"	# WPC Read ending above WP
 fi
 
 # Compute the last LBA below the write pointer of the first zone

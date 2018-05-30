@@ -20,9 +20,6 @@ zbc_test_get_device_info
 
 zone_type=${test_zone_type:-"0x2|0x3"}
 
-expected_sk="Illegal-request"
-expected_asc="Read-boundary-violation"		# read cross-zone
-
 if [ ${zone_type} = "0x1" ]; then
     zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 fi
@@ -36,6 +33,9 @@ if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
 fi
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+
+expected_sk="Illegal-request"
+expected_asc="Read-boundary-violation"		# read cross-zone
 
 if [ ${target_type} = "0x4" ]; then
     expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
@@ -53,7 +53,7 @@ zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -eq 1 -o ${target_type} = "0x3" ]; then
+if [ ${unrestricted_read} -ne 0 -o ${target_type} = "0x3" ]; then
     # URSWRZ enabled or SWP zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else

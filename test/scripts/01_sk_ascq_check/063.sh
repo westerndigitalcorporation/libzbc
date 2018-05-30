@@ -51,7 +51,7 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -eq 1 -o ${target_type} != "0x2" ]; then
+if [ ${unrestricted_read} -ne 0 -o ${target_type} != "0x2" ]; then
     # URSWRZ enabled or non-SWR zone -- expected to succeed
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else

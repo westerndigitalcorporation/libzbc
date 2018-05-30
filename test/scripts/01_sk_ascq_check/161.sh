@@ -32,12 +32,8 @@ if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No zone pairs ${zone_type} ${zone_cond_1} ${zone_cond_2}"
 fi
 
-if [ ${unrestricted_read} -eq 0 ]; then
-    if [ ${target_type} = "0x2" ]; then
-	expected_sk="Illegal-request"
-	expected_asc="Read-boundary-violation"		# SWR read cross-zone
-    fi
-fi
+expected_sk="Illegal-request"
+expected_asc="Read-boundary-violation"		# SWR read cross-zone
 
 # Compute the last LBA of the first zone
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
