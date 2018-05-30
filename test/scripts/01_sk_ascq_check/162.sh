@@ -16,7 +16,7 @@
 zone_cond_1=OPENH
 zone_cond_2=FULL
 
-zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} starting below WP" $*
+zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} starting below Write Pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
