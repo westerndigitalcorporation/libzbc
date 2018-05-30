@@ -248,25 +248,6 @@ extern int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd);
 extern int zbc_sg_test_unit_ready(struct zbc_device *dev);
 
 /**
- * Get information string from inquiry output.
- */
-static inline int zbc_sg_strcpy(char *dst, char *buf, int buf_len)
-{
-	int len = buf_len - 1;
-
-	while (len &&
-	       ((buf[len] == 0) || (buf[len] == ' ')))
-		len--;
-
-	len++;
-	strncpy(dst, buf, len);
-	dst[len] = ' ';
-	dst[len + 1] = '\0';
-
-	return len + 1;
-}
-
-/**
  * Set bytes in a command cdb.
  */
 extern void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes);

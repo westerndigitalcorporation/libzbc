@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -150,14 +151,40 @@ static int zbc_scsi_test_sat(struct zbc_device *dev)
 }
 
 /**
+ * Get information string from inquiry output.
+ */
+static inline char *zbc_scsi_str(char *dst, uint8_t *buf, int len)
+{
+	char *str = (char *) buf;
+	int i;
+
+	for (i = len - 1; i >= 0; i--) {
+	       if (isalnum(str[i]))
+		       break;
+	}
+
+	if (i >= 0)
+		memcpy(dst, str, i + 1);
+
+	return dst;
+}
+
+#define ZBC_SCSI_VID_LEN	8
+#define ZBC_SCSI_PID_LEN	16
+#define ZBC_SCSI_REV_LEN	4
+
+/**
  * Get information (model, vendor, ...) from a SCSI device.
  */
 static int zbc_scsi_classify(struct zbc_device *dev)
 {
 	uint8_t buf[ZBC_SCSI_INQUIRY_BUF_LEN];
+	char vid[ZBC_SCSI_VID_LEN + 1];
+	char pid[ZBC_SCSI_PID_LEN + 1];
+	char rev[ZBC_SCSI_REV_LEN + 1];
 	uint8_t zoned;
 	int dev_type;
-	int n, ret;
+	int ret;
 
 	/* Get device info */
 	ret = zbc_scsi_inquiry(dev, 0, buf, ZBC_SCSI_INQUIRY_BUF_LEN);
@@ -180,17 +207,19 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	/* This is a SCSI device */
 	dev->zbd_info.zbd_type = ZBC_DT_SCSI;
 
-	/* Vendor identification */
-	n = zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[0],
-			  (char *)&buf[8], 8);
-
-	/* Product identification */
-	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			   (char *)&buf[16], 16);
-
-	/* Product revision */
-	n += zbc_sg_strcpy(&dev->zbd_info.zbd_vendor_id[n],
-			   (char *)&buf[32], 4);
+	/*
+	 * Concatenate vendor identification, product identification
+	 * and product revision strings.
+	 */
+	//memset(dev->zbd_info.zbd_vendor_id, 0, ZBC_DEVICE_INFO_LENGTH);
+	memset(vid, 0, sizeof(vid));
+	memset(pid, 0, sizeof(pid));
+	memset(rev, 0, sizeof(rev));
+	sprintf(dev->zbd_info.zbd_vendor_id,
+		 "%s %s %s",
+		 zbc_scsi_str(vid, &buf[8], 8),
+		 zbc_scsi_str(pid, &buf[16], 16),
+		 zbc_scsi_str(rev, &buf[32], 4));
 
 	/* Now check the device type */
 	dev_type = (int)(buf[0] & 0x1f);
