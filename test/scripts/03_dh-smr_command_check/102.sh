@@ -40,7 +40,8 @@ zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
 # Use double the size of the last domain when trying ACTIVATE across End of Medium
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} $(( 2 * ${domain_seq_len} )) ${cmr_type}
+msg="WARNING: Attempted ACTIVATE test on non-ZA device"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} $(( 2 * ${domain_seq_len:?"${msg}"} )) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

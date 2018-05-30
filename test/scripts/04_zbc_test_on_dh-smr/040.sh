@@ -100,7 +100,7 @@ if [ "${ZBC_TEST_FORCE_ATA}" = "ATA" ]; then
 fi
 
 # Start ZBC test
-zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${cexec_list} ${cskip_list} ${device}
+zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${cskip_list} ${device}
 if [ $? -ne 0 ]; then
     sk="fail"
     asc="ZBC test 04.040 failed"
