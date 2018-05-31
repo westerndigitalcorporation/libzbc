@@ -2,7 +2,8 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2018, Western Digital. All rights reserved.
+# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (C) 2016, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -12,65 +13,44 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE across zone-type spaces (cross-type boundary violation)" $*
+zbc_test_init $0 "WRITE physical sector unaligned write to write-pointer zone" $*
 
-# Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
+# Set expected error code
 expected_sk="Illegal-request"
-expected_asc="Write-boundary-violation"		# write cross-type
+expected_asc="Unaligned-write-command"
 
 # Get drive information
 zbc_test_get_device_info
 
+zone_type=${test_zone_type:-"0x2|0x3"}
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
+fi
+
+# if physical block size == logical block size then this failure cannot occur
+if [ ${physical_block_size} -eq ${logical_block_size} ]; then
+    zbc_test_print_not_applicable "physical_block_size=logical_block_size (${logical_block_size} B)"
+fi
+
 # Get zone information
 zbc_test_get_zone_info
 
-# Search last non-sequential zone info
-zbc_test_search_last_zone_vals_from_zone_type "${ZT_NON_SEQ}"
-
-if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
-    # non-sequential nonexistent or at top of LBA space -- try for last sequential instead
-    zbc_test_search_last_zone_vals_from_zone_type "0x2|0x3"
-fi
-
-if [ $? -ne 0 ]; then
-    # Most likely the test is broken...
-    zbc_test_print_not_applicable "Device has no zones of any valid type"
-fi
-
-boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
-target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
-
-if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
-    # Prepare zone for the cross-type write -- get WP close to the boundary
-    zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-    zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"
-
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - 1 ))
-    zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
-fi
-
-if [ ${boundary_lba} -gt ${max_lba} ]; then
-    # Boundary is at End of Medium
-    expected_sk="Illegal-request"
-    expected_asc="Logical-block-address-out-of-range"
-else
-    # Check the the zone just before the boundary for availability
-    write_check_available ${target_cond}		# sets expected_* if not
-
-    # Get info on the zone just after the boundary
-    zbc_test_search_vals_from_slba ${boundary_lba}
-
-    # Check the the zone just after the boundary for availability
-    write_check_available ${target_cond}		# sets expected_* if not
-fi
+# Search target LBA
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
+target_lba=${target_ptr}
 
 # Start testing
-# Write across the boundary at the end of a zone-type in LBA space
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+
+if [[ ${target_type} != @(${ZT_REQUIRE_WRITE_PHYSALIGN}) ]]; then
+    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+else
+    zbc_test_check_sk_ascq "zone_type=${target_type}"
+fi
 
 # Post process
 rm -f ${zone_info_file}
+
