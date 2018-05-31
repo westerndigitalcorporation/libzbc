@@ -27,6 +27,9 @@ ZT_SWR="0x2"				# Sequential Write Required zone
 ZT_SWP="0x3"				# Sequential Write Preferred zone
 ZT_WPC="0x4"				# Write-Pointer Conventional zone
 
+# Example Usage:  if [[ ${target_type} == @(${ZT_NON_SEQ}) ]]; then...
+#                 if [[ ${target_type} != @(${ZT_WP}) ]]; then...
+
 ZT_NON_SEQ="0x1|0x4"			# CMR (Conventional or Write-Pointer Conventional)
 ZT_SEQ="0x2|0x3"			# SMR (Sequential Write Required/Preferred)
 ZT_WP="0x2|0x3|0x4"			# Write Pointer zone
