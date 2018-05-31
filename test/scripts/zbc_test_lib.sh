@@ -477,15 +477,16 @@ function read_check_available()
     fi
 }
 
+# $1 is type of zones to open; $2 is number of zones to open
 function zbc_test_open_nr_zones()
 {
-	local _zone_type="0x2"		# SWR
-	local zone_cond="0x1|0x4"	# empty or closed
-	local -i count=0
+	local _zone_cond="0x1|0x4"	# empty or closed
+	local _zone_type="${1}"
+	local -i _open_num=${2}
+	local -i _count=0
 
-	local open_num=${1}
-
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" \
+				| zbc_zone_filter_in_cond "${_zone_cond}"` ; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -500,8 +501,9 @@ function zbc_test_open_nr_zones()
 		IFS="$_IFS"
 
 		zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba}
-		count=${count}+1
-		if [ ${count} -eq $(( ${open_num} )) ]; then
+		_count=${_count}+1
+
+		if [ ${_count} -ge $(( ${_open_num} )) ]; then
 			return 0
 		fi
 
@@ -578,7 +580,8 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	local zone_type="${1}"
 	local zone_cond="${2}"
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${zone_cond}"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
+				| zbc_zone_filter_in_cond "${zone_cond}"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
@@ -605,7 +608,8 @@ function zbc_test_get_target_zone_from_type_and_ignored_cond()
 	local zone_type="${1}"
 	local zone_cond_ignore="${2}"
 
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
+				| zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
