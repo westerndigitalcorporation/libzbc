@@ -45,7 +45,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${target_type} != "0x2" ]; then
+if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_FULL}) ]]; then
     zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"

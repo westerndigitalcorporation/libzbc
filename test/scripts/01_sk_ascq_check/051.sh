@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "RESET_WRITE_PTR CMR zone" $*
+zbc_test_init $0 "RESET_WRITE_PTR non-sequential zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -26,10 +26,10 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x1|0x4" "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond "${ZT_NON_SEQ}" "${ZC_NON_FULL}"
 
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No CMR zone is available"
+    zbc_test_print_not_applicable "No non-sequential zone is available"
 fi
 
 target_lba=${target_slba}
@@ -40,10 +40,10 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_lba}
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${target_type} = "0x1" ]; then
-	zbc_test_check_sk_ascq		# RESET_WP not allowed on conventional zone
+if [[ ${target_type} != @(${ZT_WP}) ]]; then
+	zbc_test_check_sk_ascq
 else
-	zbc_test_check_no_sk_ascq	# RESET_WP allowed on other types of zones
+	zbc_test_check_no_sk_ascq	# RESET_WP allowed on Write Pointer zones
 fi
 
 # Post process

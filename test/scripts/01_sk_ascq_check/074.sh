@@ -2,8 +2,7 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -25,11 +24,11 @@ zbc_test_get_device_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Search last CMR zone info
-zbc_test_search_last_zone_vals_from_zone_type "0x1|0x4"
+# Search last non-sequential zone info
+zbc_test_search_last_zone_vals_from_zone_type "${ZT_NON_SEQ}"
 
 if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
-    # CMR nonexistent or at top of LBA space -- try for last SMR instead
+    # non-sequential nonexistent or at top of LBA space -- try for last sequential instead
     zbc_test_search_last_zone_vals_from_zone_type "0x2|0x3"
 fi
 
@@ -41,7 +40,7 @@ fi
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
 target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
 
-if [[ ${target_type} != @(0x1|0x3) ]]; then
+if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
     # Prepare zone for the cross-type write -- get WP close to the boundary
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
     zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"

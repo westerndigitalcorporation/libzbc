@@ -2,8 +2,7 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -48,15 +47,14 @@ if [ -z "${sk}" ]; then
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
     zbc_test_get_sk_ascq
 
-    if [[ ${target_type} = "0x2" ]]; then
-        # FULL SWR zone should fail writing
-        expected_sk="Illegal-request"
-        expected_asc="Invalid-field-in-cdb"
-        zbc_test_check_sk_ascq
-    else
+    if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_FULL}) ]]; then
         zbc_test_get_zone_info
         zbc_test_search_vals_from_slba ${target_lba}
         zbc_test_check_zone_cond
+    else
+        expected_sk="Illegal-request"
+        expected_asc="Invalid-field-in-cdb"
+        zbc_test_check_sk_ascq
     fi
 fi
 

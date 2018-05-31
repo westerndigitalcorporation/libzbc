@@ -22,20 +22,19 @@ expected_asc="Attempt-to-read-invalid-data"	# read cross-type
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${conv_zone} -eq 0 -a ${unrestricted_read} -ne 0 ]; then
-       #XXX Crossing WPC->SEQ returns a different error, but only when URSWRZ is set,
-       #    as per bogosity in ZA-r4 SPEC -- XXX FIX SPEC!
-       expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
-fi
-
 # Get zone information
 zbc_test_get_zone_info
 
-# Search last CMR zone info
-zbc_test_search_last_zone_vals_from_zone_type "0x1|0x4"
+# Search last non-sequential zone info
+zbc_test_search_last_zone_vals_from_zone_type "${ZT_NON_SEQ}"
 if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
-    # CMR nonexistent or at top of LBA space -- try for last SMR instead
+    # non-sequential nonexistent or at top of LBA space -- try for last sequential instead
     zbc_test_search_last_zone_vals_from_zone_type "0x2|0x3"
+#XXX ZA pollution in Section 01
+elif [ ${target_type} = "0x4" -a ${unrestricted_read} -ne 0 ]; then
+       #XXX Crossing WPC->SEQ returns a different error, but only when URSWRZ is set,
+       #    as per bogosity in ZA-r4 SPEC -- XXX FIX SPEC!
+       expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
 fi
 
 if [ $? -ne 0 ]; then
@@ -56,8 +55,8 @@ else
     # Check the the zone just before the boundary for availability
     read_check_available ${target_cond}		# sets expected_* if not
 
-    # Zone types other than conventional/SWP need to be filled before the read
-    if [[ "${sk}" = "" && ${target_type} != @(0x1|0x3) ]]; then
+    # Some zone types need to be filled before the read
+    if [[ "${sk}" = "" && ${target_type} == @(${ZT_RESTRICT_READ_GE_WP}) ]]; then
         zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
         zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
     fi

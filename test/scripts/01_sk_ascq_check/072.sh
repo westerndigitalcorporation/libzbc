@@ -35,7 +35,7 @@ fi
 zbc_test_get_zone_info
 
 # Get the number of available zones of the zone_type
-nr_avail_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "0x1|0x2|0x3|0x4" | wc -l`
+nr_avail_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${ZC_NON_FULL}" | wc -l`
 
 if [ ${max_open} -ge ${nr_avail_zones_of_type} ]; then
     zbc_test_print_not_applicable "Not enough available zones of type ${zone_type}: (max_open=${max_open}) >= (nr_avail_zones_of_type=${nr_avail_zones_of_type})"
@@ -60,7 +60,7 @@ else
     # Check result
     zbc_test_get_sk_ascq
 
-    if [[ ${target_type} == @(0x3|0x4) ]]; then
+    if [[ ${target_type} != @(${ZT_W_OZR}) ]]; then
         zbc_test_check_no_sk_ascq "zone_type=${target_type}"
     else
         zbc_test_check_sk_ascq "zone_type=${target_type}"

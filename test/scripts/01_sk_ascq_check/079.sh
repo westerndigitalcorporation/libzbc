@@ -23,10 +23,9 @@ expected_asc="Unaligned-write-command"
 zbc_test_get_device_info
 
 zone_type=${test_zone_type:-"0x2|0x3"}
-
-#XXX
-physical_block_size=`zbc_info ${device} | grep "physical blocks of" | sed -e "s/ B$//" -e "s/.* //"`
-logical_block_size=`zbc_info ${device} | grep "logical blocks of" | sed -e "s/ B$//" -e "s/.* //"`
+if [ ${zone_type} = "0x1" ]; then
+    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
+fi
 
 # if physical block size == logical block size then this failure cannot occur
 if [ ${physical_block_size} -eq ${logical_block_size} ]; then
@@ -37,7 +36,7 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing
@@ -46,7 +45,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${target_type} = "0x3" ]; then
+if [[ ${target_type} != @(${ZT_REQUIRE_WRITE_PHYSALIGN}) ]]; then
     zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"

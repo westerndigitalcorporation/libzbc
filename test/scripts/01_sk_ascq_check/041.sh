@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "FINISH_ZONE CMR zone" $*
+zbc_test_init $0 "FINISH_ZONE non-sequential zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -26,9 +26,9 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x1|0x4" "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond "${ZT_NON_SEQ}" "${ZC_NON_FULL}"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No CMR zone is available"
+    zbc_test_print_not_applicable "No suitable non-sequential zone is available"
 fi
 
 target_lba=${target_slba}

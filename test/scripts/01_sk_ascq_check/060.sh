@@ -30,7 +30,7 @@ expected_asc="Attempt-to-read-invalid-data"	# read above WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and available but NON-FULL"
 fi
@@ -49,14 +49,11 @@ fi
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -ne 0 -o ${target_type} = "0x3" ]; then
-    # URSWRZ enabled or SWP zone -- expected to succeed
+if [[ ${unrestricted_read} -ne 0 || ${target_type} != @(${ZT_RESTRICT_READ_GE_WP}) ]]; then
     zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
-    # URSWRZ disabled and non-SWP write-pointer zone -- expected to fail
     zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 fi
 
 # Post process
 rm -f ${zone_info_file}
-

@@ -2,15 +2,13 @@
 #
 # This file is part of libzbc.
 #
-# Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
@@ -31,7 +29,7 @@ expected_asc="Attempt-to-read-invalid-data"	# read across WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and available but NON-FULL"
 fi
@@ -50,12 +48,11 @@ fi
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${unrestricted_read} -ne 0 -o ${target_type} = "0x3" ]; then
-    zbc_test_check_no_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
+if [[ ${unrestricted_read} -ne 0 || ${target_type} != @(${ZT_RESTRICT_READ_GE_WP}) ]]; then
+    zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
-    zbc_test_check_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
+    zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 fi
 
 # Post process
 rm -f ${zone_info_file}
-

@@ -30,7 +30,7 @@ expected_asc="Unaligned-write-command"		# Write starting and ending above WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x0|0x1|0x2|0x3|0x4"
+zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and available but NON-FULL"
 fi
@@ -42,10 +42,10 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_p
 # Check result
 zbc_test_get_sk_ascq
 
-if [ ${target_type} = "0x3" ]; then
-    zbc_test_check_no_sk_ascq		# Unaligned write allowed on SWP zones
+if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
+    zbc_test_check_no_sk_ascq
 else
-    zbc_test_check_sk_ascq		# Unaligned write fails on non-SWP write-pointer zones
+    zbc_test_check_sk_ascq
 fi
 
 # Post process
