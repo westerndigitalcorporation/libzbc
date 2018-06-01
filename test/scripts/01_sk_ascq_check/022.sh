@@ -26,12 +26,8 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable "max_open not reported"
 fi
 
-if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_print_not_applicable "Device is Host-aware"
-fi
-
-# Only SWR zones return this error
-zone_type="0x2"
+# Let us assume that all the available sequential zones are EMPTY...
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
 # Let us assume that all the available sequential zones are EMPTY...
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
@@ -39,14 +35,17 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# Get the number of available zones of the zone_type
-nr_avail_zones_of_type=`zbc_zones | zbc_zone_filter_in_type "${zone_type}" | zbc_zone_filter_in_cond "${ZC_NON_FULL}" | wc -l`
+# Get the number of available EMPTY SWR zones
+nr_avail_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} \
+			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
-if [ ${max_open} -ge ${nr_avail_zones_of_type} ]; then
-    zbc_test_print_not_applicable "Not enough available zones of type ${zone_type}: (max_open=${max_open}) >= (nr_avail_zones_of_type=${nr_avail_zones_of_type})"
+if [ ${max_open} -ge ${nr_avail_SWR_zones} ]; then
+    zbc_test_print_not_applicable "Not enough (${nr_avail_SWR_zones}) available SWR zones" \
+				  "to exceed max_open (${max_open})"
 fi
 
-# Create closed zones
+# Start testing
+# Create more closed zones than the device is capable of having open at a time
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do
 
@@ -54,24 +53,26 @@ for i in `seq $(( ${max_open} + 1 ))`; do
     zbc_test_get_zone_info
 
     # Search target LBA
-    zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
+    zbc_test_search_vals_from_zone_type_and_cond "${ZT_SWR}" "${ZC_EMPTY}"
+    if [ $? -ne 0 ]; then
+        zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+        # This should not happen because we counted enough zones above
+        zbc_test_print_not_applicable "WARNING: No EMPTY SWR zone could be found"
+    fi
+
     target_lba=${target_slba}
 
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "Initial WRITE failed"
 
     zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Zone CLOSE failed, zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "Zone CLOSE failed"
 
 done
 
-# Start testing
-# Create more closed zones than we can have open at one time
-zbc_test_close_nr_zones $(( ${max_open} + 1 ))
-
-# Now try to open all the closed zones
+# Now try to open ALL closed zones
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
 
 # Check result
