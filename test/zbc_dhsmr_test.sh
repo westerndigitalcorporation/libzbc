@@ -433,13 +433,13 @@ function zbc_run_mutation()
         echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
 	set_logfile $1/urswrz_y
         reset_device
-        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+        zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
         zbc_run_config ${section_list[@]}
 
         echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
 	set_logfile $1/urswrz_n
         reset_device
-        ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
+        zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
         zbc_run_config ${section_list[@]}
     fi
 }
@@ -457,7 +457,7 @@ function zbc_run_gamut()
     for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
-	zbc_dev_control -mu ${m} ${device}
+	zbc_test_run zbc_dev_control -mu ${m} ${device}
         reset_device
 	zbc_run_mutation "${m}"
     done
@@ -465,7 +465,7 @@ function zbc_run_gamut()
     for m in ${ZBC_MUTATIONS} ; do
 	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
 	set_logfile ${m}
-	zbc_dev_control -mu ${m} ${device}
+	zbc_test_run zbc_dev_control -mu ${m} ${device}
         reset_device
 
 	local arg_b=""
@@ -487,9 +487,9 @@ function zbc_run_gamut()
     set_logfile "fini"
 
     # When done, set the device back to default
-    zbc_dev_control -mu ZA_1CMR_BOT ${device}
+    zbc_test_run zbc_dev_control -mu ZA_1CMR_BOT ${device}
     reset_device
-    ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+    zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
 }
 
 # Configure mutations to be tested
