@@ -19,7 +19,7 @@ zbc_test_init $0 "WRITE unaligned starting above write pointer" $*
 zbc_test_get_device_info
 
 zone_type=${test_zone_type:-"0x2|0x3"}
-if [ ${zone_type} = "0x1" ]; then
+if [ "${zone_type}" = "0x1" ]; then
     zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
 fi
 
@@ -30,7 +30,7 @@ expected_asc="Unaligned-write-command"		# Write starting and ending above WP
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_NON_FULL}"
+zbc_test_search_vals_from_zone_type_and_cond "${zone_type}" "${ZC_NON_FULL}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and available but NON-FULL"
 fi

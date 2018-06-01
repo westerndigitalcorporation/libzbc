@@ -12,5 +12,5 @@
 
 . scripts/zbc_test_lib.sh
 
-test_zone_type="0x4"
+test_zone_type="0x4"          # Run 01-072 writing a WPC zone
 . scripts/01_sk_ascq_check/072.sh "$@"
