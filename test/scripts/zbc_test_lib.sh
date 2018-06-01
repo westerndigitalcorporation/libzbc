@@ -1108,13 +1108,13 @@ function zbc_test_print_failed_sk()
 
 	if [ -z "${err_za}" -a -z "${err_cbf}" -a  -z "${expected_err_za}" -a -z "${expected_err_cbf}" ] ; then
 		echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1
-		echo "            => Expected ${expected_sk} / ${expected_asc}"
-	echo "               Got ${sk} / ${asc}"
+		echo "FAIL        => Expected ${expected_sk} / ${expected_asc}"
+		echo "FAIL                Got ${sk} / ${asc}"
 	else
 		echo "=> Expected ${expected_sk} / ${expected_asc} (ZA-status: ${expected_err_za} / ${expected_err_cbf})"  >> ${log_file} 2>&1
 		echo "	      Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})" >> ${log_file} 2>&1
-		echo "            => Expected ${expected_sk} / ${expected_asc} (ZA-status: ${expected_err_za} / ${expected_err_cbf})"
-		echo "               Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})"
+		echo "FAIL        => Expected ${expected_sk} / ${expected_asc} (ZA-status: ${expected_err_za} / ${expected_err_cbf})"
+		echo "FAIL                Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})"
 	fi
 
 	if [ -n "$1" ]; then
