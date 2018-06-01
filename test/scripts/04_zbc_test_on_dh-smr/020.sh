@@ -74,7 +74,7 @@ fi
 # Start ZBC test on the mixed zone-type configuration
 zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${eexec_list} ${cskip_list} ${device}
 if [ $? -ne 0 ]; then
-    sk="fail"
+    sk="fail -- log path ${ZBC_TEST_LOG_PATH_BASE}"
     asc="ZBC test 04.020 failed"
 fi
 
