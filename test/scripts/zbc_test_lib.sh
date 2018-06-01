@@ -1099,12 +1099,12 @@ function zbc_test_print_not_applicable()
 
 function zbc_test_print_failed()
 {
-	zbc_test_print_res "${red}" "Failed"
+	zbc_test_print_res "${red}" "Failed  $*"
 }
 
 function zbc_test_print_failed_sk()
 {
-	zbc_test_print_res "${red}" "Failed"
+	zbc_test_print_res "${red}" "Failed - See ${log_file}"
 
 	if [ -z "${err_za}" -a -z "${err_cbf}" -a  -z "${expected_err_za}" -a -z "${expected_err_cbf}" ] ; then
 		echo "=> Expected ${expected_sk} / ${expected_asc}, Got ${sk} / ${asc}" >> ${log_file} 2>&1

@@ -406,7 +406,11 @@ function zbc_run_config()
 
 function set_logfile()
 {
-    ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/$1
+    if [ -z "$1" ]; then
+        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}
+    else
+        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/$1
+    fi
     local log_path=${ZBC_TEST_LOG_PATH}
     mkdir -p ${log_path}
     log_file="${log_path}/zbc_dhsmr_test.log"
@@ -449,13 +453,13 @@ function zbc_run_gamut()
     zbc_test_get_device_info
 
     if [ ${mutations} == 0 ]; then
-        echo -e "\n######### Device doesn't support mutation"
+        echo -e "\n\n######### `date` Device doesn't support mutation"
         zbc_run_mutation ""
 	return
     fi
 
     for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
-	echo -e "\n\n######### Run the dhsmr test suite under mutation ${m}"
+	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -mu ${m} ${device}
         reset_device
@@ -463,7 +467,7 @@ function zbc_run_gamut()
     done
 
     for m in ${ZBC_MUTATIONS} ; do
-	echo -e "\n\n######### Run the zbc test suite under mutation ${m}"
+	echo -e "\n\n######### `date` Run the zbc test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -mu ${m} ${device}
         reset_device
@@ -478,8 +482,9 @@ function zbc_run_gamut()
 		arg_a="-a"
 	fi
 
-	(   # subshell protects outer ZBC_TEST_LOG_PATH_BASE from change here
+	(   # subshell protects outer shell variables from the changes made here
 	    ZBC_TEST_LOG_PATH_BASE=${ZBC_TEST_LOG_PATH_BASE}/${m}
+    	    ZBC_TEST_SECTION_LIST="00 01 02"	# for ZBC meta-children
 	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${cexec_list} ${cskip_list} ${device}
 	)
     done
@@ -528,6 +533,6 @@ if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
     prepare_lists "03" "04"			# our section list
-    export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for meta-children
+    export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZA meta-children
     zbc_run_gamut
 fi

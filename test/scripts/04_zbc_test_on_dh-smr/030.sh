@@ -39,7 +39,7 @@ fi
 zbc_test_count_cvt_domains		# nr_domains
 zbc_test_count_cvt_to_conv_domains
 if [ $nr_cvt_to_conv_domains -eq 0 ]; then
-    zbc_test_print_failed
+    zbc_test_print_failed "No domains are convertible to conventional"
 fi
 if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; then
     nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
