@@ -13,4 +13,4 @@
 . scripts/zbc_test_lib.sh
 
 test_zone_type="0x4"
-. scripts/01_sk_ascq_check/079.sh "$@"
+. scripts/01_sk_ascq_check/074.sh "$@"
