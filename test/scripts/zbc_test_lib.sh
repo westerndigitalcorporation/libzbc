@@ -18,36 +18,42 @@ green="\e[1;32m"
 end="\e[m"
 
 # Expected Sense strings for ACTIVATE/QUERY status returns
-ERR_ZA_SK="Unknown-sense-key 0x00"
-ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
+declare -r ERR_ZA_SK="Unknown-sense-key 0x00"
+declare -r ERR_ZA_ASC="Unknown-additional-sense-code-qualifier 0x00"
 
 # Zone types with various attributes
-ZT_CONV="0x1"				# Conventional zone
-ZT_SWR="0x2"				# Sequential Write Required zone
-ZT_SWP="0x3"				# Sequential Write Preferred zone
-ZT_WPC="0x4"				# Write-Pointer Conventional zone
+declare -r ZT_CONV="0x1"			# Conventional zone
+declare -r ZT_SWR="0x2"				# Sequential Write Required zone
+declare -r ZT_SWP="0x3"				# Sequential Write Preferred zone
+declare -r ZT_WPC="0x4"				# Write-Pointer Conventional zone
 
 # Example Usage:  if [[ ${target_type} == @(${ZT_NON_SEQ}) ]]; then...
 #                 if [[ ${target_type} != @(${ZT_WP}) ]]; then...
 
-ZT_NON_SEQ="0x1|0x4"			# CMR (Conventional or Write-Pointer Conventional)
-ZT_SEQ="0x2|0x3"			# SMR (Sequential Write Required/Preferred)
-ZT_WP="0x2|0x3|0x4"			# Write Pointer zone
+declare -r ZT_NON_SEQ="0x1|0x4"			# CMR (Conventional or Write-Pointer Conventional)
+declare -r ZT_SEQ="0x2|0x3"			# SMR (Sequential Write Required/Preferred)
+declare -r ZT_WP="0x2|0x3|0x4"			# Write Pointer zone
 
-ZT_DISALLOW_WRITE_GT_WP="0x2|0x4"	# Write starting above WP disallowed
-ZT_DISALLOW_WRITE_LT_WP="0x2"		# Write starting below WP disallowed
-ZT_DISALLOW_WRITE_XZONE="0x2"           # Write across zone boundary disallowed
-ZT_DISALLOW_WRITE_FULL="0x2"            # Write FULL zone disallowed
-ZT_REQUIRE_WRITE_PHYSALIGN="0x2|0x4"    # Write ending >= WP must be physical-block-aligned
+declare -r ZT_DISALLOW_WRITE_GT_WP="0x2|0x4"	# Write starting above WP disallowed
+declare -r ZT_DISALLOW_WRITE_LT_WP="0x2"	# Write starting below WP disallowed
+declare -r ZT_DISALLOW_WRITE_XZONE="0x2"	# Write across zone boundary disallowed
+declare -r ZT_DISALLOW_WRITE_FULL="0x2"		# Write FULL zone disallowed
+declare -r ZT_REQUIRE_WRITE_PHYSALIGN="0x2|0x4"	# Write ending >= WP must be physical-block-aligned
 
-ZT_RESTRICT_READ_XZONE="0x2"		# Read across zone boundary disallowed when !URSWRZ
-ZT_RESTRICT_READ_GE_WP="0x2|0x4"	# Read ending above WP disallowed when !URSWRZ
+declare -r ZT_RESTRICT_READ_XZONE="0x2"		# Read across zone boundary disallowed when !URSWRZ
+declare -r ZT_RESTRICT_READ_GE_WP="0x2|0x4"	# Read ending above WP disallowed when !URSWRZ
 
-ZT_W_OZR="0x2"				# Participates in Open Zone Resources protocol
+declare -r ZT_W_OZR="0x2"			# Participates in Open Zone Resources protocol
 
 # Zone conditions
-ZC_FULL="0xe"				# FULL zone condition
-ZC_NON_FULL="0x0|0x1|0x2|0x3|0x4"	# Non-FULL available zone conditions
+declare -r ZC_NOT_WP="0x0"			# NOT_WRITE_POINTER zone condition
+declare -r ZC_EMPTY="0x1"			# EMPTY zone condition
+declare -r ZC_IOPEN="0x2"			# IMPLICITLY OPEN zone condition
+declare -r ZC_EOPEN="0x3"			# EXPLICITLY OPEN zone condition
+declare -r ZC_OPEN="0x2|0x3"			# Either OPEN zone condition
+declare -r ZC_CLOSED="0x4"			# CLOSED zone condition
+declare -r ZC_FULL="0xe"			# FULL zone condition
+declare -r ZC_NON_FULL="0x0|0x1|0x2|0x3|0x4"	# Non-FULL available zone conditions
 
 function stacktrace()
 {
@@ -602,7 +608,7 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	return 1
 }
 
-function zbc_test_get_target_zone_from_type_and_ignored_cond()
+function UNUSED__zbc_test_search_vals_from_zone_type_and_ignored_cond()
 {
 
 	local zone_type="${1}"
@@ -1102,6 +1108,10 @@ function zbc_test_print_failed_sk()
 		echo "            => Expected ${expected_sk} / ${expected_asc} (ZA-status: ${expected_err_za} / ${expected_err_cbf})"
 		echo "               Got ${sk} / ${asc} (ZA-status: ${err_za} / ${err_cbf})"
 	fi
+
+	if [ -n "$1" ]; then
+		echo "           FAIL INFO: $*" | tee -a ${log_file}
+	fi
 }
 
 function zbc_test_check_err()
@@ -1117,10 +1127,7 @@ function zbc_test_check_err()
 			-a "${err_za}" = "${expected_err_za}" -a "${err_cbf}" = "${expected_err_cbf}" ]; then
 		zbc_test_print_passed
 	else
-		zbc_test_print_failed_sk
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${log_file}
-		fi
+		zbc_test_print_failed_sk "$*"
 	fi
 }
 
@@ -1129,10 +1136,7 @@ function zbc_test_check_sk_ascq()
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
 		zbc_test_print_passed
 	else
-		zbc_test_print_failed_sk
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${log_file}
-		fi
+		zbc_test_print_failed_sk "$*"
 	fi
 }
 
@@ -1143,10 +1147,7 @@ function zbc_test_check_no_sk_ascq()
 	if [ -z "${sk}" -a -z "${asc}" ]; then
 		zbc_test_print_passed
 	else
-		zbc_test_print_failed_sk
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${log_file}
-		fi
+		zbc_test_print_failed_sk "$*"
 	fi
 }
 
@@ -1155,10 +1156,7 @@ function zbc_test_fail_if_sk_ascq()
 	local expected_sk=""
 	local expected_asc=""
 	if [ -n "${sk}" -o -n "${asc}" ]; then
-		zbc_test_print_failed_sk
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${log_file}
-		fi
+		zbc_test_print_failed_sk "$*"
 	fi
 }
 
@@ -1182,15 +1180,9 @@ function zbc_test_check_zone_cond()
 
 	# Check sk_ascq first
 	if [ -n "${sk}" -o -n "${asc}" ]; then
-		zbc_test_print_failed_sk
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${logfile}
-		fi
+		zbc_test_print_failed_sk "$*"
         elif [ "${target_cond}" != "${expected_cond}" ]; then
-                zbc_test_print_failed_zc
-		if [ -n "$1" ]; then
-			echo "           FAIL INFO: $@" | tee -a ${logfile}
-        fi
+		zbc_test_print_failed_zc "$*"
         else
                 zbc_test_print_passed
         fi
