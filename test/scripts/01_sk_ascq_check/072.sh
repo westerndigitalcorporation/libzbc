@@ -32,7 +32,7 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# See if there are any SWR zones
+# See if there are any SWR zones at all
 nr_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} | wc -l`
 if [ ${nr_SWR_zones} -gt 0 ]; then
     seq_zone_type=${ZT_SWR}		# primary test
@@ -64,7 +64,7 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+zbc_test_get_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
 target_lba=${target_slba}
 
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
