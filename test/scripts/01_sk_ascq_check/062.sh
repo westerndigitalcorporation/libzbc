@@ -29,12 +29,15 @@ zbc_test_get_zone_info
 zbc_test_search_last_zone_vals_from_zone_type "${ZT_NON_SEQ}"
 if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
     # non-sequential nonexistent or at top of LBA space -- try for last sequential instead
-    zbc_test_search_last_zone_vals_from_zone_type "0x2|0x3"
-#XXX ZA pollution in Section 01
-elif [ ${target_type} = "0x4" -a ${unrestricted_read} -ne 0 ]; then
-       #XXX Crossing WPC->SEQ returns a different error, but only when URSWRZ is set,
-       #    as per bogosity in ZA-r4 SPEC -- XXX FIX SPEC!
-       expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
+    zbc_test_search_last_zone_vals_from_zone_type "${ZT_SEQ}"
+
+          #XXX ZA pollution in Section 01
+          elif [ ${target_type} = "0x4" -a ${unrestricted_read} -ne 0 ]; then	#XXX
+                 #XXX Crossing WPC->SEQ returns a different error, but only when URSWRZ
+                 #    is set, as per bogosity in ZA-r4 SPEC -- XXX FIX SPEC!
+                 expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
+	  #XXX REMOVE WHEN SPEC IS FIXED
+
 fi
 
 if [ $? -ne 0 ]; then
