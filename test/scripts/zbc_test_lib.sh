@@ -229,7 +229,7 @@ function zbc_check_string()
 {
 	if [ -z "$2" ]; then
 		echo "$1"
-		exit 1
+		stacktrace_exit
 	fi
 }
 
@@ -723,6 +723,57 @@ function zbc_test_zone_tuple()
 	return 1
 }
 
+# Return information about a Non-Sequential zone selected for testing --
+# $1 is a regular expression denoting the desired zone condition.
+# If $1 is omitted, a zone is matched if it is available (not OFFLINE, etc).
+# If no matching Non-Sequential zone is found, exit with "N/A" message.
+# Return info is the same as zbc_test_search_vals_from_zone_type_and_cond.
+function zbc_test_get_non_seq_zone_or_NA()
+{
+	local _zone_cond="${1:-${ZC_NON_FULL}|${ZC_FULL}}"
+	local _zone_type="0x1|0x4"
+
+	zbc_test_get_zone_info
+	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
+	if [ $? -ne 0 ]; then
+		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1 #XXX
+		zbc_test_print_not_applicable \
+		    "No write-pointer zone is of type ${_zone_type} and condition ${_zone_cond}"
+	fi
+}
+
+# Select and return a zone-type for testing
+# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
+# If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
+function zbc_test_get_wp_zone_type()
+{
+	local _zone_type="${test_zone_type:-0x2|0x3}"
+	#XXX This check could be more rigorous
+	if [ "${_zone_type}" = "0x1" ]; then
+		zbc_test_print_not_applicable \
+		    "Zone type ${_zone_type} is not a write-pointer zone type"
+	fi
+	echo "${_zone_type}"
+}
+
+# Return information about a Write-Pointer zone selected for testing --
+# Argument and return values are the same as zbc_test_get_non_seq_zone_or_NA.
+#
+# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
+# If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
+function zbc_test_get_wp_zone_or_NA()
+{
+	local _zone_type=`zbc_test_get_wp_zone_type`
+	local _zone_cond="${1:-${ZC_NON_FULL}|${ZC_FULL}}"
+	zbc_test_get_zone_info
+	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
+	if [ $? -ne 0 ]; then
+		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1 #XXX
+		zbc_test_print_not_applicable \
+		    "No write-pointer zone is of type ${_zone_type} and condition ${_zone_cond}"
+	fi
+}
+
 # zbc_test_zone_tuple type nz
 # Returns the first zone of a contiguous sequence of length nz with the specified type
 function zbc_test_zone_tuple()
@@ -767,7 +818,9 @@ function zbc_test_zone_tuple()
 }
 
 # zbc_test_zone_tuple_cond type cond1 [cond2...]
-# Returns the first zone of a contiguous sequence with the specified type and conditions
+# Sets zbc_test_search_vals_from_slba from the first zone of a
+#	contiguous sequence with the specified type and conditions
+# Return value is non-zero if the request cannot be met.
 function zbc_test_zone_tuple_cond()
 {
 	local zone_type="${1}"
@@ -809,7 +862,6 @@ function zbc_test_zone_tuple_cond()
 			;;
 		* )
  			stacktrace_exit "Caller requested unsupported condition ${cond}"
-			exit 1
 			;;
 		esac
 
@@ -821,6 +873,23 @@ function zbc_test_zone_tuple_cond()
 	zbc_test_get_zone_info
 	zbc_test_search_vals_from_slba ${start_lba}
 	return 0
+}
+		
+# zbc_test_get_wp_zone_tuple_cond_or_NA cond1 [cond2...]
+# Sets zbc_test_search_vals_from_slba from the first zone of a
+#	contiguous sequence with the specified type and conditions
+# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
+# If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
+# Exits with "N/A" message if the request cannot be met
+function zbc_test_get_wp_zone_tuple_cond_or_NA()
+{
+	local _zone_type=`zbc_test_get_wp_zone_type`
+	zbc_test_zone_tuple_cond "${_zone_type}" "$@"
+	if [ $? -ne 0 ]; then
+	    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+	    zbc_test_print_not_applicable \
+		"No write-pointer zone sequence of type ${_zone_type} with condition(s) $@"
+	fi
 }
 		
 # Conversion domain manipulation functions
@@ -971,7 +1040,7 @@ function zbc_test_search_domain_by_type_and_cvt()
 		cvt="N,N"
 		;;
 	* )
-		exit 1
+		stacktrace_exit "zbc_test_search_domain_by_type_and_cvt bad cvt arg=\"$2\""
 		;;
 	esac
 
@@ -1094,7 +1163,7 @@ function zbc_test_print_passed()
 function zbc_test_print_not_applicable()
 {
 	zbc_test_print_res "" " N/A  $*"
-	exit
+	exit 0
 }
 
 function zbc_test_print_failed()
