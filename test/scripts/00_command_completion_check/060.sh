@@ -22,7 +22,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "0x2|0x3" "0x1"
+zbc_test_search_vals_from_zone_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No EMPTY Sequential zones"
 fi

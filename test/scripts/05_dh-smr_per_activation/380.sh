@@ -42,7 +42,7 @@ fi
 zbc_test_get_cvt_domain_info
 
 # Find a CMR domain that is convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "seq"
+zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
 fi
