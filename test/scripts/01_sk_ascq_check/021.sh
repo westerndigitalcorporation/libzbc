@@ -44,7 +44,7 @@ else
     seq_zone_type=${ZT_SWP}		# fallback test
 fi
 
-# Get the number of available sequential zones of the type chosen
+# Get the number of available EMPTY sequential zones of the type we are using
 nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${seq_zone_type}" \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
@@ -54,8 +54,14 @@ if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
 fi
 
 # Start testing
-# Explicitly open a total of ${max_open} sequential zones
+# Explicitly open ${max_open} sequential zones of ${seq_zone_type}
 zbc_test_open_nr_zones ${seq_zone_type} ${max_open}
+if [ $? -ne 0 ]; then
+    zbc_test_get_sk_ascq
+    zbc_test_fail_if_sk_ascq "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+    exit 1
+fi
 
 # Update zone information
 zbc_test_get_zone_info

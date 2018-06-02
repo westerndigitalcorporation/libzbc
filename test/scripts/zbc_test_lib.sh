@@ -282,6 +282,8 @@ function zbc_test_get_device_info()
 	physical_block_size=${2}
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
+	sect_per_pblk=$((physical_block_size/512))
+
 	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
 	unrestricted_read=${2}
@@ -492,6 +494,7 @@ function read_check_available()
 }
 
 # $1 is type of zones to open; $2 is number of zones to open
+# It is expected that the requested number can be opened
 function zbc_test_open_nr_zones()
 {
 	local _zone_cond="0x1|0x4"	# empty or closed
@@ -515,6 +518,13 @@ function zbc_test_open_nr_zones()
 		IFS="$_IFS"
 
 		zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${start_lba}
+		if [ $? -ne 0 ]; then
+			echo "WARNING: Unexpected failure to open zone ${start_lba} after ${_count}/${_open_num} opens"
+			echo ================================
+			zbc_zones
+			echo ================================
+			return 2
+		fi
 		_count=${_count}+1
 
 		if [ ${_count} -ge $(( ${_open_num} )) ]; then
@@ -723,54 +733,57 @@ function zbc_test_zone_tuple()
 	return 1
 }
 
-# Return information about a Non-Sequential zone selected for testing --
+# Select a zone of ${test_zone_type} for testing and return info.
+#
+# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
 # $1 is a regular expression denoting the desired zone condition.
 # If $1 is omitted, a zone is matched if it is available (not OFFLINE, etc).
-# If no matching Non-Sequential zone is found, exit with "N/A" message.
+#
 # Return info is the same as zbc_test_search_vals_from_zone_type_and_cond.
-function zbc_test_get_non_seq_zone_or_NA()
+# If no matching zone is found, exit with "N/A" message.
+function zbc_test_get_zone_or_NA()
 {
+	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
 	local _zone_cond="${1:-${ZC_NON_FULL}|${ZC_FULL}}"
-	local _zone_type="0x1|0x4"
 
 	zbc_test_get_zone_info
 	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
-		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1 #XXX
+		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
-		    "No write-pointer zone is of type ${_zone_type} and condition ${_zone_cond}"
+		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
 	fi
 }
 
-# Select and return a zone-type for testing
-# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
-# If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
-function zbc_test_get_wp_zone_type()
+# Select a Write-Pointer zone for testing and return info.
+# Argument and return information are the same as zbc_test_get_zone_or_NA.
+function zbc_test_get_wp_zone_or_NA()
 {
-	local _zone_type="${test_zone_type:-0x2|0x3}"
+	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
+
 	#XXX This check could be more rigorous
 	if [ "${_zone_type}" = "0x1" ]; then
 		zbc_test_print_not_applicable \
 		    "Zone type ${_zone_type} is not a write-pointer zone type"
 	fi
-	echo "${_zone_type}"
+
+	zbc_test_get_zone_or_NA "$@"
 }
 
-# Return information about a Write-Pointer zone selected for testing --
-# Argument and return values are the same as zbc_test_get_non_seq_zone_or_NA.
-#
-# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
-# If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
-function zbc_test_get_wp_zone_or_NA()
+
+# Select a non-Sequential zone for testing and return info.
+# Argument and return information are the same as zbc_test_get_zone_or_NA.
+function zbc_test_get_non_seq_zone_or_NA()
 {
-	local _zone_type=`zbc_test_get_wp_zone_type`
+	local _zone_type="0x1|0x4"
 	local _zone_cond="${1:-${ZC_NON_FULL}|${ZC_FULL}}"
+
 	zbc_test_get_zone_info
 	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
-		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1 #XXX
+		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
-		    "No write-pointer zone is of type ${_zone_type} and condition ${_zone_cond}"
+		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
 	fi
 }
 
@@ -883,7 +896,7 @@ function zbc_test_zone_tuple_cond()
 # Exits with "N/A" message if the request cannot be met
 function zbc_test_get_wp_zone_tuple_cond_or_NA()
 {
-	local _zone_type=`zbc_test_get_wp_zone_type`
+	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
 	zbc_test_zone_tuple_cond "${_zone_type}" "$@"
 	if [ $? -ne 0 ]; then
 	    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
