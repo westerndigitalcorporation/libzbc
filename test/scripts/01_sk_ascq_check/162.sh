@@ -20,16 +20,8 @@ zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} starting below 
 # Get drive information
 zbc_test_get_device_info
 
-zone_type=${test_zone_type:-"0x2|0x3"}
-if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Requested test type is ${zone_type} but test requires a write-pointer zone"
-fi
-
 # Get a pair of zones
-zbc_test_zone_tuple_cond ${zone_type} ${zone_cond_1} ${zone_cond_2}
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No zone pairs ${zone_type} ${zone_cond_1} ${zone_cond_2}"
-fi
+zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
 expected_sk="Illegal-request"
 expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
