@@ -22,21 +22,13 @@ expected_asc="Unaligned-write-command"
 # Get drive information
 zbc_test_get_device_info
 
-zone_type=${test_zone_type:-"0x2|0x3"}
-if [ "${zone_type}" = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
-fi
-
 # if physical block size == logical block size then this failure cannot occur
 if [ ${physical_block_size} -eq ${logical_block_size} ]; then
     zbc_test_print_not_applicable "physical_block_size=logical_block_size (${logical_block_size} B)"
 fi
 
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "${zone_type}" "${ZC_NON_FULL}"
+zbc_test_get_wp_zone_or_NA "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing
@@ -53,4 +45,3 @@ fi
 
 # Post process
 rm -f ${zone_info_file}
-

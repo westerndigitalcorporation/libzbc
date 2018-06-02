@@ -20,23 +20,12 @@ expected_cond="0x1"
 # Get drive information
 zbc_test_get_device_info
 
-zone_type=${test_zone_type:-"0x2|0x3"}
-if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
-fi
-
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
-fi
+zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 8
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 

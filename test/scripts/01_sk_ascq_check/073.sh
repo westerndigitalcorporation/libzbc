@@ -18,22 +18,11 @@ zbc_test_init $0 "WRITE full zone" $*
 # Get drive information
 zbc_test_get_device_info
 
-zone_type=${test_zone_type:-"0x2|0x3"}
-if [ ${zone_type} = "0x1" ]; then
-    zbc_test_print_not_applicable "Zone type ${zone_type} is not a write-pointer zone type"
-fi
-
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"		# write full zone
 
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target zone
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No write-pointer zone is of type ${zone_type} and EMPTY"
-fi
+zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}

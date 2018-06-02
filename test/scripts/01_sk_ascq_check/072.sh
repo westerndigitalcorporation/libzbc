@@ -26,8 +26,6 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable "max_open not reported"
 fi
 
-write_zone_type=${test_zone_type:-"0x2|0x3"}	# Zone type to write after opening max SEQ zones
-
 # Let us assume that all the available sequential zones are EMPTY...
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
@@ -66,13 +64,7 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-if [ $? -ne 0 ]; then
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-    # The zone type may or may not support CLOSED (but the statement is accurate either way)
-    zbc_test_print_not_applicable "No suitable zone of type ${write_zone_type} is available"
-fi
-
+zbc_test_get_wp_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
 target_lba=${target_slba}
 
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
