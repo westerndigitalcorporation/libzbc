@@ -26,6 +26,13 @@ if [ ${max_open} -eq -1 ]; then
     zbc_test_print_not_applicable "max_open not reported"
 fi
 
+if [ ${max_open} -eq 0 ]; then
+    if [ "${device_model}" != "Host-managed" ]; then
+    	zbc_test_print_not_applicable "Device is not Host-managed"
+    fi
+    zbc_test_print_not_applicable "max_open reported as zero"
+fi
+
 # Let us assume that all the available sequential zones are EMPTY...
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
