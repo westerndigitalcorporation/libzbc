@@ -42,7 +42,7 @@ zbc_test_get_cvt_domain_info
 
 # Find a CMR domain that is convertible to SMR
 # Assume there are two in a row
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
 fi
@@ -73,7 +73,7 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to convert domain to SMR type ${smr_type}"
 
 # Write an LBA in the second zone of the second domain to make it NON-EMPTY
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} 1
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${sect_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed"
 

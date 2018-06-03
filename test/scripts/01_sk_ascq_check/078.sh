@@ -26,13 +26,13 @@ zbc_test_get_wp_zone_or_NA "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing
-# Write 4 LBA starting at the write pointer
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 4
+# Write a block starting at the write pointer
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 if [ $? -ne 0 ]; then
     printf "\nInitial write failed"
 else
-    # Attempt to write 8 LBA from the same starting LBA, overwriting the 4 just written
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+    # Attempt to write more blocks to the same starting LBA, overwriting the ones just written
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 fi
 
 # Check result

@@ -38,14 +38,15 @@ if [ $? -ne 0 ]; then
 fi
 
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
-target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
+target_lba=$(( ${boundary_lba} - ${sect_per_pblk} ))	# last block before boundary
 
+# Start testing
 if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
     # Prepare zone for the cross-type write -- get WP close to the boundary
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
     zbc_test_fail_if_sk_ascq "Initial RESET_WP failed, zone_type=${target_type}"
 
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - 1 ))
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${sect_per_pblk} ))
     zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 fi
 
@@ -64,9 +65,8 @@ else
     write_check_available ${target_cond}		# sets expected_* if not
 fi
 
-# Start testing
 # Write across the boundary at the end of a zone-type in LBA space
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

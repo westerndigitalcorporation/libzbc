@@ -32,7 +32,7 @@ target_lba=${target_slba}
 
 # Start testing
 # Write the first few blocks of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
@@ -41,7 +41,8 @@ zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 if [ -z "${sk}" ]; then
     # Write more blocks in the zone
 
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_lba} + 5 )) 3
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} \
+				$(( ${target_lba} + ${sect_per_pblk} )) ${sect_per_pblk}
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 

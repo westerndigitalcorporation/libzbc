@@ -25,11 +25,13 @@ expected_asc="Invalid-field-in-cdb"		# write full zone
 zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 
 # Start testing
+# Make the zone FULL
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed, zone_type=${target_type}"
 
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${lblk_per_pblk}
+# Now try writing into the FULL zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${sect_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq

@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zone_cond_1=OPENH
+zone_cond_1=OPENH	# all but one physical block will be written
 zone_cond_2=FULL
 
 zbc_test_init $0 "WRITE cross-zone ${zone_cond_1}->${zone_cond_2} starting below Write Pointer" $*
@@ -26,12 +26,12 @@ zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"		# write cross-zone
 
-# Compute the last LBA below the write pointer of the first zone
+# Compute the last block below the write pointer of the first zone
 target_lba=$(( ${target_ptr} - 1 ))
 
 # Start testing
 # Write across the zone boundary starting below the WP of the first zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 16
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} + 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

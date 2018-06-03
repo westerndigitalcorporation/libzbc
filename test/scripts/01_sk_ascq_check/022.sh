@@ -62,7 +62,7 @@ for i in `seq $(( ${max_open} + 1 ))`; do
 
     target_lba=${target_slba}
 
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "Initial WRITE failed"
 

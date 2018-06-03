@@ -30,11 +30,11 @@ if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_XZONE}) ]]; then
 fi
 
 # Compute the last LBA of the first zone
-target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+target_lba=$(( ${target_slba} + ${target_size} - ${sect_per_pblk} ))
 
 # Start testing
 # Write across the zone boundary starting above the WP of the first zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

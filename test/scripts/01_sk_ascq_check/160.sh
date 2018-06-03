@@ -13,7 +13,7 @@
 . scripts/zbc_test_lib.sh
 
 zone_cond_1=FULL
-zone_cond_2=OPEN
+zone_cond_2=OPEN	# one physical block will be written
 
 zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} and ending above Write Pointer" $*
 
@@ -34,7 +34,7 @@ target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
 # Read across the zone boundary and beyond the WP of the second zone
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 16
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} + 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

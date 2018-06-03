@@ -26,7 +26,7 @@ zbc_test_get_wp_zone_or_NA "${ZC_NON_FULL}"
 target_lba=$(( ${target_ptr} + 1 ))	# unaligned write starting above WP
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq

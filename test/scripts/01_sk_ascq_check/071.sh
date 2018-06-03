@@ -24,17 +24,17 @@ expected_asc="Write-boundary-violation"		# write cross-zone
 # Search target LBA
 zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 
-nio=$(( (${target_size} - 1) / 8 ))
+nio=$(( (${target_size} - 1) / ${sect_per_pblk} ))
 
 # Start testing
 # Write the zone from empty to within a few LBA of the end
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} 8
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} ${sect_per_pblk}
 if [ $? -ne 0 ]; then
     printf "\nInitial write zone failed (target_size=${target_size} zone_type=${target_type})"
 else
     # Attempt to write through the remaining LBA of the zone and cross over into the next zone
-    target_lba=$(( ${target_slba} + ${nio} * 8 ))
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 16
+    target_lba=$(( ${target_slba} + ${nio} * ${sect_per_pblk} ))
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 fi
 
 # Check result

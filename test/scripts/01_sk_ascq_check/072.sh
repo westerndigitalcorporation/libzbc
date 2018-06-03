@@ -67,7 +67,7 @@ zbc_test_get_zone_info
 zbc_test_get_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
 target_lba=${target_slba}
 
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 8
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq

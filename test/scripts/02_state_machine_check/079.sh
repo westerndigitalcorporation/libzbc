@@ -35,7 +35,7 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial Zone OPEN failed, zone_type=${target_type}"
 
 # Write part of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 

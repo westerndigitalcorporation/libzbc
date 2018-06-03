@@ -26,12 +26,12 @@ zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"		# write cross-zone
 
-# Compute the last LBA of the first zone
-target_lba=$(( ${target_slba} + ${target_size} - 1 ))
+# Compute the start of the last physical block of the first zone
+target_lba=$(( ${target_slba} + ${target_size} - ${sect_per_pblk} ))
 
 # Start testing
 # Write across the zone boundary, stopping below the WP of the second zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 2
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

@@ -30,9 +30,9 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
 if [ -z "${sk}" ]; then
-    # Write some blocks into the FULL zone
-
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
+    # Write into the FULL zone
+    # If it is allowed, it should work to an unaligned end sector
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
     zbc_test_get_sk_ascq
 
     if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_FULL}) ]]; then

@@ -859,12 +859,12 @@ function zbc_test_zone_tuple_cond()
 			# already did the reset above
 			;;
 		"OPEN" | "open" | "0x2")
-			# IMPLICIT OPEN by writing the first 8 LBA of the zone
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 8
+			# IMPLICIT OPEN by writing the first ${sect_per_pblk} LBA of the zone
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${sect_per_pblk}
 			;;
 		"OPENH" | "openh")
-			# IMPLICIT OPEN by writing all but the last 8 LBA of the zone
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - 8 ))
+			# IMPLICIT OPEN by writing all but the last ${sect_per_pblk} LBA of the zone
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${sect_per_pblk} ))
 			;;
 		"FULL" | "full" | "0xe")
 			# FULL by writing the entire zone
@@ -959,6 +959,45 @@ function zbc_test_count_cvt_to_seq_domains()
 	IFS="$_IFS"
 }
 
+# Return non-zero if a domain found by zbc_test_search_* has zones R/O or offline
+function zbc_test_is_found_domain_faulty()
+{
+	local _target_slba
+	zbc_test_get_zone_info
+
+	zbc_test_search_vals_from_slba ${domain_seq_start}
+	for (( i=0 ; i<${domain_seq_len} ; i++ )) ; do
+		if [ $? -ne 0 ]; then
+			break
+		fi
+		if [ ${target_size} -eq 0 ]; then
+			break
+		fi
+		if [[ ${target_cond} == @(0xd|0xf) ]]; then
+			return 1
+		fi
+		_target_slba=$(( ${target_slba} + ${target_size} ))
+		zbc_test_search_vals_from_slba ${_target_slba}
+	done
+
+	zbc_test_search_vals_from_slba ${domain_conv_start}
+	for (( i=0 ; i<${domain_conv_len} ; i++ )) ; do
+		if [ $? -ne 0 ]; then
+			break
+		fi
+		if [ ${target_size} -eq 0 ]; then
+			break
+		fi
+		if [[ ${target_cond} == @(0xd|0xf) ]]; then
+			return 1
+		fi
+		_target_slba=$(( ${target_slba} + ${target_size} ))
+		zbc_test_search_vals_from_slba ${_target_slba}
+	done
+
+	return 0
+}
+
 function zbc_test_search_cvt_domain_by_number()
 {
 	local domain_number=`printf "%03u" "${1}"`
@@ -1016,7 +1055,10 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 
 			IFS="$_IFS"
 
+			zbc_test_is_found_domain_faulty
+			if [ $? -eq 0 ]; then
 			return 0
+			fi
 
 		else
 			_skip=$(( ${_skip} - 1 ))
@@ -1027,10 +1069,14 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 	return 1
 }
 
+
+# $1 is domain type, $2 is convertible_to
+# Optional $3 = "NOFAULTY" specifies to skip faulty domains
 function zbc_test_search_domain_by_type_and_cvt()
 {
 	local domain_search_type=${1}
-	local -i _skip=$(expr ${3:-0})
+	local -i _skip=0	# _skip=$(expr ${3:-0})
+	local _NOFAULTY="$3"
 	local cvt
 
 	case "${2}" in
@@ -1079,7 +1125,14 @@ function zbc_test_search_domain_by_type_and_cvt()
 
 			IFS="$_IFS"
 
+			if [ "${_NOFAULTY}" != "NOFAULTY" ]; then
 			return 0
+			fi
+
+			zbc_test_is_found_domain_faulty
+			if [ $? -eq 0 ]; then
+				return 0
+			fi
 
 		else
 			_skip=$(( ${_skip} - 1 ))

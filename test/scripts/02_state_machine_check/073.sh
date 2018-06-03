@@ -24,15 +24,14 @@ zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
-# Write the first few blocks of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 5
+# Write the first block of the zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
 if [ -z "${sk}" ]; then
-    # Write more blocks in the zone
-
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_lba} + 5 )) 3
+    # Write the next block in the zone
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_lba} + ${sect_per_pblk} )) ${sect_per_pblk}
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
