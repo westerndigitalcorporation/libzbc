@@ -10,7 +10,6 @@
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 
-. scripts/zbc_test_lib.sh
-
 test_zone_type="0x4"
+
 . scripts/01_sk_ascq_check/070.sh "$@"
