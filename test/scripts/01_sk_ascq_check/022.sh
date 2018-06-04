@@ -30,7 +30,7 @@ if [ ${max_open} -eq 0 ]; then
     if [ "${device_model}" != "Host-managed" ]; then
     	zbc_test_print_not_applicable "Device is not Host-managed"
     fi
-    zbc_test_print_not_applicable "Device reports max_open as zero"
+    zbc_test_print_not_applicable "WARNING: Device reports max_open as zero"
 fi
 
 # Let us assume that all the available sequential zones are EMPTY...
@@ -42,17 +42,26 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# Get the number of available EMPTY Sequential-write-required zones
-nr_avail_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} \
+# If there are no SWR zones, try testing with SWP zones instead
+nr_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} | wc -l`
+if [ ${nr_SWR_zones} -gt 0 ]; then
+    seq_zone_type=${ZT_SWR}	# primary test using Sequential-write-required
+else
+    # No SWR zones on the device -- use SWP (and expect a different result below)
+    seq_zone_type=${ZT_SWP}	# fallback test using Sequential-write-preferred
+fi
+
+# Get the number of available EMPTY sequential zones of the type we are using
+nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${seq_zone_type}" \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
-if [ ${max_open} -ge ${nr_avail_SWR_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_SWR_zones}) available zones" \
-				  "of type ${ZT_SWR} to exceed max_open (${max_open})"
+if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
+    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) EMPTY zones" \
+				  "of type ${seq_zone_type} to exceed max_open (${max_open})"
 fi
 
 # Start testing
-# Create more closed zones than the device is capable of having open at a time
+# Create more closed zones than the device is capable of having open (SWR) at a time
 declare -i count=0
 for i in `seq $(( ${max_open} + 1 ))`; do
 
@@ -60,12 +69,12 @@ for i in `seq $(( ${max_open} + 1 ))`; do
     zbc_test_get_zone_info
 
     # Search target LBA
-    zbc_test_search_vals_from_zone_type_and_cond "${ZT_SWR}" "${ZC_EMPTY}"
+    zbc_test_search_vals_from_zone_type_and_cond "${seq_zone_type}" "${ZC_EMPTY}"
     if [ $? -ne 0 ]; then
         zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
         # This should not happen because we counted enough zones above
 	zbc_test_print_not_applicable \
-		"WARNING: Expected EMPTY Sequential-Write-Required zone could not be found"
+		"WARNING: Expected EMPTY zone of type ${seq_zone_type} could not be found"
     fi
 
     target_lba=${target_slba}
@@ -85,9 +94,12 @@ zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
+    zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+else
+    zbc_test_check_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+fi
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 rm -f ${zone_info_file}
-
