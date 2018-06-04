@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on mixed CMR-SMR device" $*
+zbc_test_init $0 "Run ZBC test on mixed conventional-sequential device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix
 
@@ -23,23 +23,24 @@ if [ ${seq_req_zone} -ne 0 ]; then
 elif [ ${seq_pref_zone} -ne 0 ]; then
     smr_type="seqp"
 else
-    zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+    zbc_test_print_not_applicable "Sequential zones are not supported by the device"
 fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Convert roughly half of the domains to SMR -
-# Find a CMR domain that is convertible to SMR
+# Convert roughly half of the domains to sequential -
+# Find a conventional domain that is convertible to sequential
 zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
+    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
 fi
 
 # Find the total number of convertible domains
 zbc_test_count_cvt_domains		# nr_domains
 zbc_test_count_cvt_to_seq_domains
 if [ $nr_cvt_to_seq_domains -eq 0 ]; then
+    # This should not happen because we found one just above
     zbc_test_print_failed "No domains are convertible to sequential"
 fi
 if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -gt ${nr_domains} ]; then

@@ -24,7 +24,7 @@ zbc_test_get_device_info
 zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
 expected_sk="Illegal-request"
-expected_asc="Read-boundary-violation"		# SWR read cross-zone
+expected_asc="Read-boundary-violation"		# Sequential-write-required read cross-zone
 
 # Compute the last LBA of the first zone
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))

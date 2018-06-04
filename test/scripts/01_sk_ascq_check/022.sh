@@ -23,14 +23,14 @@ expected_asc="Insufficient-zone-resources"
 zbc_test_get_device_info
 
 if [ ${max_open} -eq -1 ]; then
-    zbc_test_print_not_applicable "max_open not reported"
+    zbc_test_print_not_applicable "Device does not report max_open"
 fi
 
 if [ ${max_open} -eq 0 ]; then
     if [ "${device_model}" != "Host-managed" ]; then
     	zbc_test_print_not_applicable "Device is not Host-managed"
     fi
-    zbc_test_print_not_applicable "max_open reported as zero"
+    zbc_test_print_not_applicable "Device reports max_open as zero"
 fi
 
 # Let us assume that all the available sequential zones are EMPTY...
@@ -42,13 +42,13 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# Get the number of available EMPTY SWR zones
+# Get the number of available EMPTY Sequential-write-required zones
 nr_avail_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
 if [ ${max_open} -ge ${nr_avail_SWR_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_SWR_zones}) available SWR zones" \
-				  "to exceed max_open (${max_open})"
+    zbc_test_print_not_applicable "Not enough (${nr_avail_SWR_zones}) available zones" \
+				  "of type ${ZT_SWR} to exceed max_open (${max_open})"
 fi
 
 # Start testing
@@ -64,7 +64,8 @@ for i in `seq $(( ${max_open} + 1 ))`; do
     if [ $? -ne 0 ]; then
         zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
         # This should not happen because we counted enough zones above
-        zbc_test_print_not_applicable "WARNING: No EMPTY SWR zone could be found"
+	zbc_test_print_not_applicable \
+		"WARNING: Expected EMPTY Sequential-Write-Required zone could not be found"
     fi
 
     target_lba=${target_slba}

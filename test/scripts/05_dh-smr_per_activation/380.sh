@@ -41,25 +41,25 @@ fi
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find a CMR domain that is convertible to SMR
+# Find a conventional domain that is convertible to sequential
 zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
+    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
 fi
 expected_err_cbf="${domain_seq_start}"
 
 # Start testing
-# Convert the domain to SMR
+# Convert the domain to sequential
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to convert domain to SMR type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
 
 # Make the first zone of the domain non-empty
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${sect_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed"
 
-# Now try to convert the domain from SMR back to CMR
+# Now try to convert the domain from sequential back to conventional
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
 
 # Check result

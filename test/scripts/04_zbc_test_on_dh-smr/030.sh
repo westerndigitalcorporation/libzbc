@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on converted back to CMR device" $*
+zbc_test_init $0 "Run ZBC test on converted back to conventional device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/allcmr2
 
@@ -23,23 +23,24 @@ if [ ${conv_zone} -ne 0 ]; then
 elif [ ${wpc_zone} -ne 0 ]; then
     cmr_type="wpc"
 else
-    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+    zbc_test_print_not_applicable "Conventional zones are not supported by the device"
 fi
 
 # Get conversion domain information
 zbc_test_get_cvt_domain_info
 
-# Find the first SMR domain that is convertible to CMR
+# Find the first sequential domain that is convertible to conventional
 zbc_test_search_domain_by_type_and_cvt "${ZT_SEQ}" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SMR and convertible to CMR"
+    zbc_test_print_not_applicable "No domain is currently sequential and convertible to conventional"
 fi
 
 # Find the total number of convertible domains
 zbc_test_count_cvt_domains		# nr_domains
 zbc_test_count_cvt_to_conv_domains
 if [ $nr_cvt_to_conv_domains -eq 0 ]; then
-    zbc_test_print_failed "No domains are convertible to conventional"
+    # This should not happen because we found one just above
+    zbc_test_print_failed "WARNING: No domains are convertible to conventional"
 fi
 if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; then
     nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")

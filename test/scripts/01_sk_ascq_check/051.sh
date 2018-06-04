@@ -27,7 +27,6 @@ zbc_test_get_zone_info
 
 # Search target LBA
 zbc_test_search_vals_from_zone_type_and_cond "${ZT_NON_SEQ}" "${ZC_NON_FULL}"
-
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No suitable non-sequential zone is available"
 fi

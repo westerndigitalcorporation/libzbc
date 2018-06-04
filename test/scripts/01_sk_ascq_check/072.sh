@@ -23,7 +23,7 @@ expected_asc="Insufficient-zone-resources"
 zbc_test_get_device_info
 
 if [ ${max_open} -eq -1 ]; then
-    zbc_test_print_not_applicable "max_open not reported"
+    zbc_test_print_not_applicable "Device does not report max_open"
 fi
 
 # Let us assume that all the available sequential zones are EMPTY...
@@ -32,13 +32,13 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# See if there are any SWR zones at all
+# If there are no SWR zones, try testing with SWP zones instead
 nr_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} | wc -l`
 if [ ${nr_SWR_zones} -gt 0 ]; then
-    seq_zone_type=${ZT_SWR}		# primary test
+    seq_zone_type=${ZT_SWR}	# primary test using Sequential-write-required
 else
     # No SWR zones on the device -- use SWP (and expect a different result below)
-    seq_zone_type=${ZT_SWP}		# fallback test
+    seq_zone_type=${ZT_SWP}	# fallback test using Sequential-write-preferred
 fi
 
 # Get the number of available EMPTY sequential zones of the type we are using

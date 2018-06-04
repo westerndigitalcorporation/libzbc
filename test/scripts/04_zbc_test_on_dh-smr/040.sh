@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on another mixed CMR-SMR device" $*
+zbc_test_init $0 "Run ZBC test on another mixed conventional-sequential device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix2
 
@@ -23,7 +23,7 @@ if [ ${conv_zone} -ne 0 ]; then
 elif [ ${wpc_zone} -ne 0 ]; then
     cmr_type="wpc"
 else
-    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+    zbc_test_print_not_applicable "Conventional zones are not supported by the device"
 fi
 
 if [ ${seq_req_zone} -ne 0 ]; then
@@ -31,7 +31,7 @@ if [ ${seq_req_zone} -ne 0 ]; then
 elif [ ${seq_pref_zone} -ne 0 ]; then
     smr_type="seqp"
 else
-    zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+    zbc_test_print_not_applicable "Sequential zones are not supported by the device"
 fi
 
 # Get conversion domain information
@@ -45,7 +45,7 @@ if [ ${nr_domains} -le 6 ]; then
 fi
 
 # Configure the conversion domains, with all domains freshly converted except 0 and 5.
-# This ends up with all conversion domains SMR except domains 0-20 and the last domain.
+# This ends up with all conversion domains sequential except domains 0-20 and the last domain.
 
 activate_fail()
 {
