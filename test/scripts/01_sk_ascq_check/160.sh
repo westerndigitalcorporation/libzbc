@@ -40,9 +40,9 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${sec
 zbc_test_get_sk_ascq
 if [[ ${unrestricted_read} -ne 0 || \
 	${target_type} != @(${ZT_RESTRICT_READ_GE_WP}|${ZT_RESTRICT_READ_XZONE}) ]]; then
-    zbc_test_check_no_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
+    zbc_test_check_no_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 else
-    zbc_test_check_sk_ascq zone_type=${target_type} URSWRZ=${unrestricted_read}
+    zbc_test_check_sk_ascq "zone_type=${target_type} URSWRZ=${unrestricted_read}"
 fi
 
 # Post process
