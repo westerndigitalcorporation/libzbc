@@ -242,8 +242,12 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	}
 }
 
-#define ZBC_SG_FLAG_Q_AT_TAIL	0x10
+#ifdef SG_FLAG_DIRECT_IO
+#define ZBC_SG_FLAG_DIRECT_IO	SG_FLAG_DIRECT_IO
+#else
 #define ZBC_SG_FLAG_DIRECT_IO	0x01
+#endif
+#define ZBC_SG_FLAG_Q_AT_TAIL	0x10
 
 /**
  * Initialize a command.
