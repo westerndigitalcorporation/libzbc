@@ -38,7 +38,7 @@ zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} -1
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq
