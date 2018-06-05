@@ -17,9 +17,6 @@ red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
 
-section_num=""
-case_num=""
-
 # For test script creation:
 
 function zbc_test_init()
@@ -31,11 +28,11 @@ function zbc_test_init()
 	fi
 
 	# Store argument
-	_cmd_base=${1##*/}
-	desc="$2"
+	local _cmd_base=${1##*/}
+	local desc="$2"
 	bin_path="$3"
-	log_path="$4"
-	section_num="$5"
+	local log_path="$4"
+	local section_num="$5"
 	device="$6"
 
 	# Case number within section
@@ -92,20 +89,20 @@ function zbc_test_get_device_info()
 		exit 1
 	fi
 
-	_IFS="${IFS}"
-	IFS=','
+	local _IFS="${IFS}"
+	IFS=$',\n'
 
-	device_model_line=`cat ${log_file} | grep -F "[DEVICE_MODEL]"`
+	local device_model_line=`cat ${log_file} | grep -F "[DEVICE_MODEL]"`
 	set -- ${device_model_line}
 	device_model=${2}
 	zbc_check_string "Failed to get device model" ${device_model}
 
-	max_open_line=`cat ${log_file} | grep -F "[MAX_NUM_OF_OPEN_SWRZ]"`
+	local max_open_line=`cat ${log_file} | grep -F "[MAX_NUM_OF_OPEN_SWRZ]"`
 	set -- ${max_open_line}
 	max_open=${2}
 	zbc_check_string "Failed to get maximum number of open zones" ${max_open}
 
-	max_lba_line=`cat ${log_file} | grep -F "[MAX_LBA]"`
+	local max_lba_line=`cat ${log_file} | grep -F "[MAX_LBA]"`
 	set -- ${max_lba_line}
 	max_lba=${2}
 	zbc_check_string "Failed to get maximum LBA" ${max_lba}
@@ -120,17 +117,17 @@ function zbc_test_get_device_info()
 	physical_block_size=${2}
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
-	unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
+	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
 	unrestricted_read=${2}
 	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
-	last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
+	local last_zone_lba_line=`cat ${log_file} | grep -F "[LAST_ZONE_LBA]"`
 	set -- ${last_zone_lba_line}
 	last_zone_lba=${2}
 	zbc_check_string "Failed to get last zone start LBA" ${last_zone_lba}
 
-	last_zone_size_line=`cat ${log_file} | grep -F "[LAST_ZONE_SIZE]"`
+	local last_zone_size_line=`cat ${log_file} | grep -F "[LAST_ZONE_SIZE]"`
 	set -- ${last_zone_size_line}
 	last_zone_size=${2}
 	zbc_check_string "Failed to get last zone size" ${last_zone_size}
@@ -140,11 +137,10 @@ function zbc_test_get_device_info()
 
 function zbc_test_get_zone_info()
 {
-
 	if [ $# -eq 1 ]; then
-		ro=${1}
+		local ro="${1}"
 	else
-		ro="0"
+		local ro="0"
 	fi
 
 	local _cmd="${bin_path}/zbc_test_report_zones -ro ${ro} ${device}"
@@ -177,21 +173,21 @@ function zbc_test_count_seq_zones()
 function zbc_test_open_nr_zones()
 {
 	local zone_type="0x2"
-	declare -i count=0
+	local -i count=0
 
-	open_num=${1}
+	local -i open_num=${1}
 
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
-		zone_type=${3}
-		zone_cond=${4}
-		start_lba=${5}
-		zone_size=${6}
-		write_ptr=${7}
+		local zone_type=${3}
+		local zone_cond=${4}
+		local start_lba=${5}
+		local zone_size=${6}
+		local write_ptr=${7}
 
 		IFS="$_IFS"
 
@@ -210,13 +206,13 @@ function zbc_test_open_nr_zones()
 function zbc_test_search_vals_from_zone_type()
 {
 
-	zone_type=${1}
+	local zone_type="${1}"
 
 	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},.*,.*,.*,.*"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -237,13 +233,13 @@ function zbc_test_search_vals_from_zone_type()
 function zbc_test_search_vals_from_slba()
 {
 
-	start_lba=${1}
+	local start_lba=${1}
 
 	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,.*,.*,${start_lba},.*,.*"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -263,15 +259,14 @@ function zbc_test_search_vals_from_slba()
 
 function zbc_test_search_vals_from_zone_type_and_cond()
 {
-
-	zone_type=${1}
-	zone_cond=${2}
+	local zone_type="${1}"
+	local zone_cond="${2}"
 
 	# [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
 	for _line in `cat ${zone_info_file} | grep "\[ZONE_INFO\],.*,${zone_type},${zone_cond},.*,.*,.*"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -292,13 +287,13 @@ function zbc_test_search_vals_from_zone_type_and_cond()
 function zbc_test_search_vals_from_zone_type_and_ignored_cond()
 {
 
-	zone_type=${1}
-	zone_cond=${2}
+	local zone_type="${1}"
+	local zone_cond="${2}"
 
 	for _line in `cat ${zone_info_file} | grep -F "[ZONE_INFO]"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
 		target_type=${3}
@@ -326,15 +321,15 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 
 	for _line in `cat ${zone_info_file} | grep -F "[ZONE_INFO]"`; do
 
-		_IFS="${IFS}"
-		IFS=','
+		local _IFS="${IFS}"
+		IFS=$',\n'
 		set -- ${_line}
 
-		local_type=${3}
-		local_cond=${4}
-		local_slba=${5}
-		local_size=${6}
-		local_ptr=${7}
+		local local_type=${3}
+		local local_cond=${4}
+		local local_slba=${5}
+		local local_size=${6}
+		local local_ptr=${7}
 
 		IFS="$_IFS"
 
@@ -363,14 +358,14 @@ function zbc_test_get_sk_ascq()
 	sk=""
 	asc=""
 
-	_IFS="${IFS}"
-	IFS=','
+	local _IFS="${IFS}"
+	IFS=$',\n'
 
-	sk_line=`cat ${log_file} | grep -m 1 -F "[SENSE_KEY]"`
+	local sk_line=`cat ${log_file} | grep -m 1 -F "[SENSE_KEY]"`
 	set -- ${sk_line}
 	sk=${2}
 
-	asc_line=`cat ${log_file} | grep -m 1 -F "[ASC_ASCQ]"`
+	local asc_line=`cat ${log_file} | grep -m 1 -F "[ASC_ASCQ]"`
 	set -- ${asc_line}
 	asc=${2}
 
@@ -431,12 +426,10 @@ function zbc_test_check_no_sk_ascq()
 
 function zbc_test_print_failed_zc()
 {
-	echo "" >> ${log_file} 2>&1
-	echo "Failed" >> ${log_file} 2>&1
-	echo "=> Expected zone_condition ${expected_cond}, Got ${target_cond}" >> ${log_file} 2>&1
+	zbc_test_print_res "${red}" "Failed"
 
-	echo -e "\r\e[120C[${red}Failed${end}]"
-	echo "            => Expected zone_condition ${expected_cond}"
+	echo "=> Expected zone condition ${expected_cond}, Got ${target_cond}" >> ${log_file} 2>&1
+	echo "            => Expected zone condition ${expected_cond}"
 	echo "               Got ${target_cond}"
 }
 
@@ -475,4 +468,3 @@ function zbc_test_check_failed()
 
 	return 0
 }
-
