@@ -14,7 +14,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "FINISH_ZONE full to empty" $*
+zbc_test_init $0 "RESET_WRITE_PTR full to empty" $*
 
 # Set expected error code
 expected_sk=""
