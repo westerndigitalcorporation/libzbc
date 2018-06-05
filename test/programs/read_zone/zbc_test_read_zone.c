@@ -98,8 +98,9 @@ int main(int argc, char **argv)
 		const char *ascq_name;
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_read_zone failed %zd\n",
-			ret);
+			"[TEST][ERROR],zbc_read_zone failed %zd,"
+			" sector=%llu, sector_count=%u\n",
+			ret, sector, sector_count);
 
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);

@@ -118,6 +118,9 @@ usage:
 		goto out;
 	}
 
+	/* Don't send uninitialized bytes to syscall */
+	memset(iobuf, 0, iosize);
+
 	while (nio) {
 
 		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
@@ -127,8 +130,9 @@ usage:
 			const char *ascq_name;
 
 			fprintf(stderr,
-				"[TEST][ERROR],zbc_write_zone failed %zd\n",
-				ret);
+				"[TEST][ERROR],zbc_write_zone failed %zd,"
+				" sector= %llu, sector_count=%u\n",
+				ret, sector, sector_count);
 
 			zbc_errno(dev, &zbc_err);
 			sk_name = zbc_sk_str(zbc_err.sk);
