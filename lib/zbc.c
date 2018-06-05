@@ -549,7 +549,14 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	size_t sz, rd_count = 0;
 	ssize_t ret;
 
-	if (!zbc_test_mode(dev)) {
+	if (zbc_test_mode(dev)) {
+		if (!count) {
+			zbc_error("%s: zero-length read at sector %llu\n",
+				  dev->zbd_filename,
+				  (unsigned long long) offset);
+			return -EINVAL;
+		}
+	} else {
 		if (!zbc_dev_sect_laligned(dev, count) ||
 		    !zbc_dev_sect_laligned(dev, offset)) {
 			zbc_error("%s: Unaligned read %zu sectors at sector %llu\n",
@@ -557,17 +564,27 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 				  count, (unsigned long long) offset);
 			return -EINVAL;
 		}
-	}
 
-	if ((offset + count) > dev->zbd_info.zbd_sectors)
-		count = dev->zbd_info.zbd_sectors - offset;
-	if (!count ||
-	    offset >= dev->zbd_info.zbd_sectors)
-		return 0;
+		if ((offset + count) > dev->zbd_info.zbd_sectors)
+			count = dev->zbd_info.zbd_sectors - offset;
+		if (!count || offset >= dev->zbd_info.zbd_sectors)
+			return 0;
+	}
 
 	zbc_debug("%s: Read %zu sectors at sector %llu\n",
 		  dev->zbd_filename,
 		  count, (unsigned long long) offset);
+
+	if (zbc_test_mode(dev) && count == 0) {
+		ret = (dev->zbd_drv->zbd_pread)(dev, buf, count, offset);
+		if (ret < 0) {
+			zbc_error("%s: read of zero sectors at sector %llu failed %ld (%s)\n",
+				  dev->zbd_filename,
+				  (unsigned long long) offset,
+				  -ret, strerror(-ret));
+		}
+		return ret;
+	}
 
 	while (count) {
 
@@ -605,7 +622,14 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	size_t sz, wr_count = 0;
 	ssize_t ret;
 
-	if (!zbc_test_mode(dev)) {
+	if (zbc_test_mode(dev)) {
+		if (!count) {
+			zbc_error("%s: zero-length write at sector %llu\n",
+				  dev->zbd_filename,
+				  (unsigned long long) offset);
+			return -EINVAL;
+		}
+	} else {
 		if (!zbc_dev_sect_paligned(dev, count) ||
 		    !zbc_dev_sect_paligned(dev, offset)) {
 			zbc_error("%s: Unaligned write %zu sectors at sector %llu\n",
@@ -613,16 +637,27 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 				  count, (unsigned long long) offset);
 			return -EINVAL;
 		}
-	}
 
-	if ((offset + count) > dev->zbd_info.zbd_sectors)
-		count = dev->zbd_info.zbd_sectors - offset;
-	if (!count || offset >= dev->zbd_info.zbd_sectors)
-		return 0;
+		if ((offset + count) > dev->zbd_info.zbd_sectors)
+			count = dev->zbd_info.zbd_sectors - offset;
+		if (!count || offset >= dev->zbd_info.zbd_sectors)
+			return 0;
+	}
 
 	zbc_debug("%s: Write %zu sectors at sector %llu\n",
 		  dev->zbd_filename,
 		  count, (unsigned long long) offset);
+
+	if (zbc_test_mode(dev) && count == 0) {
+		ret = (dev->zbd_drv->zbd_pwrite)(dev, buf, count, offset);
+		if (ret < 0) {
+			zbc_error("%s: Write of zero sectors at sector %llu failed %ld (%s)\n",
+				  dev->zbd_filename,
+				  (unsigned long long) offset,
+				  -ret, strerror(-ret));
+		}
+		return ret;
+	}
 
 	while (count) {
 
