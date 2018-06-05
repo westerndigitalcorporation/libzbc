@@ -153,6 +153,48 @@ function zbc_test_get_zone_info()
 	return 0
 }
 
+### [ZONE_INFO],<id>,<type>,<cond>,<slba>,<size>,<ptr>
+
+# Issue all zone records to a pipeline
+function zbc_zones()
+{
+	cat ${zone_info_file} | grep -E "\[ZONE_INFO\]"
+}
+
+# Remove zones with NON-matching types from the pipeline
+# $1 examples:	0x1		match conventional zones, filter others out
+#		0x2|0x3		match sequential zones, filter others out
+function zbc_zone_filter_in_type()
+{
+	grep -E "\[ZONE_INFO\],.*,($1),.*,.*,.*,.*"
+}
+
+# Remove zones with MATCHING types from the pipeline
+# $1 examples:	0x1		filter conventional zones out of the pipeline
+#		0x2|0x3		filter sequential zones out of the pipeline
+function zbc_zone_filter_out_type()
+{
+	grep -v -E "\[ZONE_INFO\],.*,($1),.*,.*,.*,.*"
+}
+
+# Remove zones with NON-matching conditions from the pipeline
+# $1 examples:	0x1		match empty zones, filter others out
+#		0x2|0x3		match open zones, filter others out
+function zbc_zone_filter_in_cond()
+{
+	local zone_cond="$1"
+	grep -E "\[ZONE_INFO\],.*,.*,($1),.*,.*,.*"
+}
+
+# Remove zones with MATCHING conditions from the pipeline
+# $1 examples:	0x1		filter empty zones out of pipeline
+#		0x2|0x3		filter open zones out of pipeline
+function zbc_zone_filter_out_cond()
+{
+	local zone_cond="$1"
+	grep -v -E "\[ZONE_INFO\],.*,.*,($1),.*,.*,.*"
+}
+
 # Preparation functions
 
 function zbc_test_count_zones()
