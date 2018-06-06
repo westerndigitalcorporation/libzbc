@@ -1157,17 +1157,7 @@ enum zbc_reporting_options {
 	 */
 	ZBC_RO_NON_SEQ		= 0x11,
 
-	/* 12h to 39h Reserved */
-
-	/**
-	 * List of the zones with a Zone Condition of CMR CLEAR.
-	 */
-        ZBC_RO_CMR_CLEAR        = 0x3a,
-
-        /**
-         * List of the zones with a Zone Condition of CMR WP.
-         */
-        ZBC_RO_CMR_WP           = 0x3b,
+	/* 12h to 3Eh Reserved */
 
         /**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
