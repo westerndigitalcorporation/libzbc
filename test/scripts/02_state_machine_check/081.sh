@@ -22,18 +22,10 @@ zbc_test_get_device_info
 # Get zone information
 zbc_test_get_zone_info
 
-# Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY Sequential zones"
-fi
+zbc_test_get_seq_zone_set_cond_or_NA "EOPEN"
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial Zone OPEN failed, zone_type=${target_type}"
-
 # Write the entire zone
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${target_size}
 zbc_test_get_sk_ascq
