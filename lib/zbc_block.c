@@ -16,6 +16,8 @@
 #include "zbc.h"
 #include "zbc_sg.h"
 
+#include <assert.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -62,35 +64,51 @@ static inline struct zbc_block_device *zbc_dev_to_block(struct zbc_device *dev)
 	return container_of(dev, struct zbc_block_device, dev);
 }
 
-/**
- * Test if the device is a device mapper target.
- */
-static int zbc_block_is_dm_dev(struct stat *st)
+static int dir_has(const char *dir, const char *entry)
 {
-	char line[128];
-	char dev_type[32];
-	int ret, dm_major = -1;
-	FILE *file;
+	struct dirent *e;
+	int res = 0;
+	DIR *d;
 
-	/* Open the start offset file of the partition */
-	file = fopen("/proc/devices", "r");
-	if (!file)
-		return 0;
+	d = opendir(dir);
+	if (!d)
+		return -errno;
+	while ((e = readdir(d)) != NULL) {
+		if (strcmp(e->d_name, entry) == 0) {
+			res = 1;
+			break;
+		}
+	}
+	closedir(d);
+	return res;
+}
 
-	while (fgets(line, sizeof(line), file)) {
-		ret = sscanf(line, "%d %s", &dm_major, dev_type);
-		if (ret != 2)
+static int zbc_block_is_scsi_dev(const char *zbd_filename)
+{
+	struct dirent *e;
+	char *path;
+	int res = 0;
+	DIR *d;
+
+	assert(strncmp(zbd_filename, "/dev/", 5) == 0);
+	d = opendir("/sys/class/scsi_device");
+	if (!d)
+		goto out;
+	while ((e = readdir(d)) != NULL) {
+		if (e->d_name[0] == '.')
 			continue;
-		if (strcmp(dev_type, "device-mapper") == 0)
+		if (asprintf(&path, "/sys/class/scsi_device/%s/device/block",
+			     e->d_name) < 0) {
+			res = -ENOMEM;
+			break;
+		}
+		res = dir_has(path, zbd_filename + 5);
+		if (res > 0)
 			break;
 	}
-
-	fclose(file);
-
-	if (dm_major == -1)
-		return 0;
-
-	return major(st->st_rdev) == (unsigned int)dm_major;
+	closedir(d);
+out:
+	return res;
 }
 
 /**
@@ -159,44 +177,18 @@ static int zbc_block_open_holder(struct zbc_device *dev)
 static int zbc_block_handle_partition(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	unsigned long long size;
-	unsigned int major, minor = 0;
-	unsigned int dev_minor;
+	struct stat statbuf;
 	char *dev_name = basename(dev->zbd_filename);
-	char str[128];
-	char part_name[128];
-	FILE *file;
+	char *path;
+	struct dirent *e;
 	int ret = 0;
 
-	zbd->is_part = 0;
 	zbd->part_name = dev_name;
 
-	/* Check that this is a zoned block device */
-	file = fopen("/proc/partitions", "r");
-	if (!file) {
-		ret = -EIO;
-		goto not_part;
-	}
-
-	fgets(str, sizeof(str), file);
-	fgets(str, sizeof(str), file);
-	while (1) {
-
-		ret = fscanf(file,
-			     " %u %u %llu %s",
-			     &major, &minor, &size, part_name);
-		if (ret != 4) {
-			ret = 0;
-			break;
-		}
-
-		if (strcmp(dev_name, part_name) == 0 &&
-		    minor & 15U) {
-			zbd->is_part = 1;
-			break;
-		}
-
-	}
+	if (asprintf(&path, "/sys/class/block/%s/partition", dev_name) < 0)
+		return -ENOMEM;
+	zbd->is_part = stat(path, &statbuf) == 0;
+	free(path);
 
 	if (!zbd->is_part) {
 not_part:
@@ -206,25 +198,17 @@ not_part:
 		goto out;
 	}
 
-	/* Get the partition holder name */
-	dev_minor = minor & ~15U;
-	rewind(file);
-	fgets(str, sizeof(str), file);
-	fgets(str, sizeof(str), file);
-	while (1) {
-
-		ret = fscanf(file,
-			     " %u %u %llu %s",
-			     &major, &minor, &size, part_name);
-		if (ret != 4)
+	DIR *d = opendir("/sys/block");
+	while (d && !zbd->holder_name && (e = readdir(d)) != NULL) {
+		if (e->d_name[0] == '.')
 			continue;
-
-		if (minor == dev_minor) {
-			zbd->holder_name = strdup(part_name);
-			break;
-		}
-
+		if (asprintf(&path, "/sys/block/%s/%s", e->d_name, dev_name) < 0)
+			continue;
+		if (stat(path, &statbuf) == 0)
+			zbd->holder_name = strdup(dev_name);
+		free(path);
 	}
+	closedir(d);
 
 	if (!zbd->holder_name) {
 		zbd->is_part = 0;
@@ -236,8 +220,6 @@ not_part:
 		ret = zbc_block_open_holder(dev);
 
 out:
-	fclose(file);
-
 	return ret;
 }
 
@@ -370,9 +352,7 @@ static int zbc_block_get_info(struct zbc_device *dev,
 {
 	unsigned long long size64;
 	int size32;
-	int is_dm_dev, ret;
-
-	is_dm_dev = zbc_block_is_dm_dev(st);
+	int ret;
 
 	/* Check if we are dealing with a partition */
 	ret = zbc_block_handle_partition(dev);
@@ -454,12 +434,7 @@ static int zbc_block_get_info(struct zbc_device *dev,
 		strncpy(dev->zbd_info.zbd_vendor_id,
 			"Unknown", ZBC_DEVICE_INFO_LENGTH - 1);
 
-	/*
-	 * Use SG_IO to get zone characteristics (maximum number of open
-	 * zones, etc), but not for device mapper targets. For those, SG_IO
-	 * will not work, so use default values.
-	 */
-	if (is_dm_dev) {
+	if (zbc_block_is_scsi_dev(dev->zbd_filename) <= 0) {
 		/* Use defaults */
 		dev->zbd_info.zbd_flags |= ZBC_UNRESTRICTED_READ;
 		if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
