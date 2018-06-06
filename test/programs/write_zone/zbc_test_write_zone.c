@@ -118,20 +118,21 @@ usage:
 		goto out;
 	}
 
-	memset(iobuf, 0, iosize);  // don't send uninitialized bytes to syscall
+	/* Don't send uninitialized bytes to syscall */
+	memset(iobuf, 0, iosize);
 
 	while (nio) {
 
 		ret = zbc_pwrite(dev, iobuf, sector_count, sector);
-		if (ret < 0) {
+		if (ret != sector_count) {
 			struct zbc_errno zbc_err;
 			const char *sk_name;
 			const char *ascq_name;
 
 			fprintf(stderr,
-				"[TEST][ERROR],zbc_write_zone failed %zd,"
-				" sector= %llu, sector_count=%u\n",
-				ret, sector, sector_count);
+				"[TEST][ERROR],zbc_write_zone failed %zd"
+				" sector_count=%u\n",
+				ret, sector_count);
 
 			zbc_errno(dev, &zbc_err);
 			sk_name = zbc_sk_str(zbc_err.sk);

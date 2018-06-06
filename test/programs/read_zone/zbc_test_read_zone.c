@@ -92,15 +92,15 @@ int main(int argc, char **argv)
 	}
 
 	ret = zbc_pread(dev, iobuf, sector_count, sector);
-	if (ret < 0) {
+	if (ret != sector_count) {
 		struct zbc_errno zbc_err;
 		const char *sk_name;
 		const char *ascq_name;
 
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_read_zone failed %zd,"
-			" sector=%llu, sector_count=%u\n",
-			ret, sector, sector_count);
+			"[TEST][ERROR],zbc_read_zone failed %zd"
+			" sector_count=%u\n",
+			ret, sector_count);
 
 		zbc_errno(dev, &zbc_err);
 		sk_name = zbc_sk_str(zbc_err.sk);
