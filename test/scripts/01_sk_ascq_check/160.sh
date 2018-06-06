@@ -13,7 +13,7 @@
 . scripts/zbc_test_lib.sh
 
 zone_cond_1=FULL
-zone_cond_2=OPEN	# one physical block will be written
+zone_cond_2=IOPENL	# one physical block will be written
 
 zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} and ending above Write Pointer" $*
 

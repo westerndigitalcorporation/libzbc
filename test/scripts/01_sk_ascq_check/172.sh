@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zone_cond_1=OPENH	# all but one physical block will be written
+zone_cond_1=IOPENH	# all but one physical block will be written
 zone_cond_2=FULL
 
 zbc_test_init $0 "WRITE cross-zone ${zone_cond_1}->${zone_cond_2} starting below Write Pointer" $*

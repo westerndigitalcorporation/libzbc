@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zone_cond_1=OPEN
+zone_cond_1=IOPENL
 zone_cond_2=FULL
 
 zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} starting above Write Pointer" $*
