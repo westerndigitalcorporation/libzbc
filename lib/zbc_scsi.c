@@ -631,7 +631,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	if (dev->zbd_info.zbd_lblock_size == 0) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
-		ret = -EINVAL;
+		ret = -EIO;
 		goto out;
 	}
 
@@ -681,7 +681,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	if (!dev->zbd_info.zbd_lblocks) {
 		zbc_error("%s: invalid capacity (logical blocks)\n",
 			  dev->zbd_filename);
-		ret = -EINVAL;
+		ret = -EIO;
 		goto out;
 	}
 
