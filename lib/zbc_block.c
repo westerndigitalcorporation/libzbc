@@ -538,6 +538,9 @@ static int zbc_block_open(const char *filename, int flags,
 	return 0;
 
 out_free_filename:
+	if (zbd->holder_name)
+		free(zbd->holder_name);
+
 	free(dev->zbd_filename);
 
 out_free_dev:
