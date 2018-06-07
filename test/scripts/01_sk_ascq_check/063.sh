@@ -21,18 +21,10 @@ expected_sk="Illegal-request"
 expected_asc="Read-boundary-violation"		# read cross-zone
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
+zbc_test_get_wp_zone_tuple_cond_or_NA "FULL" "FULL"
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed (first zone), zone_type=${target_type}"
-
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_slba} + ${target_size} )) ${target_size}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed (second zone), zone_type=${target_type}"
-
 zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 
 # Check result
