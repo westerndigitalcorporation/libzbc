@@ -489,6 +489,8 @@ function zbc_run_gamut()
 	)
     done
 
+    echo -e "\n\n######### `date` Last test completed"	# for the datestamp
+
     set_logfile "fini"
 
     # When done, set the device back to default
