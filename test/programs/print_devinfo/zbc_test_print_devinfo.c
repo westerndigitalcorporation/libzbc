@@ -55,12 +55,33 @@ int main(int argc, char **argv)
 	struct zbc_zone last_zone;
 	unsigned int oflags;
 	int ret;
+	int i;
 
-	/* Check command line */
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <dev>\n", argv[0]);
-		return 1;
-	}
+        /* Check command line */
+        if (argc < 2) {
+usage:
+                fprintf(stderr,
+                        "Usage: %s [-v] <dev>\n"
+                        "Options:\n"
+                        "    -v         : Verbose mode\n",
+                        argv[0]);
+                return 1;
+        }
+
+        /* Parse options */
+        for (i = 1; i < (argc - 1); i++) {
+                if (strcmp(argv[i], "-v") == 0) {
+                        zbc_set_log_level("debug");
+                } else if (argv[i][0] == '-') {
+                        printf("Unknown option \"%s\"\n", argv[i]);
+                        goto usage;
+                } else {
+                        break;
+                }
+        }
+
+        if (i != argc - 1)
+                goto usage;
 
 	/* Open device */
 	oflags = ZBC_O_DEVTEST;
@@ -68,7 +89,7 @@ int main(int argc, char **argv)
 	if (!getenv("ZBC_TEST_FORCE_ATA"))
 		oflags |= ZBC_O_DRV_SCSI;
 
-	ret = zbc_open(argv[1], oflags | O_RDONLY, &dev);
+	ret = zbc_open(argv[i], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
 		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
 			ret, strerror(-ret), argv[1]);
