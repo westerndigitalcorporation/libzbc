@@ -653,7 +653,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			 * To get the entire device capacity, we need to get
 			 * the last LBA of the last zone of the device.
 			 */
-			ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL,
+			ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL|ZBC_RO_PARTIAL,
 						       &max_lba,
 						       NULL, &nr_zones);
 			if (ret != 0)
