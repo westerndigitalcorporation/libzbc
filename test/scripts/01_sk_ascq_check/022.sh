@@ -49,25 +49,11 @@ if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
 				  "of type ${zone_type} to exceed max_open (${max_open})"
 fi
 
-nr_sect=$((physical_block_size/512))
-
-# Create closed zones
-declare -i count=0
-for i in `seq $(( ${max_open} + 1 ))`; do
-
-    # Get zone information
-    zbc_test_get_zone_info
-
-    # Search target LBA
-    zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "0x1"
-    target_lba=${target_slba}
-
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${nr_sect}
-    zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
-
-done
-
 # Start testing
+# Create more closed zones than we can have open at one time
+zbc_test_close_nr_zones $(( ${max_open} + 1 ))
+
+# Now try to open all the closed zones
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
 
 # Check result
