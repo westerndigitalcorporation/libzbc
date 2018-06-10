@@ -11,8 +11,14 @@
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 #
 
-# For pretty printing...
+# Zone Type                   is a ...  Write Pointer zone   Sequential zone
+# ---------                             ------------------   ---------------
+# 0x1 Conventional                              NO                 NO
+# 0x4 Write-Pointer Conventional (WPC)          YES                NO
+# 0x3 Sequential Write Preferred (SWP)          YES                YES
+# 0x2 Sequential Write Required  (SWR)          YES                YES
 
+# For pretty printing...
 red="\e[1;31m"
 green="\e[1;32m"
 end="\e[m"
@@ -36,16 +42,17 @@ function zbc_test_lib_init()
 	declare -rg ZT_SEQ="${ZT_SWR}|${ZT_SWP}"	# SMR
 	declare -rg ZT_WP="${ZT_SEQ}|${ZT_WPC}"		# Write Pointer zone
 
+	declare -rg ZT_DISALLOW_WRITE_XTYPE="0x2|0x4"	# Read across zone types disallowed
 	declare -rg ZT_DISALLOW_WRITE_GT_WP="0x2|0x4"	# Write starting above WP disallowed
-	declare -rg ZT_DISALLOW_WRITE_LT_WP="0x2"	# Write starting below WP disallowed
-	declare -rg ZT_DISALLOW_WRITE_XZONE="0x2"	# Write across zone boundary disallowed
-	declare -rg ZT_DISALLOW_WRITE_FULL="0x2"	# Write FULL zone disallowed
 	declare -rg ZT_REQUIRE_WRITE_PHYSALIGN="0x2|0x4" # Write ending >= WP must be physical-block-aligned
-
-	declare -rg ZT_RESTRICT_READ_XZONE="0x2"	# Read across zone boundary disallowed when !URSWRZ
+	declare -rg ZT_DISALLOW_READ_XTYPE="0x2|0x4"	# Read across zone types disallowed
 	declare -rg ZT_RESTRICT_READ_GE_WP="0x2|0x4"	# Read ending above WP disallowed when !URSWRZ
 
+	declare -rg ZT_DISALLOW_WRITE_XZONE="0x2"	# Write across zone boundary disallowed
+	declare -rg ZT_DISALLOW_WRITE_LT_WP="0x2"	# Write starting below WP disallowed
+	declare -rg ZT_DISALLOW_WRITE_FULL="0x2"	# Write FULL zone disallowed
 	declare -rg ZT_W_OZR="0x2"			# Participates in Open Zone Resources protocol
+	declare -rg ZT_RESTRICT_READ_XZONE="0x2"	# Read across zone boundary disallowed when !URSWRZ
 
 	# Zone conditions
 	declare -rg ZC_NOT_WP="0x0"			# NOT_WRITE_POINTER zone condition
@@ -271,6 +278,13 @@ function zbc_test_get_device_info()
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
 	sect_per_pblk=$((physical_block_size/512))
+	lba_per_pblk=$((physical_block_size/logical_block_size))
+	sect_per_pblk=${lba_per_pblk}	#XXXXXXXXXXXXXXXXXXXXXXX XXX
+
+	max_rw_sectors_line=`cat ${log_file} | grep -F "[MAX_RW_SECTORS]"`
+	set -- ${max_rw_sectors_line}
+	max_rw_lba=$(( ${2} / ${logical_block_size} ))
+	zbc_check_string "Failed to get maximum Read/Write size" ${max_rw_lba}
 
 	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
