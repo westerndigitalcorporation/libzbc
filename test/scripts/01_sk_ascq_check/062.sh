@@ -47,6 +47,7 @@ fi
 
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
 target_lba=$(( ${boundary_lba} - 1 ))			# last LBA before boundary
+target_lba_type=${target_type}
 
 # Start testing
 
@@ -76,7 +77,13 @@ zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} 2
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [[ ${target_type} != @(${ZT_DISALLOW_READ_XTYPE}) &&
+      ${target_lba_type} != @(${ZT_DISALLOW_READ_XTYPE}) ]]; then
+    zbc_test_check_no_sk_ascq "zone1_type=${target_lba_type} zone2_type=${target_type}"
+else
+    zbc_test_check_sk_ascq "zone1_type=${target_lba_type} zone2_type=${target_type}"
+fi
 
 # Post process
-# rm -f ${zone_info_file}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+rm -f ${zone_info_file}

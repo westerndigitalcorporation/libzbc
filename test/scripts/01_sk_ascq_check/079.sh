@@ -70,7 +70,14 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${se
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [[ ${target_type} != @(${DISALLOW_WRITE_XTYPE}) &&
+      ${target_lba_type} != @(${DISALLOW_WRITE_XTYPE}) ]]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_sk_ascq
+fi
 
 # Post process
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(( ${target_slba} + ${target_size} ))
 rm -f ${zone_info_file}
