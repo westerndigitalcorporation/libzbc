@@ -36,7 +36,7 @@ zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 rm -f ${zone_info_file}
 
 # Check failed
