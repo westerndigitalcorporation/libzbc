@@ -131,6 +131,10 @@ usage:
 		(unsigned long long)info.zbd_pblock_size);
 
 	fprintf(stdout,
+		"[TEST][INFO][MAX_RW_SECTORS],%llu\n",
+		(unsigned long long)info.zbd_max_rw_sectors);
+
+	fprintf(stdout,
 		"[TEST][INFO][URSWRZ],%x\n",
 		(bool)(info.zbd_flags & ZBC_UNRESTRICTED_READ));
 
