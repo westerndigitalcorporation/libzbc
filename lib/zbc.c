@@ -457,7 +457,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 					zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
 					&zones[nz], &n);
 		if (ret != 0) {
-			zbc_error("%s: Get zones from LBA %llu failed %d (%s)\n",
+			zbc_error("%s: Get zones from sector %llu failed %d (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) sector,
 				  ret, strerror(-ret));

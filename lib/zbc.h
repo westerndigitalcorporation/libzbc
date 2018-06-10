@@ -216,7 +216,7 @@ struct zbc_drv zbc_fake_drv;
  * some zone operation.
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
-int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_lba,
+int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_sector,
 		     enum zbc_zone_op op, unsigned int flags);
 
 /**
