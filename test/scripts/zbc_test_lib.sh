@@ -206,7 +206,7 @@ function zbc_test_get_zone_info()
 	echo "## Executing: ${_cmd} > ${zone_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${_cmd} > ${zone_info_file} 2>&1
+	${_cmd} > ${zone_info_file} 2>> ${log_file}
 
 	return 0
 }
