@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on all-conventional device" $*
+zbc_test_init $0 "Run ZBC test on initial device configuration" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/allcmr
 
