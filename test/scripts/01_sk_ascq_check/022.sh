@@ -51,53 +51,32 @@ else
     seq_zone_type=${ZT_SWP}	# fallback test using Sequential-write-preferred
 fi
 
-# Get the number of available EMPTY sequential zones of the type we are using
+# Get the number of available sequential zones of the type we are using
 nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${seq_zone_type}" \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
 if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) EMPTY zones" \
+    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) available zones" \
 				  "of type ${seq_zone_type} to exceed max_open (${max_open})"
 fi
 
 # Start testing
 # Create more closed zones than the device is capable of having open (SWR) at a time
-declare -i count=0
-for i in `seq $(( ${max_open} + 1 ))`; do
-
-    # Get zone information
-    zbc_test_get_zone_info
-
-    # Search target LBA
-    zbc_test_search_vals_from_zone_type_and_cond "${seq_zone_type}" "${ZC_EMPTY}"
-    if [ $? -ne 0 ]; then
-        zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-        # This should not happen because we counted enough zones above
-	zbc_test_print_not_applicable \
-		"WARNING: Expected EMPTY zone of type ${seq_zone_type} could not be found"
-    fi
-
-    target_lba=${target_slba}
-
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+zbc_test_close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))
+if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Initial WRITE failed"
-
-    zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
-    zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Zone CLOSE failed"
-
-done
-
-# Now try to open ALL closed zones
-zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
-
-# Check result
-zbc_test_get_sk_ascq
-if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
-    zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+    zbc_test_fail_if_sk_ascq "Failed to close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))"
 else
+    # Now try to open ALL closed zones
+    zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
+
+    # Check result
+    zbc_test_get_sk_ascq
+    if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
+    zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+    else
     zbc_test_check_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+    fi
 fi
 
 # Post process

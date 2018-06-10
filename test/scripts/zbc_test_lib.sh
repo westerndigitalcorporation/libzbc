@@ -518,6 +518,53 @@ function zbc_test_open_nr_zones()
 		fi
 	done
 
+	zbc_test_dump_zone_info
+	return 1
+}
+
+function zbc_test_close_nr_zones()
+{
+	local _zone_cond="${ZC_EMPTY}"
+	local _zone_type="${1}"
+	local -i _close_num=${2}
+	local -i _count=0
+
+	for _line in `zbc_zones | zbc_zone_filter_in_type "${_zone_type}" \
+				| zbc_zone_filter_in_cond "${_zone_cond}"` ; do
+		local _IFS="${IFS}"
+		IFS=$',\n'
+		set -- ${_line}
+
+		local zone_type=${3}
+		local zone_cond=${4}
+		local start_lba=${5}
+		local zone_size=${6}
+		local write_ptr=${7}
+
+		IFS="$_IFS"
+
+		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${sect_per_pblk}
+		if [ $? -ne 0 ]; then
+			echo "WARNING: Unexpected failure to write zone ${start_lba} after writing ${_count}/${_open_num} zones"
+			zbc_test_dump_zone_info
+			return 1
+		fi
+
+		zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${start_lba}
+		if [ $? -ne 0 ]; then
+			echo "WARNING: Unexpected failure to close zone ${start_lba}"
+			zbc_test_dump_zone_info
+			return 1
+		fi
+
+		_count=${_count}+1
+
+		if [ ${_count} -ge ${_close_num} ]; then
+			return 0
+		fi
+	done
+
+	zbc_test_dump_zone_info
 	return 1
 }
 
