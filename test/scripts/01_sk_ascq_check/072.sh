@@ -32,22 +32,23 @@ zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Get zone information
 zbc_test_get_zone_info
 
-# If there are no SWR zones, try testing with SWP zones instead
+# If there are no SWR zones, open SWP zones instead
 nr_SWR_zones=`zbc_zones | zbc_zone_filter_in_type ${ZT_SWR} | wc -l`
 if [ ${nr_SWR_zones} -gt 0 ]; then
     seq_zone_type=${ZT_SWR}	# primary test using Sequential-write-required
 else
-    # No SWR zones on the device -- use SWP (and expect a different result below)
+    # No SWR zones on the device -- use SWP (expecting a different result below)
     seq_zone_type=${ZT_SWP}	# fallback test using Sequential-write-preferred
 fi
 
-# Get the number of available EMPTY sequential zones of the type we are using
+# Get the number of available sequential zones of the type we are using
 nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${seq_zone_type}" \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
 if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) EMPTY zones" \
-				  "of type ${seq_zone_type} to exceed max_open (${max_open})"
+    zbc_test_print_not_applicable \
+	"Not enough (${nr_avail_seq_zones}) available zones" \
+	"of type ${seq_zone_type} to exceed max_open (${max_open})"
 fi
 
 # Start testing
@@ -56,25 +57,33 @@ zbc_test_open_nr_zones ${seq_zone_type} ${max_open}
 if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-    exit 1
-fi
-
-# Update zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_get_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
-target_lba=${target_slba}
-
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
-
-# Check result
-zbc_test_get_sk_ascq
-if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then
-    zbc_test_check_no_sk_ascq "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
 else
-    zbc_test_check_sk_ascq "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
+    # Update zone information
+    zbc_test_get_zone_info
+
+    # Get a writable zone (of any type) that is not OPEN
+    zbc_test_get_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+    target_lba=${target_slba}
+
+    # ${seq_zone_type} is SWR or SWP -- we just opened ${max_open} zones of this type.
+    # ${target_type} is any type of zone in a condition that is writable but not open --
+    #		we are about to attempt to write to it.
+    # If both zone types participate in the Open Zone Resources (OZR) protocol,
+    #		then the write is expected to fail "Insufficient-zone-resources".
+
+    # Attempt to write to the target LBA in the non-OPEN zone
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+
+    zbc_test_get_sk_ascq
+    if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then
+	# One or both zone types does not participate in the OZR protocol
+        zbc_test_check_no_sk_ascq \
+	    "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
+    else
+	# Both Zone types participate in the OZR protocol
+        zbc_test_check_sk_ascq \
+	    "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
+    fi
 fi
 
 # Post process
