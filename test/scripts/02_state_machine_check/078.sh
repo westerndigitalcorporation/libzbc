@@ -44,6 +44,6 @@ if [ -z "${sk}" ]; then
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 rm -f ${zone_info_file}
