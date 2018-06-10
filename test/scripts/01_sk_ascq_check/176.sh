@@ -45,4 +45,6 @@ else
 fi
 
 # Post process
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(( ${target_slba} + ${target_size} ))
 rm -f ${zone_info_file}
