@@ -21,25 +21,23 @@ zbc_test_get_device_info
 expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"		# write cross-zone
 
-# Search target LBA
+# Search target LBA, near the end of an EMPTY write-pointer zone
 zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
-
-nio=$(( (${target_size} - 1) / ${sect_per_pblk} ))
+target_lba=$(( ${target_slba} + ${target_size} - ${sect_per_pblk} ))
 
 # Start testing
-# Write the zone from empty to within a few LBA of the end
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} ${sect_per_pblk}
+# Write the zone from empty up through one block short of target_lba
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} \
+					$(( ${target_lba} - ${target_slba} ))
 if [ $? -ne 0 ]; then
     printf "\nInitial write zone failed (target_size=${target_size} zone_type=${target_type})"
 else
     # Attempt to write through the remaining LBA of the zone and cross over into the next zone
-    target_lba=$(( ${target_slba} + ${nio} * ${sect_per_pblk} ))
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
 fi
 
 # Check result
 zbc_test_get_sk_ascq
-
 if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_XZONE}) ]]; then
     zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 else
@@ -47,7 +45,6 @@ else
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} $(( ${target_slba} + ${target_size} ))
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(( ${target_slba} + ${target_size} ))
 rm -f ${zone_info_file}
-
