@@ -51,12 +51,12 @@ else
     seq_zone_type=${ZT_SWP}	# fallback test using Sequential-write-preferred
 fi
 
-# Get the number of available EMPTY sequential zones of the type we are using
+# Get the number of available sequential zones of the type we are using
 nr_avail_seq_zones=`zbc_zones | zbc_zone_filter_in_type "${seq_zone_type}" \
 			| zbc_zone_filter_in_cond "${ZC_EMPTY}" | wc -l`
 
 if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
-    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) EMPTY zones" \
+    zbc_test_print_not_applicable "Not enough (${nr_avail_seq_zones}) available zones" \
 				  "of type ${seq_zone_type} to exceed max_open (${max_open})"
 fi
 

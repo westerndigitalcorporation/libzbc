@@ -32,7 +32,7 @@ if [ -z "${sk}" ]; then
     # Write zero more blocks in the zone
 
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} \
-					$(( ${target_lba} + ${sect_per_pblk} )) 0
+			$(( ${target_lba} + ${sect_per_pblk} )) 0
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
@@ -44,6 +44,6 @@ if [ -z "${sk}" ]; then
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 rm -f ${zone_info_file}

@@ -25,7 +25,7 @@ zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_lba}
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq
@@ -40,6 +40,4 @@ zbc_test_search_vals_from_slba ${target_lba}
 zbc_test_check_zone_cond "zone_type=${target_type}"
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
-
 rm -f ${zone_info_file}
