@@ -26,13 +26,13 @@ zbc_test_search_wp_zone_cond_or_NA ${ZC_NON_FULL}
 target_lba=${target_ptr}
 
 # Start testing
-# Write ${sect_per_pblk} LBA starting at the write pointer
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+# Write ${lblk_per_pblk} LBA starting at the write pointer
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 if [ $? -ne 0 ]; then
     printf "\nInitial write failed"
 else
     # Attempt to read more LBA across and beyond the ones we just wrote
-    zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} + 1 ))
+    zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${lblk_per_pblk} + 1 ))
 fi
 
 # Check result

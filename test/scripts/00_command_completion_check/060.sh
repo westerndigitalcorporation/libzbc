@@ -29,7 +29,7 @@ fi
 target_lba=${target_ptr}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq

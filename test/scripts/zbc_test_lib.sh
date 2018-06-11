@@ -278,8 +278,8 @@ function zbc_test_get_device_info()
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
 	sect_per_pblk=$((physical_block_size/512))
-	lba_per_pblk=$((physical_block_size/logical_block_size))
-	sect_per_pblk=${lba_per_pblk}	#XXXXXXXXXXXXXXXXXXXXXXX XXX
+	lblk_per_pblk=$((physical_block_size/logical_block_size))
+	sect_per_pblk=${lblk_per_pblk} #XXX RID of this
 
 	max_rw_sectors_line=`cat ${log_file} | grep -F "[MAX_RW_SECTORS]"`
 	set -- ${max_rw_sectors_line}

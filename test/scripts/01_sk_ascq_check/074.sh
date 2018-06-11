@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE physical-sector-unaligned to write-pointer zone" $*
+zbc_test_init $0 "WRITE physical-block-unaligned to write-pointer zone" $*
 
 # Set expected error code
 expected_sk="Illegal-request"

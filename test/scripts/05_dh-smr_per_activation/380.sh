@@ -55,7 +55,7 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
 
 # Make the first zone of the domain non-empty
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${sect_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed"
 

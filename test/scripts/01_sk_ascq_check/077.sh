@@ -25,8 +25,8 @@ zbc_test_get_wp_zones_cond_or_NA "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing
-# Write ${sect_per_pblk} LBA starting at the write pointer
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+# Write ${lblk_per_pblk} LBA starting at the write pointer
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 if [ $? -ne 0 ]; then
     printf "\nInitial write failed"
 else

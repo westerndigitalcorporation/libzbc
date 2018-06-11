@@ -73,7 +73,7 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
 
 # Write an LBA in the second zone of the second domain to make it NON-EMPTY
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${sect_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed"
 

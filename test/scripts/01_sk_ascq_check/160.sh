@@ -34,7 +34,7 @@ target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing
 # Read across the zone boundary and beyond the WP of the second zone
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} + 2 ))
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( ${lblk_per_pblk} + 2 ))
 
 # Check result
 zbc_test_get_sk_ascq
