@@ -21,7 +21,7 @@ expected_sk="Illegal-request"
 expected_asc="Unaligned-write-command"		# Write starting and ending below WP
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA "${ZC_NON_FULL}"
+zbc_test_get_wp_zones_cond_or_NA "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing

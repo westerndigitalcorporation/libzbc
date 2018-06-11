@@ -22,8 +22,8 @@ expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"		# write cross-zone
 
 # Search target LBA, near the end of an EMPTY write-pointer zone
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
-target_lba=$(( ${target_slba} + ${target_size} - ${sect_per_pblk} ))
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
+target_lba=$(( ${target_slba} + ${target_size} - ${lblk_per_pblk} ))
 
 # Start testing
 # Write the zone from empty up through one block short of target_lba
@@ -33,7 +33,7 @@ if [ $? -ne 0 ]; then
     printf "\nInitial write zone failed (target_size=${target_size} zone_type=${target_type})"
 else
     # Attempt to write through the remaining LBA of the zone and cross over into the next zone
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${lblk_per_pblk} * 2 ))
 fi
 
 # Check result

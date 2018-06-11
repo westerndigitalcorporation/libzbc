@@ -26,7 +26,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_non_seq_zone_or_NA  "${ZC_NON_FULL}"
+zbc_test_search_non_seq_zone_cond_or_NA "${ZC_NON_FULL}"
 target_lba=${target_slba}
 
 # Start testing

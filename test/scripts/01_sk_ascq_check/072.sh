@@ -62,7 +62,7 @@ else
     zbc_test_get_zone_info
 
     # Get a writable zone (of any type) that is not OPEN
-    zbc_test_get_zone_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+    zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
     target_lba=${target_slba}
 
     # ${seq_zone_type} is SWR or SWP -- we just opened ${max_open} zones of this type.
@@ -72,7 +72,7 @@ else
     #		then the write is expected to fail "Insufficient-zone-resources".
 
     # Attempt to write to the target LBA in the non-OPEN zone
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${sect_per_pblk}
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 
     zbc_test_get_sk_ascq
     if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then

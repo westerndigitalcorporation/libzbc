@@ -21,7 +21,7 @@ expected_sk="Illegal-request"
 expected_asc="Read-boundary-violation"		# read cross-zone
 
 # Search target LBA
-zbc_test_get_wp_zone_tuple_cond_or_NA "FULL" "FULL"
+zbc_test_get_wp_zones_cond_or_NA "FULL" "FULL"
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 # Start testing

@@ -640,6 +640,8 @@ function zbc_test_get_target_zone_from_slba()
 	return 1
 }
 
+# These functions look for a zone aleady in the condition
+
 function zbc_test_get_target_zone_from_type_and_cond()
 {
 	local zone_type="${1}"
@@ -780,7 +782,7 @@ function zbc_test_zone_tuple()
 #
 # Return info is the same as zbc_test_search_vals_*
 # If no matching zone is found, exit with "N/A" message.
-function zbc_test_get_zone_or_NA()
+function zbc_test_search_zone_cond_or_NA()
 {
 	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
 	local _zone_cond="${1:-${ZC_AVAIL}}"
@@ -788,15 +790,14 @@ function zbc_test_get_zone_or_NA()
 	zbc_test_get_zone_info
 	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
-		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
 		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
 	fi
 }
 
 # Select a Write-Pointer zone for testing and return info.
-# Argument and return information are the same as zbc_test_get_zone_or_NA.
-function zbc_test_get_wp_zone_or_NA()
+# Argument and return information are the same as zbc_test_search_zone_cond_or_NA.
+function zbc_test_search_wp_zone_cond_or_NA()
 {
 	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
 
@@ -805,12 +806,12 @@ function zbc_test_get_wp_zone_or_NA()
 		    "Zone type ${_zone_type} is not a write-pointer zone type"
 	fi
 
-	zbc_test_get_zone_or_NA "$@"
+	zbc_test_search_zone_cond_or_NA "$@"
 }
 
 # Select a non-Sequential zone for testing and return info.
-# Argument and return information are the same as zbc_test_get_zone_or_NA.
-function zbc_test_get_non_seq_zone_or_NA()
+# Argument and return information are the same as zbc_test_search_zone_cond_or_NA.
+function zbc_test_search_non_seq_zone_cond_or_NA()
 {
 	local _zone_type="${ZT_NON_SEQ}"
 	local _zone_cond="${1:-${ZC_AVAIL}}"
@@ -818,16 +819,15 @@ function zbc_test_get_non_seq_zone_or_NA()
 	zbc_test_get_zone_info
 	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
-		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
 		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
 	fi
 }
 
-# zbc_test_zone_tuple zone_type num_zones
+# zbc_test_get_zones zone_type num_zones
 # Returns the first zone of a contiguous sequence of length nz with the specified type.
 # Returns non-zero if the request could not be met.
-function zbc_test_zone_tuple()
+function zbc_test_get_zones()
 {
 	local zone_type="${1}"
 	local -i nz=${2}
@@ -868,11 +868,13 @@ function zbc_test_zone_tuple()
 	return 1
 }
 
-# zbc_test_zone_tuple_cond type cond1 [cond2...]
+# These functions set the zone(s) to the specified condition(s)
+
+# zbc_test_get_zones_cond type cond1 [cond2...]
 # Sets zbc_test_search_vals from the first zone of a
 #	contiguous sequence with the specified type and conditions
 # Return value is non-zero if the request cannot be met.
-function zbc_test_zone_tuple_cond()
+function zbc_test_get_zones_cond()
 {
 	local zone_type="${1}"
 	shift
@@ -881,7 +883,7 @@ function zbc_test_zone_tuple_cond()
 	zbc_test_get_zone_info
 
 	# Get ${nzone} zones in a row, all of the same ${target_type} matching ${zone_type}
-	zbc_test_zone_tuple ${zone_type} ${nzone}
+	zbc_test_get_zones ${zone_type} ${nzone}
 	if [ $? -ne 0 ]; then
 		return 1
 	fi
@@ -938,38 +940,23 @@ function zbc_test_zone_tuple_cond()
 		
 function zbc_test_get_seq_zone_set_cond_or_NA()
 {
-	zbc_test_zone_tuple_cond ${ZT_SEQ} $1
+	zbc_test_get_zones_cond ${ZT_SEQ} $1
 	if [ $? -ne 0 ]; then
-	    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-	    zbc_test_print_not_applicable \
-		"No sequential zone in condition $1"
+	    if [ $# -gt 1 ]; then
+	        zbc_test_print_not_applicable "No available sequential zone sequence of length $#"
+	    else
+	        zbc_test_print_not_applicable "No available sequential zone"
+	fi
 	fi
 }
 
-function zbc_test_get_wp_zone_set_cond_or_NA()
-{
-	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
-
-	if [ "${_zone_type}" = "${ZT_CONV}" ]; then
-		zbc_test_print_not_applicable \
-			"Zone type ${_zone_type} is not a write-pointer zone type"
-	fi
-
-	zbc_test_zone_tuple_cond ${ZT_WP} $1
-	if [ $? -ne 0 ]; then
-	    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-	    zbc_test_print_not_applicable \
-		"No sequential zone in condition $1"
-	fi
-}
-
-# zbc_test_get_wp_zone_tuple_cond_or_NA cond1 [cond2...]
+# zbc_test_get_wp_zones_cond_or_NA cond1 [cond2...]
 # Sets zbc_test_search_vals from the first zone of a
 #	contiguous sequence with the specified type and conditions
 # If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
 # If ${test_zone_type} is set, it should refer (only) to one or more WP zones.
 # Exits with "N/A" message if the request cannot be met
-function zbc_test_get_wp_zone_tuple_cond_or_NA()
+function zbc_test_get_wp_zones_cond_or_NA()
 {
 	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
 
@@ -978,11 +965,15 @@ function zbc_test_get_wp_zone_tuple_cond_or_NA()
 			"Zone type ${_zone_type} is not a write-pointer zone type"
 	fi
 
-	zbc_test_zone_tuple_cond "${_zone_type}" "$@"
+	zbc_test_get_zones_cond "${_zone_type}" "$@"
 	if [ $? -ne 0 ]; then
-	    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+	    if [ $# -gt 1 ]; then
 	    zbc_test_print_not_applicable \
-		"No write-pointer zone sequence of type ${_zone_type} and length $#"
+		    "No available write-pointer zone sequence of type ${_zone_type} and length $#"
+	    else
+	        zbc_test_print_not_applicable \
+		    "No available write-pointer zone of type ${_zone_type}"
+	    fi
 	fi
 }
 		

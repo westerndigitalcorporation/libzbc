@@ -19,7 +19,7 @@ zbc_test_init $0 "READ across write-pointer zones (FULL->EMPTY)" $*
 zbc_test_get_device_info
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=$(( ${target_slba} + ${target_size} - 1 ))
 
 expected_sk="Illegal-request"

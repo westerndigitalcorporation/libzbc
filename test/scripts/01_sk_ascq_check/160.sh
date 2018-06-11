@@ -21,7 +21,7 @@ zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} and ending abov
 zbc_test_get_device_info
 
 # Get a pair of zones
-zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
+zbc_test_get_wp_zones_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
 expected_sk="Illegal-request"
 expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data

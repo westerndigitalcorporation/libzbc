@@ -22,7 +22,7 @@ zbc_test_get_device_info
 # Get zone information
 zbc_test_get_zone_info
 
-zbc_test_get_seq_zone_set_cond_or_NA "EOPEN"
+zbc_test_get_seq_zones_cond_or_NA "EOPEN"
 target_lba=${target_slba}
 
 # Start testing

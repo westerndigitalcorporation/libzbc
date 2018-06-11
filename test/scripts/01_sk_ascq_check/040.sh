@@ -22,7 +22,7 @@ expected_asc="Invalid-field-in-cdb"
 zbc_test_get_device_info
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=$(( ${target_slba} + 1 ))
 
 # Start testing

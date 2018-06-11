@@ -22,7 +22,7 @@ expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"		# write full zone
 
 # Search target zone
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 
 # Start testing
 # Make the zone FULL
