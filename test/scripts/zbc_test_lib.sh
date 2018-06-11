@@ -283,8 +283,10 @@ function zbc_test_get_device_info()
 
 	max_rw_sectors_line=`cat ${log_file} | grep -F "[MAX_RW_SECTORS]"`
 	set -- ${max_rw_sectors_line}
-	max_rw_lba=$(( ${2} / ${logical_block_size} ))
-	zbc_check_string "Failed to get maximum Read/Write size" ${max_rw_lba}
+	max_rw_sectors=${2}
+	zbc_check_string "Failed to get maximum Read/Write size" ${max_rw_sectors}
+
+	max_rw_lba=$(( ${max_rw_sectors} * 512 / ${logical_block_size} ))
 
 	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
