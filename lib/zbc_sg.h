@@ -42,7 +42,8 @@ enum {
 	ZBC_SG_FINISH_ZONE,
 	ZBC_SG_SET_ZONES,
 	ZBC_SG_SET_WRITE_POINTER,
-	ZBC_SG_DOMAIN_REPORT,
+	ZBC_SG_REPORT_REALMS,
+	ZBC_SG_REPORT_ZONE_DOMAINS,
 	ZBC_SG_ZONE_ACTIVATE_16,
 	ZBC_SG_ZONE_QUERY_16,
 	ZBC_SG_ZONE_ACTIVATE_32,
@@ -153,11 +154,18 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
 
 /**
- * Domain report command definition.
+ * Report realms command definition.
  */
-#define ZBC_SG_DOMAIN_REPORT_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
-#define ZBC_SG_DOMAIN_REPORT_CDB_SA		0x01
-#define ZBC_SG_DOMAIN_REPORT_CDB_LENGTH		16
+#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_REALMS_CDB_SA		0x01
+#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
+
+/**
+ * Report zone domains command definition.
+ */
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE	0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA	0x02
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_LENGTH	16
 
 /**
  * Zone Query / Activate command definitions.
@@ -168,17 +176,17 @@ enum {
 #define ZBC_SG_ZONE_QUERY_CVT_16_CDB_LENGTH	16
 #define ZBC_SG_ZONE_QUERY_CVT_32_CDB_LENGTH	32
 
-#define ZBC_SG_ZONE_ACTIVATE_16_CDB_SA		0x02 /* FIXME value TBD */
+#define ZBC_SG_ZONE_ACTIVATE_16_CDB_SA		0x03 /* FIXME value TBD */
 #define ZBC_SG_ZONE_ACTIVATE_32_CDB_SA		0xF800 /* FIXME value TBD */
 
-#define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x03 /* FIXME value TBD */
+#define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x04 /* FIXME value TBD */
 #define ZBC_SG_ZONE_QUERY_32_CDB_SA		0XF801 /*FIXME value TBD */
 
 /**
  * Report mutations command definition.
  */
 #define ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE	0x95 /* FIXME opcode/SA TBD */
-#define ZBC_SG_REPORT_MUTATIONS_CDB_SA		0x04
+#define ZBC_SG_REPORT_MUTATIONS_CDB_SA		0x05
 #define ZBC_SG_REPORT_MUTATIONS_CDB_LENGTH	16
 
 /**

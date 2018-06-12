@@ -688,7 +688,7 @@ static int zbc_scsi_domain_report(struct zbc_device *dev,
 		bufsz = max_bufsz;
 
 	/* Allocate and intialize DOMAIN REPORT command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_DOMAIN_REPORT, NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_REALMS, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -716,8 +716,8 @@ static int zbc_scsi_domain_report(struct zbc_device *dev,
 	 * | 15  |                             Control                                   |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_DOMAIN_REPORT_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_DOMAIN_REPORT_CDB_SA;
+	cmd.cdb[0] = ZBC_SG_REPORT_REALMS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_REALMS_CDB_SA;
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
 
 	/* Send the SG_IO command */
