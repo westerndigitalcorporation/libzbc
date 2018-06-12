@@ -39,7 +39,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Add one to the number of zones to domain-misalign it for the test
-zbc_test_search_vals_from_slba ${domain_conv_start}
+zbc_test_get_target_zone_from_slba ${domain_conv_start}
 len=$(( ${domain_conv_len} + 1 ))
 
 # Start testing

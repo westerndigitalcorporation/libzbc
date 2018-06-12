@@ -582,7 +582,7 @@ function zbc_test_close_nr_zones()
 	return 1
 }
 
-function zbc_test_close_nr_zones()
+function zbc_test_get_target_zone_from_type()
 {
 	local _zone_type="${ZT_SWR}"
 	local _zone_cond="${ZC_EMPTY}"
@@ -667,7 +667,7 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	return 1
 }
 
-function UNUSED__zbc_test_search_vals_from_zone_type_and_ignored_cond()
+function UNUSED__zbc_test_get_target_zone_from_type_and_ignored_cond()
 {
 
 	local zone_type="${1}"
@@ -786,7 +786,7 @@ function zbc_test_get_zone_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
@@ -816,7 +816,7 @@ function zbc_test_get_non_seq_zone_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \
@@ -857,11 +857,11 @@ function zbc_test_zone_tuple()
 			if [[ ${target_cond} != @(${ZC_AVAIL}) ]]; then
 				continue 2	# continue second loop out
 			fi
-			zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+			zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
 		done
 
 		# Return the info for the first zone of the tuple
-		zbc_test_search_vals_from_slba ${slba}
+		zbc_test_get_target_zone_from_slba ${slba}
 		return 0
 	done
 	
@@ -927,12 +927,12 @@ function zbc_test_zone_tuple_cond()
 		esac
 
 		shift
-		zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+		zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
 	done
 
 	# Return the info for the first zone of the tuple
 	zbc_test_get_zone_info
-	zbc_test_search_vals_from_slba ${start_lba}
+	zbc_test_get_target_zone_from_slba ${start_lba}
 	return 0
 }
 		
@@ -1039,7 +1039,7 @@ function zbc_test_is_found_domain_faulty()
 	local _target_slba
 	zbc_test_get_zone_info
 
-	zbc_test_search_vals_from_slba ${domain_seq_start}
+	zbc_test_get_target_zone_from_slba ${domain_seq_start}
 	for (( i=0 ; i<${domain_seq_len} ; i++ )) ; do
 		if [ $? -ne 0 ]; then
 			break
@@ -1051,10 +1051,10 @@ function zbc_test_is_found_domain_faulty()
 			return 1
 		fi
 		_target_slba=$(( ${target_slba} + ${target_size} ))
-		zbc_test_search_vals_from_slba ${_target_slba}
+		zbc_test_get_target_zone_from_slba ${_target_slba}
 	done
 
-	zbc_test_search_vals_from_slba ${domain_conv_start}
+	zbc_test_get_target_zone_from_slba ${domain_conv_start}
 	for (( i=0 ; i<${domain_conv_len} ; i++ )) ; do
 		if [ $? -ne 0 ]; then
 			break
@@ -1066,7 +1066,7 @@ function zbc_test_is_found_domain_faulty()
 			return 1
 		fi
 		_target_slba=$(( ${target_slba} + ${target_size} ))
-		zbc_test_search_vals_from_slba ${_target_slba}
+		zbc_test_get_target_zone_from_slba ${_target_slba}
 	done
 
 	return 0

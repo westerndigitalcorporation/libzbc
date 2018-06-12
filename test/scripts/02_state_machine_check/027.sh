@@ -25,7 +25,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
+zbc_test_get_target_zone_from_type_and_cond "0x2|0x3" "0x1"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No EMPTY Sequential zones"
 fi
@@ -41,7 +41,7 @@ zbc_test_get_sk_ascq
 zbc_test_get_zone_info "1"
 
 # Get target zone condition
-zbc_test_search_vals_from_slba ${target_lba}
+zbc_test_get_target_zone_from_slba ${target_lba}
 
 # Check result
 zbc_test_check_zone_cond

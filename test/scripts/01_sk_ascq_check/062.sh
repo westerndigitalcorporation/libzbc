@@ -66,7 +66,7 @@ else
     fi
 
     # Get info on the zone just after the boundary
-    zbc_test_search_vals_from_slba ${boundary_lba}
+    zbc_test_get_target_zone_from_slba ${boundary_lba}
 
     # Check the the zone just after the boundary for availability
     read_check_available ${target_cond}		# sets expected_* if not

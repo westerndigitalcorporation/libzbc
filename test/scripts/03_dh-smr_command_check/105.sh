@@ -39,7 +39,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Add one zone-size to the starting zone to domain-misalign it for the test
-zbc_test_search_vals_from_slba ${domain_conv_start}
+zbc_test_get_target_zone_from_slba ${domain_conv_start}
 
 start_lba=$(( ${domain_conv_start} + ${target_size} ))
 expected_err_cbf="${start_lba}"

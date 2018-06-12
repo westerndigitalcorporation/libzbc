@@ -36,7 +36,7 @@ zbc_test_get_sk_ascq
 zbc_test_get_zone_info "1"
 
 # Get target zone condition
-zbc_test_search_vals_from_slba ${target_lba}
+zbc_test_get_target_zone_from_slba ${target_lba}
 
 # Check result
 zbc_test_check_zone_cond

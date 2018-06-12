@@ -60,7 +60,7 @@ seq_nz=${nr_seq_zones}
 zbc_test_search_cvt_domain_by_number $(( ${domain_num} + 1 ))
 
 # Lookup info on the second domain's first sequential zone
-zbc_test_search_vals_from_slba ${domain_seq_start}	# into ${target_*}
+zbc_test_get_target_zone_from_slba ${domain_seq_start}	# into ${target_*}
 
 # Calculate the start LBA of the second domain's second zone
 write_zlba=$(( ${target_slba} + ${target_size} ))

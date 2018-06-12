@@ -31,7 +31,7 @@ zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
 if [ -z "${sk}" ]; then
     zbc_test_get_zone_info
-    zbc_test_search_vals_from_slba ${target_lba}
+    zbc_test_get_target_zone_from_slba ${target_lba}
     zbc_test_check_zone_cond
 fi
 
