@@ -40,6 +40,7 @@ enum {
 	ZBC_SG_OPEN_ZONE,
 	ZBC_SG_CLOSE_ZONE,
 	ZBC_SG_FINISH_ZONE,
+	ZBC_SG_SEQUENTIALIZE_ZONE,
 	ZBC_SG_SET_ZONES,
 	ZBC_SG_SET_WRITE_POINTER,
 	ZBC_SG_REPORT_REALMS,
@@ -140,6 +141,13 @@ enum {
 #define ZBC_SG_FINISH_ZONE_CDB_LENGTH		16
 
 /**
+ * Sequentialize command definition.
+ */
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_OPCODE	0x94
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_SA	0x05
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_LENGTH	16
+
+/**
  * Set zones command definition.
  */
 #define ZBC_SG_SET_ZONES_CDB_OPCODE		0x9F
@@ -193,7 +201,7 @@ enum {
  * Mutate command definition.
  */
 #define ZBC_SG_MUTATE_CDB_OPCODE		0x94 /* FIXME opcode/SA TBD */
-#define ZBC_SG_MUTATE_CDB_SA			0x05
+#define ZBC_SG_MUTATE_CDB_SA			0x06
 #define ZBC_SG_MUTATE_CDB_LENGTH		16
 
 /**
