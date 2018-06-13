@@ -62,7 +62,13 @@ else
     zbc_test_get_zone_info
 
     # Get a writable zone (of any type) that is not OPEN
-    zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+    zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+    if [ $? -ne 0 ]; then
+    	zbc_test_get_sk_ascq
+    	zbc_test_fail_if_sk_ascq "Unexpected failure to find writable zone"
+        zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+	exit 1
+    fi
     target_lba=${target_slba}
 
     # ${seq_zone_type} is SWR or SWP -- we just opened ${max_open} zones of this type.
@@ -87,5 +93,6 @@ else
 fi
 
 # Post process
+zbc_test_check_failed
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 rm -f ${zone_info_file}
