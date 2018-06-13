@@ -75,7 +75,7 @@ zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type
 # Write an LBA in the second zone of the second domain to make it NON-EMPTY
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed"
+zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_seq_start} zone_type=${smr_type}"
 
 # Now try to convert the domains from sequential back to conventional
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
@@ -93,8 +93,12 @@ fi
 zbc_test_check_failed
 
 # Post-processing -- put the domain back the way we found it
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
+if [ "${smr_type}" != "seqp" ]; then
+    # Zone did not deactivate -- reset and deactivate it
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}
+    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
+fi
 
 # Post process
+zbc_test_check_failed
 rm -f ${zone_info_file}
