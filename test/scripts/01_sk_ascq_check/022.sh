@@ -80,5 +80,6 @@ else
 fi
 
 # Post process
+zbc_test_check_failed
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 rm -f ${zone_info_file}
