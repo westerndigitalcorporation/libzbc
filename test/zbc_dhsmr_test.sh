@@ -461,7 +461,11 @@ function zbc_run_gamut()
     for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
-	zbc_test_run zbc_dev_control -mu ${m} ${device}
+	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
+	if [ $? -ne 0 ]; then
+	    echo "Mutation of ${device} to ${m} failed"
+	    continue
+	fi
         reset_device
 	zbc_run_mutation "${m}"
     done
@@ -469,7 +473,11 @@ function zbc_run_gamut()
     for m in ${ZBC_MUTATIONS} ; do
 	echo -e "\n\n######### `date` Run the zbc test suite under mutation ${m}"
 	set_logfile ${m}
-	zbc_test_run zbc_dev_control -mu ${m} ${device}
+	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
+	if [ $? -ne 0 ]; then
+	    echo "Mutation of ${device} to ${m} failed"
+	    continue
+	fi
         reset_device
 
 	local arg_b=""
@@ -494,7 +502,10 @@ function zbc_run_gamut()
     set_logfile "fini"
 
     # When done, set the device back to default
-    zbc_test_run zbc_dev_control -mu ZA_1CMR_BOT ${device}
+    zbc_test_run zbc_dev_control -v -mu ZA_1CMR_BOT ${device}
+    if [ $? -ne 0 ]; then
+	echo "Mutation of ${device} to ${m} failed"
+    fi
     reset_device
     zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
 }
