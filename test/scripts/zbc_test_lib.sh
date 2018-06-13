@@ -42,10 +42,10 @@ function zbc_test_lib_init()
 	declare -rg ZT_SEQ="${ZT_SWR}|${ZT_SWP}"	# SMR
 	declare -rg ZT_WP="${ZT_SEQ}|${ZT_WPC}"		# Write Pointer zone
 
-	declare -rg ZT_DISALLOW_WRITE_XTYPE="0x2|0x4"	# Read across zone types disallowed
+	declare -rg ZT_DISALLOW_WRITE_XTYPE="0x1|0x2|0x3|0x4"	# Write across zone types disallowed XXX
 	declare -rg ZT_DISALLOW_WRITE_GT_WP="0x2|0x4"	# Write starting above WP disallowed
 	declare -rg ZT_REQUIRE_WRITE_PHYSALIGN="0x2|0x4" # Write ending >= WP must be physical-block-aligned
-	declare -rg ZT_DISALLOW_READ_XTYPE="0x2|0x4"	# Read across zone types disallowed
+	declare -rg ZT_DISALLOW_READ_XTYPE="0x1|0x2|0x3|0x4"	# Read across zone types disallowed XXX
 	declare -rg ZT_RESTRICT_READ_GE_WP="0x2|0x4"	# Read ending above WP disallowed when !URSWRZ
 
 	declare -rg ZT_DISALLOW_WRITE_XZONE="0x2"	# Write across zone boundary disallowed
@@ -88,7 +88,7 @@ function _stacktrace()
 
 function _stacktrace_exit()
 {
-	echo "$* (from `_stacktrace`)"
+	echo "$* (FAIL from `_stacktrace`)"
 	exit 1
 }
 
@@ -229,7 +229,8 @@ function zbc_test_meta_run()
 	${_cmd} 2>&1 | tee -a ${log_file} 2>&1
 	local ret=${PIPESTATUS[0]}
 
-	return ${ret}
+	return 0
+#	return ${ret}	# seems more annoying than helpful
 }
 
 # Get information functions
@@ -277,9 +278,7 @@ function zbc_test_get_device_info()
 	physical_block_size=${2}
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
-	sect_per_pblk=$((physical_block_size/512))
 	lblk_per_pblk=$((physical_block_size/logical_block_size))
-	sect_per_pblk=${lblk_per_pblk} #XXX RID of this
 
 	max_rw_sectors_line=`cat ${log_file} | grep -F "[MAX_RW_SECTORS]"`
 	set -- ${max_rw_sectors_line}
@@ -559,7 +558,7 @@ function zbc_test_close_nr_zones()
 
 		IFS="$_IFS"
 
-		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${sect_per_pblk}
+		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${lblk_per_pblk}
 		if [ $? -ne 0 ]; then
 			echo "WARNING: Unexpected failure to write zone ${start_lba} after writing ${_count}/${_open_num} zones"
 			zbc_test_dump_zone_info
@@ -783,7 +782,20 @@ function zbc_test_zone_tuple()
 # If $1 is omitted, a zone is matched if it is available (not OFFLINE, etc).
 #
 # Return info is the same as zbc_test_search_vals_*
-# If no matching zone is found, exit with "N/A" message.
+function zbc_test_search_zone_cond()
+{
+	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
+	local _zone_cond="${1:-${ZC_AVAIL}}"
+
+	zbc_test_get_zone_info
+
+	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	return 0
+}
 function zbc_test_search_zone_cond_or_NA()
 {
 	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
@@ -834,6 +846,9 @@ function zbc_test_get_zones()
 	local zone_type="${1}"
 	local -i nz=${2}
 
+
+	zbc_test_get_zone_info
+
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
 
 		local _IFS="${IFS}"
@@ -882,8 +897,6 @@ function zbc_test_get_zones_cond()
 	shift
 	local -i nzone=$#
 
-	zbc_test_get_zone_info
-
 	# Get ${nzone} zones in a row, all of the same ${target_type} matching ${zone_type}
 	zbc_test_get_zones ${zone_type} ${nzone}
 	if [ $? -ne 0 ]; then
@@ -906,14 +919,14 @@ function zbc_test_get_zones_cond()
 			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 0
 			;;
 		"IOPENL")
-			# IMPLICIT OPEN by writing the first ${sect_per_pblk} LBA of the zone
+			# IMPLICIT OPEN by writing the first ${lblk_per_pblk} LBA of the zone
 			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${sect_per_pblk}
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${lblk_per_pblk}
 			;;
 		"IOPENH")
-			# IMPLICIT OPEN by writing all but the last ${sect_per_pblk} LBA of the zone
+			# IMPLICIT OPEN by writing all but the last ${lblk_per_pblk} LBA of the zone
 			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${sect_per_pblk} ))
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${lblk_per_pblk} ))
 			;;
 		"EOPEN")
 			# EXPLICIT OPEN of an empty zone
@@ -940,7 +953,7 @@ function zbc_test_get_zones_cond()
 	return 0
 }
 		
-function zbc_test_get_seq_zone_set_cond_or_NA()
+function zbc_test_get_seq_zones_cond_or_NA()
 {
 	zbc_test_get_zones_cond ${ZT_SEQ} $1
 	if [ $? -ne 0 ]; then
@@ -1401,9 +1414,8 @@ function zbc_test_dump_cvt_domain_info()
 # Dump info files after a failed test -- returns 1 if test failed
 function zbc_test_check_failed()
 {
-	failed=`cat ${log_file} | grep -m 1 "^Failed"`
-
-	if [[ "${failed}" == @(Failed.*) ]]; then
+	failed=`cat ${log_file} | grep -m 1 "TESTRESULT==Failed"`
+	if [[ ! -z "${failed}" ]]; then
 		zbc_test_dump_zone_info
 		if [ ${zone_activation_device} -ne 0 ]; then
 			zbc_test_dump_cvt_domain_info
