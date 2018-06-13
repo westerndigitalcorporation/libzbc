@@ -28,7 +28,7 @@ if [ ${physical_block_size} -eq ${logical_block_size} ]; then
 fi
 
 # Search target LBA
-zbc_test_get_wp_zones_cond_or_NA "${ZC_NON_FULL}"
+zbc_test_get_wp_zones_cond_or_NA "EMPTY"
 target_lba=${target_ptr}
 
 # Start testing
