@@ -167,6 +167,7 @@ for (( i=0; i<${argc}; i++ )); do
 		skip_list+=("04.010")
 		skip_list+=("04.030")
 		skip_list+=("04.040")
+		skip_urswrz_n=1
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -440,11 +441,13 @@ function zbc_run_mutation()
         zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
         zbc_run_config ${section_list[@]}
 
-        echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
-	set_logfile $1/urswrz_n
-        reset_device
-        zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
-        zbc_run_config ${section_list[@]}
+	if [ -z ${skip_urswrz_n} ]; then
+	    echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"
+	    set_logfile $1/urswrz_n
+	    reset_device
+	    zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
+	    zbc_run_config ${section_list[@]}
+	fi
     fi
 }
 
