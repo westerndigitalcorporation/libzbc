@@ -42,6 +42,7 @@ struct zbc_block_device {
 	struct zbc_device	dev;
 
 	int			is_part;
+	int			is_scsi_dev;
 
 	char			*holder_name;
 
@@ -358,6 +359,7 @@ static int zbc_block_get_vendor_id(struct zbc_device *dev)
  */
 static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 {
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	unsigned long long size64;
 	int size32;
 	int ret;
@@ -442,7 +444,12 @@ static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 		strncpy(dev->zbd_info.zbd_vendor_id,
 			"Unknown", ZBC_DEVICE_INFO_LENGTH - 1);
 
-	if (zbc_block_is_scsi_dev(dev->zbd_filename) <= 0) {
+	ret = zbc_block_is_scsi_dev(dev->zbd_filename);
+	if (ret < 0)
+		return ret;
+	zbd->is_scsi_dev = ret;
+
+	if (!zbd->is_scsi_dev) {
 		/* Use defaults for non-SCSI devices */
 		dev->zbd_info.zbd_flags |= ZBC_UNRESTRICTED_READ;
 		if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
@@ -856,6 +863,12 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
+
+		if (!zbd->is_scsi_dev) {
+			zbc_error("%s: Not a SCSI device (operation not supported)\n",
+				  dev->zbd_filename);
+			return -ENOTSUP;
+		}
 
 		if (zbd->is_part)
 			sect += zbd->part_offset;
