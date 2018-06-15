@@ -28,17 +28,17 @@ zbc_test_get_zone_info
 # Search target LBA
 zbc_test_search_non_seq_zone_cond_or_NA "${ZC_NON_FULL}"
 target_lba=${target_slba}
-if [[ ${target_type} == @(${ZT_WPC}) ]]; then
-	expected_sk=""
-	expected_asc=""
-fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+if [[ ${target_type} == @(${ZT_WPC}) ]]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_sk_ascq
+fi
 
 # Post process
 rm -f ${zone_info_file}
