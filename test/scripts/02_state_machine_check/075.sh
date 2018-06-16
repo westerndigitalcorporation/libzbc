@@ -39,7 +39,7 @@ if [ -z "${sk}" ]; then
     if [ -z "${sk}" ]; then
         zbc_test_get_zone_info
         zbc_test_get_target_zone_from_slba ${target_lba}
-        zbc_test_check_zone_cond
+        zbc_test_check_zone_cond_wp $(( ${target_lba} + 2 * ${lblk_per_pblk} ))
     fi
 fi
 

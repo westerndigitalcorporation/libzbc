@@ -30,17 +30,27 @@ fi
 # Search target LBA
 zbc_test_get_wp_zones_cond_or_NA "EMPTY"
 target_lba=${target_ptr}
+initial_wp=${target_ptr}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
 
 # Check result
 zbc_test_get_sk_ascq
+zbc_test_get_zone_info
+zbc_test_get_target_zone_from_slba ${target_slba}
 
 if [[ ${target_type} != @(${ZT_REQUIRE_WRITE_PHYSALIGN}) ]]; then
-    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "zone_type=${target_type}"
+    if [ $? -eq 0 ]; then
+    	zbc_test_check_wp_eq $(( ${target_lba} + 1 ))
+    fi
+    if [ $? -eq 0 ]; then
+	zbc_test_print_passed
+    fi
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"
+    zbc_test_check_wp_eq ${initial_wp}
 fi
 
 # Post process

@@ -43,7 +43,7 @@ zbc_test_get_zone_info "3"
 zbc_test_get_target_zone_from_slba ${target_lba}
 
 # Check result
-zbc_test_check_zone_cond
+zbc_test_check_zone_cond_wp ${target_slba}
 
 # Post process
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}

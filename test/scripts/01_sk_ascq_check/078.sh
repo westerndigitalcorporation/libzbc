@@ -36,11 +36,20 @@ fi
 
 # Check result
 zbc_test_get_sk_ascq
+zbc_test_get_zone_info
+zbc_test_get_target_zone_from_slba ${target_slba}
 
 if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_LT_WP}) ]]; then
-    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "zone_type=${target_type}"
+    if [ $? -eq 0 ]; then
+    	zbc_test_check_wp_eq $(( ${target_lba} + 2 * ${lblk_per_pblk} ))
+    fi
+    if [ $? -eq 0 ]; then
+	zbc_test_print_passed
+    fi
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"
+    zbc_test_check_wp_eq $(( ${target_lba} + ${lblk_per_pblk} ))
 fi
 
 # Post process

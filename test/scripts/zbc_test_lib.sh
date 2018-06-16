@@ -1370,7 +1370,9 @@ function zbc_test_fail_if_sk_ascq()
 	local expected_asc=""
 	if [ -n "${sk}" -o -n "${asc}" ]; then
 		zbc_test_print_failed_sk "$*"
+		return 1
 	fi
+	return 0
 }
 
 function zbc_test_print_failed_zc()
@@ -1386,6 +1388,32 @@ function zbc_test_print_failed_zc()
 	fi
 }
 
+# zbc_test_check_wp_eq expected_wp err_msg
+function zbc_test_check_wp_eq()
+{
+	local -i expected_wp=$1
+	shift
+	if [ ${target_ptr} -ne ${expected_wp} ]; then
+		zbc_test_print_failed "Zone WP=${target_ptr} does not equal expected WP=${expected_wp} -- $*"
+		return 1
+	fi
+	return 0
+}
+
+# zbc_test_check_wp_inrange wp_min wp_max err_msg
+function zbc_test_check_wp_inrange()
+{
+	local -i wp_min=$1
+	shift
+	local -i wp_max=$1
+	shift
+	if [ ${target_ptr} -lt ${wp_min} -o ${target_ptr} -gt ${wp_max} ]; then
+		zbc_test_print_failed "Zone WP=${target_ptr} is not within expected range [${wp_min}, ${wp_max}] -- $*"
+		return 1
+	fi
+	return 0
+}
+
 function zbc_test_check_zone_cond()
 {
 	local expected_sk=""
@@ -1397,6 +1425,41 @@ function zbc_test_check_zone_cond()
         elif [ "${target_cond}" != "${expected_cond}" ]; then
 		zbc_test_print_failed_zc "$*"
         else
+		# For zone conditions with valid WP, check within zone range
+		if [[ "${expected_cond}" == @(${ZC_EMPTY}) ]]; then
+			zbc_test_check_wp_eq ${target_slba}
+			if [ $? -ne 0 ]; then return; fi
+		elif [[ "${expected_cond}" == @(${ZC_CLOSED}) ]]; then
+			zbc_test_check_wp_inrange \
+				      $(( ${target_slba} + 1 )) \
+				      $(( ${target_slba} + ${target_size} - 1 ))
+			if [ $? -ne 0 ]; then return; fi
+		elif [[ "${expected_cond}" == @(${ZC_OPEN}) ]]; then
+			zbc_test_check_wp_inrange \
+				      ${target_slba} \
+				      $(( ${target_slba} + ${target_size} - 1 ))
+			if [ $? -ne 0 ]; then return; fi
+		fi
+		zbc_test_print_passed
+	fi
+}
+
+# zbc_test_check_zone_cond_wp expected_wp err_msg
+function zbc_test_check_zone_cond_wp()
+{
+	local expected_sk=""
+	local expected_asc=""
+	local -i expected_wp=$1
+	shift
+
+	# Check sk_ascq first
+	if [ -n "${sk}" -o -n "${asc}" ]; then
+		zbc_test_print_failed_sk "$*"
+	elif [ "${target_cond}" != "${expected_cond}" ]; then
+		zbc_test_print_failed_zc "$*"
+	elif [ ${target_ptr} -ne ${expected_wp} ]; then
+		zbc_test_print_failed "Zone WP=${target_ptr} does not equal expected WP=${expected_wp} -- $*"
+	else
                 zbc_test_print_passed
         fi
 }

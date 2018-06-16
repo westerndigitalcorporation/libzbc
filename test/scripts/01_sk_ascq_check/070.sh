@@ -24,17 +24,27 @@ expected_asc="Unaligned-write-command"		# Write starting and ending above WP
 # Search target LBA
 zbc_test_search_wp_zone_cond_or_NA ${ZC_NON_FULL}
 target_lba=$(( ${target_ptr} + 1 ))	# unaligned write starting above WP
+initial_wp=${target_ptr}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq
+zbc_test_get_zone_info
+zbc_test_get_target_zone_from_slba ${target_slba}
 
 if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
-    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "zone_type=${target_type}"
+    if [ $? -eq 0 ]; then
+    	zbc_test_check_wp_eq $(( ${target_lba} + ${lblk_per_pblk} ))
+    fi
+    if [ $? -eq 0 ]; then
+	zbc_test_print_passed
+    fi
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"
+    zbc_test_check_wp_eq ${initial_wp}
 fi
 
 # Post process
