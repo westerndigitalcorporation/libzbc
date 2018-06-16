@@ -15,7 +15,7 @@
 zone_cond_1=EMPTY
 zone_cond_2=FULL
 
-zbc_test_init $0 "WRITE cross-zone ${zone_cond_1}->${zone_cond_2} starting at Write Pointer" $*
+zbc_test_init $0 "WRITE cross-zone EMPTY->FULL starting at Write Pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
