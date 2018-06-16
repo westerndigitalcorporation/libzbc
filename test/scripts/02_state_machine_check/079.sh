@@ -12,9 +12,9 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE explicit open to explicit open" $*
+zbc_test_init $0 "WRITE (zero-length) closed to implicit open" $*
 
-expected_cond="0x3"
+expected_cond="0x2"
 
 # Get drive information
 zbc_test_get_device_info
@@ -22,25 +22,28 @@ zbc_test_get_device_info
 # Get zone information
 zbc_test_get_zone_info
 
-zbc_test_get_seq_zones_cond_or_NA "EOPEN"
+zbc_test_get_seq_zones_cond_or_NA "IOPENL"
 target_lba=${target_slba}
 
 # Start testing
-# Write part of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
+zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
-# Get zone information
-zbc_test_get_zone_info
+if [ -z "${sk}" ]; then
+    # Write zero more blocks in the zone
 
-# Get target zone condition
-zbc_test_get_target_zone_from_slba ${target_lba}
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} \
+			$(( ${target_lba} + ${lblk_per_pblk} )) 0
+    zbc_test_get_sk_ascq
+    zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
-# Check result
-zbc_test_check_zone_cond
+    if [ -z "${sk}" ]; then
+        zbc_test_get_zone_info
+        zbc_test_get_target_zone_from_slba ${target_lba}
+        zbc_test_check_zone_cond
+    fi
+fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 rm -f ${zone_info_file}

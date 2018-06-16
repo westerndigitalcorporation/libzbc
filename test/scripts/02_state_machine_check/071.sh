@@ -12,9 +12,9 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE (zero-length) empty to implicit open" $*
+zbc_test_init $0 "WRITE empty to full" $*
 
-expected_cond="0x2"
+expected_cond="0xe"
 
 # Get drive information
 zbc_test_get_device_info
@@ -24,8 +24,8 @@ zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
-# Write zero LBA at start of zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
+# Write all the blocks of the zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${target_size}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
