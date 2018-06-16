@@ -388,6 +388,9 @@ function zbc_run_config()
 	"05")
 		section_name="DH-SMR WPC zone checks"
 		;;
+	"08")
+		section_name="zone checks (SCSI only)"
+		;;
 	* )
 		echo "Unknown test section ${section}"
 		exit 1
@@ -549,6 +552,10 @@ if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
     prepare_lists "03" "04"			# our section list
-    export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZA meta-children
+    if [ ${force_ata} -ne 0 ]; then
+	export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZA meta-children
+    else
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 08"	# for ZA meta-children
+    fi
     zbc_run_gamut
 fi
