@@ -13,8 +13,11 @@
 
 . scripts/zbc_test_lib.sh
 
-# The zones process from CLOSED to FINISH one at a time, not exceeding max_open
-zbc_test_init $0 "FINISH ALL zones OK when max_open+1 zones are in CLOSED condition" $*
+zbc_test_init $0 "OPEN zone in CLOSED condition when max_open zones are EXP_OPEN" $*
+
+# Set expected error code
+expected_sk="Data-protect"
+expected_asc="Insufficient-zone-resources"
 
 # Get drive information
 zbc_test_get_device_info
@@ -55,18 +58,33 @@ if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
 fi
 
 # Start testing
-# Create more closed zones than the device is capable of having open (SWR) at a time
-zbc_test_close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))
+# Get one of the sequential zones and set it to CLOSED
+zbc_test_get_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
+target_lba=${target_slba}
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${target_lba} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_close_zone ${device} ${target_lba}
+
+# Update zone information
+zbc_test_get_zone_info
+
+# Explicitly open ${max_open} sequential zones of ${seq_zone_type}
+zbc_test_open_nr_zones ${seq_zone_type} ${max_open}
 if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Failed to close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))"
+    zbc_test_fail_if_sk_ascq "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
 else
-    # Now try to FINISH ALL closed zones
-    zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} -1
+    # Now attempt to open the zone we closed above, to exceed the limit
+    zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
 
     # Check result
     zbc_test_get_sk_ascq
-    zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+    if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
+	# zone type does not participate in the OZR protocol
+	zbc_test_check_no_sk_ascq "(${max_open}+1) * (seq_zone_type=${seq_zone_type})"
+    else
+	# Zone type participates in the OZR protocol
+	zbc_test_check_sk_ascq "(${max_open}+1) * (seq_zone_type=${seq_zone_type})"
+    fi
 fi
 
 # Post process
