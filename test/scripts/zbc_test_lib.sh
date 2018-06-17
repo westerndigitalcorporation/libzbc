@@ -500,7 +500,7 @@ function read_check_available()
 # It is expected that the requested number can be opened
 function zbc_test_open_nr_zones()
 {
-	local _zone_cond="${ZC_CLOSED}|${ZC_EMPTY}"
+	local _zone_cond="${ZC_EMPTY}"
 	local _zone_type="${1}"
 	local -i _open_num=${2}
 	local -i _count=0

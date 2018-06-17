@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE insufficient zone resources" $*
+zbc_test_init $0 "WRITE zone in EMPTY condition when max_open zones are EXP_OPEN" $*
 
 # Set expected error code
 expected_sk="Data-protect"
@@ -62,7 +62,7 @@ else
     zbc_test_get_zone_info
 
     # Get a writable zone (of any type) that is not OPEN
-    zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_CLOSED}|${ZC_NOT_WP}"
+    zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_NOT_WP}"
     if [ $? -ne 0 ]; then
     	zbc_test_get_sk_ascq
     	zbc_test_fail_if_sk_ascq "Unexpected failure to find writable zone"
@@ -72,7 +72,7 @@ else
     target_lba=${target_slba}
 
     # ${seq_zone_type} is SWR or SWP -- we just opened ${max_open} zones of this type.
-    # ${target_type} is any type of zone in a condition that is writable but not open --
+    # ${target_lba}/${target_type} is any type of zone, EMPTY if a write pointer zone --
     #		we are about to attempt to write to it.
     # If both zone types participate in the Open Zone Resources (OZR) protocol,
     #		then the write is expected to fail "Insufficient-zone-resources".

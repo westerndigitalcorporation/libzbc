@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "OPEN_ZONE insufficient zone resources (ALL bit set)" $*
+zbc_test_init $0 "OPEN ALL zones when max_open+1 zones are in CLOSED condition" $*
 
 # Set expected error code
 expected_sk="Data-protect"

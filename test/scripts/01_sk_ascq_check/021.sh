@@ -13,7 +13,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "OPEN_ZONE insufficient zone resources" $*
+zbc_test_init $0 "OPEN zone in EMPTY condition when max_open zones are EXP_OPEN" $*
 
 # Set expected error code
 expected_sk="Data-protect"
@@ -74,7 +74,7 @@ fi
 zbc_test_get_zone_info
 
 # Find one more sequential zone to try, which would exceed max_open
-zbc_test_get_target_zone_from_type_and_cond "${seq_zone_type}" "${ZC_EMPTY}"
+zbc_test_get_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
 if [ $? -ne 0 ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
     # This should not happen because we counted enough zones above
@@ -83,16 +83,18 @@ fi
 
 target_lba=${target_slba}
 
+# Now attempt to open one more zone to exceed the limit
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
 
 # Check result
 zbc_test_get_sk_ascq
-if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then
-    zbc_test_check_no_sk_ascq "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
+if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
+    zbc_test_check_no_sk_ascq "(${max_open}+1) * (seq_zone_type=${seq_zone_type})"
 else
-    zbc_test_check_sk_ascq "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
+    zbc_test_check_sk_ascq "(${max_open}+1) * (seq_zone_type=${seq_zone_type})"
 fi
 
 # Post process
+zbc_test_check_failed
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 rm -f ${zone_info_file}
