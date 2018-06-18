@@ -65,7 +65,8 @@ fi
 zbc_test_open_nr_zones ${seq_zone_type} ${max_open}
 if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
+    zbc_test_fail_if_sk_ascq
+    zbc_test_print_failed "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
     exit 1
 fi

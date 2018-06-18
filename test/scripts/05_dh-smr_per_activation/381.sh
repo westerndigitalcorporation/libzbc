@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate NON-EMPTY non-first zone in non-first domain (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate NON-EMPTY non-first domain (zone addr)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"

@@ -65,7 +65,8 @@ fi
 zbc_test_close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))
 if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Failed to close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))"
+    zbc_test_fail_if_sk_ascq
+    zbc_test_print_failed "Failed to close_nr_zones ${seq_zone_type} $(( ${max_open} + 1 ))"
 else
     # Now try to open ALL closed zones
     zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1

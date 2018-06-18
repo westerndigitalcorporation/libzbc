@@ -51,12 +51,20 @@ if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
 	"of type ${seq_zone_type} to exceed max_open (${max_open})"
 fi
 
+# Make sure we have available a writable zone that is not OPEN
+zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_NOT_WP}"
+if [ $? -ne 0 ]; then
+    zbc_test_print_not_applicable
+	"No suitable zone for this test (test_zone_type=${test_zone_type})"
+fi
+
 # Start testing
 # Explicitly open ${max_open} sequential zones of ${seq_zone_type}
 zbc_test_open_nr_zones ${seq_zone_type} ${max_open}
 if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
+    zbc_test_fail_if_sk_ascq
+    zbc_test_print_failed "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
 else
     # Update zone information
     zbc_test_get_zone_info
@@ -64,21 +72,19 @@ else
     # Get a writable zone (of any type) that is not OPEN
     zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_NOT_WP}"
     if [ $? -ne 0 ]; then
-    	zbc_test_get_sk_ascq
-    	zbc_test_fail_if_sk_ascq "Unexpected failure to find writable zone"
+        zbc_test_print_failed "Unexpected failure to find writable zone"
         zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 	exit 1
     fi
-    target_lba=${target_slba}
 
     # ${seq_zone_type} is SWR or SWP -- we just opened ${max_open} zones of this type.
-    # ${target_lba}/${target_type} is any type of zone, EMPTY if a write pointer zone --
+    # ${target_slba}/${target_type} is any type of zone, EMPTY if a write pointer zone --
     #		we are about to attempt to write to it.
     # If both zone types participate in the Open Zone Resources (OZR) protocol,
     #		then the write is expected to fail "Insufficient-zone-resources".
 
     # Attempt to write to the target LBA in the non-OPEN zone
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${lblk_per_pblk}
 
     zbc_test_get_sk_ascq
     if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then
