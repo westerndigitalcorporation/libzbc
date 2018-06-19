@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 	if (i >= argc) {
 		fprintf(stderr,
 			"[TEST][ERROR],Missing number of %ss to convert\n",
-			zone_addr ? "zone" : "conevrsion domain");
+			zone_addr ? "zone" : "conversion domain");
 		return 1;
 	}
 	nr_units = atoi(argv[i++]);

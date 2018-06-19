@@ -61,7 +61,7 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} $
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_err "Failed to ACTIVATE type=${smr_type} domain=${domain_num} count=${nr_cvt_to_seq_domains}"
+zbc_test_check_err "ACTIVATE type=${smr_type} domain=${domain_num} count=${nr_cvt_to_seq_domains}"
 
 # Check failed
 zbc_test_check_failed
