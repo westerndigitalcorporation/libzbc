@@ -36,12 +36,11 @@ zbc_test_get_zone_info
 zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_EMPTY}"
 
 # Start testing
-nr_sect=$((physical_block_size/512))
-nio=$(( (target_size / nr_sect) - 1))
-zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} ${nr_sect}
+nio=$(( (target_size / lblk_per_pblk) - 1))
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -n ${nio} ${device} ${target_slba} ${lblk_per_pblk}
 if [ $? -eq 0 ]; then
-    target_lba=$(( target_slba + nio * nr_sect ))
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $((nr_sect * 2))
+    target_lba=$(( target_slba + nio * lblk_per_pblk ))
+    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $((lblk_per_pblk * 2))
 fi
 
 # Check result

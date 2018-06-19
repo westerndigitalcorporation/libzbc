@@ -27,11 +27,11 @@ expected_sk="Illegal-request"
 expected_asc="Write-boundary-violation"		# write cross-zone
 
 # Compute the start of the last physical block below the write pointer of the first zone
-target_lba=$(( ${target_slba} + ${target_size} - ${sect_per_pblk} ))
+target_lba=$(( ${target_slba} + ${target_size} - ${lblk_per_pblk} ))
 
 # Start testing
 # Write across the zone boundary
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${sect_per_pblk} * 2 ))
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} $(( ${lblk_per_pblk} * 2 ))
 
 # Check result
 zbc_test_get_sk_ascq

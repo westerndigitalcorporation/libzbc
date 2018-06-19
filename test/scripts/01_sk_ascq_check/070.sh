@@ -37,8 +37,7 @@ zbc_test_search_vals_from_zone_type_and_ignored_cond ${zone_type} "0xe"
 target_lba=$(( ${target_ptr} + 1 ))
 
 # Start testing
-nr_sect=$((physical_block_size/512))
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${nr_sect}
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq

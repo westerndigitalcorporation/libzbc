@@ -164,7 +164,7 @@ function zbc_test_get_device_info()
 	physical_block_size=${2}
 	zbc_check_string "Failed to get physical block size" ${physical_block_size}
 
-	sect_per_pblk=$((physical_block_size/512))
+	lblk_per_pblk=$((physical_block_size/logical_block_size))
 
 	local unrestricted_read_line=`cat ${log_file} | grep -F "[URSWRZ]"`
 	set -- ${unrestricted_read_line}
@@ -323,7 +323,7 @@ function zbc_test_close_nr_zones()
 
 		IFS="$_IFS"
 
-		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${sect_per_pblk}
+		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${lblk_per_pblk}
 		zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${start_lba}
 
 		count=${count}+1
@@ -577,14 +577,14 @@ function zbc_test_zone_tuple_cond()
 			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
 			;;
 		"IOPENL")
-			# IMPLICIT OPEN by writing the first ${sect_per_pblk} LBA of the zone
+			# IMPLICIT OPEN by writing the first ${lblk_per_pblk} LBA of the zone
 			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${sect_per_pblk}
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${lblk_per_pblk}
 			;;
 		"IOPENH")
-			# IMPLICIT OPEN by writing all but the last ${sect_per_pblk} LBA of the zone
+			# IMPLICIT OPEN by writing all but the last ${lblk_per_pblk} LBA of the zone
 			zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} ${target_slba}
-			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${sect_per_pblk} ))
+			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} $(( ${target_size} - ${lblk_per_pblk} ))
 			;;
 		"EOPEN")
 			# EXPLICIT OPEN of an empty zone

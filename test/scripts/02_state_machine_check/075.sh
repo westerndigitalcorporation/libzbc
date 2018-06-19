@@ -30,9 +30,9 @@ zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
 if [ -z "${sk}" ]; then
     # Write the rest of the zone
-    resid=$(( ${target_size} - ${sect_per_pblk} ))
+    resid=$(( ${target_size} - ${lblk_per_pblk} ))
     zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} \
-			$(( ${target_lba} + ${sect_per_pblk} )) ${resid}
+			$(( ${target_lba} + ${lblk_per_pblk} )) ${resid}
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
