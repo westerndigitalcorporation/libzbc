@@ -36,6 +36,16 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /*
+ * REPORT ZONE DOMAINS ouput header size.
+ */
+#define ZBC_RPT_DOMAINS_HEADER_SIZE	64
+
+/*
+ * REPORT ZONE DOMAINS output descriptor size.
+ */
+#define ZBC_RPT_DOMAINS_RECORD_SIZE	32
+
+/*
  * REPORT REALMS ouput header size.
  */
 #define ZBC_RPT_REALMS_HEADER_SIZE	64
@@ -665,6 +675,115 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
+}
+
+/**
+ * Report device zone domain configuration.
+ */
+static int zbc_scsi_report_domains(struct zbc_device *dev,
+				   struct zbc_zone_domain *domains,
+				   unsigned int nr_domains)
+{
+	size_t bufsz = ZBC_RPT_DOMAINS_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	struct zbc_sg_cmd cmd;
+	size_t max_bufsz;
+	uint8_t *buf;
+	int ret;
+
+	bufsz += (size_t)nr_domains * ZBC_RPT_DOMAINS_RECORD_SIZE;
+
+	/* For in kernel ATA translation: align to 512 B */
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize REPORT ZONE DOMAINS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONE_DOMAINS, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (02h) FIXME TBD       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                         Reporting Options                             |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                             Reserved                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   | (MSB)                                                                 |
+	 * |- - -+---                       Allocation Length                         ---|
+	 * | 7   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 8   |                                                                       |
+	 * |-----+---                          Reserved                               ---|
+	 * | 14  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                             Control                                   |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA;
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_RPT_DOMAINS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT ZONE DOMAINS data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_RPT_DOMAINS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get the number of domain descriptors in result */
+	buf = (uint8_t *)cmd.out_buf;
+	/* FIXME header format TBD */
+	nr = buf[0];
+
+	if (!domains || !nr)
+		goto out;
+
+	/* Get the number of domain descriptors to fill */
+	if (nr < nr_domains)
+		nr_domains = nr;
+
+	bufsz = (cmd.out_bufsz - ZBC_RPT_DOMAINS_HEADER_SIZE) /
+		ZBC_RPT_DOMAINS_RECORD_SIZE;
+	if (nr_domains > bufsz)
+		nr_domains = bufsz;
+
+	/* Get zone domain descriptors */
+	buf += ZBC_RPT_DOMAINS_HEADER_SIZE;
+	for (i = 0; i < nr_domains; i++) {
+		domains[i].zbm_id = buf[0];
+		domains[i].zbm_type = buf[1];
+
+		domains[i].zbm_start_lba =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
+		domains[i].zbm_end_lba =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
+
+		buf += ZBC_RPT_DOMAINS_RECORD_SIZE;
+	}
+
+out:
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	/* Return the number of domain descriptors */
+	return nr;
 }
 
 /**
@@ -1858,6 +1977,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
+	.zbd_report_domains	= zbc_scsi_report_domains,
 	.zbd_report_realms	= zbc_scsi_report_realms,
 	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
 	.zbd_report_mutations	= zbc_scsi_report_mutations,

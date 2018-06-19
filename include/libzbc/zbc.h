@@ -314,6 +314,62 @@ struct zbc_zone {
 #define zbc_zone_wp(z)		((unsigned long long)(z)->zbz_write_pointer)
 
 /**
+ * @brief Zone domain descriptor
+ *
+ * Provide all information about a single zone domain supported by the
+ * device. This structure is populated with the information returned to
+ * the client after succesful execution of REPORT ZONE DOMAINS SCSI command
+ * or REPORT DOMAINS DMA ATA command.
+ */
+struct zbc_zone_domain {
+
+	/**
+	 * Start LBA of this zone domain.
+	 */
+	uint64_t		zbm_start_lba;
+
+	/**
+	 * End LBA of this zone domain.
+	 */
+	uint64_t		zbm_end_lba;
+
+	/**
+	 * Domain ID. Zone domains are numbered from 0 by
+	 * the server, incrementing in ascending order by 1.
+	 */
+	uint8_t			zbm_id;
+
+	/**
+	 * All zones activated in the LBA range of this
+	 * domain will be of this type.
+	 */
+	uint8_t			zbm_type;
+
+	/**
+	 * These flags are internal to the library,
+	 * not a part of Zone Domains specification.
+	 */
+	uint8_t			zbm_flags;
+
+	/**
+	 * Padding to 24 bytes.
+	 */
+	uint8_t			__pad[5];
+};
+
+/** @brief Get zone domain ID */
+#define zbc_zone_domain_id(d)		((unsigned int)(d)->zbm_id)
+
+/** @brief Get zone domain type */
+#define zbc_zone_domain_type(d)		((unsigned int)(d)->zbm_type)
+
+/** @brief Get zone domain start LBA */
+#define zbc_zone_domain_start_lba(d)	((unsigned long long)(d)->zbm_start_lba)
+
+/** @brief Get zone domain end LBA */
+#define zbc_zone_domain_end_lba(d)	((unsigned long long)(d)->zbm_end_lba)
+
+/**
  * Flags that can be set in zbr_convertible field
  * of zbc_zone_realm structure (below).
  */
@@ -1403,6 +1459,46 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Get zone domain information
+ * @param[in] dev	  Device handle obtained with \a zbc_open
+ * @param[in] domains	  Pointer to the array of convert descriptors to fill
+ * @param[in] nr_domains  Number of domain descriptors in the array \a domains
+ *
+ * Get zone domain information from a DH-SMR device.
+ * The array \a domains array must be allocated by the caller and
+ * \a nr_domains must point to the size of the allocated array (number of
+ * descriptors in the array). The entire list of domains is always reported.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ *         Upon success, returns the total number of records that the device is
+ *         reporting. This number may potentially exceed \a nr_domains. In this
+ *         case, only \a nr_domains records in input buffer are filled.
+ */
+extern int zbc_report_domains(struct zbc_device *dev,
+			      struct zbc_zone_domain *domains,
+			      unsigned int nr_domains);
+
+/**
+ * @brief List zone domain information
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] domains		Array of zone domain descriptors
+ * @param[out] nr_domains	Number of domains in the array \a domains
+ *
+ * Similar to \a zbc_report_domains, but also allocates an appropriately sized
+ * array of zone domain descriptorss and returns the address of the array
+ * at the address specified by \a domains. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_domains. Freeing of the
+ * memory used by the array of domain descriptors allocated by this function
+ * is the responsibility of the caller.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENOMEM if memory could not be allocated for \a domains.
+ */
+extern int zbc_list_domains(struct zbc_device *dev,
+			    struct zbc_zone_domain **pdomains,
+			    unsigned int *pnr_domains);
+
+/**
  * @brief Get zone realm information
  * @param[in] dev	  Device handle obtained with \a zbc_open
  * @param[in] realms	  Pointer to the array of convert descriptors to fill
@@ -1442,8 +1538,8 @@ static inline int zbc_report_nr_realms(struct zbc_device *dev,
 /**
  * @brief List zone realm information
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] realms		Array of zone realm descriptors
- * @param[out] nr_realms	Number of realms in the array \a realms
+ * @param[out] prealms		Pointer to an array of zone realm descriptors
+ * @param[out] pnr_realms	Points to the number of realms in \a realms
  *
  * Similar to \a zbc_report_realms, but also allocates an appropriately sized
  * array of zone realm descriptorss and returns the address of the array
@@ -1456,8 +1552,8 @@ static inline int zbc_report_nr_realms(struct zbc_device *dev,
  * Returns -ENOMEM if memory could not be allocated for \a realms.
  */
 extern int zbc_list_zone_realms(struct zbc_device *dev,
-				struct zbc_zone_realm **realms,
-				unsigned int *nr_realms);
+				struct zbc_zone_realm **prealms,
+				unsigned int *pnr_realms);
 
 /**
  * @brief Convert a number of zones at the specified start to the new type

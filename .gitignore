@@ -37,6 +37,7 @@ zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
 zbc_report_realms
+zbc_report_domains
 zbc_zone_activate
 zbc_dev_control
 gzbc

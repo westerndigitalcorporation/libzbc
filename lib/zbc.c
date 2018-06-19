@@ -640,6 +640,114 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 	return (dev->zbd_drv->zbd_zone_op)(dev, sector, op, flags);
 }
 
+/**
+ * zbc_report_domains - Get zone domain information
+ */
+int zbc_report_domains(struct zbc_device *dev, struct zbc_zone_domain *domains,
+		       unsigned int nr_domains)
+{
+	int ret;
+
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_report_domains) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: REPORT DOMAINS not implemented by driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	ret = (dev->zbd_drv->zbd_report_domains)(dev, domains, nr_domains);
+	if (ret < 0) {
+		zbc_error("%s: REPORT DOMAINS failed %d (%s)\n",
+			  dev->zbd_filename,
+			  ret, strerror(-ret));
+	}
+
+	return ret;
+}
+
+#define ZBC_EST_ALLOC_DOMAINS	6
+
+/**
+ * zbc_list_domains - Allocate a buffer and fill it with zone
+ * 		      domain information
+ */
+int zbc_list_domains(struct zbc_device *dev, struct zbc_zone_domain **pdomains,
+		     unsigned int *pnr_domains)
+{
+	struct zbc_zone_domain *domains = NULL;
+	unsigned int nr_domains;
+	int ret;
+
+	if (!pdomains) {
+		zbc_error("%s: NULL domain array pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*pdomains = NULL;
+	if (!pnr_domains) {
+		zbc_error("%s: NULL domain count pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*pnr_domains = 0;
+
+	if (!zbc_dev_is_zone_act(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/*
+	 * The number of zone domains is usually small, try allocating
+	 * the buffer to hold a few domains and see if it will be enough.
+	 * This will likely save us a SCSI call.
+	 */
+	domains = (struct zbc_zone_domain *)calloc(ZBC_EST_ALLOC_DOMAINS,
+					 sizeof(struct zbc_zone_domain));
+	if (!domains)
+		return -ENOMEM;
+
+	/* Get zone domain information */
+	ret = zbc_report_domains(dev, domains, ZBC_EST_ALLOC_DOMAINS);
+	if (ret < 0) {
+		zbc_error("%s: zbc_report_domains failed %d\n",
+			  dev->zbd_filename, ret);
+		free(domains);
+		return ret;
+	}
+	nr_domains = ret;
+
+	if (nr_domains > ZBC_EST_ALLOC_DOMAINS) {
+		/* Reallocate zone domain descriptor array */
+		free(domains);
+		domains = (struct zbc_zone_domain *)calloc(nr_domains,
+					 sizeof(struct zbc_zone_domain));
+		if (!domains)
+			return -ENOMEM;
+
+		/* Get zone domain information again */
+		ret = zbc_report_domains(dev, domains, nr_domains);
+		if (ret < 0) {
+			zbc_error("%s: zbc_report_domains failed %d\n",
+				  dev->zbd_filename, ret);
+			free(domains);
+			return ret;
+		}
+		nr_domains = ret;
+	}
+
+	*pdomains = domains;
+	*pnr_domains = nr_domains;
+
+	return 0;
+}
+
 /*
  * If REPORT REALMS is not supported by the device,
  * try to emulate it with REPORT ZONES and ZONE QUERY.

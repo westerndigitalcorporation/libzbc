@@ -67,6 +67,12 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
+	 * Report zone domain information.
+	 */
+	int		(*zbd_report_domains)(struct zbc_device *,
+					      struct zbc_zone_domain *,
+					      unsigned int);
+	/**
 	 * Report zone realm configuration.
 	 */
 	int		(*zbd_report_realms)(struct zbc_device *,

@@ -162,18 +162,18 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
 
 /**
- * Report realms command definition.
- */
-#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
-#define ZBC_SG_REPORT_REALMS_CDB_SA		0x01
-#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
-
-/**
  * Report zone domains command definition.
  */
 #define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE	0x95 /* FIXME opcode/SA TBD */
 #define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA	0x02
 #define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_LENGTH	16
+
+/**
+ * Report realms command definition.
+ */
+#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_REALMS_CDB_SA		0x01
+#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
 
 /**
  * Zone Query / Activate command definitions.
