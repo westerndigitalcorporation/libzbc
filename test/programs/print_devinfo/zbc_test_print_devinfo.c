@@ -147,8 +147,8 @@ usage:
 		(bool)(info.zbd_flags & ZBC_URSWRZ_SET_SUPPORT));
 
 	fprintf(stdout,
-		"[TEST][INFO][DOMAIN_REPORT],%x\n",
-		(bool)(info.zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT));
+		"[TEST][INFO][REPORT_REALMS],%x\n",
+		(bool)(info.zbd_flags & ZBC_REPORT_REALMS_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][ZONE_QUERY],%x\n",

@@ -1,3 +1,0 @@
-bin_PROGRAMS += zbc_domain_report
-zbc_domain_report_SOURCES = tools/domain_report/zbc_domain_report.c
-zbc_domain_report_LDADD = $(libzbc_ldadd)

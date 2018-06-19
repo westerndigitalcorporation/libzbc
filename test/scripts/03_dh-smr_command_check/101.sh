@@ -31,16 +31,16 @@ else
 fi
 
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-# Select last domain
-zbc_test_count_cvt_domains		# into nr_domains
-zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
+# Select last realm
+zbc_test_count_zone_realms		# into nr_realms
+zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
-# Use the size of the last domain when trying ACTIVATE at End of Medium
+# Use the size of the last realm when trying ACTIVATE at End of Medium
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${domain_seq_len} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${realm_seq_len} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

@@ -12,13 +12,13 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "DOMAIN REPORT command completion" $*
+zbc_test_init $0 "REPORT REALMS command completion" $*
 
 # Get drive information
 zbc_test_get_device_info
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_domain_report ${device}
+zbc_test_run ${bin_path}/zbc_test_report_realms ${device}
 
 # Check result
 zbc_test_get_sk_ascq

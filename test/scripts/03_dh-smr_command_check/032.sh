@@ -25,34 +25,34 @@ else
     zbc_test_print_not_applicable "No sequential zones are supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find a CMR domain that is convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "seq"
+# Find a CMR realm that is convertible to SMR
+zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently CMR and convertible to SMR"
+    zbc_test_print_not_applicable "No realm is currently CMR and convertible to SMR"
 fi
 
-# Assume that all convertible domains are contiguous
-zbc_test_count_cvt_to_seq_domains
+# Assume that all convertible realms are contiguous
+zbc_test_count_cvt_to_seq_realms
 
-# Calculate the total number of zones in this range of domains
-zbc_test_calc_nr_domain_zones ${domain_num} ${nr_cvt_to_seq_domains}
+# Calculate the total number of zones in this range of realms
+zbc_test_calc_nr_realm_zones ${realm_num} ${nr_cvt_to_seq_realms}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${domain_conv_start} ${nr_conv_zones} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_conv_start} ${nr_conv_zones} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "ACTIVATE failed"
 
 if [ -z "${sk}" ]; then
-    # Verify that no convertible CMR domains present
-    zbc_test_get_cvt_domain_info
-    zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "seq"
+    # Verify that no convertible CMR realms present
+    zbc_test_get_zone_realm_info
+    zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "seq"
     if [ $? -eq 0 ]; then
-	sk=${domain_num}
+	sk=${realm_num}
 	expected_sk="no-conv-to-seq"
     fi
 fi

@@ -81,7 +81,7 @@ test_progs=( \
     zbc_test_finish_zone \
     zbc_test_read_zone \
     zbc_test_write_zone \
-    zbc_test_domain_report \
+    zbc_test_report_realms \
     zbc_test_zone_activate \
     zbc_test_dev_control \
 )

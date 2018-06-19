@@ -136,15 +136,15 @@ function zbc_test_init()
 	zone_info_file="/tmp/${case_num}_zone_info.`basename ${device}`.log"
 	rm -f ${zone_info_file}
 
-	# Conversion domain info file
-	cvt_domain_info_file="/tmp/${case_num}_cvt_domain_info.`basename ${device}`.log"
-	rm -f ${cvt_domain_info_file}
+	# Zone realm info file
+	zone_realm_info_file="/tmp/${case_num}_zone_realm_info.`basename ${device}`.log"
+	rm -f ${zone_realm_info_file}
 
 	# Dump zone info file
 	dump_zone_info_file="${log_path}/${case_num}_zone_info.log"
 
-	# Dump conversion domain info file
-	dump_cvt_domain_info_file="${log_path}/${case_num}_cvt_domain_info.log"
+	# Dump zone realm info file
+	dump_zone_realm_info_file="${log_path}/${case_num}_zone_realm_info.log"
 }
 
 # Reset the DUT to factory conditions
@@ -311,10 +311,10 @@ function zbc_test_get_device_info()
 		ur_control=${2}
 		zbc_check_string "Failed to get unrestricted read control" ${ur_control}
 
-		local domain_report_line=`cat ${log_file} | grep -F "[DOMAIN_REPORT]"`
-		set -- ${domain_report_line}
-		domain_report=${2}
-		zbc_check_string "Failed to get DOMAIN REPORT support" ${domain_report}
+		local report_realms_line=`cat ${log_file} | grep -F "[REPORT_REALMS]"`
+		set -- ${report_realms_line}
+		report_realms=${2}
+		zbc_check_string "Failed to get REPORT REALMS support" ${report_realms}
 
 		local zone_query_line=`cat ${log_file} | grep -F "[ZONE_QUERY]"`
 		set -- ${zone_query_line}
@@ -329,7 +329,7 @@ function zbc_test_get_device_info()
 		local maxact_control_line=`cat ${log_file} | grep -F "[MAXACT_CONTROL]"`
 		set -- ${maxact_control_line}
 		maxact_control=${2}
-		zbc_check_string "Failed to get maximum activation domains control" ${maxact_control}
+		zbc_check_string "Failed to get maximum activation realms control" ${maxact_control}
 
 		local conv_zone_line=`cat ${log_file} | grep -F "[CONV_ZONE]"`
 		set -- ${conv_zone_line}
@@ -353,7 +353,7 @@ function zbc_test_get_device_info()
 		zbc_check_string "Failed to get Sequential or Before Required zone support" ${wpc_zone}
 	else
 		ur_control=0
-		domain_report=0
+		report_realms=0
 		zone_query=0
 		za_control=0
 		maxact_control=0
@@ -956,61 +956,61 @@ function zbc_test_get_wp_zones_cond_or_NA()
 	fi
 }
 
-# Conversion domain manipulation functions
+# Zone realm manipulation functions
 
-function zbc_test_get_cvt_domain_info()
+function zbc_test_get_zone_realm_info()
 {
-	local _cmd="${bin_path}/zbc_test_domain_report ${device}"
+	local _cmd="${bin_path}/zbc_test_report_realms ${device}"
 	echo "" >> ${log_file} 2>&1
-	echo "## Executing: ${_cmd} > ${cvt_domain_info_file} 2>&1" >> ${log_file} 2>&1
+	echo "## Executing: ${_cmd} > ${zone_realm_info_file} 2>&1" >> ${log_file} 2>&1
 	echo "" >> ${log_file} 2>&1
 
-	${VALGRIND} ${_cmd} > ${cvt_domain_info_file} 2>> ${log_file}
+	${VALGRIND} ${_cmd} > ${zone_realm_info_file} 2>> ${log_file}
 
 	return 0
 }
 
-function zbc_test_count_cvt_domains()
+function zbc_test_count_zone_realms()
 {
-	nr_domains=`cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]" | wc -l`
+	nr_realms=`cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]" | wc -l`
 }
 
-function UNUSED_zbc_test_count_conv_domains()
+function UNUSED_zbc_test_count_zone_realms()
 {
 	local _IFS="${IFS}"
-	nr_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_NON_SEQ})"`
+	nr_zone_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_NON_SEQ})"`
 	IFS="$_IFS"
 }
 
-function UNUSED_zbc_test_count_seq_domains()
+function UNUSED_zbc_test_count_seq_realms()
 {
 	local _IFS="${IFS}"
-	nr_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_SEQ})"`
+	nr_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_SEQ})"`
 	IFS="$_IFS"
 }
 
-function zbc_test_count_cvt_to_conv_domains()
+function zbc_test_count_cvt_to_conv_realms()
 {
 	local _IFS="${IFS}"
-	nr_cvt_to_conv_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
+	nr_cvt_to_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
 	IFS="$_IFS"
 }
 
-function zbc_test_count_cvt_to_seq_domains()
+function zbc_test_count_cvt_to_seq_realms()
 {
 	local _IFS="${IFS}"
-	nr_cvt_to_seq_domains=`cat ${cvt_domain_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
+	nr_cvt_to_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
 	IFS="$_IFS"
 }
 
-# Return non-zero if a domain found by zbc_test_search_* has zones R/O or offline
-function zbc_test_is_found_domain_faulty()
+# Return non-zero if a realm found by zbc_test_search_* has zones R/O or offline
+function zbc_test_is_found_realm_faulty()
 {
 	local _target_slba
 	zbc_test_get_zone_info
 
-	zbc_test_get_target_zone_from_slba ${domain_seq_start}
-	for (( i=0 ; i<${domain_seq_len} ; i++ )) ; do
+	zbc_test_get_target_zone_from_slba ${realm_seq_start}
+	for (( i=0 ; i<${realm_seq_len} ; i++ )) ; do
 		if [ $? -ne 0 ]; then
 			break
 		fi
@@ -1024,8 +1024,8 @@ function zbc_test_is_found_domain_faulty()
 		zbc_test_get_target_zone_from_slba ${_target_slba}
 	done
 
-	zbc_test_get_target_zone_from_slba ${domain_conv_start}
-	for (( i=0 ; i<${domain_conv_len} ; i++ )) ; do
+	zbc_test_get_target_zone_from_slba ${realm_conv_start}
+	for (( i=0 ; i<${realm_conv_len} ; i++ )) ; do
 		if [ $? -ne 0 ]; then
 			break
 		fi
@@ -1042,24 +1042,24 @@ function zbc_test_is_found_domain_faulty()
 	return 0
 }
 
-function zbc_test_search_cvt_domain_by_number()
+function zbc_test_search_zone_realm_by_number()
 {
-	local domain_number=`printf "%03u" "${1}"`
+	local realm_number=`printf "%03u" "${1}"`
 
-	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],(${domain_number}),.*,.*,.*,.*,.*,.*,.*,.*"`; do
+	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],(${realm_number}),.*,.*,.*,.*,.*,.*,.*,.*"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
 		set -- ${_line}
 
-		domain_type=${3}
-		domain_conv_start=`_trim ${4}`
-		domain_conv_len=${5}
-		domain_seq_start=`_trim ${6}`
-		domain_seq_len=${7}
-		domain_cvt_to_conv=${9}
-		domain_cvt_to_seq=${10}
+		realm_type=${3}
+		realm_conv_start=`_trim ${4}`
+		realm_conv_len=${5}
+		realm_seq_start=`_trim ${6}`
+		realm_seq_len=${7}
+		realm_cvt_to_conv=${9}
+		realm_cvt_to_seq=${10}
 
 		IFS="$_IFS"
 
@@ -1070,13 +1070,13 @@ function zbc_test_search_cvt_domain_by_number()
 	return 1
 }
 
-function UNUSED_zbc_test_search_cvt_domain_by_type()
+function UNUSED_zbc_test_search_zone_realm_by_type()
 {
-	local domain_search_type=${1}
+	local realm_search_type=${1}
 	local -i _skip=$(expr ${2:-0})
 
-	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],.*,(${domain_search_type}),.*,.*,.*,.*,.*,.*,.*"`; do
+	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,.*,.*"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
@@ -1084,18 +1084,18 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 			IFS=$',\n'
 			set -- ${_line}
 
-			domain_num=$(expr ${2} + 0)
-			domain_type=${3}
-			domain_conv_start=`_trim ${4}`
-			domain_conv_len=${5}
-			domain_seq_start=`_trim ${6}`
-			domain_seq_len=${7}
-			domain_cvt_to_conv=${9}
-			domain_cvt_to_seq=${10}
+			realm_num=$(expr ${2} + 0)
+			realm_type=${3}
+			realm_conv_start=`_trim ${4}`
+			realm_conv_len=${5}
+			realm_seq_start=`_trim ${6}`
+			realm_seq_len=${7}
+			realm_cvt_to_conv=${9}
+			realm_cvt_to_seq=${10}
 
 			IFS="$_IFS"
 
-			zbc_test_is_found_domain_faulty
+			zbc_test_is_found_realm_faulty
 			if [ $? -eq 0 ]; then
 				return 0
 			fi
@@ -1109,11 +1109,11 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 	return 1
 }
 
-# $1 is domain type, $2 is convertible_to
-# Optional $3 = "NOFAULTY" specifies to skip faulty domains
-function zbc_test_search_domain_by_type_and_cvt()
+# $1 is realm type, $2 is convertible_to
+# Optional $3 = "NOFAULTY" specifies to skip faulty realms
+function zbc_test_search_realm_by_type_and_cvt()
 {
-	local domain_search_type=${1}
+	local realm_search_type=${1}
 	local -i _skip=0	# _skip=$(expr ${3:-0})
 	local _NOFAULTY="$3"
 	local cvt
@@ -1138,12 +1138,12 @@ function zbc_test_search_domain_by_type_and_cvt()
 		cvt="N,N"
 		;;
 	* )
-		_stacktrace_exit "zbc_test_search_domain_by_type_and_cvt bad cvt arg=\"$2\""
+		_stacktrace_exit "zbc_test_search_realm_by_type_and_cvt bad cvt arg=\"$2\""
 		;;
 	esac
 
-	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep -E "\[CVT_DOMAIN_INFO\],.*,(${domain_search_type}),.*,.*,.*,.*,.*,${cvt}"`; do
+	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,${cvt}"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
@@ -1151,14 +1151,14 @@ function zbc_test_search_domain_by_type_and_cvt()
 			IFS=$',\n'
 			set -- ${_line}
 
-			domain_num=$(expr ${2} + 0)
-			domain_type=${3}
-			domain_conv_start=`_trim ${4}`
-			domain_conv_len=${5}
-			domain_seq_start=`_trim ${6}`
-			domain_seq_len=${7}
-			domain_cvt_to_conv=${9}
-			domain_cvt_to_seq=${10}
+			realm_num=$(expr ${2} + 0)
+			realm_type=${3}
+			realm_conv_start=`_trim ${4}`
+			realm_conv_len=${5}
+			realm_seq_start=`_trim ${6}`
+			realm_seq_len=${7}
+			realm_cvt_to_conv=${9}
+			realm_cvt_to_seq=${10}
 
 			IFS="$_IFS"
 
@@ -1166,7 +1166,7 @@ function zbc_test_search_domain_by_type_and_cvt()
 				return 0
 			fi
 
-			zbc_test_is_found_domain_faulty
+			zbc_test_is_found_realm_faulty
 			if [ $? -eq 0 ]; then
 				return 0
 			fi
@@ -1180,31 +1180,31 @@ function zbc_test_search_domain_by_type_and_cvt()
 	return 1
 }
 
-function zbc_test_calc_nr_domain_zones()
+function zbc_test_calc_nr_realm_zones()
 {
-	local domain_num=${1}
-	local -i _nr_domains=${2}
+	local realm_num=${1}
+	local -i _nr_realms=${2}
 	nr_conv_zones=0
 	nr_seq_zones=0
 
-	# [CVT_DOMAIN_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${cvt_domain_info_file} | grep "\[CVT_DOMAIN_INFO\]"`; do
+	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	for _line in `cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]"`; do
 
 		local _IFS="${IFS}"
 		IFS=$',\n'
 		set -- ${_line}
 
-		if [ $(expr ${2} + 0) -ge ${domain_num} ]; then
+		if [ $(expr ${2} + 0) -ge ${realm_num} ]; then
 
 			nr_conv_zones=$(expr ${nr_conv_zones} + ${5})
 			nr_seq_zones=$(expr ${nr_seq_zones} + ${7})
-			_nr_domains=$(( ${_nr_domains} - 1 ))
+			_nr_realms=$(( ${_nr_realms} - 1 ))
 
 		fi
 
 		IFS="$_IFS"
 
-		if [ ${_nr_domains} -eq 0 ]; then
+		if [ ${_nr_realms} -eq 0 ]; then
 			return 0
 		fi
 	done
@@ -1455,9 +1455,9 @@ function zbc_test_dump_zone_info()
 	zbc_report_zones ${device} > ${dump_zone_info_file}
 }
 
-function zbc_test_dump_cvt_domain_info()
+function zbc_test_dump_zone_realm_info()
 {
-	zbc_domain_report ${device} > ${dump_cvt_domain_info_file}
+	zbc_report_realms ${device} > ${dump_zone_realm_info_file}
 }
 
 # Dump info files after a failed test -- returns 1 if test failed
@@ -1467,7 +1467,7 @@ function zbc_test_check_failed()
 	if [[ ! -z "${failed}" ]]; then
 		zbc_test_dump_zone_info
 		if [ ${zone_activation_device} -ne 0 ]; then
-			zbc_test_dump_cvt_domain_info
+			zbc_test_dump_zone_realm_info
 		fi
 		return 1
 	fi

@@ -513,8 +513,8 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 		else
 			fprintf(out, "    Maximum number of zones"
 				     " to activate is unlimited\n");
-		fprintf(out, "    DOMAIN REPORT command is %ssupported\n",
-			(info->zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    REPORT REALMS command is %ssupported\n",
+			(info->zbd_flags & ZBC_REPORT_REALMS_SUPPORT) ? "" : "NOT ");
 		fprintf(out, "    ZONE QUERY command is %ssupported\n",
 			(info->zbd_flags & ZBC_ZONE_QUERY_SUPPORT) ? "" : "NOT ");
 		fprintf(out, "    ZA (FSNOZ) control is %ssupported\n",
@@ -641,15 +641,15 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 }
 
 /*
- * If DOMAIN REPORT is not supported by the device,
+ * If REPORT REALMS is not supported by the device,
  * try to emulate it with REPORT ZONES and ZONE QUERY.
  */
-static int zbc_emulate_domain_report(struct zbc_device *dev,
-				     struct zbc_cvt_domain *domains,
-				     unsigned int *nr_domains)
+static int zbc_emulate_report_realms(struct zbc_device *dev,
+				     struct zbc_zone_realm *realms,
+				     unsigned int *nr_realms)
 {
 	struct zbc_device_info *di = &dev->zbd_info;
-	struct zbc_cvt_domain *d;
+	struct zbc_zone_realm *r;
 	struct zbc_zone *z, *zones = NULL;
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
 	uint64_t lba, cmr_start = 0LL, smr_start = 0LL;
@@ -740,16 +740,16 @@ static int zbc_emulate_domain_report(struct zbc_device *dev,
 
 	/*
 	 * Get the list of conversion records.
-	 * We will report pairs of them as domains.
+	 * We will report pairs of them as realms.
 	 */
 	ret = zbc_zone_query(dev, true, true, false, lba, space_zones,
 			     zone_type, conv_recs, &nr_conv_recs);
 	if (ret != 0)
 		goto out;
 
-	/* Fill zone domain information */
+	/* Fill zone realm information */
 	dnr = 0;
-	d = domains;
+	r = realms;
 	have_cmr = have_smr = false;
 	for (i = 0; i < (int)nr_conv_recs; i++) {
 		cr = &conv_recs[i];
@@ -780,37 +780,37 @@ static int zbc_emulate_domain_report(struct zbc_device *dev,
 			have_smr = true;
 		}
 		if (have_cmr && have_smr) {
-			if (d) {
-				d->zbr_number = dnr;
-				d->zbr_keep_out = 0;
+			if (r) {
+				r->zbr_number = dnr;
+				r->zbr_keep_out = 0;
 				if (cmr_cond == ZBC_ZC_INACTIVE &&
 				    smr_cond == ZBC_ZC_INACTIVE) {
-					zbc_error("%s: Can't determine domain type\n",
+					zbc_error("%s: Can't determine realm type\n",
 						  dev->zbd_filename);
 					ret = -EINVAL;
 					goto out;
 				}
-				d->zbr_type = (cmr_cond == ZBC_ZC_INACTIVE) ? smr_type : cmr_type;
-				d->zbr_convertible = 0;
+				r->zbr_type = (cmr_cond == ZBC_ZC_INACTIVE) ? smr_type : cmr_type;
+				r->zbr_convertible = 0;
 				if (cmr_len)
-					d->zbr_convertible |= ZBC_CVT_TO_CONV;
+					r->zbr_convertible |= ZBC_CVT_TO_CONV;
 				if (smr_len)
-					d->zbr_convertible |= ZBC_CVT_TO_SEQ;
+					r->zbr_convertible |= ZBC_CVT_TO_SEQ;
 
-				d->zbr_conv_start = zbc_dev_lba2sect(dev, cmr_start);
-				d->zbr_conv_length = cmr_len;
-				d->zbr_seq_start = zbc_dev_lba2sect(dev, smr_start);
-				d->zbr_seq_length = smr_len;
+				r->zbr_conv_start = zbc_dev_lba2sect(dev, cmr_start);
+				r->zbr_conv_length = cmr_len;
+				r->zbr_seq_start = zbc_dev_lba2sect(dev, smr_start);
+				r->zbr_seq_length = smr_len;
 
-				d++;
+				r++;
 			}
 			have_cmr = have_smr = false;
 			dnr++;
 		}
-		if (d && dnr >= *nr_domains)
+		if (r && dnr >= *nr_realms)
 			break;
 	}
-	*nr_domains = dnr;
+	*nr_realms = dnr;
 
 out:
 	if (zones)
@@ -822,33 +822,33 @@ out:
 }
 
 /**
- * zbc_domain_report - Get conversion domain information
+ * zbc_report_realms - Get zone realm information
  */
-int zbc_domain_report(struct zbc_device *dev,
-		      struct zbc_cvt_domain *domains, unsigned int *nr_domains)
+int zbc_report_realms(struct zbc_device *dev,
+		      struct zbc_zone_realm *realms, unsigned int *nr_realms)
 {
 	struct zbc_device_info *di = &dev->zbd_info;
 	int ret;
 
 	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	/* If domain array is not provided, just get the number of domains */
-	if (!domains)
-		*nr_domains = 0;
+	/* If realm array is not provided, just get the number of realms */
+	if (!realms)
+		*nr_realms = 0;
 
-	/* Get zone domain information */
-	if (di->zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT)
-		ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
+	/* Get zone realm information */
+	if (di->zbd_flags & ZBC_REPORT_REALMS_SUPPORT)
+		ret = (dev->zbd_drv->zbd_report_realms)(dev, realms, nr_realms);
 	else if (di->zbd_flags & ZBC_ZONE_QUERY_SUPPORT)
-		ret = zbc_emulate_domain_report(dev, domains, nr_domains);
+		ret = zbc_emulate_report_realms(dev, realms, nr_realms);
 	else
 		ret = -ENOTSUP;
 	if (ret != 0) {
-		zbc_error("%s: DOMAIN REPORT failed %d (%s)\n",
+		zbc_error("%s: REPORT REALMS failed %d (%s)\n",
 			  dev->zbd_filename,
 			  ret, strerror(-ret));
 		return ret;
@@ -858,60 +858,60 @@ int zbc_domain_report(struct zbc_device *dev,
 }
 
 /**
- * zbc_list_conv_domains - Get conversion domain information
+ * zbc_list_zone_realms - List zone realm information
  */
-int zbc_list_conv_domains(struct zbc_device *dev,
-			  struct zbc_cvt_domain **pdomains,
-			  unsigned int *pnr_domains)
+int zbc_list_zone_realms(struct zbc_device *dev,
+			  struct zbc_zone_realm **prealms,
+			  unsigned int *pnr_realms)
 {
-	struct zbc_cvt_domain *domains = NULL;
-	unsigned int nr_domains;
+	struct zbc_zone_realm *realms = NULL;
+	unsigned int nr_realms;
 	int ret;
 
-	if (!pdomains) {
-		zbc_error("%s: NULL domain array pointer\n",
+	if (!prealms) {
+		zbc_error("%s: NULL realm array pointer\n",
 			  dev->zbd_filename);
 		return -EINVAL;
 	}
-	*pdomains = NULL;
+	*prealms = NULL;
 
 	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	/* Get the total number of domain descriptors */
-	ret = zbc_report_nr_domains(dev, &nr_domains);
+	/* Get the total number of realm descriptors */
+	ret = zbc_report_nr_realms(dev, &nr_realms);
 	if (ret < 0)
 		return ret;
 
-	zbc_debug("%s: %d convert domains\n",
-		  dev->zbd_filename, nr_domains);
+	zbc_debug("%s: %d zone realms\n",
+		  dev->zbd_filename, nr_realms);
 
-	/* Allocate conversion domain descriptor array */
-	domains = (struct zbc_cvt_domain *)calloc(nr_domains,
-						sizeof(struct zbc_cvt_domain));
-	if (!domains)
+	/* Allocate zone realm descriptor array */
+	realms = (struct zbc_zone_realm *)calloc(nr_realms,
+						 sizeof(struct zbc_zone_realm));
+	if (!realms)
 		return -ENOMEM;
 
-	/* Get conversion domain information */
-	ret = zbc_domain_report(dev, domains, &nr_domains);
+	/* Get zone realm information */
+	ret = zbc_report_realms(dev, realms, &nr_realms);
 	if (ret != 0) {
-		zbc_error("%s: zbc_domain_report failed %d\n",
+		zbc_error("%s: zbc_report_realms failed %d\n",
 			  dev->zbd_filename, ret);
-		free(domains);
+		free(realms);
 		return ret;
 	}
 
-	*pdomains = domains;
-	*pnr_domains = nr_domains;
+	*prealms = realms;
+	*pnr_realms = nr_realms;
 
 	return 0;
 }
 
 /**
- * zbc_zone_activate - Convert all zones in a specified range to a new type
+ * zbc_zone_activate - Activate all zones in a specified range to a new type
  */
 int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 		      bool all, bool use_32_byte_cdb,
@@ -940,9 +940,9 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 }
 
 /**
- * zbc_zone_query - Receive information about converting all zones in a
+ * zbc_zone_query - Receive information about activating all zones in a
  *                  specific range to a new type without actually performing
- *                  the conversion process
+ *                  the activation process
  */
 int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 		   bool all, bool use_32_byte_cdb,
@@ -1001,11 +1001,11 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 }
 
 /**
- * zbc_zone_query_list - Receive information about converting all zones in a
+ * zbc_zone_query_list - Receive information about activating all zones in a
  *                       specific range to a new type without actually
- *                       performing the conversion process. This function is
+ *                       performing the activation process. This function is
  *                       similar to \a zbc_zone_query, but it will allocate
- *                       the buffer space for the output list of conversion
+ *                       the buffer space for the output list of activation
  *                       results. It is responsibility of the caller to free
  *                       this buffer
  */

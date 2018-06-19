@@ -30,17 +30,17 @@ else
     zbc_test_print_not_applicable "No sequential zones are supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} 0 ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_conv_start} 0 ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

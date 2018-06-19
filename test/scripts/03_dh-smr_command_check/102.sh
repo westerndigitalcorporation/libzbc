@@ -31,17 +31,17 @@ expected_asc="Invalid-field-in-cdb"
 
 # Get information
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-# Select last domain
-zbc_test_count_cvt_domains		# into nr_domains
-zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
+# Select last realm
+zbc_test_count_zone_realms		# into nr_realms
+zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
-# Use double the size of the last domain when trying ACTIVATE across End of Medium
+# Use double the size of the last realm when trying ACTIVATE across End of Medium
 
 # Start testing
 msg="WARNING: Attempted ACTIVATE test on non-ZA device"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} $(( 2 * ${domain_seq_len:?"${msg}"} )) ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} $(( 2 * ${realm_seq_len:?"${msg}"} )) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

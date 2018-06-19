@@ -36,7 +36,7 @@ zbc_write_zone
 zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
-zbc_domain_report
+zbc_report_realms
 zbc_zone_activate
 zbc_dev_control
 gzbc
@@ -49,7 +49,7 @@ test/programs/zbc_test_finish_zone
 test/programs/zbc_test_open_zone
 test/programs/zbc_test_read_zone
 test/programs/zbc_test_write_zone
-test/programs/zbc_test_domain_report
+test/programs/zbc_test_report_realms
 test/programs/zbc_test_zone_activate
 test/programs/zbc_test_dev_control
 test/log

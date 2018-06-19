@@ -30,17 +30,17 @@ else
     zbc_test_print_not_applicable "No sequential zones are supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find the first CMR domain that is not convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "noseq"
+# Find the first CMR realm that is not convertible to SMR
+zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "noseq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently CMR and NON-convertible to SMR"
+    zbc_test_print_not_applicable "No realm is currently CMR and NON-convertible to SMR"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${realm_conv_start} ${realm_conv_len} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

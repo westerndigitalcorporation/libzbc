@@ -883,19 +883,19 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion domain configuration.
+ * Report device zone realm configuration.
  */
-static int zbc_block_domain_report(struct zbc_device *dev,
-				  struct zbc_cvt_domain *domains,
-				  unsigned int *nr_domains)
+static int zbc_block_report_realms(struct zbc_device *dev,
+				   struct zbc_zone_realm *realms,
+				   unsigned int *nr_realms)
 {
 	/* FIXME N/I */
 	return -EOPNOTSUPP;
 }
 
 /**
- * Convert zones from one type to another or query
- * about the outcome of such conversion.
+ * Activate zones of a certain type or query
+ * about the outcome of such activation.
  */
 static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					 bool use_32_byte_cdb, bool query,
@@ -966,9 +966,9 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
-static int zbc_block_domain_report(struct zbc_device *dev,
-				  struct zbc_cvt_domain *domains,
-				  unsigned int nr_domains)
+static int zbc_block_report_realms(struct zbc_device *dev,
+				   struct zbc_zone_realm *realms,
+				   unsigned int nr_realms)
 {
 	return -EOPNOTSUPP;
 }
@@ -1015,6 +1015,6 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
-	.zbd_domain_report	= zbc_block_domain_report,
+	.zbd_report_realms	= zbc_block_report_realms,
 	.zbd_zone_query_cvt	= zbc_block_zone_query_activate,
 };

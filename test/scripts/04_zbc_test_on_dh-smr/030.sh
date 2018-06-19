@@ -26,31 +26,31 @@ else
     zbc_test_print_not_applicable "Conventional zones are not supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find the first sequential domain that is convertible to conventional
-zbc_test_search_domain_by_type_and_cvt "${ZT_SEQ}" "conv"
+# Find the first sequential realm that is convertible to conventional
+zbc_test_search_realm_by_type_and_cvt "${ZT_SEQ}" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently sequential and convertible to conventional"
+    zbc_test_print_not_applicable "No realm is currently sequential and convertible to conventional"
 fi
 
-# Find the total number of convertible domains
-zbc_test_count_cvt_domains		# nr_domains
-zbc_test_count_cvt_to_conv_domains
-if [ $nr_cvt_to_conv_domains -eq 0 ]; then
+# Find the total number of convertible realms
+zbc_test_count_zone_realms		# nr_realms
+zbc_test_count_cvt_to_zone_realms
+if [ $nr_cvt_to_conv_realms -eq 0 ]; then
     # This should not happen because we found one just above
-    zbc_test_print_failed "WARNING: No domains are convertible to conventional"
+    zbc_test_print_failed "WARNING: No realms are convertible to conventional"
 fi
-if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; then
-    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
+if [ $(expr "${realm_num}" + "${nr_cvt_to_conv_realms}") -gt ${nr_realms} ]; then
+    nr_cvt_to_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 
-# Convert the domains to the configuration for the run we invoke below
+# Convert the realms to the configuration for the run we invoke below
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr_cvt_to_conv_domains} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_cvt_to_conv_realms} ${cmr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to convert device to intended test configuration ${domain_num} ${nr_cvt_to_conv_domains} ${cmr_type}"
+    printf "\nFailed to convert device to intended test configuration ${realm_num} ${nr_cvt_to_conv_realms} ${cmr_type}"
     exit 1
 fi
 

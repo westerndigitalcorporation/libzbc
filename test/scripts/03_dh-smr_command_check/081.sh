@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): SWP to CMR (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): SWP to CMR (realm addressing)" $*
 
 # Get drive information
 zbc_test_get_device_info
@@ -29,28 +29,28 @@ else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
 
-# Get domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find a SWP domain that is convertable to CMR
-zbc_test_search_domain_by_type_and_cvt "0x3" "conv"
+# Find a SWP realm that is convertable to CMR
+zbc_test_search_realm_by_type_and_cvt "0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SWP and convertible to CMR"
+    zbc_test_print_not_applicable "No realm is currently SWP and convertible to CMR"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} 1 ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} 1 ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
-    # Verify that the domain is converted
-    zbc_test_get_cvt_domain_info
-    zbc_test_search_cvt_domain_by_number ${domain_num}
-    if [[ $? -ne 0 || ${domain_type} != @(0x1|0x4) ]]; then
-        sk=${domain_type}
+    # Verify that the realm is converted
+    zbc_test_get_zone_realm_info
+    zbc_test_search_zone_realm_by_number ${realm_num}
+    if [[ $? -ne 0 || ${realm_type} != @(0x1|0x4) ]]; then
+        sk=${realm_type}
         expected_sk="0x1|0x4"
         zbc_test_print_failed_sk
     fi

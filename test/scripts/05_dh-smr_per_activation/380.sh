@@ -37,15 +37,15 @@ else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
-expected_err_cbf="${domain_seq_start}"
+expected_err_cbf="${realm_seq_start}"
 
 # Start testing
 if [ cmr_type = "wpc" ]; then
@@ -53,18 +53,18 @@ if [ cmr_type = "wpc" ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Convert the domain to sequential
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
+# Activate the realm to sequential
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_conv_start} ${realm_conv_len} ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to activate realm to sequential type ${smr_type}"
 
-# Make the first zone of the domain non-empty
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${lblk_per_pblk}
+# Make the first zone of the realm non-empty
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${realm_seq_start} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial write failed at ${realm_seq_start} zone_type=${smr_type}"
 
-# Now try to convert the domain from sequential back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
+# Now try to activate the realm from sequential back to conventional
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
@@ -75,10 +75,10 @@ else
     zbc_test_check_err "convert ${smr_type} to ${cmr_type}"
 fi
 
-# Post-processing -- put the domain back the way we found it
+# Post-processing -- put the realm back the way we found it
 zbc_test_check_failed
 if [ "${smr_type}" != "seqp" ]; then
     # Zone did not deactivate -- reset and deactivate it
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${domain_seq_start}
-    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${realm_seq_start}
+    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
 fi

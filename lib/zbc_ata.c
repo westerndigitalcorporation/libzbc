@@ -35,14 +35,14 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET		64
 
 /*
- * DOMAIN REPORT output header size.
+ * REPORT REALMS output header size.
  */
-#define ZBC_DOMAIN_HEADER_SIZE			64
+#define ZBC_RPT_REALMS_HEADER_SIZE		64
 
 /*
- * Conversion domain descriptor size.
+ * REPORT REALMS output descriptor size.
  */
-#define ZBC_DOMAIN_RECORD_SIZE			128
+#define ZBC_RPT_REALMS_RECORD_SIZE		128
 
 /**
  * ATA commands.
@@ -63,7 +63,7 @@
  * Zone commands
  */
 #define ZBC_ATA_REPORT_ZONES_EXT_AF		0x00
-#define ZBC_ATA_DOMAIN_REPORT_EXT_AF		0x01 /* FIXME value TBD */
+#define ZBC_ATA_REPORT_REALMS_EXT_AF		0x01 /* FIXME value TBD */
 
 #define ZBC_ATA_CLOSE_ZONE_EXT_AF		0x01
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
@@ -1062,28 +1062,28 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion domain configuration.
+ * Report device zone realm configuration.
  */
-static int zbc_ata_domain_report(struct zbc_device *dev,
-				 struct zbc_cvt_domain *domains,
-				 unsigned int *nr_domains)
+static int zbc_ata_report_realms(struct zbc_device *dev,
+				 struct zbc_zone_realm *realms,
+				 unsigned int *nr_realms)
 {
-	size_t bufsz = ZBC_DOMAIN_HEADER_SIZE;
+	size_t bufsz = ZBC_RPT_REALMS_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	size_t max_bufsz;
 	struct zbc_sg_cmd cmd;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_domains)
-		bufsz += (size_t)*nr_domains * ZBC_DOMAIN_RECORD_SIZE;
+	if (*nr_realms)
+		bufsz += (size_t)*nr_realms * ZBC_RPT_REALMS_RECORD_SIZE;
 
 	bufsz = (bufsz + 4095) & ~4095;
 	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize DOMAIN REPORT command */
+	/* Allocate and intialize REPORT REALMS command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
@@ -1121,7 +1121,7 @@ static int zbc_ata_domain_report(struct zbc_device *dev,
 	/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
 	cmd.cdb[2] = 0x0e;
 	/* Fill AF, Count and Device */
-	cmd.cdb[4] = ZBC_ATA_DOMAIN_REPORT_EXT_AF;
+	cmd.cdb[4] = ZBC_ATA_REPORT_REALMS_EXT_AF;
 	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
 	cmd.cdb[6] = (bufsz / 512) & 0xff;
 	cmd.cdb[13] = 1 << 6;
@@ -1140,55 +1140,55 @@ static int zbc_ata_domain_report(struct zbc_device *dev,
 		goto out;
 	}
 
-	if (cmd.out_bufsz < ZBC_DOMAIN_HEADER_SIZE) {
-		zbc_error("%s: Not enough data received"
+	if (cmd.out_bufsz < ZBC_RPT_REALMS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT REALMS data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_DOMAIN_HEADER_SIZE,
+			  ZBC_RPT_REALMS_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
-	/* Get the number of domain descriptors in result */
+	/* Get the number of realm descriptors in result */
 	buf = (uint8_t *)cmd.out_buf;
 	/* FIXME header format TBD */
-	nr = zbc_ata_get_dword(buf) / ZBC_DOMAIN_RECORD_SIZE;
+	nr = zbc_ata_get_dword(buf) / ZBC_RPT_REALMS_RECORD_SIZE;
 
-	if (!domains || !nr)
+	if (!realms || !nr)
 		goto out;
 
-	/* Find the number of conversion domain desccriptors to fill */
-	if (nr > *nr_domains)
-		nr = *nr_domains;
+	/* Find the number of zone realm descriptors to fill */
+	if (nr > *nr_realms)
+		nr = *nr_realms;
 
-	bufsz = (cmd.out_bufsz - ZBC_DOMAIN_HEADER_SIZE) /
-		 ZBC_DOMAIN_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_RPT_REALMS_HEADER_SIZE) /
+		 ZBC_RPT_REALMS_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get conversion domain descriptors */
-	buf += ZBC_DOMAIN_HEADER_SIZE;
+	/* Get zone realm descriptors */
+	buf += ZBC_RPT_REALMS_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		domains[i].zbr_type = buf[0] & 0x0f;
-		domains[i].zbr_convertible = buf[1];
+		realms[i].zbr_type = buf[0] & 0x0f;
+		realms[i].zbr_convertible = buf[1];
 
-		domains[i].zbr_number = zbc_ata_get_word(&buf[2]);
-		domains[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
+		realms[i].zbr_number = zbc_ata_get_word(&buf[2]);
+		realms[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
 
-		domains[i].zbr_conv_start =
+		realms[i].zbr_conv_start =
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
-		domains[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
-		domains[i].zbr_seq_start =
+		realms[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
+		realms[i].zbr_seq_start =
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[32]));
-		domains[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
+		realms[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
 
-		buf += ZBC_DOMAIN_RECORD_SIZE;
+		buf += ZBC_RPT_REALMS_RECORD_SIZE;
 	}
 
 out:
 	/* Return the number of descriptorss */
-	*nr_domains = nr;
+	*nr_realms = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1631,6 +1631,6 @@ struct zbc_drv zbc_ata_drv = {
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
-	.zbd_domain_report	= zbc_ata_domain_report,
+	.zbd_report_realms	= zbc_ata_report_realms,
 };
 

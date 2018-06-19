@@ -26,38 +26,38 @@ else
     zbc_test_print_not_applicable "Sequential zones are not supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Convert roughly half of the domains to sequential -
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Convert roughly half of the realms to sequential -
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
-# Find the total number of convertible domains
-zbc_test_count_cvt_domains		# nr_domains
-zbc_test_count_cvt_to_seq_domains
-if [ $nr_cvt_to_seq_domains -eq 0 ]; then
+# Find the total number of convertible realms
+zbc_test_count_cvt_realms		# nr_realms
+zbc_test_count_cvt_to_seq_realms
+if [ $nr_cvt_to_seq_realms -eq 0 ]; then
     # This should not happen because we found one just above
-    zbc_test_print_failed "No domains are convertible to sequential"
+    zbc_test_print_failed "No realms are convertible to sequential"
 fi
-if [ $(expr "${domain_num}" + "${nr_cvt_to_seq_domains}") -gt ${nr_domains} ]; then
-    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
+if [ $(expr "${realm_num}" + "${nr_cvt_to_seq_realms}") -gt ${nr_realms} ]; then
+    nr_cvt_to_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 
 # Take the first half
-nr=$(( nr_cvt_to_seq_domains/2 ))
+nr=$(( nr_cvt_to_seq_realms/2 ))
 if [ ${nr} -eq 0 ]; then
     nr=1
 fi
 
-# Convert the domains to the configuration for the run we invoke below
+# Convert the realms to the configuration for the run we invoke below
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${domain_num} ${nr} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr} ${smr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to convert device to intended test configuration ${domain_num} ${nr} ${smr_type}"
+    printf "\nFailed to convert device to intended test configuration ${realm_num} ${nr} ${smr_type}"
     exit 1
 fi
 

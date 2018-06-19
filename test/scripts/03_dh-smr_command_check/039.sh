@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): all SMR to CMR (domain addressing, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): all SMR to CMR (realm addressing, FSNOZ)" $*
 
 # Get drive information
 zbc_test_get_device_info
@@ -29,35 +29,35 @@ if [ ${za_control} == 0 ]; then
     zbc_test_print_not_applicable "Device does not support setting FSNOZ"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find the first SMR domain that is convertible to CMR
-zbc_test_search_domain_by_type_and_cvt "0x2|0x3" "conv"
+# Find the first SMR realm that is convertible to CMR
+zbc_test_search_realm_by_type_and_cvt "0x2|0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently SMR and convertible to CMR"
+    zbc_test_print_not_applicable "No realm is currently SMR and convertible to CMR"
 fi
 
-# Assume that all convertible domains are contiguous
-zbc_test_count_cvt_domains
-zbc_test_count_cvt_to_conv_domains
-if [ $(expr "${domain_num}" + "${nr_cvt_to_conv_domains}") -gt ${nr_domains} ]; then
-    nr_cvt_to_conv_domains=$(expr "${nr_domains}" - "${domain_num}")
+# Assume that all convertible realms are contiguous
+zbc_test_count_zone_realms
+zbc_test_count_cvt_to_conv_realms
+if [ $(expr "${realm_num}" + "${nr_cvt_to_conv_realms}") -gt ${nr_realms} ]; then
+    nr_cvt_to_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} ${nr_cvt_to_conv_domains} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${realm_num} ${nr_cvt_to_conv_realms} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "ACTIVATE failed to cmr_type=${cmr_type}"
 
 if [ -z "${sk}" ]; then
-    # Verify that no convertible SMR domain is present
-    zbc_test_get_cvt_domain_info
-    zbc_test_search_domain_by_type_and_cvt "0x2|0x3" "conv"
+    # Verify that no convertible SMR realm is present
+    zbc_test_get_zone_realm_info
+    zbc_test_search_realm_by_type_and_cvt "0x2|0x3" "conv"
     if [ $? -eq 0 ]; then
-        sk=${domain_num}
+        sk=${realm_num}
         expected_sk="no-seq-to-conv"
     fi
 fi

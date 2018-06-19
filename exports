@@ -23,8 +23,8 @@ global:
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;
-	zbc_domain_report;
-	zbc_list_conv_domains;
+	zbc_report_realms;
+	zbc_list_zone_realms;
 	zbc_zone_activate;
 	zbc_zone_query;
 	zbc_get_nr_cvt_records;

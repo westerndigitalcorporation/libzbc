@@ -67,10 +67,10 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
-	 * Report conversion domain configuration.
+	 * Report zone realm configuration.
 	 */
-	int		(*zbd_domain_report)(struct zbc_device *,
-					     struct zbc_cvt_domain *,
+	int		(*zbd_report_realms)(struct zbc_device *,
+					     struct zbc_zone_realm *,
 					     unsigned int *);
 
 	/**
@@ -192,8 +192,8 @@ struct zbc_device {
 				  ZBC_ZONE_ACTIVATION_SUPPORT)
 #define zbc_supp_mutate(dev)	((dev)->zbd_info.zbd_flags & \
 				 ZBC_MUTATE_SUPPORT)
-#define zbc_supp_domain_report	((dev)->zbd_info.zbd_flags & \
-				 ZBC_DOMAIN_REPORT_SUPPORT)
+#define zbc_supp_report_realms	((dev)->zbd_info.zbd_flags & \
+				 ZBC_REPORT_REALMS_SUPPORT)
 #define zbc_supp_zone_query	((dev)->zbd_info.zbd_flags & \
 				 ZBC_ZONE_QUERY_SUPPORT)
 #define zbc_supp_za_control	((dev)->zbd_info.zbd_flags & \

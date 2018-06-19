@@ -30,19 +30,19 @@ else
 fi
 
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
 # Add one to the starting LBA to zone-misalign it for the test
-start_lba=$(( ${domain_conv_start} + 1 ))
+start_lba=$(( ${realm_conv_start} + 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} ${domain_conv_len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} ${realm_conv_len} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

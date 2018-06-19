@@ -60,7 +60,7 @@ usage:
 		       "  -mu <target>            : Mutate to the specified target\n\n"
 		       "  -nz <num>               : Set the default number of zones to convert\n"
 		       "  -ur y|n                 : Enable of disable unrestricted reads\n"
-		       "  -maxd <num>|\"unlimited\" : Set the maximum number of domains to activate\n\n"
+		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n\n"
 		       "Mutation targets:\n"
 		       "  NON_ZONED               : A classic, not zoned, device\n"
 		       "  HM_ZONED                : Host-managed SMR device, no CMR zones\n"
@@ -71,18 +71,18 @@ usage:
 		       "  HA_ZONED_2PCNT_BT       : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
 
 		       "  ZONE_ACT                : DH-SMR device supporting Zone Activation"
-							" command set, conventional CMR zones, no CMR-only domains\n"
-		       "  ZA_1CMR_BOT             : Same as ZONE_ACT, but the first conversion domain"
+							" command set, conventional CMR zones, no CMR-only realms\n"
+		       "  ZA_1CMR_BOT             : Same as ZONE_ACT, but the first zone realm"
 							" is CMR-only\n"
-		       "  ZA_1CMR_BOT_TOP         : Same as ZONE_ACT, but the first and last conversion"
-							" domains are CMR-only\n"
+		       "  ZA_1CMR_BOT_TOP         : Same as ZONE_ACT, but the first and last zone"
+							" realms are CMR-only\n"
 		       "  ZA_1CMR_BOT_SWP         : Same as ZA_1CMR_BOT, but with SWP zones instead of SWR\n"
 		       "  ZA_WPC or ZONE_ACT_WPC  : DH-SMR device supporting Zone Activation"
-							" command set, WPC CMR zones, no CMR-only domains\n"
+							" command set, WPC CMR zones, no CMR-only realms\n"
 		       "  ZA_WPC_SWP              : Same as ZA_WPC, but with SWP zones instead of SWR\n"
 		       "  ZA_WPC_EMPTY            : Same as ZA_WPC, but WPC zones start EMPTY instead of FULL\n"
 		       "  ZA_BARE_BONE            : DH-SMR device supporting Zone Activation and minimal features\n"
-		       "  ZA_STX                  : Same as ZONE_ACT, but no DOMAIN REPORT \n"
+		       "  ZA_STX                  : Same as ZONE_ACT, but no REPORT REALMS\n"
 		       "  ZA_FAULTY               : Same as ZONE_ACT, several offline and read-only zones injected \n",
 
 		       argv[0]);
@@ -268,7 +268,7 @@ usage:
 		/* Get the supported mutationss */
 		ret = zbc_report_mutations(dev, sm, &nrecs);
 		if (ret != 0) {
-			fprintf(stderr, "zbc_domain_report failed %d\n", ret);
+			fprintf(stderr, "zbc_report_mutations failed %d\n", ret);
 			ret = 1;
 			goto out;
 		}

@@ -315,70 +315,70 @@ struct zbc_zone {
 
 /**
  * Flags that can be set in zbr_convertible field
- * of zbc_cvt_domain structure (below).
+ * of zbc_zone_realm structure (below).
  */
 #define ZBC_CVT_TO_SEQ		0x20
 #define ZBC_CVT_TO_CONV		0x40
 
 /**
- * @brief Conversion domain descriptor
+ * @brief Zone realm descriptor
  *
- * Provide all information about a single conversion domain defined by the
+ * Provide all information about a single zone realm defined by the
  * device. This structure is typically populated with the information
- * returned to the client after succesful execution of DOMAIN REPORT
- * SCSI command or DOMAIN REPORT DMA ATA command.
+ * returned to the client after succesful execution of REPORT REALMS
+ * SCSI command or REPORT REALMS DMA ATA command.
  */
-struct zbc_cvt_domain {
+struct zbc_zone_realm {
 
 	/**
-	 * Conversion domain start zone ID when the domain type is
-	 * CONVENTIONAL. If the domain is not convertible to this
+	 * Zone realm start zone ID when the realm current type is
+	 * a CMR type. If the realm can't be activated to this
 	 * zone type, then it is set to zero.
 	 */
 	uint64_t		zbr_conv_start;
 
 	/**
-	 * Conversion domain length in zones when the domain type is
-	 * CONVENTIONAL. If the domain is not convertible to this zone
+	 * Zone realm length in zones when the current realm type is
+	 * a CMR type. If the realm can't be activated to this zone
 	 * type, then it's set to zero.
 	 */
 	uint32_t		zbr_conv_length;
 
 	/**
-	 * Conversion domain start zone ID when the domain is
-	 * SEQUENTIAL WRITE REQUIRED. If the domain is not convertible
-	 * to this zone type, then it is set to zero.
+	 * Zone realm start zone ID when the current realm type is
+	 * an SMR type. If a sequential zone type can't be activated
+	 * in this realm, then it is set to zero.
 	 */
 	uint64_t		zbr_seq_start;
 
 	/**
-	 * Conversion domain length in zones when the domain is
-	 * SEQUENTIAL WRITE REQUIRED. If the domain is not convertible
-	 * to this zone type, then it's set to zero.
+	 * Zone realm length in zones when the current realm type is
+	 * an SMR type. If a sequential zone type can't be activated
+	 * in this realm, then it is set to zero.
 	 */
 	uint32_t		zbr_seq_length;
 
 	/**
-	 * Conversion domain number as returned by DOMAIN REPORT.
+	 * Zone realm ID as returned by REPORT REALMS.
 	 * The lowest is 0.
 	 */
 	uint16_t		zbr_number;
 
 	/**
-	 * Number of zones required between CONVENTIONAL domains
-	 * when they are converted from SEQUENTIAL WRITE REQUIRED
-	 * to CONVENTIONAL.
+	 * Number of zones required between CMR realms
+	 * when they are converted from SMR to CMR.
 	 */
 	uint16_t		zbr_keep_out;
 
 	/**
-	 * Current conversion domain type. This the type of all zones
-	 * in the domain (enum zbc_zone_type).
+	 * Current zone realm type. This the type of all zones
+	 * in the realm (enum zbc_zone_type).
 	 */
 	uint8_t			zbr_type;
 
 	/**
-	 * A set of flags indicating how this domain can be converted.
+	 * A set of flags indicating what zonme types can be
+	 * activated in this realm.
 	 */
 	uint8_t			zbr_convertible;
 
@@ -388,49 +388,49 @@ struct zbc_cvt_domain {
 	uint8_t			__pad[2];
 };
 
-/** @brief Get the conversion domain type */
-#define zbc_cvt_domain_type(r)		((int)(r)->zbr_type)
+/** @brief Get the zone realm type */
+#define zbc_zone_realm_type(r)		((int)(r)->zbr_type)
 
-/** @brief Get the conversion domain number */
-#define zbc_cvt_domain_number(r)		((int)(r)->zbr_number)
+/** @brief Get the zone realm number */
+#define zbc_zone_realm_number(r)		((int)(r)->zbr_number)
 
-/** @brief Test if a conversion domain type is CONVENTIONAL */
-#define zbc_cvt_domain_conventional(r)	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
+/** @brief Test if a zone realm type is CONVENTIONAL */
+#define zbc_zone_realm_conventional(r)	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
 
-/** @brief Test if a conversion domain type is WRITE POINTER CONVENTIONAL */
-#define zbc_cvt_domain_wpc(r)	((r)->zbr_type == ZBC_ZT_WP_CONVENTIONAL)
+/** @brief Test if a zone realm type is WRITE POINTER CONVENTIONAL */
+#define zbc_zone_realm_wpc(r)	((r)->zbr_type == ZBC_ZT_WP_CONVENTIONAL)
 
-/** @brief Test if a conversion domain type is SEQUENTIAL WRITE REQUIRED */
-#define zbc_cvt_domain_sequential(r) \
+/** @brief Test if a zone realm type is SEQUENTIAL WRITE REQUIRED */
+#define zbc_zone_realm_sequential(r) \
 	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Test if a conversion domain type is SEQUENTIAL WRITE PREFERRED */
-#define zbc_cvt_domain_seq_pref(r) \
+/** @brief Test if a zone realm type is SEQUENTIAL WRITE PREFERRED */
+#define zbc_zone_realm_seq_pref(r) \
 	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
 
-/** @brief Get domain start zone ID if it is CONVENTIONAL as a 512B sector */
-#define zbc_cvt_domain_conv_start(r) \
+/** @brief Get realm start zone ID if it is CMR as a 512B sector */
+#define zbc_zone_realm_conv_start(r) \
 	((unsigned long long)(r)->zbr_conv_start)
 
-/** @brief Get the number of zones of a domain if it is CONVENTIONAL */
-#define zbc_cvt_domain_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
+/** @brief Get the number of zones of a realm if it is CMR */
+#define zbc_zone_realm_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
 
-/** @brief Get domain start zone ID if it's SEQUENTIAL WR as a 512B sector */
-#define zbc_cvt_domain_seq_start(r) \
+/** @brief Get realm start zone ID if it's SMR as a 512B sector */
+#define zbc_zone_realm_seq_start(r) \
 	((unsigned long long)(r)->zbr_seq_start)
 
-/** @brief Get the domain size in 512B sectors if it is sequential */
-#define zbc_cvt_domain_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
+/** @brief Get the realm size in 512B sectors if it is SMR */
+#define zbc_zone_realm_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
 
-/** @brief Get the conversion domain "keep out" value */
-#define zbc_cvt_domain_keep_out(r)	((int)(r)->zbr_keep_out)
+/** @brief Get the zone realm "keep out" value */
+#define zbc_zone_realm_keep_out(r)	((int)(r)->zbr_keep_out)
 
-/** @brief Test if the conversion domain is convertible to conventional */
-#define zbc_cvt_domain_to_conv(r) \
+/** @brief Test if a CMR zone type can be activated in the zone realm */
+#define zbc_zone_realm_to_conv(r) \
 	((int)((r)->zbr_convertible & ZBC_CVT_TO_CONV))
 
-/** @brief Test if the conversion domain is convertible to sequential */
-#define zbc_cvt_domain_to_seq(r) \
+/** @brief Test if a SMR zone type can be activated in the zone realm */
+#define zbc_zone_realm_to_seq(r) \
 	((int)((r)->zbr_convertible & ZBC_CVT_TO_SEQ))
 
 /**
@@ -500,7 +500,7 @@ struct zbc_zp_dev_control {
 	uint32_t		zbm_nr_zones;
 
 	/**
-	 * @brief Maximum number of LBA domains that can be activated at once.
+	 * @brief Maximum number of LBA realms that can be activated at once.
 	 */
 	uint16_t		zbm_max_activate;
 
@@ -660,12 +660,12 @@ enum zbc_dev_flags {
 	ZBC_MAXACT_SET_SUPPORT = 0x00000010,
 
 	/**
-	 * Indicates that DOMAIN REPORT command is supported by device.
+	 * Indicates that REPORT REALMS command is supported by device.
 	 */
-	ZBC_DOMAIN_REPORT_SUPPORT = 0x00000020,
+	ZBC_REPORT_REALMS_SUPPORT = 0x00000020,
 
 	/**
-	 * Indicates that DOMAIN REPORT command is supported by device.
+	 * Indicates that ZONE QUERY command is supported by device.
 	 */
 	ZBC_ZONE_QUERY_SUPPORT = 0x00000040,
 
@@ -1403,61 +1403,61 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
- * @brief Get conversion  domain information
- * @param[in] dev	 Device handle obtained with \a zbc_open
- * @param[in] domains	  Pointer to the array of convert descriptors to fill
- * @param[out] nr_domains Number of domain descriptors in the array \a domains
+ * @brief Get zone realm information
+ * @param[in] dev	  Device handle obtained with \a zbc_open
+ * @param[in] realms	  Pointer to the array of convert descriptors to fill
+ * @param[out] nr_realms  Number of realm descriptors in the array \a realms
  *
- * Get conversion domain information from a DH-SMR device.
- * The array \a domains array must be allocated by the caller and
- * \a nr_domains must point to the size of the allocated array (number of
- * descriptors in the array). Unlike zone reporting, the entire list of domains
+ * Get zone realm information from a DH-SMR device.
+ * The array \a realms array must be allocated by the caller and
+ * \a nr_realms must point to the size of the allocated array (number of
+ * descriptors in the array). Unlike zone reporting, the entire list of realms
  * is always reported.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_domain_report(struct zbc_device *dev,
-			    struct zbc_cvt_domain *domains,
-			    unsigned int *nr_domains);
+extern int zbc_report_realms(struct zbc_device *dev,
+			     struct zbc_zone_realm *realms,
+			     unsigned int *nr_realms);
 
 /**
- * @brief Get the number of available conversion domain descriptors.
+ * @brief Get the number of available zone realm descriptors.
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] nr_domains	The number of conversion domains
+ * @param[out] nr_realms	The number of zone realms to be reported
  *
- * Similar to \a zbc_domain_report, but returns only the number of
- * conversion domains that \a zbc_domain_report would have returned.
- * This is useful to determine the total number of domains of a device
- * to allocate an array of conversion domain descriptors for use with
- * \a zbc_domain_report.
+ * Similar to \a zbc_report_realms, but returns only the number of
+ * zone realms that \a zbc_report_realms would have returned.
+ * This is useful to determine the total number of realms of a device
+ * to allocate an array of zone realm descriptors for use with
+ * \a zbc_report_realms.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-static inline int zbc_report_nr_domains(struct zbc_device *dev,
-					      unsigned int *nr_domains)
+static inline int zbc_report_nr_realms(struct zbc_device *dev,
+				       unsigned int *nr_realms)
 {
-	return zbc_domain_report(dev, NULL, nr_domains);
+	return zbc_report_realms(dev, NULL, nr_realms);
 }
 
 /**
- * @brief Get conversion domain information
+ * @brief List zone realm information
  * @param[in] dev		Device handle obtained with \a zbc_open
- * @param[out] domains		Array of conversion domain descriptors
- * @param[out] nr_domains	Number of domains in the array \a domains
+ * @param[out] realms		Array of zone realm descriptors
+ * @param[out] nr_realms	Number of realms in the array \a realms
  *
- * Similar to \a zbc_domain_report, but also allocates an appropriately sized
- * array of conversion domain descriptorss and returns the address of the array
- * at the address specified by \a domains. The size of the array allocated and
- * filled is returned at the address specified by \a nr_domains. Freeing of the
- * memory used by the array of domain descriptors allocated by this function
+ * Similar to \a zbc_report_realms, but also allocates an appropriately sized
+ * array of zone realm descriptorss and returns the address of the array
+ * at the address specified by \a realms. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_realms. Freeing of the
+ * memory used by the array of realm descriptors allocated by this function
  * is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
- * Returns -ENOMEM if memory could not be allocated for \a domains.
+ * Returns -ENOMEM if memory could not be allocated for \a realms.
  */
-extern int zbc_list_conv_domains(struct zbc_device *dev,
-				 struct zbc_cvt_domain **domains,
-				 unsigned int *nr_domains);
+extern int zbc_list_zone_realms(struct zbc_device *dev,
+				struct zbc_zone_realm **realms,
+				unsigned int *nr_realms);
 
 /**
  * @brief Convert a number of zones at the specified start to the new type
@@ -1604,12 +1604,12 @@ enum zbc_mutation_opt_smr {
  */
 enum zbc_mutation_opt_za {
 	ZBC_MO_ZA_UNKNOWN       = 0x00, /* Reserved */
-	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR-only domains */
-	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR-only domain at bottom */
-	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR-only domains at bottom and top */
-	ZBC_MO_ZA_WPC_NO_CMR    = 0x04, /* Zone Activation, WPC, no CMR-only domains */
+	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR-only realms */
+	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR-only realm at bottom */
+	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR-only realms at bottom and top */
+	ZBC_MO_ZA_WPC_NO_CMR    = 0x04, /* Zone Activation, WPC, no CMR-only realms */
 	ZBC_MO_ZA_BBONE         = 0x06, /* ZA, no CMR-only, no setting features */
-	ZBC_MO_ZA_STX           = 0x07, /* ZA, no CMR-only, no DOMAIN REPORT */
+	ZBC_MO_ZA_STX           = 0x07, /* ZA, no CMR-only, no REPORT REALMS */
 	ZBC_MO_ZA_FAULTY        = 0x08, /* ZA, no CMR-only, read-only/offline zones */
 	ZBC_MO_ZA_SWP           = 0x09, /* ZA, like ZBC_MO_ZA_NO_CMR but SWP */
 	ZBC_MO_ZA_WPC_SWP       = 0x0a, /* ZA, like ZBC_MO_ZA_WPC_NO_CMR, but SWP */

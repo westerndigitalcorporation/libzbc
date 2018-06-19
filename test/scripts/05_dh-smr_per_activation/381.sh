@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): deactivate Implicitly-OPEN non-first domain" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): deactivate Implicitly-OPEN non-first realm" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -38,31 +38,31 @@ else
 fi
 
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
+# Find a conventional realm that is convertible to sequential
 # Assume there are two in a row
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
-# Calculate number of zones in two domains starting at ${domain_num}
-zbc_test_calc_nr_domain_zones ${domain_num} 2		# into ${nr_conv_zones}
+# Calculate number of zones in two realms starting at ${realm_num}
+zbc_test_calc_nr_realm_zones ${realm_num} 2		# into ${nr_conv_zones}
 
 # Record ACTIVATE start LBA and number of zones for both directions
-conv_lba=${domain_conv_start}
+conv_lba=${realm_conv_start}
 conv_nz=${nr_conv_zones}
-seq_lba=${domain_seq_start}
+seq_lba=${realm_seq_start}
 seq_nz=${nr_seq_zones}
 
-# Lookup info on the second domain			# into ${domain_*}
-zbc_test_search_cvt_domain_by_number $(( ${domain_num} + 1 ))
+# Lookup info on the second realm			# into ${realm_*}
+zbc_test_search_zone_realm_by_number $(( ${realm_num} + 1 ))
 
-# Lookup info on the second domain's first sequential zone
-zbc_test_get_target_zone_from_slba ${domain_seq_start}	# into ${target_*}
+# Lookup info on the second realm's first sequential zone
+zbc_test_get_target_zone_from_slba ${realm_seq_start}	# into ${target_*}
 
-# Calculate the start LBA of the second domain's second zone
+# Calculate the start LBA of the second realm's second zone
 write_zlba=$(( ${target_slba} + ${target_size} ))
 expected_err_cbf="${write_zlba}"
 
@@ -72,17 +72,17 @@ if [ cmr_type = "wpc" ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Convert the two domains to sequential
+# Activate the two realms as sequential
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${conv_lba} ${conv_nz} ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to activate realm to sequential type ${smr_type}"
 
-# Write an LBA in the second zone of the second domain to make it NON-EMPTY
+# Write an LBA in the second zone of the second realm to make it NON-EMPTY
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial write failed at ${realm_seq_start} zone_type=${smr_type}"
 
-# Now try to convert the domains from sequential back to conventional
+# Now try to convert the realms from sequential back to conventional
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
 
 # Check result
@@ -97,7 +97,7 @@ fi
 # Check failed
 zbc_test_check_failed
 
-# Post-processing -- put the domain back the way we found it
+# Post-processing -- put the realm back the way we found it
 if [ "${smr_type}" != "seqp" ]; then
     # Zone did not deactivate -- reset and deactivate it
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}

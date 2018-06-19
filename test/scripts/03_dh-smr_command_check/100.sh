@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): in excess of max_activate (domain addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): in excess of max_activate (realm addressing)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -34,22 +34,22 @@ else
     zbc_test_print_not_applicable "No sequential zones are supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
-# Assume that all convertible domains are contiguous
-zbc_test_count_cvt_to_seq_domains
+# Assume that all convertible realms are contiguous
+zbc_test_count_cvt_to_seq_realms
 
-# Set the maximum domains convertible too small for the number of zones
-maxd=$(( ${nr_cvt_to_seq_domains} - 1 ))
+# Set the maximum realms convertible too small for the number of zones
+maxd=$(( ${nr_cvt_to_seq_realms} - 1 ))
 
-# Lower the maximum number of domains to activate
+# Lower the maximum number of realms to activate
 zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd ${maxd} ${device}
 
 # Make sure the command succeeded
@@ -57,11 +57,11 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to change max_activate to ${maxd}"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${domain_num} ${nr_cvt_to_seq_domains} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} ${nr_cvt_to_seq_realms} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_err "ACTIVATE type=${smr_type} domain=${domain_num} count=${nr_cvt_to_seq_domains}"
+zbc_test_check_err "ACTIVATE type=${smr_type} realm=${realm_num} count=${nr_cvt_to_seq_realms}"
 
 # Check failed
 zbc_test_check_failed

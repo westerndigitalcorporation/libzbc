@@ -36,14 +36,14 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /*
- * DOMAIN REPORT ouput header size.
+ * REPORT REALMS ouput header size.
  */
-#define ZBC_DOMAIN_HEADER_SIZE		64
+#define ZBC_RPT_REALMS_HEADER_SIZE	64
 
 /*
- * DOMAIN REPORT output conversion domain descriptor size.
+ * REPORT REALMS output zone realm descriptor size.
  */
-#define ZBC_DOMAIN_RECORD_SIZE		128
+#define ZBC_RPT_REALMS_RECORD_SIZE	128
 
 /**
  * SCSI commands reply length.
@@ -668,21 +668,21 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * Report device conversion domain configuration.
+ * Report device zone realm configuration.
  */
-static int zbc_scsi_domain_report(struct zbc_device *dev,
-				 struct zbc_cvt_domain *domains,
-				 unsigned int *nr_domains)
+static int zbc_scsi_report_realms(struct zbc_device *dev,
+				  struct zbc_zone_realm *realms,
+				  unsigned int *nr_realms)
 {
-	size_t bufsz = ZBC_DOMAIN_HEADER_SIZE;
+	size_t bufsz = ZBC_RPT_REALMS_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_domains)
-		bufsz += (size_t)*nr_domains * ZBC_DOMAIN_RECORD_SIZE;
+	if (*nr_realms)
+		bufsz += (size_t)*nr_realms * ZBC_RPT_REALMS_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -690,7 +690,7 @@ static int zbc_scsi_domain_report(struct zbc_device *dev,
 	if (bufsz > max_bufsz)
 		bufsz = max_bufsz;
 
-	/* Allocate and intialize DOMAIN REPORT command */
+	/* Allocate and intialize REPORT REALMS command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_REALMS, NULL, bufsz);
 	if (ret != 0)
 		return ret;
@@ -728,55 +728,55 @@ static int zbc_scsi_domain_report(struct zbc_device *dev,
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_DOMAIN_HEADER_SIZE) {
-		zbc_error("%s: Not enough report data received"
+	if (cmd.out_bufsz < ZBC_RPT_REALMS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT REALMS data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_DOMAIN_HEADER_SIZE,
+			  ZBC_RPT_REALMS_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
-	/* Get number of domain descriptors in result */
+	/* Get number of realm descriptors in result */
 	buf = (uint8_t *)cmd.out_buf;
 	/* FIXME header format TBD */
-	nr = zbc_sg_get_int32(buf) / ZBC_DOMAIN_RECORD_SIZE;
+	nr = zbc_sg_get_int32(buf) / ZBC_RPT_REALMS_RECORD_SIZE;
 
-	if (!domains || !nr)
+	if (!realms || !nr)
 		goto out;
 
-	/* Get the number of domain descriptors to fill */
-	if (nr > *nr_domains)
-		nr = *nr_domains;
+	/* Get the number of realm descriptors to fill */
+	if (nr > *nr_realms)
+		nr = *nr_realms;
 
-	bufsz = (cmd.out_bufsz - ZBC_DOMAIN_HEADER_SIZE) /
-		ZBC_DOMAIN_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_RPT_REALMS_HEADER_SIZE) /
+		ZBC_RPT_REALMS_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get conversion domain descriptors */
-	buf += ZBC_DOMAIN_HEADER_SIZE;
+	/* Get zone realm descriptors */
+	buf += ZBC_RPT_REALMS_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		domains[i].zbr_type = buf[0] & 0x0f;
-		domains[i].zbr_convertible = buf[1];
+		realms[i].zbr_type = buf[0] & 0x0f;
+		realms[i].zbr_convertible = buf[1];
 
-		domains[i].zbr_number = zbc_sg_get_int16(&buf[2]);
-		domains[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
+		realms[i].zbr_number = zbc_sg_get_int16(&buf[2]);
+		realms[i].zbr_keep_out = zbc_sg_get_int16(&buf[4]);
 
-		domains[i].zbr_conv_start =
+		realms[i].zbr_conv_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
-		domains[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
-		domains[i].zbr_seq_start =
+		realms[i].zbr_conv_length = zbc_sg_get_int32(&buf[24]);
+		realms[i].zbr_seq_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
-		domains[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
+		realms[i].zbr_seq_length = zbc_sg_get_int32(&buf[40]);
 
-		buf += ZBC_DOMAIN_RECORD_SIZE;
+		buf += ZBC_RPT_REALMS_RECORD_SIZE;
 	}
 
 out:
-	/* Return number of domain descriptors */
-	*nr_domains = nr;
+	/* Return the number of realm descriptors */
+	*nr_realms = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1571,7 +1571,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		/* Check what Zone Activation features are supported */
 		di->zbd_flags |= (buf[4] & 0x04) ? ZBC_MAXACT_SET_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
-		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_DOMAIN_REPORT_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_REPORT_REALMS_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x40) ? ZBC_ZONE_QUERY_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x80) ? ZBC_ZA_CONTROL_SUPPORT : 0;
 		di->zbd_flags |= (buf[10] & 0x02) ? ZBC_CONV_ZONE_SUPPORT : 0;
@@ -1858,7 +1858,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
-	.zbd_domain_report	= zbc_scsi_domain_report,
+	.zbd_report_realms	= zbc_scsi_report_realms,
 	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
 	.zbd_report_mutations	= zbc_scsi_report_mutations,
 	.zbd_mutate		= zbc_scsi_mutate,

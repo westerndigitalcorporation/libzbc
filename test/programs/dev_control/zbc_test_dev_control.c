@@ -42,7 +42,7 @@ usage:
 		       "  -v                        : Verbose mode\n"
 		       "  -nz <num>                 : Set the default number of zones to convert\n"
 		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
-		       "  -maxd <num>|\"unlimited\" : Set the maximum number of domains to activate\n"
+		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n"
 		       "  -q                        : Ouput only errors\n",
 		       argv[0]);
 		return 1;

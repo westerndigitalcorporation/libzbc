@@ -34,18 +34,18 @@ else
     zbc_test_print_not_applicable "Sequential zones are not supported by the device"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find the total number of convertible domains
-zbc_test_count_cvt_domains		# nr_domains
+# Find the total number of convertible realms
+zbc_test_count_zone_realms		# nr_realms
 
-if [ ${nr_domains} -le 6 ]; then
-    zbc_test_print_not_applicable "Not enough domains to run this configuration"
+if [ ${nr_realms} -le 6 ]; then
+    zbc_test_print_not_applicable "Not enough realms to run this configuration"
 fi
 
-# Configure the conversion domains, with all domains freshly converted except 0 and 5.
-# This ends up with all conversion domains sequential except domains 0-20 and the last domain.
+# Configure the zone realms, with all realms freshly converted except 0 and 5.
+# This ends up with all conversion realms sequential except realms 0-20 and the last realm.
 
 activate_fail()
 {
@@ -58,9 +58,9 @@ if [ $? -ne 0 ]; then
     activate_fail "1 4 ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_realms} - 6 )) ${cmr_type}
 if [ $? -ne 0 ]; then
-    activate_fail "6 $(( ${nr_domains} - 6 )) ${cmr_type}"
+    activate_fail "6 $(( ${nr_realms} - 6 )) ${cmr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${smr_type}
@@ -68,9 +68,9 @@ if [ $? -ne 0 ]; then
     activate_fail "1 4 ${smr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_domains} - 6 )) ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 6 $(( ${nr_realms} - 6 )) ${smr_type}
 if [ $? -ne 0 ]; then
-    activate_fail "6 $(( ${nr_domains} - 6 )) ${smr_type}"
+    activate_fail "6 $(( ${nr_realms} - 6 )) ${smr_type}"
 fi
 
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} 1 4 ${cmr_type}
@@ -83,9 +83,9 @@ if [ $? -ne 0 ]; then
     activate_fail "6 5 ${cmr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_domains} - 1 )) 1 ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} $(( ${nr_realms} - 1 )) 1 ${cmr_type}
 if [ $? -ne 0 ]; then
-    activate_fail "$(( ${nr_domains} - 1 )) 1 ${cmr_type}"
+    activate_fail "$(( ${nr_realms} - 1 )) 1 ${cmr_type}"
 fi
 
 # Pass the batch_mode flag through to the run we invoke below

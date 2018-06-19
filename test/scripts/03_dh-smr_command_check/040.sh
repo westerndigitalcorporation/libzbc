@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible CMR to SMR (domain addr, FSNOZ)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible CMR to SMR (realm addr, FSNOZ)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -34,17 +34,17 @@ if [ ${za_control} == 0 ]; then
     zbc_test_print_not_applicable "Device does not support setting FSNOZ"
 fi
 
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
+# Get zone realm information
+zbc_test_get_zone_realm_info
 
-# Find the first CMR domain that is not convertible to SMR
-zbc_test_search_domain_by_type_and_cvt "0x1|0x4" "noseq"
+# Find the first CMR realm that is not convertible to SMR
+zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "noseq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently CMR and NON-convertible to SMR"
+    zbc_test_print_not_applicable "No realm is currently CMR and NON-convertible to SMR"
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${domain_num} 1 ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -n ${device} ${realm_num} 1 ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

@@ -25,8 +25,8 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_cvt_domain *d, *domains = NULL;
-	unsigned int nr_domains, oflags;
+	struct zbc_zone_realm *r, *realms = NULL;
+	unsigned int nr_realms, oflags;
 	int i, ret = 1;
 
 	/* Check command line */
@@ -80,46 +80,46 @@ usage:
 
 	zbc_get_device_info(dev, &info);
 
-	/* Get the number of conversion domains */
-	ret = zbc_report_nr_domains(dev, &nr_domains);
+	/* Get the number of zone realms */
+	ret = zbc_report_nr_realms(dev, &nr_realms);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_report_nr_domains failed %d\n",
+			"[TEST][ERROR],zbc_report_nr_realms failed %d\n",
 			ret);
 		goto out;
 	}
 
-	/* Allocate conversion domain descriptor array */
-	domains = (struct zbc_cvt_domain *)calloc(nr_domains,
-						  sizeof(struct zbc_cvt_domain));
-	if (!domains) {
+	/* Allocate zone realm descriptor array */
+	realms = (struct zbc_zone_realm *)calloc(nr_realms,
+						  sizeof(struct zbc_zone_realm));
+	if (!realms) {
 		fprintf(stderr,
 			"[TEST][ERROR],No memory\n");
 		ret = 1;
 		goto out;
 	}
 
-	/* Get conversion domain information */
-	ret = zbc_domain_report(dev, domains, &nr_domains);
+	/* Get zone realm information */
+	ret = zbc_report_realms(dev, realms, &nr_realms);
 	if (ret != 0) {
 		fprintf(stderr,
-			"[TEST][ERROR],zbc_domain_report failed %d\n",
+			"[TEST][ERROR],zbc_report_realms failed %d\n",
 			ret);
 		goto out;
 	}
 
-	for (i = 0; i < (int)nr_domains; i++) {
-		d = &domains[i];
-		printf("[CVT_DOMAIN_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
-		       zbc_cvt_domain_number(d),
-		       zbc_cvt_domain_type(d),
-		       zbc_sect2lba(&info, zbc_cvt_domain_conv_start(d)),
-		       zbc_sect2lba(&info, zbc_cvt_domain_conv_length(d)),
-		       zbc_sect2lba(&info, zbc_cvt_domain_seq_start(d)),
-		       zbc_sect2lba(&info, zbc_cvt_domain_seq_length(d)),
-		       zbc_cvt_domain_keep_out(d),
-		       zbc_cvt_domain_to_conv(d) ? "Y" : "N",
-		       zbc_cvt_domain_to_seq(d) ? "Y" : "N");
+	for (i = 0; i < (int)nr_realms; i++) {
+		r = &realms[i];
+		printf("[ZONE_REALM_INFO],%03d,0x%x,%08llu,%u,%08llu,%u,%u,%s,%s\n",
+		       zbc_zone_realm_number(r),
+		       zbc_zone_realm_type(r),
+		       zbc_sect2lba(&info, zbc_zone_realm_conv_start(r)),
+		       zbc_sect2lba(&info, zbc_zone_realm_conv_length(r)),
+		       zbc_sect2lba(&info, zbc_zone_realm_seq_start(r)),
+		       zbc_sect2lba(&info, zbc_zone_realm_seq_length(r)),
+		       zbc_zone_realm_keep_out(r),
+		       zbc_zone_realm_to_conv(r) ? "Y" : "N",
+		       zbc_zone_realm_to_seq(r) ? "Y" : "N");
 	}
 
 out:
@@ -145,8 +145,8 @@ out:
 		ret = 1;
 	}
 
-	if (domains)
-		free(domains);
+	if (realms)
+		free(realms);
 	zbc_close(dev);
 
 	return ret;

@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): NZONE not domain-integral (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): NZONE not realm-integral (zone addressing)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -30,20 +30,20 @@ else
 fi
 
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Find a conventional realm that is convertible to sequential
+zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
 fi
 
-# Add one to the number of zones to domain-misalign it for the test
-zbc_test_get_target_zone_from_slba ${domain_conv_start}
-len=$(( ${domain_conv_len} + 1 ))
+# Add one to the number of zones to realm-misalign it for the test
+zbc_test_get_target_zone_from_slba ${realm_conv_start}
+len=$(( ${realm_conv_len} + 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_conv_start} ${len} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

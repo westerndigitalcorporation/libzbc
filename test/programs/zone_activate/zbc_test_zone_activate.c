@@ -24,7 +24,7 @@ int main(int argc, char **argv)
 {
 	struct zbc_device *dev;
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
-	struct zbc_cvt_domain *domains = NULL;
+	struct zbc_zone_realm *realms = NULL;
 	const char *sk_name, *ascq_name;
 	char *path;
 	struct zbc_device_info info;
@@ -33,13 +33,13 @@ int main(int argc, char **argv)
 	uint64_t err_cbf;
 	uint16_t err_za;
 	uint64_t start;
-	unsigned int oflags, nr_units, nr_domains, new_type, nr_conv_recs = 0;
+	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0;
 	int i, ret, end;
 	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
 
 	/* Check command line */
 	if (argc < 5) {
-		printf("Usage: %s [options] <dev> <start conversion domain> <num domains> <conv|seq>\n"
+		printf("Usage: %s [options] <dev> <start zone realm> <num realms> <conv|seq>\n"
 		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq|wpc|seqp>\n"
 		       "Options:\n"
 		       "    -a            : Try to convert all, even if not every zone can be\n"
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
 	if (i >= argc) {
 		fprintf(stderr, "[TEST][ERROR],Missing starting %s\n",
-			zone_addr ? "zone LBA" : "conversion domain");
+			zone_addr ? "zone LBA" : "zone realm");
 		return 1;
 	}
 	start = atol(argv[i++]);
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 	if (i >= argc) {
 		fprintf(stderr,
 			"[TEST][ERROR],Missing number of %ss to convert\n",
-			zone_addr ? "zone" : "conversion domain");
+			zone_addr ? "zone" : "zone realm");
 		return 1;
 	}
 	nr_units = atoi(argv[i++]);
@@ -145,16 +145,16 @@ int main(int argc, char **argv)
 
 	if (!zone_addr || no_query) {
 		/*
-		 * Have to call zbc_list_conv_domains() to find the
-		 * starting zone and number of zones to convert.
+		 * Have to call zbc_list_zone_realms() to find the
+		 * starting zone and number of zones to activate.
 		 */
-		ret = zbc_list_conv_domains(dev, &domains, &nr_domains);
+		ret = zbc_list_zone_realms(dev, &realms, &nr_realms);
 		if (ret != 0) {
 			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 			sk_name = zbc_sk_str(zbc_err.sk);
 			ascq_name = zbc_asc_ascq_str(zbc_err.asc_ascq);
 			fprintf(stderr,
-				"[TEST][ERROR],zbc_list_conv_domains failed, err %i (%s)\n",
+				"[TEST][ERROR],zbc_list_zone_realms failed, err %i (%s)\n",
 				ret, strerror(-ret));
 			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
@@ -162,12 +162,12 @@ int main(int argc, char **argv)
 			goto out;
 		}
 		if (no_query)
-			nr_conv_recs = nr_domains << 1;
+			nr_conv_recs = nr_realms << 1;
 
 		if (!zone_addr) {
-			if (start + nr_units > nr_domains) {
+			if (start + nr_units > nr_realms) {
 				fprintf(stderr,
-					"[TEST][ERROR],Domain [%lu/%u] out of range\n",
+					"[TEST][ERROR],Realm [%lu/%u] out of range\n",
 					start, nr_units);
 				ret = 1;
 				goto out;
@@ -176,12 +176,12 @@ int main(int argc, char **argv)
 			if (new_type == ZBC_ZT_CONVENTIONAL ||
 			    new_type == ZBC_ZT_WP_CONVENTIONAL) {
 				for (nr_units = 0, i = start; i < end; i++)
-					nr_units += domains[i].zbr_seq_length;
-				start = domains[start].zbr_seq_start;
+					nr_units += realms[i].zbr_seq_length;
+				start = realms[start].zbr_seq_start;
 			} else {
 				for (nr_units = 0, i = start; i < end; i++)
-					nr_units += domains[i].zbr_conv_length;
-				start = domains[start].zbr_conv_start;
+					nr_units += realms[i].zbr_conv_length;
+				start = realms[start].zbr_conv_start;
 			}
 		}
 	}
@@ -275,8 +275,8 @@ int main(int argc, char **argv)
 	}
 
 out:
-	if (domains)
-		free(domains);
+	if (realms)
+		free(realms);
 	if (conv_recs)
 		free(conv_recs);
 	zbc_close(dev);
