@@ -388,7 +388,7 @@ function zbc_test_search_vals_from_slba()
 	return 1
 }
 
-function zbc_test_search_vals_from_zone_type_and_cond()
+function zbc_test_get_target_zone_from_type_and_cond()
 {
 	local zone_type="${1}"
 	local zone_cond="${2}"
@@ -482,7 +482,7 @@ function zbc_test_get_zone_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_search_vals_from_zone_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 		zbc_test_print_not_applicable \

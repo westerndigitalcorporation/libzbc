@@ -33,7 +33,7 @@ fi
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type_and_cond ${zone_type} "${ZC_EMPTY}"
+zbc_test_get_target_zone_from_type_and_cond ${zone_type} "${ZC_EMPTY}"
 
 # Start testing
 nio=$(( (target_size / lblk_per_pblk) - 1))
