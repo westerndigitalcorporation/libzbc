@@ -27,7 +27,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_search_vals_from_zone_type "0x1"
+zbc_test_get_target_zone_from_type "0x1"
 
 func_ret=$?
 

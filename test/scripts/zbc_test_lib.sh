@@ -335,7 +335,7 @@ function zbc_test_close_nr_zones()
 	return 1
 }
 
-function zbc_test_search_vals_from_zone_type()
+function zbc_test_get_target_zone_from_type()
 {
 
 	local zone_type="${1}"
@@ -415,7 +415,7 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	return 1
 }
 
-function zbc_test_search_vals_from_zone_type_and_ignored_cond()
+function zbc_test_get_target_zone_from_type_and_ignored_cond()
 {
 
 	local zone_type="${1}"
