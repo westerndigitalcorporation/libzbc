@@ -37,7 +37,7 @@ if [ -z "${sk}" ]; then
 
     if [ -z "${sk}" ]; then
         zbc_test_get_zone_info
-        zbc_test_search_vals_from_slba ${target_lba}
+        zbc_test_get_target_zone_from_slba ${target_lba}
         zbc_test_check_zone_cond
     fi
 fi

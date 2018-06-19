@@ -361,7 +361,7 @@ function zbc_test_get_target_zone_from_type()
 	return 1
 }
 
-function zbc_test_search_vals_from_slba()
+function zbc_test_get_target_zone_from_slba()
 {
 
 	local start_lba=${1}
@@ -537,11 +537,11 @@ function zbc_test_zone_tuple()
 			if [[ ${target_cond} != @(${ZC_AVAIL}) ]]; then
 				continue 2	# continue second loop out
 			fi
-			zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+			zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
 		done
 
 		# Return the info for the first zone of the tuple
-		zbc_test_search_vals_from_slba ${slba}
+		zbc_test_get_target_zone_from_slba ${slba}
 		return 0
 	done
 
@@ -603,12 +603,12 @@ function zbc_test_zone_tuple_cond()
 		esac
 
 		shift
-		zbc_test_search_vals_from_slba $(( ${target_slba} + ${target_size} ))
+		zbc_test_get_target_zone_from_slba $(( ${target_slba} + ${target_size} ))
 	done
 
 	# Return the info for the first zone of the tuple
 	zbc_test_get_zone_info
-	zbc_test_search_vals_from_slba ${start_lba}
+	zbc_test_get_target_zone_from_slba ${start_lba}
 	return 0
 }
 
