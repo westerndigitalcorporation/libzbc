@@ -62,6 +62,7 @@ function zbc_test_lib_init()
 	declare -rg ZC_OPEN="${ZC_IOPEN}|${ZC_EOPEN}"	# Either OPEN zone condition
 	declare -rg ZC_CLOSED="0x4"			# CLOSED zone condition
 	declare -rg ZC_FULL="0xe"			# FULL zone condition
+	declare -rg ZC_RDONLY="0xd"			# READ ONLY zone condition
 	declare -rg ZC_INACTIVE="0xc"			# INACTIVE zone condition
 	declare -rg ZC_NON_FULL="0x0|0x1|0x2|0x3|0x4"	# Non-FULL available zone conditions
 	declare -rg ZC_AVAIL="${ZC_NON_FULL}|${ZC_FULL}" # available zone conditions
