@@ -74,12 +74,12 @@
 #define ZBC_CONV_RES_RECORD_SIZE	16
 
 /**
- * ZONE ACTIVATION mode page size
+ * ZONE DOMAINS mode page size
  */
 #define ZBC_SCSI_MODE_PG_SIZE		256
 
 /**
- * ZONE ACTIVATION mode page minimum size
+ * ZONE DOMAINS mode page minimum size
  */
 #define ZBC_SCSI_MIN_MODE_PG_SIZE	8
 
@@ -369,11 +369,11 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -ENXIO;
 
 	case 0x03:
-		/* Zone Activation host-managed device */
-		zbc_debug("%s: Zone Activation host-managed SCSI block device detected\n",
+		/* Zone Domains host-managed device */
+		zbc_debug("%s: Zone Domains host-managed SCSI block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		dev->zbd_info.zbd_flags |= ZBC_ZONE_ACTIVATION_SUPPORT;
+		dev->zbd_info.zbd_flags |= ZBC_ZONE_DOMAINS_SUPPORT;
 		break;
 
 	default:
@@ -1683,11 +1683,11 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ, Zone Activation support */
+	/* URSWRZ, Zone Domains support */
 	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
-	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
-	if (di->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
-		/* Check what Zone Activation features are supported */
+	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_DOMAINS_SUPPORT : 0;
+	if (di->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) {
+		/* Check what Zone Domains features are supported */
 		di->zbd_flags |= (buf[4] & 0x04) ? ZBC_MAXACT_SET_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_REPORT_REALMS_SUPPORT : 0;

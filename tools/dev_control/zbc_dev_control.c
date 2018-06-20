@@ -70,20 +70,20 @@ usage:
 		       "  HA_ZONED_1PCNT_B        : Host-aware SMR device, 1%% CMR at bottom\n"
 		       "  HA_ZONED_2PCNT_BT       : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
 
-		       "  ZONE_ACT                : DH-SMR device supporting Zone Activation"
+		       "  ZONE_DOM                : DH-SMR device supporting Zone Domains"
 							" command set, conventional CMR zones, no CMR-only realms\n"
-		       "  ZA_1CMR_BOT             : Same as ZONE_ACT, but the first zone realm"
+		       "  ZD_1CMR_BOT             : Same as ZONE_DOM, but the first zone realm"
 							" is CMR-only\n"
-		       "  ZA_1CMR_BOT_TOP         : Same as ZONE_ACT, but the first and last zone"
+		       "  ZD_1CMR_BOT_TOP         : Same as ZONE_DOM, but the first and last zone"
 							" realms are CMR-only\n"
-		       "  ZA_1CMR_BOT_SWP         : Same as ZA_1CMR_BOT, but with SWP zones instead of SWR\n"
-		       "  ZA_WPC or ZONE_ACT_WPC  : DH-SMR device supporting Zone Activation"
+		       "  ZD_1CMR_BOT_SWP         : Same as ZD_1CMR_BOT, but with SWP zones instead of SWR\n"
+		       "  ZD_WPC or ZONE_DOM_WPC  : DH-SMR device supporting Zone Domains"
 							" command set, WPC CMR zones, no CMR-only realms\n"
-		       "  ZA_WPC_SWP              : Same as ZA_WPC, but with SWP zones instead of SWR\n"
-		       "  ZA_WPC_EMPTY            : Same as ZA_WPC, but WPC zones start EMPTY instead of FULL\n"
-		       "  ZA_BARE_BONE            : DH-SMR device supporting Zone Activation and minimal features\n"
-		       "  ZA_STX                  : Same as ZONE_ACT, but no REPORT REALMS\n"
-		       "  ZA_FAULTY               : Same as ZONE_ACT, several offline and read-only zones injected \n",
+		       "  ZD_WPC_SWP              : Same as ZD_WPC, but with SWP zones instead of SWR\n"
+		       "  ZD_WPC_EMPTY            : Same as ZD_WPC, but WPC zones start EMPTY instead of FULL\n"
+		       "  ZD_BARE_BONE            : DH-SMR device supporting Zone Domains and minimal features\n"
+		       "  ZD_STX                  : Same as ZONE_DOM, but no REPORT REALMS\n"
+		       "  ZD_FAULTY               : Same as ZONE_DOM, several offline and read-only zones injected \n",
 
 		       argv[0]);
 		return 1;
@@ -125,39 +125,39 @@ usage:
 			} else if (strcmp(argv[i], "HA_ZONED_2PCNT_BT") == 0) {
 				mt = ZBC_MT_HA_ZONED;
 				opt.smr = ZBC_MO_SMR_2PCNT_BT;
-			} else if (strcmp(argv[i], "ZONE_ACT") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_NO_CMR;
-			} else if (strcmp(argv[i], "ZA_1CMR_BOT") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_1_CMR_BOT;
-			} else if (strcmp(argv[i], "ZA_1CMR_BOT_TOP") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_1_CMR_BOT_TOP;
-			} else if (strcmp(argv[i], "ZA_1CMR_BOT_SWP") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_SWP;
-			} else if (strcmp(argv[i], "ZA_WPC_SWP") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_WPC_SWP;
-			} else if (strcmp(argv[i], "ZA_WPC_EMPTY") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_WPC_EMPTY;
-			} else if (strcmp(argv[i], "ZONE_ACT_WPC") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_WPC_NO_CMR;
-			} else if (strcmp(argv[i], "ZA_WPC") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_WPC_NO_CMR;
-			} else if (strcmp(argv[i], "ZA_BARE_BONE") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_BBONE;
-			} else if (strcmp(argv[i], "ZA_STX") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_STX;
-			} else if (strcmp(argv[i], "ZA_FAULTY") == 0) {
-				mt = ZBC_MT_ZONE_ACT;
-				opt.za = ZBC_MO_ZA_FAULTY;
+			} else if (strcmp(argv[i], "ZONE_DOM") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_NO_CMR;
+			} else if (strcmp(argv[i], "ZD_1CMR_BOT") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_1_CMR_BOT;
+			} else if (strcmp(argv[i], "ZD_1CMR_BOT_TOP") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_1_CMR_BOT_TOP;
+			} else if (strcmp(argv[i], "ZD_1CMR_BOT_SWP") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_SWP;
+			} else if (strcmp(argv[i], "ZD_WPC_SWP") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_WPC_SWP;
+			} else if (strcmp(argv[i], "ZD_WPC_EMPTY") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_WPC_EMPTY;
+			} else if (strcmp(argv[i], "ZONE_DOM_WPC") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_WPC_NO_CMR;
+			} else if (strcmp(argv[i], "ZD_WPC") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_WPC_NO_CMR;
+			} else if (strcmp(argv[i], "ZD_BARE_BONE") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_BBONE;
+			} else if (strcmp(argv[i], "ZD_STX") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_STX;
+			} else if (strcmp(argv[i], "ZD_FAULTY") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_FAULTY;
 			}
 			if (mt == ZBC_MT_UNKNOWN) {
 				fprintf(stderr, "unknown mutation target %s\n",
@@ -308,9 +308,9 @@ skip_lm:
 		zbc_get_device_info(dev, &info);
 	}
 
-	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+	if (!(info.zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT)) {
 		if (set_nz || set_urswrz || set_max_activate) {
-			fprintf(stderr, "Not a Zone Activation device\n");
+			fprintf(stderr, "Not a Zone Domains device\n");
 			ret = 1;
 		} else if (mt != ZBC_MT_UNKNOWN) {
 			zbc_print_device_info(&info, stdout);

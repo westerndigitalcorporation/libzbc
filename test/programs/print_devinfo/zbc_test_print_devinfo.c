@@ -111,8 +111,8 @@ usage:
 		zbc_device_model_str(info.zbd_model));
 
 	fprintf(stdout,
-		"[TEST][INFO][ZONE_ACTIVATION_DEVICE],%x\n",
-		(bool)(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT));
+		"[TEST][INFO][ZONE_DOMAINS_DEVICE],%x\n",
+		(bool)(info.zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",

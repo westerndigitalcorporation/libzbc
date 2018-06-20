@@ -191,11 +191,11 @@ struct zbc_device {
 #define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
 				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
 /*
- * Zone Activation device property checks.
+ * Zone Domains device property checks.
  */
-#define zbc_dev_is_zone_act(dev) (zbc_dev_is_zoned(dev) && \
+#define zbc_dev_is_zone_dom(dev) (zbc_dev_is_zoned(dev) && \
 				  (dev)->zbd_info.zbd_flags & \
-				  ZBC_ZONE_ACTIVATION_SUPPORT)
+				  ZBC_ZONE_DOMAINS_SUPPORT)
 #define zbc_supp_mutate(dev)	((dev)->zbd_info.zbd_flags & \
 				 ZBC_MUTATE_SUPPORT)
 #define zbc_supp_report_realms	((dev)->zbd_info.zbd_flags & \

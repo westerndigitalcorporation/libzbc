@@ -514,12 +514,12 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	}
 
 	/*
-	 * Check if Zone Activation command set is supported.
+	 * Check if Zone Domains command set is supported.
 	 * If this is the case, pick up all the related values.
 	 */
 	qwd = zbc_ata_get_qword(&buf[56]);
-	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_ZONE_ACTIVATION_SUPPORT : 0;
-	if ((dev->zbd_info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) != 0) {
+	dev->zbd_info.zbd_flags |= (qwd & 0x01ULL) ? ZBC_ZONE_DOMAINS_SUPPORT : 0;
+	if ((dev->zbd_info.zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) != 0) {
 		/*
 		 * FIXME the flag below is not in the current
 		 * proposal, layout is preliminary.
@@ -1365,10 +1365,10 @@ static int zbc_ata_classify(struct zbc_device *dev)
 		break;
 
 	case 0x03:
-		zbc_debug("%s: Zone Activation ATA block device detected\n",
+		zbc_debug("%s: Zone Domains ATA block device detected\n",
 			  dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-		dev->zbd_info.zbd_flags |= ZBC_ZONE_ACTIVATION_SUPPORT;
+		dev->zbd_info.zbd_flags |= ZBC_ZONE_DOMAINS_SUPPORT;
 		break;
 
 	default:

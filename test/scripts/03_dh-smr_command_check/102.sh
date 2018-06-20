@@ -40,7 +40,7 @@ zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 # Use double the size of the last realm when trying ACTIVATE across End of Medium
 
 # Start testing
-msg="WARNING: Attempted ACTIVATE test on non-ZA device"
+msg="WARNING: Attempted ACTIVATE test on non-ZD device"
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} $(( 2 * ${realm_seq_len:?"${msg}"} )) ${cmr_type}
 
 # Check result

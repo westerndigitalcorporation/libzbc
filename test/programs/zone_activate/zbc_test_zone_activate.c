@@ -134,9 +134,9 @@ int main(int argc, char **argv)
 
 	zbc_get_device_info(dev, &info);
 
-	if (!(info.zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT)) {
+	if (!(info.zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT)) {
 		fprintf(stderr,
-			"[TEST][ERROR],not a Zone Activation device\n");
+			"[TEST][ERROR],not a Zone Domains device\n");
 		ret = 1;
 		goto out;
 	}

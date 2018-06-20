@@ -497,9 +497,9 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 	}
 
 	if (info->zbd_model != ZBC_DM_STANDARD)
-		fprintf(out, "    Zone Activation command set is %ssupported\n",
-			(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
-	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
+		fprintf(out, "    Zone Domains command set is %ssupported\n",
+			(info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) ? "" : "NOT ");
+	if (info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) {
 		fprintf(out, "    Unrestricted read control is %ssupported\n",
 			(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ? "" : "NOT ");
 		if (info->zbd_flags & ZBC_MAXACT_SET_SUPPORT) {
@@ -648,7 +648,7 @@ int zbc_report_domains(struct zbc_device *dev, struct zbc_zone_domain *domains,
 {
 	int ret;
 
-	if (!zbc_dev_is_zone_act(dev)) {
+	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
@@ -697,7 +697,7 @@ int zbc_list_domains(struct zbc_device *dev, struct zbc_zone_domain **pdomains,
 	}
 	*pnr_domains = 0;
 
-	if (!zbc_dev_is_zone_act(dev)) {
+	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
@@ -938,7 +938,7 @@ int zbc_report_realms(struct zbc_device *dev,
 	struct zbc_device_info *di = &dev->zbd_info;
 	int ret;
 
-	if (!zbc_dev_is_zone_act(dev)) {
+	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
@@ -983,7 +983,7 @@ int zbc_list_zone_realms(struct zbc_device *dev,
 	}
 	*prealms = NULL;
 
-	if (!zbc_dev_is_zone_act(dev)) {
+	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
@@ -1027,8 +1027,8 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 		      unsigned int new_type, struct zbc_conv_rec *conv_recs,
 		      unsigned int *nr_conv_recs)
 {
-	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
@@ -1057,8 +1057,8 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 		   uint64_t lba, unsigned int nr_zones, unsigned int new_type,
 		   struct zbc_conv_rec *conv_recs, unsigned int *nr_conv_recs)
 {
-	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
@@ -1088,8 +1088,8 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 	uint32_t nr_conv_recs = 0;
 	int ret;
 
-	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
@@ -1157,8 +1157,8 @@ int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32
 int zbc_zone_activation_ctl(struct zbc_device *dev,
 			    struct zbc_zp_dev_control *ctl, bool set)
 {
-	if (!zbc_dev_is_zone_act(dev)) {
-		zbc_error("%s: Not a Zone Activation device\n",
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}

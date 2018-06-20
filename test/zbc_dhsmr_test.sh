@@ -107,7 +107,7 @@ argc=$#
 argimax=$((argc-1))
 
 exec_list=()
-_eexec_list=()		# -ee args passed down to ZA meta-children as -e
+_eexec_list=()		# -ee args passed down to ZD meta-children as -e
 _cexec_list=()		# -e args passed down to HA/HM meta-children as -e
 skip_list=()		# The skip_list argument may be a regular expression
 _cskip_list=()		# meta-child inherits the skip_list
@@ -164,9 +164,9 @@ for (( i=0; i<${argc}; i++ )); do
 		skip_format_dut=1
 		;;
 	-q | --quick )
-		ZBC_MUTATIONS=""
-		ZA_MUTATIONS="ZA_1CMR_BOT ZA_1CMR_BOT_SWP"
-		WPC_MUTATIONS="ZA_WPC"
+		ZBC_MUTATIONS=" "
+		ZD_MUTATIONS="ZD_1CMR_BOT ZD_1CMR_BOT_SWP"
+		WPC_MUTATIONS="ZD_WPC"
 		skip_list+=("04.010")
 		skip_list+=("04.030")
 		skip_list+=("04.040")
@@ -472,8 +472,12 @@ function zbc_run_gamut()
 	return
     fi
 
+<<<<<<< HEAD
     if [ -n "${ZA_MUTATIONS}" -o -n "${WPC_MUTATIONS}" ]; then
       for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
+=======
+    for m in ${ZD_MUTATIONS} ${WPC_MUTATIONS} ; do
+>>>>>>> Rename Zone Activation command set to Zone Domains
 	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
@@ -520,7 +524,7 @@ function zbc_run_gamut()
     set_logfile "fini"
 
     # When done, set the device back to default
-    zbc_test_run zbc_dev_control -v -mu ZA_1CMR_BOT ${device}
+    zbc_test_run zbc_dev_control -v -mu ZD_1CMR_BOT ${device}
     if [ $? -ne 0 ]; then
 	echo "Mutation of ${device} to ${m} failed"
     fi
@@ -530,12 +534,27 @@ function zbc_run_gamut()
 
 # Configure mutations to be tested
 
+<<<<<<< HEAD
 if [ -z "${ZBC_MUTATIONS}" -a  -z "${ZA_MUTATIONS}" -a -z "${WPC_MUTATIONS}" ]; then
     ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
 		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT  
     ZA_MUTATIONS="ZA_1CMR_BOT  ZA_1CMR_BOT_SWP  ZA_FAULTY"
 		# ZA_1CMR_BOT_TOP  ZONE_ACT  ZA_1CMR_BT_SMR  ZA_BARE_BONE  ZA_STX
     WPC_MUTATIONS="ZA_WPC  ZA_WPC_EMPTY  ZA_WPC_SWP"
+=======
+if [ -z "${ZBC_MUTATIONS}" ]; then
+	ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
+		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT
+fi
+
+if [ -z "${ZD_MUTATIONS}" ]; then
+	ZD_MUTATIONS="ZD_1CMR_BOT  ZD_1CMR_BOT_SWP  ZD_FAULTY"
+		# ZD_1CMR_BOT_TOP  ZONE_DOM  ZD_1CMR_BT_SMR  ZD_BARE_BONE  ZD_STX
+fi
+
+if [ -z "${WPC_MUTATIONS}" ]; then
+	WPC_MUTATIONS="ZD_WPC  ZD_WPC_EMPTY  ZD_WPC_SWP"
+>>>>>>> Rename Zone Activation command set to Zone Domains
 fi
 
 #XXX SPEC needs resolving
@@ -568,6 +587,7 @@ if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
     prepare_lists ${ZBC_TEST_SECTION_LIST}
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
+<<<<<<< HEAD
     # Section 03 contains ZA tests that should be run once for each mutation.
     #
     # Section 04 recursively invokes this script multiple times per mutation,
@@ -588,6 +608,13 @@ else
 	# For ATA ZA meta-children
 	# Omit Section 08_scsi_only for ATA drives
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 ${EXTRA_SECTIONS}"
+=======
+    prepare_lists "03" "04"			# our section list
+    if [ ${force_ata} -ne 0 ]; then
+	export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZD meta-children
+    else
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 08"	# for ZD meta-children
+>>>>>>> Rename Zone Activation command set to Zone Domains
     fi
 
     zbc_run_gamut

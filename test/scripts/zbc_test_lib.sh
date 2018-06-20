@@ -299,12 +299,12 @@ function zbc_test_get_device_info()
 	unrestricted_read=${2}
 	zbc_check_string "Failed to get unrestricted read" ${unrestricted_read}
 
-	local zone_activation_device_line=`cat ${log_file} | grep -F "[ZONE_ACTIVATION_DEVICE]"`
-	set -- ${zone_activation_device_line}
-	zone_activation_device=${2}
-	zbc_check_string "Failed to get Zone Activation device support" ${zone_activation_device}
+	local zone_domains_device_line=`cat ${log_file} | grep -F "[ZONE_DOMAINS_DEVICE]"`
+	set -- ${zone_domains_device_line}
+	zone_domains_device=${2}
+	zbc_check_string "Failed to get Zone Domains device support" ${zone_domains_device}
 
-	if [ ${zone_activation_device} -ne 0 ]; then
+	if [ ${zone_domains_device} -ne 0 ]; then
 
 		local ur_control_line=`cat ${log_file} | grep -F "[UR_CONTROL]"`
 		set -- ${ur_control_line}
@@ -1466,7 +1466,7 @@ function zbc_test_check_failed()
 	failed=`cat ${log_file} | grep -m 1 "TESTRESULT==Failed"`
 	if [[ ! -z "${failed}" ]]; then
 		zbc_test_dump_zone_info
-		if [ ${zone_activation_device} -ne 0 ]; then
+		if [ ${zone_domains_device} -ne 0 ]; then
 			zbc_test_dump_zone_realm_info
 		fi
 		return 1

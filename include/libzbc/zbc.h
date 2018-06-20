@@ -138,7 +138,7 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
-	 * Inacive zone: an unmapped zone of a Zone Activation device.
+	 * Inacive zone: an unmapped zone of a Zone Domains device.
 	 */
 	ZBC_ZC_INACTIVE		= 0x0c,
 
@@ -692,16 +692,16 @@ enum zbc_dev_flags {
 	ZBC_UNRESTRICTED_READ = 0x00000001,
 
 	/**
-	 * Indicates that the device supports Zone Activation command set
+	 * Indicates that the device supports Zone Domains command set
 	 * to allow zones on the device to be converted from CMR to SMR
 	 * and vice versa.
 	 */
-	ZBC_ZONE_ACTIVATION_SUPPORT = 0x00000002,
+	ZBC_ZONE_DOMAINS_SUPPORT = 0x00000002,
 
 	/**
 	 * Indicates that the device supports Mutation command set
 	 * to allow it to change between different device types,
-	 * such as Zoned to Legacy or Zone Activation.
+	 * such as Zoned to Legacy or Zone Domains.
 	 */
 	ZBC_MUTATE_SUPPORT = 0x00000004,
 
@@ -1663,9 +1663,9 @@ enum zbc_mutation_target {
 	ZBC_MT_HA_ZONED		= 0x03,
 
 	/**
-	 * DH-SMR Zone Activation device, no CMR-only zones.
+	 * DH-SMR Zone DOmains device, no CMR-only zones.
 	 */
-	ZBC_MT_ZONE_ACT		= 0x04,
+	ZBC_MT_ZONE_DOM		= 0x04,
 
 };
 
@@ -1695,21 +1695,21 @@ enum zbc_mutation_opt_smr {
  };
 
 /**
- * @brief Options Zone Activation device mutation.
+ * @brief Options Zone Domains device mutation.
  * FIXME these values are ad-hoc, for testing only.
  */
-enum zbc_mutation_opt_za {
-	ZBC_MO_ZA_UNKNOWN       = 0x00, /* Reserved */
-	ZBC_MO_ZA_NO_CMR        = 0x01, /* Zone Activation, no CMR-only realms */
-	ZBC_MO_ZA_1_CMR_BOT     = 0x02, /* ZA, one CMR-only realm at bottom */
-	ZBC_MO_ZA_1_CMR_BOT_TOP = 0x03, /* ZA, CMR-only realms at bottom and top */
-	ZBC_MO_ZA_WPC_NO_CMR    = 0x04, /* Zone Activation, WPC, no CMR-only realms */
-	ZBC_MO_ZA_BBONE         = 0x06, /* ZA, no CMR-only, no setting features */
-	ZBC_MO_ZA_STX           = 0x07, /* ZA, no CMR-only, no REPORT REALMS */
-	ZBC_MO_ZA_FAULTY        = 0x08, /* ZA, no CMR-only, read-only/offline zones */
-	ZBC_MO_ZA_SWP           = 0x09, /* ZA, like ZBC_MO_ZA_NO_CMR but SWP */
-	ZBC_MO_ZA_WPC_SWP       = 0x0a, /* ZA, like ZBC_MO_ZA_WPC_NO_CMR, but SWP */
-	ZBC_MO_ZA_WPC_EMPTY     = 0x0b, /* ZA, like ZBC_MO_ZA_WPC_NO_CMR, but start EMPTY */
+enum zbc_mutation_opt_zd {
+	ZBC_MO_ZD_UNKNOWN       = 0x00, /* Reserved */
+	ZBC_MO_ZD_NO_CMR        = 0x01, /* Zone Domains, no CMR-only realms */
+	ZBC_MO_ZD_1_CMR_BOT     = 0x02, /* ZD, one CMR-only realm at bottom */
+	ZBC_MO_ZD_1_CMR_BOT_TOP = 0x03, /* ZD, CMR-only realms at bottom and top */
+	ZBC_MO_ZD_WPC_NO_CMR    = 0x04, /* Zone Domains, WPC, no CMR-only realms */
+	ZBC_MO_ZD_BBONE         = 0x06, /* ZD, no CMR-only, no setting features */
+	ZBC_MO_ZD_STX           = 0x07, /* ZD, no CMR-only, no REPORT REALMS */
+	ZBC_MO_ZD_FAULTY        = 0x08, /* ZD, no CMR-only, read-only/offline zones */
+	ZBC_MO_ZD_SWP           = 0x09, /* ZD, like ZBC_MO_ZD_NO_CMR but SWP */
+	ZBC_MO_ZD_WPC_SWP       = 0x0a, /* ZD, like ZBC_MO_ZD_WPC_NO_CMR, but SWP */
+	ZBC_MO_ZD_WPC_EMPTY     = 0x0b, /* ZD, like ZBC_MO_ZD_WPC_NO_CMR, but start EMPTY */
 };
 
 /*
@@ -1718,7 +1718,7 @@ enum zbc_mutation_opt_za {
 union zbc_mutation_opt {
 	enum zbc_mutation_opt_nz nz;
 	enum zbc_mutation_opt_smr smr;
-	enum zbc_mutation_opt_za za;
+	enum zbc_mutation_opt_zd zd;
 };
 
 /*
