@@ -161,7 +161,7 @@ for (( i=0; i<${argc}; i++ )); do
 		skip_format_dut=1
 		;;
 	-q | --quick )
-		ZBC_MUTATIONS=" "
+		ZBC_MUTATIONS=""
 		ZA_MUTATIONS="ZA_1CMR_BOT ZA_1CMR_BOT_SWP"
 		WPC_MUTATIONS="ZA_WPC"
 		skip_list+=("04.010")
@@ -380,16 +380,19 @@ function zbc_run_config()
 		section_name="zone state machine"
 		;;
 	"03")
-		section_name="DH-SMR command check"
+		section_name="DH-SMR command"
 		;;
 	"04")
 		section_name="DH-SMR device ZBC"
 		;;
 	"05")
-		section_name="DH-SMR WPC zone checks"
+		section_name="DH-SMR WPC zone"
 		;;
 	"08")
-		section_name="zone checks (SCSI only)"
+		section_name="SCSI-only"
+		;;
+	"09")
+		section_name="site-local (unpublished)"
 		;;
 	* )
 		echo "Unknown test section ${section}"
@@ -464,7 +467,8 @@ function zbc_run_gamut()
 	return
     fi
 
-    for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
+    if [ -n "${ZA_MUTATIONS}" -o -n "${WPC_MUTATIONS}" ]; then
+      for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
 	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
@@ -474,9 +478,11 @@ function zbc_run_gamut()
 	fi
         reset_device
 	zbc_run_mutation "${m}"
-    done
+      done
+    fi
 
-    for m in ${ZBC_MUTATIONS} ; do
+    if [ -n "${ZBC_MUTATIONS}" ]; then
+      for m in ${ZBC_MUTATIONS} ; do
 	echo -e "\n\n######### `date` Run the zbc test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
@@ -501,7 +507,8 @@ function zbc_run_gamut()
     	    ZBC_TEST_SECTION_LIST="00 01 02"	# for ZBC meta-children
 	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${cexec_list} ${cskip_list} ${device}
 	)
-    done
+      done
+    fi
 
     echo -e "\n\n######### `date` Last test completed"	# for the datestamp
 
@@ -518,18 +525,12 @@ function zbc_run_gamut()
 
 # Configure mutations to be tested
 
-if [ -z "${ZBC_MUTATIONS}" ]; then
-	ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
+if [ -z "${ZBC_MUTATIONS}" -a  -z "${ZA_MUTATIONS}" -a -z "${WPC_MUTATIONS}" ]; then
+    ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
 		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT  
-fi
-
-if [ -z "${ZA_MUTATIONS}" ]; then
-	ZA_MUTATIONS="ZA_1CMR_BOT  ZA_1CMR_BOT_SWP  ZA_FAULTY"
+    ZA_MUTATIONS="ZA_1CMR_BOT  ZA_1CMR_BOT_SWP  ZA_FAULTY"
 		# ZA_1CMR_BOT_TOP  ZONE_ACT  ZA_1CMR_BT_SMR  ZA_BARE_BONE  ZA_STX
-fi
-
-if [ -z "${WPC_MUTATIONS}" ]; then
-	WPC_MUTATIONS="ZA_WPC  ZA_WPC_EMPTY  ZA_WPC_SWP"
+    WPC_MUTATIONS="ZA_WPC  ZA_WPC_EMPTY  ZA_WPC_SWP"
 fi
 
 #XXX SPEC needs resolving
@@ -548,14 +549,27 @@ set_logfile ""
 
 # Run the tests
 if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
+    # We are being invoked recursively with a specified Section list.
     prepare_lists ${ZBC_TEST_SECTION_LIST}
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
-    prepare_lists "03" "04"			# our section list
-    if [ ${force_ata} -ne 0 ]; then
-	export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZA meta-children
+    # Section 03 contains ZA tests that should be run once for each mutation.
+    #
+    # Section 04 recursively invokes this script multiple times per mutation,
+    # each time with a different activation configuration (pure CMR and mixed
+    # CMR/SMR).  The child script instances process ZBC_TEST_SECTION_LIST.
+    prepare_lists "03" "04"			# parent section list
+
+    if [ ${force_ata} -eq 0 ]; then
+	# Sections 00, 01, and 02 contain ZBC (non-ZA) scripts.
+	# Section 05 has ZA tests that should run once per activation config.
+	# Section 08 has tests that are only valid on SCSI drives.
+	# Section 09 has site-local tests.
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 09" # for SCSI ZA meta-children
     else
-	export ZBC_TEST_SECTION_LIST="00 01 02 05 08"	# for ZA meta-children
+	# Omit Section 08_scsi_only for ATA drives
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 09"	 # for ATA ZA meta-children
     fi
+
     zbc_run_gamut
 fi

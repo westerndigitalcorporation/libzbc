@@ -12,4 +12,4 @@
 
 test_zone_type="0x4"
 
-. scripts/02_state_machine_check/073.sh "$@"
+. scripts/08_scsi_only/272.sh "$@"

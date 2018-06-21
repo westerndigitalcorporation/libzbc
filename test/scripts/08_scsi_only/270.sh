@@ -10,6 +10,32 @@
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 
-test_zone_type="0x4"
+. scripts/zbc_test_lib.sh
 
-. scripts/08_scsi_only/070.sh "$@"
+zbc_test_init $0 "WRITE (zero-length) empty to implicit open" $*
+
+expected_cond="0x2"
+
+# Get drive information
+zbc_test_get_device_info
+
+# Search target LBA
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
+target_lba=${target_slba}
+
+# Start testing
+# Write zero LBA at start of zone
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
+zbc_test_get_sk_ascq
+zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
+
+if [ -z "${sk}" ]; then
+    zbc_test_get_zone_info
+    zbc_test_get_target_zone_from_slba ${target_lba}
+    zbc_test_check_zone_cond_wp ${target_slba}
+fi
+
+# Post process
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+
+rm -f ${zone_info_file}
