@@ -15,13 +15,13 @@
 zone_cond_1=IOPENH	# all but one physical block will be written
 zone_cond_2=FULL
 
-zbc_test_init $0 "READ cross-zone ${zone_cond_1}->${zone_cond_2} starting below Write Pointer" $*
+zbc_test_init $0 "READ cross-zone OPEN->FULL starting below Write Pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
 
 # Get a pair of zones
-zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
+zbc_test_get_wp_zones_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
 expected_sk="Illegal-request"
 expected_asc="Attempt-to-read-invalid-data"	# because second zone has no data
@@ -46,4 +46,6 @@ else
 fi
 
 # Post process
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(( ${target_slba} + ${target_size} ))
 rm -f ${zone_info_file}

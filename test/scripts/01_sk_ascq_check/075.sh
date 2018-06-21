@@ -21,7 +21,7 @@ expected_sk="Illegal-request"
 expected_asc="Unaligned-write-command"		# Write starting and ending below WP
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA "${ZC_NON_FULL}"
+zbc_test_get_wp_zones_cond_or_NA "EMPTY"
 target_lba=${target_ptr}
 
 # Start testing
@@ -36,12 +36,23 @@ fi
 
 # Check result
 zbc_test_get_sk_ascq
+zbc_test_get_zone_info
+zbc_test_get_target_zone_from_slba ${target_slba}
 
 if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_LT_WP}) ]]; then
-    zbc_test_check_no_sk_ascq "zone_type=${target_type}"
+    zbc_test_fail_if_sk_ascq "zone_type=${target_type}"
+    if [ $? -eq 0 ]; then
+    	zbc_test_check_wp_eq $(( ${target_lba} + ${lblk_per_pblk} ))
+    fi
+    if [ $? -eq 0 ]; then
+	zbc_test_print_passed
+    fi
 else
     zbc_test_check_sk_ascq "zone_type=${target_type}"
+    zbc_test_check_wp_eq $(( ${target_lba} + ${lblk_per_pblk} ))
 fi
 
 # Post process
+zbc_test_check_failed
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 rm -f ${zone_info_file}

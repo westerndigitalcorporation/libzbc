@@ -15,13 +15,13 @@
 zone_cond_1=EMPTY
 zone_cond_2=EMPTY
 
-zbc_test_init $0 "WRITE cross-zone ${zone_cond_1}->${zone_cond_2} starting above Write Pointer" $*
+zbc_test_init $0 "WRITE cross-zone EMPTY->EMPTY starting above Write Pointer" $*
 
 # Get drive information
 zbc_test_get_device_info
 
 # Get a pair of zones
-zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
+zbc_test_get_wp_zones_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
 expected_sk="Illegal-request"
 expected_asc="Unaligned-write-command"		# Write starting above WP
@@ -45,4 +45,6 @@ else
 fi
 
 # Post process
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(( ${target_slba} + ${target_size} ))
 rm -f ${zone_info_file}
