@@ -27,7 +27,7 @@ if [ ${conv_zone} -ne 0 ]; then
 elif [ ${wpc_zone} -ne 0 ]; then
     cmr_type="wpc"
 else
-    zbc_test_print_not_applicable "Neither conventional nor WPC zones are supported by the device"
+    zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
 
 zbc_test_get_zone_info

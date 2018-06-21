@@ -22,7 +22,7 @@ if [ ${seq_req_zone} -ne 0 ]; then
 elif [ ${seq_pref_zone} -ne 0 ]; then
     smr_type="seqp"
 else
-    zbc_test_print_not_applicable "Neither SWR nor SWP zones are supported by the device"
+    zbc_test_print_not_applicable "No sequential zones are supported by the device"
 fi
 
 if [ ${za_control} == 0 ]; then
