@@ -12,4 +12,4 @@
 
 test_zone_type="0x4"
 
-. scripts/02_state_machine_check/082.sh "$@"
+. scripts/02_state_machine_check/078.sh "$@"

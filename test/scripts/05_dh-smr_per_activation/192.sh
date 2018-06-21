@@ -12,4 +12,4 @@
 
 test_zone_type="0x4"
 
-. scripts/01_sk_ascq_check/172.sh "$@"
+. scripts/01_sk_ascq_check/092.sh "$@"
