@@ -67,6 +67,7 @@ if [ $? -ne 0 ]; then
     zbc_test_get_sk_ascq
     zbc_test_fail_if_sk_ascq
     zbc_test_print_failed "Failed to open_nr_zones ${seq_zone_type} ${max_open}"
+    zbc_test_dump_zone_info
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
     exit 1
 fi
@@ -77,6 +78,7 @@ zbc_test_get_zone_info
 # Find one more sequential zone to try, which would exceed max_open
 zbc_test_get_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
 if [ $? -ne 0 ]; then
+    zbc_test_dump_zone_info
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
     # This should not happen because we counted enough zones above
     zbc_test_print_not_applicable "WARNING: Expected EMPTY zone of type ${seq_zone_type} could not be found"

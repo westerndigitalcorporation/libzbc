@@ -72,8 +72,9 @@ else
     # Get a writable zone (of any type) that is not OPEN
     zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_NOT_WP}"
     if [ $? -ne 0 ]; then
-        zbc_test_print_failed "Unexpected failure to find writable zone"
-        zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
+	zbc_test_print_failed "Unexpected failure to find writable zone"
+	zbc_test_dump_zone_info
+	zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 	exit 1
     fi
 
@@ -89,11 +90,11 @@ else
     zbc_test_get_sk_ascq
     if [[ ${seq_zone_type} != @(${ZT_W_OZR}) || ${target_type} != @(${ZT_W_OZR}) ]]; then
 	# One or both zone types does not participate in the OZR protocol
-        zbc_test_check_no_sk_ascq \
+	zbc_test_check_no_sk_ascq \
 	    "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
     else
 	# Both Zone types participate in the OZR protocol
-        zbc_test_check_sk_ascq \
+	zbc_test_check_sk_ascq \
 	    "${max_open} * (seq_zone_type=${seq_zone_type}) + (zone_type=${target_type})"
     fi
 fi
