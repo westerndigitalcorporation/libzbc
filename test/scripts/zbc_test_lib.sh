@@ -14,7 +14,7 @@
 # Zone Type                   is a ...  Write Pointer zone   Sequential zone
 # ---------                             ------------------   ---------------
 # 0x1 Conventional                              NO                 NO
-# 0x4 Write-Pointer Conventional (WPC)          YES                NO
+# 0x4 Sequential or Before Req'd (SBR)          YES                NO
 # 0x3 Sequential Write Preferred (SWP)          YES                YES
 # 0x2 Sequential Write Required  (SWR)          YES                YES
 
@@ -33,7 +33,8 @@ function zbc_test_lib_init()
 	declare -rg ZT_CONV="0x1"			# Conventional zone
 	declare -rg ZT_SWR="0x2"			# Sequential Write Required zone
 	declare -rg ZT_SWP="0x3"			# Sequential Write Preferred zone
-	declare -rg ZT_WPC="0x4"			# Write-Pointer Conventional zone
+	declare -rg ZT_WPC="0x4"			# Write-Pointer Conventional zone XXX
+	declare -rg ZT_SBR="0x4"			# Sequential or Before Required zone
 
 	# Example Usage:  if [[ ${target_type} == @(${ZT_NON_SEQ}) ]]; then...
 	#                 if [[ ${target_type} != @(${ZT_WP}) ]]; then...
@@ -224,6 +225,7 @@ function zbc_test_meta_run()
 	export ZBC_TEST_FORCE_ATA
 	export CHECK_ZC_BEFORE_ZT
 	export VALGRIND
+	export ATA_SCSI_NONSENSE
 
 	echo -e "\n### Executing: ${_cmd}\n" 2>&1 | tee -a ${log_file} 2>&1
 
@@ -246,6 +248,10 @@ function zbc_check_string()
 
 function zbc_test_get_device_info()
 {
+	if [ -z "${device}" ]; then
+		_stacktrace_exit "device is not set -- call zbc_test_init before zbc_test_get_device_info"
+	fi
+
 	zbc_test_run ${bin_path}/zbc_test_print_devinfo ${device}
 	if [ $? -ne 0 ]; then
 		_stacktrace_exit "Failed to get device info for ${device}"
@@ -343,7 +349,8 @@ function zbc_test_get_device_info()
 		local wpc_zone_line=`cat ${log_file} | grep -F "[WPC_ZONE]"`
 		set -- ${wpc_zone_line}
 		wpc_zone=${2}
-		zbc_check_string "Failed to get Write Pointer Conventional zone support" ${wpc_zone}
+		sbr_zone=${2}
+		zbc_check_string "Failed to get Sequential or Before Required zone support" ${wpc_zone}
 	else
 		ur_control=0
 		domain_report=0
@@ -561,7 +568,7 @@ function zbc_test_close_nr_zones()
 
 		zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${start_lba} ${lblk_per_pblk}
 		if [ $? -ne 0 ]; then
-			echo "WARNING: Unexpected failure to write zone ${start_lba} after writing ${_count}/${_open_num} zones"
+			echo "WARNING: Unexpected failure to write zone ${start_lba} after writing ${_count}/${_close_num} zones"
 			zbc_test_dump_zone_info
 			return 1
 		fi
@@ -1330,8 +1337,23 @@ function zbc_test_print_failed_sk()
 	fi
 }
 
+ata_nonsense_sk="Aborted-command"
+ata_nonsense_asc="Unknown-additional-sense-code-qualifier 0x00"
+
+function zbc_test_print_passed_except_sense()
+{
+	zbc_test_print_res "${green}" "Passed (except sense data)"
+}
+
 function zbc_test_check_err()
 {
+	if [ -n "${ATA_SCSI_NONSENSE}" ]; then
+		if [ "${sk}" = "${ata_nonsense_sk}" -a "${asc}" = "${ata_nonsense_asc}" ]; then
+			zbc_test_print_passed_except_sense
+			return
+		fi
+	fi
+
 	if [ -n "${expected_err_za}" -a -z "${expected_err_cbf}" ] ; then
 			# Our caller expects ERR_ZA, but specified no expected CBF -- assume zero
 			local expected_err_cbf=0	# expect (CBF == 0)
@@ -1347,6 +1369,13 @@ function zbc_test_check_err()
 
 function zbc_test_check_sk_ascq()
 {
+	if [ -n "${ATA_SCSI_NONSENSE}" ]; then
+		if [ "${sk}" = "${ata_nonsense_sk}" -a "${asc}" = "${ata_nonsense_asc}" ]; then
+			zbc_test_print_passed_except_sense
+			return
+		fi
+	fi
+
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
 		zbc_test_print_passed
 	else

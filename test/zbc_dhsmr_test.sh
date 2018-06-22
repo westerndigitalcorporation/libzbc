@@ -540,6 +540,11 @@ if [ -z "${CHECK_ZC_BEFORE_ZT}" ]; then
 	export CHECK_ZC_BEFORE_ZT=1		#XXX vary order of OP error checks
 fi
 
+# Pass this environment variable through to children if it is set
+if [ ! -z "${ATA_SCSI_NONSENSE}" ]; then
+    export ATA_SCSI_NONSENSE=1
+fi
+
 # Establish log file for early failures
 if [ -z "${ZBC_TEST_LOG_PATH_BASE}" ]; then
     ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
