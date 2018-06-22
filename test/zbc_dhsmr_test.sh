@@ -166,7 +166,7 @@ for (( i=0; i<${argc}; i++ )); do
 	-q | --quick )
 		ZBC_MUTATIONS=" "
 		ZD_MUTATIONS="ZD_1CMR_BOT ZD_1CMR_BOT_SWP"
-		WPC_MUTATIONS="ZD_WPC"
+		SOBR_MUTATIONS="ZD_SOBR"
 		skip_list+=("04.010")
 		skip_list+=("04.030")
 		skip_list+=("04.040")
@@ -389,7 +389,7 @@ function zbc_run_config()
 		section_name="DH-SMR device ZBC"
 		;;
 	"05")
-		section_name="DH-SMR WPC zone"
+		section_name="DH-SMR SOBR zone"
 		;;
 	"08")
 		section_name="ZBC SCSI-only"
@@ -472,12 +472,8 @@ function zbc_run_gamut()
 	return
     fi
 
-<<<<<<< HEAD
-    if [ -n "${ZA_MUTATIONS}" -o -n "${WPC_MUTATIONS}" ]; then
-      for m in ${ZA_MUTATIONS} ${WPC_MUTATIONS} ; do
-=======
-    for m in ${ZD_MUTATIONS} ${WPC_MUTATIONS} ; do
->>>>>>> Rename Zone Activation command set to Zone Domains
+    if [ -n "${ZD_MUTATIONS}" -o -n "${SOBR_MUTATIONS}" ]; then
+      for m in ${ZD_MUTATIONS} ${SOBR_MUTATIONS} ; do
 	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
 	set_logfile ${m}
 	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
@@ -534,27 +530,12 @@ function zbc_run_gamut()
 
 # Configure mutations to be tested
 
-<<<<<<< HEAD
-if [ -z "${ZBC_MUTATIONS}" -a  -z "${ZA_MUTATIONS}" -a -z "${WPC_MUTATIONS}" ]; then
+if [ -z "${ZBC_MUTATIONS}" -a  -z "${ZD_MUTATIONS}" -a -z "${SOBR_MUTATIONS}" ]; then
     ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
-		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT  
-    ZA_MUTATIONS="ZA_1CMR_BOT  ZA_1CMR_BOT_SWP  ZA_FAULTY"
-		# ZA_1CMR_BOT_TOP  ZONE_ACT  ZA_1CMR_BT_SMR  ZA_BARE_BONE  ZA_STX
-    WPC_MUTATIONS="ZA_WPC  ZA_WPC_EMPTY  ZA_WPC_SWP"
-=======
-if [ -z "${ZBC_MUTATIONS}" ]; then
-	ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
 		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT
-fi
-
-if [ -z "${ZD_MUTATIONS}" ]; then
-	ZD_MUTATIONS="ZD_1CMR_BOT  ZD_1CMR_BOT_SWP  ZD_FAULTY"
-		# ZD_1CMR_BOT_TOP  ZONE_DOM  ZD_1CMR_BT_SMR  ZD_BARE_BONE  ZD_STX
-fi
-
-if [ -z "${WPC_MUTATIONS}" ]; then
-	WPC_MUTATIONS="ZD_WPC  ZD_WPC_EMPTY  ZD_WPC_SWP"
->>>>>>> Rename Zone Activation command set to Zone Domains
+    ZD_MUTATIONS="ZD_1CMR_BOT  ZD_1CMR_BOT_SWP  ZD_FAULTY"
+		# ZD_1CMR_BOT_TOP  ZONE_ACT  ZD_1CMR_BT_SMR  ZD_BARE_BONE  ZD_STX
+    SOBR_MUTATIONS="ZD_SOBR  ZD_SOBR_EMPTY  ZD_SOBR_SWP"
 fi
 
 #XXX SPEC needs resolving
@@ -587,8 +568,7 @@ if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
     prepare_lists ${ZBC_TEST_SECTION_LIST}
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
-<<<<<<< HEAD
-    # Section 03 contains ZA tests that should be run once for each mutation.
+    # Section 03 contains ZD tests that should be run once for each mutation.
     #
     # Section 04 recursively invokes this script multiple times per mutation,
     # each time with a different activation configuration (pure CMR and mixed
@@ -598,9 +578,9 @@ else
     #XXX This isn't right, because we need to skip section 8 with SAT also.
     #XXX Workaround is to specify  -s "08.*"  on the command line in that case.
     if [ ${force_ata} -eq 0 ]; then
-	# For SCSI ZA meta-children
-	# Sections 00, 01, and 02 contain ZBC (non-ZA) scripts.
-	# Section 05 has ZA tests that should run once per activation config.
+	# For SCSI ZD meta-children
+	# Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
+	# Section 05 has ZD tests that should run once per activation config.
 	# Section 08 has tests that are only valid on SCSI drives.
 	# Section 09 has site-local tests.
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 ${EXTRA_SECTIONS}"
@@ -608,13 +588,6 @@ else
 	# For ATA ZA meta-children
 	# Omit Section 08_scsi_only for ATA drives
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 ${EXTRA_SECTIONS}"
-=======
-    prepare_lists "03" "04"			# our section list
-    if [ ${force_ata} -ne 0 ]; then
-	export ZBC_TEST_SECTION_LIST="00 01 02 05"	# for ZD meta-children
-    else
-	export ZBC_TEST_SECTION_LIST="00 01 02 05 08"	# for ZD meta-children
->>>>>>> Rename Zone Activation command set to Zone Domains
     fi
 
     zbc_run_gamut

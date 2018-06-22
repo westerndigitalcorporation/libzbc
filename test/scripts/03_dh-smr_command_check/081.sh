@@ -23,8 +23,8 @@ fi
 
 if [ ${conv_zone} -ne 0 ]; then
     cmr_type="conv"
-elif [ ${wpc_zone} -ne 0 ]; then
-    cmr_type="wpc"
+elif [ ${sobr_zone} -ne 0 ]; then
+    cmr_type="sobr"
 else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi

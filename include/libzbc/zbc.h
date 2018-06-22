@@ -86,11 +86,11 @@ enum zbc_zone_type {
 	ZBC_ZT_SEQUENTIAL_PREF	= 0x03,
 
 	/**
-	 * Write pointer conventional zone: requires additional initialization
-	 * to become a regular conventional, but it can be converted from SMR
-	 * quickly.
+	 * Sequential or before required zone: requires additional
+	 * initialization to become close to a regular conventional,
+	 * but it can be converted from SMR quickly.
 	 */
-	ZBC_ZT_WP_CONVENTIONAL	= 0x04,
+	ZBC_ZT_SEQ_OR_BEF_REQ	= 0x04,
 };
 
 /**
@@ -256,8 +256,8 @@ struct zbc_zone {
 /** @brief Test if a zone type is sequential write preferred */
 #define zbc_zone_sequential_pref(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
 
-/** @brief Test if a zone type is write pointer conventional */
-#define zbc_zone_conv_wp(z) ((z)->zbz_type == ZBC_ZT_WP_CONVENTIONAL)
+/** @brief Test if a zone type is sequential or before required (SOBR) */
+#define zbc_zone_sobr(z) ((z)->zbz_type == ZBC_ZT_SEQ_OR_BEF_REQ)
 
 /** @brief Test if a zone type is sequential write required or preferred */
 #define zbc_zone_sequential(z)	(zbc_zone_sequential_req(z) || \
@@ -370,11 +370,51 @@ struct zbc_zone_domain {
 #define zbc_zone_domain_end_lba(d)	((unsigned long long)(d)->zbm_end_lba)
 
 /**
- * Flags that can be set in zbr_convertible field
- * of zbc_zone_realm structure (below).
+ * The number of domain slots in a realm. Each slot corresponds
+ * to a zone domain with a distinctive zone type.
  */
-#define ZBC_CVT_TO_SEQ		0x20
-#define ZBC_CVT_TO_CONV		0x40
+#define ZBC_NR_ZONE_TYPES	4
+
+/**
+ * @brief Zone realm item
+ *
+ * Provides information about a single domain in a zone realm.
+ *
+*/
+struct zbc_realm_item {
+
+	/**
+	 * Start LBA for this domain.
+	 */
+	uint64_t		zbi_start_lba;
+
+	/**
+	 * End LBA for this domain.
+	 */
+	uint64_t		zbi_end_lba;
+
+	/**
+	 * Length in zones. Not provided by REPORT REALMS,
+	 * but calculated for convenience.
+	 */
+	uint32_t		zbi_length;
+
+	/**
+	 * Domain ID.
+	 */
+	uint8_t			zbi_dom_id;
+
+	/**
+	 * The corresponding zone type. This one is provided
+	 * by REPORT ZONE DOMAINS, not REPORT REALMS.
+	 */
+	uint8_t			zbi_type;
+
+	/**
+	 * Padding to 24 bytes.
+	 */
+	uint8_t			__pad[2];
+};
 
 /**
  * @brief Zone realm descriptor
@@ -387,107 +427,167 @@ struct zbc_zone_domain {
 struct zbc_zone_realm {
 
 	/**
-	 * Zone realm start zone ID when the realm current type is
-	 * a CMR type. If the realm can't be activated to this
-	 * zone type, then it is set to zero.
-	 */
-	uint64_t		zbr_conv_start;
-
-	/**
-	 * Zone realm length in zones when the current realm type is
-	 * a CMR type. If the realm can't be activated to this zone
-	 * type, then it's set to zero.
-	 */
-	uint32_t		zbr_conv_length;
-
-	/**
-	 * Zone realm start zone ID when the current realm type is
-	 * an SMR type. If a sequential zone type can't be activated
-	 * in this realm, then it is set to zero.
-	 */
-	uint64_t		zbr_seq_start;
-
-	/**
-	 * Zone realm length in zones when the current realm type is
-	 * an SMR type. If a sequential zone type can't be activated
-	 * in this realm, then it is set to zero.
-	 */
-	uint32_t		zbr_seq_length;
-
-	/**
 	 * Zone realm ID as returned by REPORT REALMS.
 	 * The lowest is 0.
 	 */
 	uint16_t		zbr_number;
 
 	/**
-	 * Number of zones required between CMR realms
-	 * when they are converted from SMR to CMR.
+	 * The currently active domain ID. This is the type of all
+	 * zones in the realm (enum zbc_zone_type).
 	 */
-	uint16_t		zbr_keep_out;
+	uint8_t			zbr_dom_id;
 
 	/**
-	 * Current zone realm type. This the type of all zones
+	 * Current realm zone type. This the type of all zones
 	 * in the realm (enum zbc_zone_type).
 	 */
 	uint8_t			zbr_type;
 
 	/**
-	 * A set of flags indicating what zonme types can be
+	 * A set of flags indicating what zone types can be
 	 * activated in this realm.
 	 */
-	uint8_t			zbr_convertible;
+	uint8_t			zbr_actv_flags;
 
 	/**
-	 * Padding to 32 bytes.
+	 * The number of valid items in \a zbr_ri array below.
+	 */
+	uint8_t			zbr_nr_domains;
+
+	/**
+	 * Padding to 8 bytes.
 	 */
 	uint8_t			__pad[2];
+
+	/**
+	 * Array of realm items. Depending on the number of domains,
+	 * some of the entlies in this array may be empty.
+	 */
+	struct zbc_realm_item	zbr_ri[ZBC_NR_ZONE_TYPES];
 };
 
-/** @brief Get the zone realm type */
-#define zbc_zone_realm_type(r)		((int)(r)->zbr_type)
-
 /** @brief Get the zone realm number */
-#define zbc_zone_realm_number(r)		((int)(r)->zbr_number)
+static inline int zbc_zone_realm_number(struct zbc_zone_realm *r)
+{
+	return r->zbr_number;
+}
+
+/** @brief Get the zone realm domain ID */
+static inline int zbc_zone_realm_domain(struct zbc_zone_realm *r)
+{
+	return r->zbr_dom_id;
+}
+
+/** @brief Get the zone realm type */
+static inline int zbc_zone_realm_type(struct zbc_zone_realm *r)
+{
+	return r->zbr_type;
+}
 
 /** @brief Test if a zone realm type is CONVENTIONAL */
-#define zbc_zone_realm_conventional(r)	((r)->zbr_type == ZBC_ZT_CONVENTIONAL)
+static inline bool zbc_zone_realm_conventional(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_CONVENTIONAL);
+}
 
-/** @brief Test if a zone realm type is WRITE POINTER CONVENTIONAL */
-#define zbc_zone_realm_wpc(r)	((r)->zbr_type == ZBC_ZT_WP_CONVENTIONAL)
+/** @brief Get activation flags of a realm */
+static inline uint8_t zbc_zone_realm_actv_flags(struct zbc_zone_realm *r)
+{
+	return r->zbr_actv_flags;
+}
+
+/** @brief Get the number of valid domain records in a realm */
+static inline
+unsigned int zbc_zone_realm_nr_domains(struct zbc_zone_realm *r)
+{
+	return r->zbr_nr_domains;
+}
+
+/** @brief Test if a zone realm type is SEQUENTIAL OR BEFORE REQUIRED */
+static inline bool zbc_zone_realm_sobr(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQ_OR_BEF_REQ);
+}
 
 /** @brief Test if a zone realm type is SEQUENTIAL WRITE REQUIRED */
-#define zbc_zone_realm_sequential(r) \
-	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_REQ)
+static inline bool zbc_zone_realm_sequential(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQUENTIAL_REQ);
+}
 
 /** @brief Test if a zone realm type is SEQUENTIAL WRITE PREFERRED */
-#define zbc_zone_realm_seq_pref(r) \
-	((r)->zbr_type == ZBC_ZT_SEQUENTIAL_PREF)
+static inline bool zbc_zone_realm_seq_pref(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQUENTIAL_PREF);
+}
 
-/** @brief Get realm start zone ID if it is CMR as a 512B sector */
-#define zbc_zone_realm_conv_start(r) \
-	((unsigned long long)(r)->zbr_conv_start)
+/** @brief Get realm zone type for a particular domain */
+static inline unsigned int zbc_realm_zone_type(struct zbc_zone_realm *r,
+					       unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_type;
+}
 
-/** @brief Get the number of zones of a realm if it is CMR */
-#define zbc_zone_realm_conv_length(r)	((unsigned int)(r)->zbr_conv_length)
+/** @brief Get realm start LBA for a particular domain as a 512B sector */
+static inline uint64_t zbc_realm_start_lba(struct zbc_zone_realm *r,
+					   unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_start_lba;
+}
 
-/** @brief Get realm start zone ID if it's SMR as a 512B sector */
-#define zbc_zone_realm_seq_start(r) \
-	((unsigned long long)(r)->zbr_seq_start)
+/** @brief Get the end LBA of a realm for a particular domain */
+static inline uint64_t zbc_realm_end_lba(struct zbc_zone_realm *r,
+					 unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_end_lba;
+}
 
-/** @brief Get the realm size in 512B sectors if it is SMR */
-#define zbc_zone_realm_seq_length(r)	((unsigned int)(r)->zbr_seq_length)
+/** @brief Get realm length in 512B sectors for a particular domain */
+static inline uint64_t zbc_realm_block_length(struct zbc_zone_realm *r,
+					      unsigned int dom_id)
+{
+	return zbc_realm_end_lba(r, dom_id) -
+	       zbc_realm_start_lba(r, dom_id) + 1LL;
+}
 
-/** @brief Get the zone realm "keep out" value */
-#define zbc_zone_realm_keep_out(r)	((int)(r)->zbr_keep_out)
+/** @brief Get the realm length in zones for a particular domain */
+static inline uint32_t zbc_realm_length(struct zbc_zone_realm *r,
+					unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_length;
+}
 
-/** @brief Test if a CMR zone type can be activated in the zone realm */
-#define zbc_zone_realm_to_conv(r) \
-	((int)((r)->zbr_convertible & ZBC_CVT_TO_CONV))
+static inline bool zbc_realm_actv_as_dom_id(struct zbc_zone_realm *r,
+					    unsigned int dom_id)
+{
+	return (bool)(r->zbr_actv_flags & (1 << dom_id));
+}
 
-/** @brief Test if a SMR zone type can be activated in the zone realm */
-#define zbc_zone_realm_to_seq(r) \
-	((int)((r)->zbr_convertible & ZBC_CVT_TO_SEQ))
+/** @brief Test if the zone realm can be activated as the specified zone type */
+static inline bool zbc_realm_actv_as_type(struct zbc_zone_realm *r,
+					  enum zbc_zone_type zt)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if (zt == r->zbr_ri[i].zbi_type)
+			return (bool)(r->zbr_actv_flags & (1 << i));
+	}
+
+	return false;
+}
+
+/** @brief Get the realm item that corresponds to the specified zone type */
+static inline
+struct zbc_realm_item *zbc_realm_item_by_type(struct zbc_zone_realm *r,
+					      enum zbc_zone_type zt)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if (zt == r->zbr_ri[i].zbi_type)
+			return &r->zbr_ri[i];
+	}
+
+	return NULL;
+}
 
 /**
  * @brief Zone Conversion Results record.
@@ -532,12 +632,12 @@ struct zbc_conv_rec {
 /** @brief Test if conversion record type is sequential write preferred */
 #define zbc_conv_rec_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
 
-/** @brief Test if conversion record type is write pointer conventional */
-#define zbc_conv_rec_conv_wp(r)		((r)->zbe_type == ZBC_ZT_WP_CONVENTIONAL)
+/** @brief Test if conversion record type is sequential or before required (SOBR) */
+#define zbc_conv_rec_sobr(r)		((r)->zbe_type == ZBC_ZT_SEQ_OR_BEF_REQ)
 
-/** @brief Test if conversion record type is conventional of WPC */
+/** @brief Test if conversion record type is conventional of SOBR */
 #define zbc_conv_rec_nonseq(r)		(zbc_conv_rec_conventional(r) || \
-					 zbc_conv_rec_conv_wp(r))
+					 zbc_conv_rec_sobr(r))
 
 /** @brief Test if conversion record type is sequential write required or preferred */
 #define zbc_conv_rec_seq(r)		(zbc_conv_rec_seq_req(r) || \
@@ -746,9 +846,9 @@ enum zbc_dev_flags {
 	ZBC_SEQ_PREF_ZONE_SUPPORT = 0x00000400,
 
 	/**
-	 * Indicates that Write Pointer Conventional zone type is supported.
+	 * Indicates that Sequential Or Before Required zone type is supported.
 	 */
-	ZBC_WPC_ZONE_SUPPORT = 0x00000800,
+	ZBC_SOBR_ZONE_SUPPORT = 0x00000800,
 };
 
 /**
@@ -1703,13 +1803,13 @@ enum zbc_mutation_opt_zd {
 	ZBC_MO_ZD_NO_CMR        = 0x01, /* Zone Domains, no CMR-only realms */
 	ZBC_MO_ZD_1_CMR_BOT     = 0x02, /* ZD, one CMR-only realm at bottom */
 	ZBC_MO_ZD_1_CMR_BOT_TOP = 0x03, /* ZD, CMR-only realms at bottom and top */
-	ZBC_MO_ZD_WPC_NO_CMR    = 0x04, /* Zone Domains, WPC, no CMR-only realms */
+	ZBC_MO_ZD_SOBR_NO_CMR   = 0x04, /* Zone Domains, SOBR, no CMR-only realms */
 	ZBC_MO_ZD_BBONE         = 0x06, /* ZD, no CMR-only, no setting features */
 	ZBC_MO_ZD_STX           = 0x07, /* ZD, no CMR-only, no REPORT REALMS */
 	ZBC_MO_ZD_FAULTY        = 0x08, /* ZD, no CMR-only, read-only/offline zones */
 	ZBC_MO_ZD_SWP           = 0x09, /* ZD, like ZBC_MO_ZD_NO_CMR but SWP */
-	ZBC_MO_ZD_WPC_SWP       = 0x0a, /* ZD, like ZBC_MO_ZD_WPC_NO_CMR, but SWP */
-	ZBC_MO_ZD_WPC_EMPTY     = 0x0b, /* ZD, like ZBC_MO_ZD_WPC_NO_CMR, but start EMPTY */
+	ZBC_MO_ZD_SOBR_SWP      = 0x0a, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but SWP */
+	ZBC_MO_ZD_SOBR_EMPTY    = 0x0b, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but start EMPTY */
 };
 
 /*

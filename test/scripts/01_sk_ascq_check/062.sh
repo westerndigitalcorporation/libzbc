@@ -33,7 +33,7 @@ if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
 
           #XXX ZA pollution in Section 01
           elif [ ${target_type} = "0x4" -a ${unrestricted_read} -ne 0 ]; then	#XXX
-                 #XXX Crossing WPC->SEQ returns a different error, but only when URSWRZ
+                 #XXX Crossing SOBR->SEQ returns a different error, but only when URSWRZ
                  #    is set, as per bogosity in ZA-r4 SPEC -- XXX FIX SPEC!
                  expected_asc="Read-boundary-violation"  # read cross-type (XXX BOGUS SPEC)
 	  #XXX REMOVE WHEN SPEC IS FIXED

@@ -54,36 +54,36 @@ int main(int argc, char **argv)
 usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
-		       "  -v                      : Verbose mode\n"
-		       "  -lm                     : List mutations supported by the device\n"
-		       "  -mu <type> <model>      : Mutate to the specified numeric type and model\n"
-		       "  -mu <target>            : Mutate to the specified target\n\n"
-		       "  -nz <num>               : Set the default number of zones to convert\n"
-		       "  -ur y|n                 : Enable of disable unrestricted reads\n"
+		       "  -v                        : Verbose mode\n"
+		       "  -lm                       : List mutations supported by the device\n"
+		       "  -mu <type> <model>        : Mutate to the specified numeric type and model\n"
+		       "  -mu <target>              : Mutate to the specified target\n\n"
+		       "  -nz <num>                 : Set the default number of zones to convert\n"
+		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
 		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n\n"
 		       "Mutation targets:\n"
-		       "  NON_ZONED               : A classic, not zoned, device\n"
-		       "  HM_ZONED                : Host-managed SMR device, no CMR zones\n"
-		       "  HM_ZONED_1PCNT_B        : Host-managed SMR device, 1%% CMR at bottom\n"
-		       "  HM_ZONED_2PCNT_BT       : Host-managed SMR device, 2%% CMR at bottom, one CMR zone at top\n"
-		       "  HA_ZONED                : Host-aware SMR device, no CMR zones\n"
-		       "  HA_ZONED_1PCNT_B        : Host-aware SMR device, 1%% CMR at bottom\n"
-		       "  HA_ZONED_2PCNT_BT       : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
+		       "  NON_ZONED                 : A classic, not zoned, device\n"
+		       "  HM_ZONED                  : Host-managed SMR device, no CMR zones\n"
+		       "  HM_ZONED_1PCNT_B          : Host-managed SMR device, 1%% CMR at bottom\n"
+		       "  HM_ZONED_2PCNT_BT         : Host-managed SMR device, 2%% CMR at bottom, one CMR zone at top\n"
+		       "  HA_ZONED                  : Host-aware SMR device, no CMR zones\n"
+		       "  HA_ZONED_1PCNT_B          : Host-aware SMR device, 1%% CMR at bottom\n"
+		       "  HA_ZONED_2PCNT_BT         : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
 
-		       "  ZONE_DOM                : DH-SMR device supporting Zone Domains"
+		       "  ZONE_DOM                  : DH-SMR device supporting Zone Domains"
 							" command set, conventional CMR zones, no CMR-only realms\n"
-		       "  ZD_1CMR_BOT             : Same as ZONE_DOM, but the first zone realm"
+		       "  ZD_1CMR_BOT               : Same as ZONE_DOM, but the first zone realm"
 							" is CMR-only\n"
-		       "  ZD_1CMR_BOT_TOP         : Same as ZONE_DOM, but the first and last zone"
+		       "  ZD_1CMR_BOT_TOP           : Same as ZONE_DOM, but the first and last zone"
 							" realms are CMR-only\n"
-		       "  ZD_1CMR_BOT_SWP         : Same as ZD_1CMR_BOT, but with SWP zones instead of SWR\n"
-		       "  ZD_WPC or ZONE_DOM_WPC  : DH-SMR device supporting Zone Domains"
-							" command set, WPC CMR zones, no CMR-only realms\n"
-		       "  ZD_WPC_SWP              : Same as ZD_WPC, but with SWP zones instead of SWR\n"
-		       "  ZD_WPC_EMPTY            : Same as ZD_WPC, but WPC zones start EMPTY instead of FULL\n"
-		       "  ZD_BARE_BONE            : DH-SMR device supporting Zone Domains and minimal features\n"
-		       "  ZD_STX                  : Same as ZONE_DOM, but no REPORT REALMS\n"
-		       "  ZD_FAULTY               : Same as ZONE_DOM, several offline and read-only zones injected \n",
+		       "  ZD_1CMR_BOT_SWP           : Same as ZD_1CMR_BOT, but with SWP zones instead of SWR\n"
+		       "  ZD_SOBR or ZONE_DOM_SOBR  : DH-SMR device supporting Zone Domains"
+							" command set, SOBR CMR zones, no CMR-only realms\n"
+		       "  ZD_SOBR_SWP               : Same as ZD_SOBR, but with SWP zones instead of SWR\n"
+		       "  ZD_SOBR_EMPTY             : Same as ZD_SOBR, but SOBR zones start EMPTY instead of FULL\n"
+		       "  ZD_BARE_BONE              : DH-SMR device supporting Zone Domains and minimal features\n"
+		       "  ZD_STX                    : Same as ZONE_DOM, but no REPORT REALMS\n"
+		       "  ZD_FAULTY                 : Same as ZONE_DOM, several offline and read-only zones injected \n",
 
 		       argv[0]);
 		return 1;
@@ -137,18 +137,18 @@ usage:
 			} else if (strcmp(argv[i], "ZD_1CMR_BOT_SWP") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_SWP;
-			} else if (strcmp(argv[i], "ZD_WPC_SWP") == 0) {
+			} else if (strcmp(argv[i], "ZD_SOBR_SWP") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
-				opt.zd = ZBC_MO_ZD_WPC_SWP;
-			} else if (strcmp(argv[i], "ZD_WPC_EMPTY") == 0) {
+				opt.zd = ZBC_MO_ZD_SOBR_SWP;
+			} else if (strcmp(argv[i], "ZD_SOBR_EMPTY") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
-				opt.zd = ZBC_MO_ZD_WPC_EMPTY;
-			} else if (strcmp(argv[i], "ZONE_DOM_WPC") == 0) {
+				opt.zd = ZBC_MO_ZD_SOBR_EMPTY;
+			} else if (strcmp(argv[i], "ZONE_DOM_SOBR") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
-				opt.zd = ZBC_MO_ZD_WPC_NO_CMR;
-			} else if (strcmp(argv[i], "ZD_WPC") == 0) {
+				opt.zd = ZBC_MO_ZD_SOBR_NO_CMR;
+			} else if (strcmp(argv[i], "ZD_SOBR") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
-				opt.zd = ZBC_MO_ZD_WPC_NO_CMR;
+				opt.zd = ZBC_MO_ZD_SOBR_NO_CMR;
 			} else if (strcmp(argv[i], "ZD_BARE_BONE") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_BBONE;

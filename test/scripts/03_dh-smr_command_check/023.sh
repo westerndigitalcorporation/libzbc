@@ -19,8 +19,8 @@ zbc_test_get_device_info
 
 if [ ${conv_zone} -ne 0 ]; then
     cmr_type="conv"
-elif [ ${wpc_zone} -ne 0 ]; then
-    cmr_type="wpc"
+elif [ ${sobr_zone} -ne 0 ]; then
+    cmr_type="sobr"
 else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
@@ -37,7 +37,7 @@ fi
 # Assume that all convertible realms are contiguous
 zbc_test_count_zone_realms
 zbc_test_count_cvt_to_conv_realms
-if [ $(expr "${realm_num}" + "${nr_cvt_to_conv_realms}") -gt ${nr_reamls} ]; then
+if [ $(expr "${realm_num}" + "${nr_cvt_to_conv_realms}") -gt ${nr_realms} ]; then
     nr_cvt_to_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 

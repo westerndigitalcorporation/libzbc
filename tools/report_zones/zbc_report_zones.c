@@ -38,7 +38,7 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		length = "sectors";
 	}
 
-	if (zbc_zone_conv_wp(z)) {
+	if (zbc_zone_sobr(z)) {
 		if (zbc_zone_condition(z) == ZBC_ZC_IMP_OPEN ||
 		    zbc_zone_condition(z) == ZBC_ZC_EMPTY) {
 			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "

@@ -26,33 +26,32 @@
 static void zbc_print_realm(struct zbc_device_info *info,
 			    struct zbc_zone_realm *r)
 {
-	if (zbc_zone_realm_conventional(r) || zbc_zone_realm_wpc(r) ||
-	    zbc_zone_realm_sequential(r) ||zbc_zone_realm_seq_pref(r)) {
-		printf("%03d: type 0x%x (%s), conv LBA %08llu:"
-		       "%u zones, seq LBA %08llu:%u zones, kpo %u, "
-		       "cvt to conv: %s, cvt to seq: %s\n",
-		       zbc_zone_realm_number(r), zbc_zone_realm_type(r),
-		       zbc_zone_type_str(zbc_zone_realm_type(r)),
-		       zbc_zone_realm_conv_start(r),
-		       zbc_zone_realm_conv_length(r),
-		       zbc_zone_realm_seq_start(r),
-		       zbc_zone_realm_seq_length(r),
-		       zbc_zone_realm_keep_out(r),
-		       zbc_zone_realm_to_conv(r) ? "Y" : "N",
-		       zbc_zone_realm_to_seq(r) ? "Y" : "N");
-		return;
-	}
+	unsigned int i;
 
-	printf("Zone realm %03d: unknown type 0x%x\n",
-	       zbc_zone_realm_number(r), zbc_zone_realm_type(r));
+	printf("%03d: domain %u/type 0x%x (%s), act_flgs 0x%x, ",
+	       zbc_zone_realm_number(r), zbc_zone_realm_domain(r),
+	       zbc_zone_realm_type(r),
+	       zbc_zone_type_str(zbc_zone_realm_type(r)),
+	       zbc_zone_realm_actv_flags(r));
+
+		for (i = 0; i < zbc_zone_realm_nr_domains(r); i++) {
+			printf("%u:[start %lu, end %lu, len %u]",
+			       zbc_realm_zone_type(r, i),
+			       zbc_sect2lba(info, zbc_realm_start_lba(r, i)),
+			       zbc_sect2lba(info, zbc_realm_end_lba(r, i)),
+			       zbc_realm_length(r, i));
+			printf(i == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : "; ");
+		}
 }
 
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	unsigned int nr_realms = 0, nd = 0;
-	struct zbc_zone_realm *realms = NULL;
+	unsigned int nr_realms = 0, nrlm = 0, j, len;
+	struct zbc_zone_realm *realms = NULL, *r;
+	struct zbc_zone *zones = NULL;
+	uint64_t lba;
 	int i, ret = 1, num = 0;
 	char *path;
 
@@ -81,8 +80,8 @@ usage:
 				goto usage;
 			i++;
 
-			nd = strtol(argv[i], NULL, 10);
-			if (nd <= 0)
+			nrlm = strtol(argv[i], NULL, 10);
+			if (nrlm <= 0)
 				goto usage;
 		} else {
 			fprintf(stderr, "Unknown option \"%s\"\n",
@@ -118,13 +117,13 @@ usage:
 	if (num)
 		goto out;
 
-	if (!nd || nd > nr_realms)
-		nd = nr_realms;
-	if (!nd)
+	if (!nrlm || nrlm > nr_realms)
+		nrlm = nr_realms;
+	if (!nrlm)
 		goto out;
 
 	/* Allocate zone realm descriptor array */
-	realms = (struct zbc_zone_realm *)calloc(nd,
+	realms = (struct zbc_zone_realm *)calloc(nrlm,
 						 sizeof(struct zbc_zone_realm));
 	if (!realms) {
 		fprintf(stderr, "No memory\n");
@@ -133,19 +132,58 @@ usage:
 	}
 
 	/* Get the realm descriptors */
-	ret = zbc_report_realms(dev, realms, &nd);
+	ret = zbc_report_realms(dev, realms, &nrlm);
 	if (ret != 0) {
 		fprintf(stderr, "zbc_report_realms failed %d\n", ret);
 		ret = 1;
 		goto out;
 	}
 
-	for (i = 0; i < (int)nd; i++)
-		zbc_print_realm(&info, &realms[i]);
+	/* Allocate zone array */
+	zones = (struct zbc_zone *)calloc(1, sizeof(struct zbc_zone));
+	if (!zones) {
+		fprintf(stderr, "No memory\n");
+		ret = 1;
+		goto out;
+	}
+
+	/*
+	 * Get information about the first zone of every realm
+	 * and calculate the size of the realm in zones.
+	 */
+	for (i = 0; i < (int)nrlm; i++) {
+		r = &realms[i];
+		for (j = 0; j < zbc_zone_realm_nr_domains(r); j++) {
+			if (!zbc_realm_actv_as_dom_id(r, j))
+				continue;
+			lba = zbc_realm_start_lba(r, j);
+			ret = zbc_report_zones(dev, lba, 0, zones, &len);
+			if (ret != 0) {
+				fprintf(stderr, "zbc_report_zones failed %d\n", ret);
+				ret = 1;
+				goto out;
+			}
+			if (!len || zones->zbz_start != lba || zones->zbz_length == 0) {
+				fprintf(stderr,
+					"malformed zone response, start=%lu, len=%lu\n",
+					zones->zbz_start, zones->zbz_length);
+				ret = 1;
+				goto out;
+			}
+
+			len = zbc_realm_block_length(r, j) / zones->zbz_length;
+			r->zbr_ri[j].zbi_length = len;
+		}
+	}
+
+	for (i = 0, r = realms; i < (int)nrlm; i++, r++)
+		zbc_print_realm(&info, r);
 
 out:
 	if (realms)
 		free(realms);
+	if (zones)
+		free(zones);
 	zbc_close(dev);
 
 	return ret;

@@ -175,8 +175,8 @@ usage:
 		(bool)(info.zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT));
 
 	fprintf(stdout,
-		"[TEST][INFO][WPC_ZONE],%x\n",
-		(bool)(info.zbd_flags & ZBC_WPC_ZONE_SUPPORT));
+		"[TEST][INFO][SOBR_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SOBR_ZONE_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][LAST_ZONE_LBA],%llu\n",

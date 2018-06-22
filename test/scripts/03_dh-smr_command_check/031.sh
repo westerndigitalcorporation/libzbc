@@ -19,8 +19,8 @@ zbc_test_get_device_info
 
 if [ ${conv_zone} -ne 0 ]; then
     cmr_type="conv"
-elif [ ${wpc_zone} -ne 0 ]; then
-    cmr_type="wpc"
+elif [ ${sobr_zone} -ne 0 ]; then
+    cmr_type="sobr"
 else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
@@ -43,7 +43,7 @@ zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
     # Verify that the realm is converted
-    zbc_test_get_cvt_realm_info
+    zbc_test_get_zone_realm_info
     zbc_test_search_zone_realm_by_number ${realm_num}
     if [[ $? -ne 0 || ${realm_type} != @(0x1|0x4) ]]; then
         sk=${realm_type}

@@ -43,6 +43,8 @@
  * REPORT REALMS output descriptor size.
  */
 #define ZBC_RPT_REALMS_RECORD_SIZE		128
+#define ZBC_RPT_REALMS_ITEM_OFFSET		16
+#define ZBC_RPT_REALMS_ITEM_SIZE		20
 
 /**
  * ATA commands.
@@ -934,7 +936,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[8]));
 		zones[i].zbz_start =
 			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
-		if (zbc_zone_sequential(&zones[i]) || zbc_zone_conv_wp(&zones[i]))
+		if (zbc_zone_sequential(&zones[i]) || zbc_zone_sobr(&zones[i]))
 			zones[i].zbz_write_pointer =
 				zbc_dev_lba2sect(dev,
 						 zbc_ata_get_qword(&buf[24]));
@@ -1062,19 +1064,50 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device zone domain configuration.
+ */
+static int zbc_ata_report_domains(struct zbc_device *dev,
+				  struct zbc_zone_domain *domains,
+				  unsigned int nr_domains)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
  * Report device zone realm configuration.
  */
 static int zbc_ata_report_realms(struct zbc_device *dev,
 				 struct zbc_zone_realm *realms,
 				 unsigned int *nr_realms)
 {
+	struct zbc_zone_domain *domains = NULL;
 	size_t bufsz = ZBC_RPT_REALMS_HEADER_SIZE;
-	unsigned int i, nr = 0;
+	unsigned int i, j, nr = 0;
 	size_t max_bufsz;
 	struct zbc_sg_cmd cmd;
-	uint8_t *buf;
-	int ret;
+	uint8_t *buf, *ptr;
+	int ret, nr_domains;
 
+	/*
+	 * Always get zone domains first. Allocate the buffer for
+	 * ZBC_NR_ZONE_TYPES domains since we will be only able to
+	 * process as many.
+	 */
+	nr_domains = ZBC_NR_ZONE_TYPES;
+	domains = calloc(nr_domains, sizeof(struct zbc_zone_domain));
+	if (!domains)
+		return -ENOMEM;
+
+	nr_domains = zbc_ata_report_domains(dev, domains, nr_domains);
+	if (nr_domains > ZBC_NR_ZONE_TYPES) {
+		zbc_warning("%s: Device has %i domains, only %u are supported\n",
+			    dev->zbd_filename, nr_domains, ZBC_NR_ZONE_TYPES);
+
+		nr_domains = ZBC_NR_ZONE_TYPES;
+	}
+	if (nr_domains < 0)
+		return nr_domains;
 	if (*nr_realms)
 		bufsz += (size_t)*nr_realms * ZBC_RPT_REALMS_RECORD_SIZE;
 
@@ -1085,8 +1118,11 @@ static int zbc_ata_report_realms(struct zbc_device *dev,
 
 	/* Allocate and intialize REPORT REALMS command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
-	if (ret != 0)
+	if (ret != 0) {
+		if (domains)
+			free(domains);
 		return ret;
+	}
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -1169,24 +1205,36 @@ static int zbc_ata_report_realms(struct zbc_device *dev,
 
 	/* Get zone realm descriptors */
 	buf += ZBC_RPT_REALMS_HEADER_SIZE;
-	for (i = 0; i < nr; i++) {
-		realms[i].zbr_type = buf[0] & 0x0f;
-		realms[i].zbr_convertible = buf[1];
-
-		realms[i].zbr_number = zbc_ata_get_word(&buf[2]);
-		realms[i].zbr_keep_out = zbc_ata_get_word(&buf[4]);
-
-		realms[i].zbr_conv_start =
-			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
-		realms[i].zbr_conv_length = zbc_ata_get_dword(&buf[24]);
-		realms[i].zbr_seq_start =
-			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[32]));
-		realms[i].zbr_seq_length = zbc_ata_get_dword(&buf[40]);
+	for (i = 0; i < nr; i++, realms++) {
+		realms->zbr_dom_id = buf[0];
+		if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
+			realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
+		realms->zbr_actv_flags = buf[1];
+		realms->zbr_number = zbc_sg_get_int16(&buf[2]);
+		ptr = buf + ZBC_RPT_REALMS_ITEM_OFFSET;
+		for (j = 0; j < ZBC_NR_ZONE_TYPES; j++) {
+			if (realms->zbr_actv_flags & (1 << j)) {
+				realms->zbr_ri[j].zbi_dom_id = j;
+				realms->zbr_ri[j].zbi_type = domains[j].zbm_type;
+				realms->zbr_ri[j].zbi_start_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
+				realms->zbr_ri[j].zbi_end_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
+				/*
+				 * zbi_start and zbi_length values are not calculated
+				 * here because we need to know the zone size.
+				 */
+			}
+			ptr += ZBC_RPT_REALMS_ITEM_SIZE;
+		}
 
 		buf += ZBC_RPT_REALMS_RECORD_SIZE;
 	}
 
 out:
+	if (domains)
+		free(domains);
+
 	/* Return the number of descriptorss */
 	*nr_realms = nr;
 

@@ -225,8 +225,8 @@ const char *zbc_zone_type_str(enum zbc_zone_type type)
 		return "Sequential-write-required";
 	case ZBC_ZT_SEQUENTIAL_PREF:
 		return "Sequential-write-preferred";
-	case ZBC_ZT_WP_CONVENTIONAL:
-		return "Write-pointer-conventional";
+	case ZBC_ZT_SEQ_OR_BEF_REQ:
+		return "Sequential-or-before-required";
 	case ZBC_ZT_UNKNOWN:
 	default:
 		return "Unknown-zone-type";
@@ -523,7 +523,7 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(info->zbd_flags & ZBC_CONV_ZONE_SUPPORT) ? "Conv " : "",
 			(info->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) ? "SWR " : "",
 			(info->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) ? "SWP " : "",
-			(info->zbd_flags & ZBC_WPC_ZONE_SUPPORT) ? "WPC " : "");
+			(info->zbd_flags & ZBC_SOBR_ZONE_SUPPORT) ? "SOBR " : "");
 	}
 
 	fprintf(out, "    MUTATE command set is %ssupported\n",
@@ -801,8 +801,8 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 	/* Try CMR zone space first for the query */
 	if (di->zbd_flags & ZBC_CONV_ZONE_SUPPORT) {
 		zone_type = ZBC_ZT_CONVENTIONAL;
-	} else if (di->zbd_flags & ZBC_WPC_ZONE_SUPPORT) {
-		zone_type = ZBC_ZT_WP_CONVENTIONAL;
+	} else if (di->zbd_flags & ZBC_SOBR_ZONE_SUPPORT) {
+		zone_type = ZBC_ZT_SEQ_OR_BEF_REQ;
 	} else {
 		zbc_error("%s: No CMR zone supported\n", dev->zbd_filename);
 		ret = -ENOTSUP;
@@ -890,7 +890,6 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 		if (have_cmr && have_smr) {
 			if (r) {
 				r->zbr_number = dnr;
-				r->zbr_keep_out = 0;
 				if (cmr_cond == ZBC_ZC_INACTIVE &&
 				    smr_cond == ZBC_ZC_INACTIVE) {
 					zbc_error("%s: Can't determine realm type\n",
@@ -898,6 +897,8 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 					ret = -EINVAL;
 					goto out;
 				}
+/* FIXME new realm structure */
+#if 0
 				r->zbr_type = (cmr_cond == ZBC_ZC_INACTIVE) ? smr_type : cmr_type;
 				r->zbr_convertible = 0;
 				if (cmr_len)
@@ -909,7 +910,7 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 				r->zbr_conv_length = cmr_len;
 				r->zbr_seq_start = zbc_dev_lba2sect(dev, smr_start);
 				r->zbr_seq_length = smr_len;
-
+#endif
 				r++;
 			}
 			have_cmr = have_smr = false;

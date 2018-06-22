@@ -10,6 +10,6 @@
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 
-test_zone_type="0x4"          # Run 01-072 writing a WPC zone
+test_zone_type="0x4"          # Run 01-072 writing a SOBR zone
 
 . scripts/01_sk_ascq_check/072.sh "$@"

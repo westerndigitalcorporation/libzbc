@@ -37,7 +37,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Find the total number of convertible realms
-zbc_test_count_cvt_realms		# nr_realms
+zbc_test_count_zone_realms		# nr_realms
 zbc_test_count_cvt_to_seq_realms
 if [ $nr_cvt_to_seq_realms -eq 0 ]; then
     # This should not happen because we found one just above

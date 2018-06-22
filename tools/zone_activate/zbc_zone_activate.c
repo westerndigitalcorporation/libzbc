@@ -27,12 +27,13 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_zone_realm *realms = NULL;
+	struct zbc_zone_realm *realms = NULL, *r;
+	struct zbc_realm_item *ri;
 	struct zbc_conv_rec *conv_recs = NULL;
 	char *path;
 	struct zbc_zp_dev_control ctl;
 	uint64_t start;
-	unsigned int nr_units, nr_realms, nr_conv_recs = 0, new_type;
+	unsigned int nr_units, nr_realms, nr_conv_recs = 0, new_type, dom_id;
 	int i, ret = 1, end;
 	bool query = false, fsnoz = false;
 	bool all = false, zone_addr = false, list = false, cdb32 = false;
@@ -41,8 +42,8 @@ int main(int argc, char **argv)
 	if (argc < 5) {
 		fprintf(stderr, "Not enough arguments\n");
 usage:
-		printf("Usage:\n%s [options] <dev> <start realm> <num realms> <conv|seq[p]|wpc|seqr>\n"
-		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv|seq[p]|wpc|seqr>\n"
+		printf("Usage:\n%s [options] <dev> <start realm> <num realms> <conv|seq[p]|sobr|seqr>\n"
+		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv|seq[p]|sobr|seqr>\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
 		       "    -q            : Query only\n"
@@ -52,7 +53,7 @@ usage:
 		       "    -l            : List conversion records\n\n"
 		       "Zone conversion types:\n"
 		       "    conv          : conventional\n"
-		       "    wpc           : write pointer conventional\n"
+		       "    sobr          : sequential or before required\n"
 		       "    seq or seqr   : sequential write required\n"
 		       "    seqp          : sequential write preferred\n",
 		       argv[0], argv[0]);
@@ -110,8 +111,8 @@ usage:
 	}
 	if (strcmp(argv[i], "conv") == 0)
 		new_type = ZBC_ZT_CONVENTIONAL;
-	else if (strcmp(argv[i], "wpc") == 0)
-		new_type = ZBC_ZT_WP_CONVENTIONAL;
+	else if (strcmp(argv[i], "sobr") == 0)
+		new_type = ZBC_ZT_SEQ_OR_BEF_REQ;
 	else if (strcmp(argv[i], "seq") == 0 ||	strcmp(argv[i], "seqr") == 0)
 		new_type = ZBC_ZT_SEQUENTIAL_REQ;
 	else if (strcmp(argv[i], "seqp") == 0)
@@ -157,22 +158,29 @@ usage:
 
 		if (start + nr_units > nr_realms) {
 			fprintf(stderr,
-				"End end realm #%lu is too large, only %u present\n",
+				"End realm #%lu is too large, only %u present\n",
 				start + nr_units, nr_realms);
 			ret = 1;
 			goto out;
 		}
 		end = start + nr_units;
-		if (new_type == ZBC_ZT_CONVENTIONAL ||
-		    new_type == ZBC_ZT_WP_CONVENTIONAL) {
-			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += realms[i].zbr_seq_length;
-			start = realms[start].zbr_seq_start;
-		} else {
-			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += realms[i].zbr_conv_length;
-			start = realms[start].zbr_conv_start;
+
+		/* Find domain ID for the new zone type */
+		r = &realms[start];
+		ri = zbc_realm_item_by_type(r, new_type);
+		if (ri == NULL) {
+			fprintf(stderr,
+				"Start realm #%lu doesn't support zone type %u\n",
+				start, new_type);
+			ret = 1;
+			goto out;
 		}
+		dom_id = ri->zbi_dom_id;
+
+		/* Set the start LBA and the length in zones */
+		start = zbc_realm_start_lba(r, dom_id);
+		for (nr_units = 0, i = start; i < end; i++)
+			nr_units += zbc_realm_length(&realms[i], dom_id);
 	}
 
 	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,

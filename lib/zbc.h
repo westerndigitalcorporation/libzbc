@@ -210,8 +210,8 @@ struct zbc_device {
 				 ZBC_SEQ_REQ_ZONE_SUPPORT)
 #define zbc_supp_seq_pref_zone	((dev)->zbd_info.zbd_flags & \
 				 ZBC_SEQ_PREF_ZONE_SUPPORT)
-#define zbc_supp_wpc_zone	((dev)->zbd_info.zbd_flags & \
-				 ZBC_WPC_ZONE_SUPPORT)
+#define zbc_supp_sobr_zone	((dev)->zbd_info.zbd_flags & \
+				 ZBC_SOBR_ZONE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

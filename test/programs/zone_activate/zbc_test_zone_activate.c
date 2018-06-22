@@ -24,23 +24,24 @@ int main(int argc, char **argv)
 {
 	struct zbc_device *dev;
 	struct zbc_conv_rec *conv_recs = NULL, *cr;
-	struct zbc_zone_realm *realms = NULL;
+	struct zbc_zone_realm *realms = NULL, *r;
+	struct zbc_realm_item *ri;
 	const char *sk_name, *ascq_name;
 	char *path;
 	struct zbc_device_info info;
 	struct zbc_zp_dev_control ctl;
 	struct zbc_err_ext zbc_err;
+	uint64_t start;
 	uint64_t err_cbf;
 	uint16_t err_za;
-	uint64_t start;
-	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0;
+	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0, dom_id;
 	int i, ret, end;
 	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
 
 	/* Check command line */
 	if (argc < 5) {
 		printf("Usage: %s [options] <dev> <start zone realm> <num realms> <conv|seq>\n"
-		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq|wpc|seqp>\n"
+		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq|sobr|seqp>\n"
 		       "Options:\n"
 		       "    -a            : Try to convert all, even if not every zone can be\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n"
@@ -100,8 +101,8 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[i], "conv") == 0)
 		new_type = ZBC_ZT_CONVENTIONAL;
-	else if (strcmp(argv[i], "wpc") == 0)
-		new_type = ZBC_ZT_WP_CONVENTIONAL;
+	else if (strcmp(argv[i], "sobr") == 0)
+		new_type = ZBC_ZT_SEQ_OR_BEF_REQ;
 	else if (strcmp(argv[i], "seq") == 0)
 		new_type = ZBC_ZT_SEQUENTIAL_REQ;
 	else if (strcmp(argv[i], "seqp") == 0)
@@ -173,16 +174,23 @@ int main(int argc, char **argv)
 				goto out;
 			}
 			end = start + nr_units;
-			if (new_type == ZBC_ZT_CONVENTIONAL ||
-			    new_type == ZBC_ZT_WP_CONVENTIONAL) {
-				for (nr_units = 0, i = start; i < end; i++)
-					nr_units += realms[i].zbr_seq_length;
-				start = realms[start].zbr_seq_start;
-			} else {
-				for (nr_units = 0, i = start; i < end; i++)
-					nr_units += realms[i].zbr_conv_length;
-				start = realms[start].zbr_conv_start;
+
+			/* Find domain ID for the new zone type */
+			r = &realms[start];
+			ri = zbc_realm_item_by_type(r, new_type);
+			if (ri == NULL) {
+				fprintf(stderr,
+					"[TEST][ERROR],Realm #%lu doesn't support zone type %u\n",
+					start, new_type);
+				ret = 1;
+				goto out;
 			}
+			dom_id = ri->zbi_dom_id;
+
+			/* Set the start LBA and the length in zones */
+			start = zbc_realm_start_lba(r, dom_id);
+			for (nr_units = 0, i = start; i < end; i++)
+				nr_units += zbc_realm_length(&realms[i], dom_id);
 		}
 	}
 

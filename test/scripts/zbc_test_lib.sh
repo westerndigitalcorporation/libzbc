@@ -14,7 +14,7 @@
 # Zone Type                   is a ...  Write Pointer zone   Sequential zone
 # ---------                             ------------------   ---------------
 # 0x1 Conventional                              NO                 NO
-# 0x4 Sequential or Before Req'd (SBR)          YES                NO
+# 0x4 Sequential Or Before Required (SOBR)      YES                NO
 # 0x3 Sequential Write Preferred (SWP)          YES                YES
 # 0x2 Sequential Write Required  (SWR)          YES                YES
 
@@ -33,15 +33,14 @@ function zbc_test_lib_init()
 	declare -rg ZT_CONV="0x1"			# Conventional zone
 	declare -rg ZT_SWR="0x2"			# Sequential Write Required zone
 	declare -rg ZT_SWP="0x3"			# Sequential Write Preferred zone
-	declare -rg ZT_WPC="0x4"			# Write-Pointer Conventional zone XXX
-	declare -rg ZT_SBR="0x4"			# Sequential or Before Required zone
+	declare -rg ZT_SOBR="0x4"			# Sequential Or Before Required zone
 
 	# Example Usage:  if [[ ${target_type} == @(${ZT_NON_SEQ}) ]]; then...
 	#                 if [[ ${target_type} != @(${ZT_WP}) ]]; then...
 
-	declare -rg ZT_NON_SEQ="${ZT_CONV}|${ZT_WPC}"	# CMR
+	declare -rg ZT_NON_SEQ="${ZT_CONV}|${ZT_SOBR}"	# CMR
 	declare -rg ZT_SEQ="${ZT_SWR}|${ZT_SWP}"	# SMR
-	declare -rg ZT_WP="${ZT_SEQ}|${ZT_WPC}"		# Write Pointer zone
+	declare -rg ZT_WP="${ZT_SEQ}|${ZT_SOBR}"	# Write Pointer zone
 
 	declare -rg ZT_DISALLOW_WRITE_XTYPE="0x1|0x2|0x3|0x4"	# Write across zone types disallowed XXX
 	declare -rg ZT_DISALLOW_WRITE_GT_WP="0x2|0x4"	# Write starting above WP disallowed
@@ -346,18 +345,17 @@ function zbc_test_get_device_info()
 		seq_pref_zone=${2}
 		zbc_check_string "Failed to get Sequential Write Preferred zone support" ${seq_pref_zone}
 
-		local wpc_zone_line=`cat ${log_file} | grep -F "[WPC_ZONE]"`
-		set -- ${wpc_zone_line}
-		wpc_zone=${2}
-		sbr_zone=${2}
-		zbc_check_string "Failed to get Sequential or Before Required zone support" ${wpc_zone}
+		local sobr_zone_line=`cat ${log_file} | grep -F "[SOBR_ZONE]"`
+		set -- ${sobr_zone_line}
+		sobr_zone=${2}
+		zbc_check_string "Failed to get Sequential or Before Required zone support" ${sobr_zone}
 	else
 		ur_control=0
 		report_realms=0
 		zone_query=0
 		za_control=0
 		maxact_control=0
-		wpc_zone=0
+		sobr_zone=0
 		conv_zone=1
 		if [ "${device_model}" = "Host-aware" ]; then
 			seq_pref_zone=1

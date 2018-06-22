@@ -34,7 +34,7 @@ zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
 
 # Check result
 zbc_test_get_sk_ascq
-if [[ ${target_type} == @(${ZT_WPC}) ]]; then
+if [[ ${target_type} == @(${ZT_SOBR}) ]]; then
     zbc_test_check_no_sk_ascq
 else
     zbc_test_check_sk_ascq

@@ -20,8 +20,8 @@ zbc_test_get_device_info
 
 if [ ${conv_zone} -ne 0 ]; then
     cmr_type="conv"
-elif [ ${wpc_zone} -ne 0 ]; then
-    cmr_type="wpc"
+elif [ ${sobr_zone} -ne 0 ]; then
+    cmr_type="sobr"
 else
     zbc_test_print_not_applicable "Conventional zones are not supported by the device"
 fi
@@ -37,7 +37,7 @@ fi
 
 # Find the total number of convertible realms
 zbc_test_count_zone_realms		# nr_realms
-zbc_test_count_cvt_to_zone_realms
+zbc_test_count_cvt_to_conv_realms
 if [ $nr_cvt_to_conv_realms -eq 0 ]; then
     # This should not happen because we found one just above
     zbc_test_print_failed "WARNING: No realms are convertible to conventional"

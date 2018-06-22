@@ -39,7 +39,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all convertible realms are contiguous
-zbc_test_count_cvt_realms
+zbc_test_count_zone_realms
 zbc_test_count_cvt_to_seq_realms
 
 # Calculate the total number of zones in this range of realms
