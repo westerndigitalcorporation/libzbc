@@ -36,9 +36,6 @@ fi
 # Let us assume that all the available sequential zones are EMPTY...
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
-# Let us assume that all the available sequential zones are EMPTY...
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-
 # Get zone information
 zbc_test_get_zone_info
 
@@ -74,9 +71,9 @@ else
     # Check result
     zbc_test_get_sk_ascq
     if [[ ${seq_zone_type} != @(${ZT_W_OZR}) ]]; then
-    zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+        zbc_test_check_no_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
     else
-    zbc_test_check_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
+        zbc_test_check_sk_ascq "(${max_open} + 1) * (seq_zone_type=${seq_zone_type})"
     fi
 fi
 

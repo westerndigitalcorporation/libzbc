@@ -36,9 +36,6 @@ fi
 # Let us assume that all the available sequential zones are EMPTY...
 zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
-# Let us assume that all the available sequential zones are EMPTY...
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-
 # Get zone information
 zbc_test_get_zone_info
 

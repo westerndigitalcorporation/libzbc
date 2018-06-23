@@ -342,7 +342,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		if (dev->zbd_info.zbd_flags & ZBC_MUTATE_SUPPORT)
 			return 0;
 		else
-		return -ENXIO;
+			return -ENXIO;
 
 	case 0x01:
 		/* Host aware device */
@@ -799,11 +799,11 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 
 	if (*nr_conv_recs)
 		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
-		if (*nr_conv_recs > (uint16_t)(-1)) {
-			zbc_error("%s: # of convert records %u is too high\n",
-				dev->zbd_filename, *nr_conv_recs);
-			return -EINVAL;
-		}
+	if (*nr_conv_recs > (uint16_t)(-1)) {
+		zbc_error("%s: # of convert records %u is too high\n",
+			dev->zbd_filename, *nr_conv_recs);
+		return -EINVAL;
+	}
 	if (zone_start_id > 0xffffffffffffLL) {
 		zbc_error("%s: # Zone start ID %lu is too high\n",
 			dev->zbd_filename, zone_start_id);
@@ -1144,7 +1144,7 @@ static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool zsrc, bool 
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
 					unsigned int new_type,
-				  struct zbc_conv_rec *conv_recs,
+				        struct zbc_conv_rec *conv_recs,
 					unsigned int *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
@@ -1567,7 +1567,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	if (di->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
 		/* Check what Zone Activation features are supported */
 		di->zbd_flags |= (buf[4] & 0x04) ? ZBC_MAXACT_SET_SUPPORT : 0;
-	di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_DOMAIN_REPORT_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x40) ? ZBC_ZONE_QUERY_SUPPORT : 0;
 		di->zbd_flags |= (buf[4] & 0x80) ? ZBC_ZA_CONTROL_SUPPORT : 0;

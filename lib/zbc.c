@@ -463,27 +463,44 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			"unrestricted" : "restricted");
 
 	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
-		fprintf(out, "    Maximum number of open sequential"
-			     " write required zones: %u\n",
+
+		if (info->zbd_max_nr_open_seq_req == ZBC_NO_LIMIT)
+			strcpy(tmp, "unlimited");
+		else
+			sprintf(tmp, "%u",
 				(unsigned int) info->zbd_max_nr_open_seq_req);
 		fprintf(out,
 			"    Maximum number of open sequential write "
 			"required zones: %s\n", tmp);
 
 	} else if (info->zbd_model == ZBC_DM_HOST_AWARE) {
-		fprintf(out, "    Optimal number of open sequential"
-			     " write preferred zones: %u\n",
-			(unsigned int) info->zbd_opt_nr_open_seq_pref);
-		fprintf(out, "    Optimal number of non-sequentially written"
-			     " sequential write preferred zones: %u\n",
-			(unsigned int) info->zbd_opt_nr_non_seq_write_seq_pref);
+
+		if (info->zbd_opt_nr_open_seq_pref == ZBC_NOT_REPORTED)
+			strcpy(tmp, "not reported");
+		else
+			sprintf(tmp, "%u",
+				(unsigned int)info->zbd_opt_nr_open_seq_pref);
+		fprintf(out,
+			"    Optimal number of open sequential write "
+			"preferred zones: %s\n", tmp);
+
+		if (info->zbd_opt_nr_non_seq_write_seq_pref == ZBC_NOT_REPORTED)
+			strcpy(tmp, "not reported");
+		else
+			sprintf(tmp, "%u",
+				(unsigned int)info->zbd_opt_nr_non_seq_write_seq_pref);
+
+		fprintf(out,
+			"    Optimal number of non-sequentially written "
+			"sequential write preferred zones: %s\n", tmp);
+
 	}
 
 	if (info->zbd_model != ZBC_DM_STANDARD)
-	fprintf(out, "    Zone Activation command set is %ssupported\n",
-		(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    Zone Activation command set is %ssupported\n",
+			(info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) ? "" : "NOT ");
 	if (info->zbd_flags & ZBC_ZONE_ACTIVATION_SUPPORT) {
-			fprintf(out, "    Unrestricted read control is %ssupported\n",
+		fprintf(out, "    Unrestricted read control is %ssupported\n",
 			(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ? "" : "NOT ");
 		if (info->zbd_flags & ZBC_MAXACT_SET_SUPPORT) {
 			fprintf(out,
@@ -522,7 +539,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
-        unsigned int n, nz = 0;
+	unsigned int n, nz = 0;
 	uint64_t last_sector;
 	int ret;
 
@@ -534,8 +551,8 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 							NULL, nr_zones);
 	}
 
-        /* Get zones information */
-        while (nz < *nr_zones) {
+	/* Get zones information */
+	while (nz < *nr_zones) {
 
 		n = *nr_zones - nz;
 		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
@@ -561,7 +578,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		sector = last_sector;
 
-        }
+	}
 
 	*nr_zones = nz;
 
@@ -808,7 +825,7 @@ out:
  * zbc_domain_report - Get conversion domain information
  */
 int zbc_domain_report(struct zbc_device *dev,
-		     struct zbc_cvt_domain *domains, unsigned int *nr_domains)
+		      struct zbc_cvt_domain *domains, unsigned int *nr_domains)
 {
 	struct zbc_device_info *di = &dev->zbd_info;
 	int ret;
@@ -825,7 +842,7 @@ int zbc_domain_report(struct zbc_device *dev,
 
 	/* Get zone domain information */
 	if (di->zbd_flags & ZBC_DOMAIN_REPORT_SUPPORT)
-	ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
+		ret = (dev->zbd_drv->zbd_domain_report)(dev, domains, nr_domains);
 	else if (di->zbd_flags & ZBC_ZONE_QUERY_SUPPORT)
 		ret = zbc_emulate_domain_report(dev, domains, nr_domains);
 	else
@@ -917,15 +934,15 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						  all, use_32_byte_cdb,
-						   false, lba, nr_zones,
+						  false, lba, nr_zones,
 						  new_type, conv_recs,
-						   nr_conv_recs);
+						  nr_conv_recs);
 }
 
 /**
  * zbc_zone_query - Receive information about converting all zones in a
- *                   specific range to a new type without actually performing
- *                   the conversion process
+ *                  specific range to a new type without actually performing
+ *                  the conversion process
  */
 int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 		   bool all, bool use_32_byte_cdb,
@@ -947,9 +964,9 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 	/* Execute the operation */
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						  all, use_32_byte_cdb,
-						   true, lba, nr_zones,
+						  true, lba, nr_zones,
 						  new_type, conv_recs,
-						   nr_conv_recs);
+						  nr_conv_recs);
 }
 
 /**
@@ -977,9 +994,9 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						 all, use_32_byte_cdb,
-						  true, lba, nr_zones,
+						 true, lba, nr_zones,
 						 new_type, NULL,
-						  &nr_conv_recs);
+						 &nr_conv_recs);
 	return ret ? ret : (int)nr_conv_recs;
 }
 
@@ -1017,9 +1034,9 @@ int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32
 	/* Now get the entire list */
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						 all, use_32_byte_cdb,
-						  true, lba, nr_zones,
+						 true, lba, nr_zones,
 						 new_type, conv_recs,
-						  &nr_conv_recs);
+						 &nr_conv_recs);
 	*pconv_recs = conv_recs;
 	*pnr_conv_recs = nr_conv_recs;
 
@@ -1030,7 +1047,7 @@ int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32
  * zbc_zone_activation_ctl - Get or set device DH-SMR configuration parameters
  */
 int zbc_zone_activation_ctl(struct zbc_device *dev,
-			  struct zbc_zp_dev_control *ctl, bool set)
+			    struct zbc_zp_dev_control *ctl, bool set)
 {
 	if (!zbc_dev_is_zone_act(dev)) {
 		zbc_error("%s: Not a Zone Activation device\n",
@@ -1058,14 +1075,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	size_t sz, rd_count = 0;
 	ssize_t ret;
 
-	if (zbc_test_mode(dev)) {
-		if (!count) {
-			zbc_error("%s: zero-length read at sector %llu\n",
-				  dev->zbd_filename,
-				  (unsigned long long) offset);
-			return -EINVAL;
-		}
-	} else {
+	if (!zbc_test_mode(dev)) {
 		if (!zbc_dev_sect_laligned(dev, count) ||
 		    !zbc_dev_sect_laligned(dev, offset)) {
 			zbc_error("%s: Unaligned read %zu sectors at sector %llu\n",
@@ -1131,14 +1141,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	size_t sz, wr_count = 0;
 	ssize_t ret;
 
-	if (zbc_test_mode(dev)) {
-		if (!count) {
-			zbc_error("%s: zero-length write at sector %llu\n",
-				  dev->zbd_filename,
-				  (unsigned long long) offset);
-			return -EINVAL;
-		}
-	} else {
+	if (!zbc_test_mode(dev)) {
 		if (!zbc_dev_sect_paligned(dev, count) ||
 		    !zbc_dev_sect_paligned(dev, offset)) {
 			zbc_error("%s: Unaligned write %zu sectors at sector %llu\n",

@@ -182,9 +182,9 @@ function zbc_test_reset_device()
 	local reason=""
 
 	if [ ${maxact_control} -ne 0 ]; then
-	# Allow the main ACTIVATE tests to run unhindered
-	zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
-	if [ $? -ne 0 ]; then
+		# Allow the main ACTIVATE tests to run unhindered
+		zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
+		if [ $? -ne 0 ]; then
 			reason="because \'zbc_test_dev_control -maxd unlimited\' failed"
 		else
 			reason="even though \'zbc_test_dev_control -maxd unlimited\' returned success"
@@ -593,11 +593,6 @@ function zbc_test_close_nr_zones()
 
 function zbc_test_get_target_zone_from_type()
 {
-	local _zone_type="${ZT_SWR}"
-	local _zone_cond="${ZC_EMPTY}"
-	local -i count=0
-	local -i close_num=${1}
-
 	local zone_type="${1}"
 
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
@@ -699,7 +694,7 @@ function UNUSED__zbc_test_get_target_zone_from_type_and_ignored_cond()
 
 		IFS="$_IFS"
 
-				return 0
+		return 0
 
 	done
 
@@ -773,10 +768,6 @@ function zbc_test_zone_tuple()
 
 		IFS="$_IFS"
 
-		return 0
-
-		# Return the info for the first zone of the tuple
-		zbc_test_get_target_zone_from_slba ${slba}
 		return 0
 	done
 
@@ -889,7 +880,7 @@ function zbc_test_get_zones()
 		zbc_test_get_target_zone_from_slba ${slba}
 		return 0
 	done
-	
+
 	return 1
 }
 
@@ -947,7 +938,7 @@ function zbc_test_get_zones_cond()
 			zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${target_size}
 			;;
 		* )
- 			_stacktrace_exit "Caller requested unsupported condition ${cond}"
+			_stacktrace_exit "Caller requested unsupported condition ${cond}"
 			;;
 		esac
 
@@ -960,7 +951,7 @@ function zbc_test_get_zones_cond()
 	zbc_test_get_target_zone_from_slba ${start_lba}
 	return 0
 }
-		
+
 function zbc_test_get_seq_zones_cond_or_NA()
 {
 	zbc_test_get_zones_cond ${ZT_SEQ} $1
@@ -969,7 +960,7 @@ function zbc_test_get_seq_zones_cond_or_NA()
 	        zbc_test_print_not_applicable "No available sequential zone sequence of length $#"
 	    else
 	        zbc_test_print_not_applicable "No available sequential zone"
-	fi
+	    fi
 	fi
 }
 
@@ -991,7 +982,7 @@ function zbc_test_get_wp_zones_cond_or_NA()
 	zbc_test_get_zones_cond "${_zone_type}" "$@"
 	if [ $? -ne 0 ]; then
 	    if [ $# -gt 1 ]; then
-	    zbc_test_print_not_applicable \
+		zbc_test_print_not_applicable \
 		    "No available write-pointer zone sequence of type ${_zone_type} and length $#"
 	    else
 	        zbc_test_print_not_applicable \
@@ -999,7 +990,7 @@ function zbc_test_get_wp_zones_cond_or_NA()
 	    fi
 	fi
 }
-		
+
 # Conversion domain manipulation functions
 
 function zbc_test_get_cvt_domain_info()
@@ -1141,7 +1132,7 @@ function UNUSED_zbc_test_search_cvt_domain_by_type()
 
 			zbc_test_is_found_domain_faulty
 			if [ $? -eq 0 ]; then
-			return 0
+				return 0
 			fi
 
 		else
@@ -1207,7 +1198,7 @@ function zbc_test_search_domain_by_type_and_cvt()
 			IFS="$_IFS"
 
 			if [ "${_NOFAULTY}" != "NOFAULTY" ]; then
-			return 0
+				return 0
 			fi
 
 			zbc_test_is_found_domain_faulty
@@ -1355,10 +1346,10 @@ function zbc_test_check_err()
 	fi
 
 	if [ -n "${expected_err_za}" -a -z "${expected_err_cbf}" ] ; then
-			# Our caller expects ERR_ZA, but specified no expected CBF -- assume zero
-			local expected_err_cbf=0	# expect (CBF == 0)
-		fi
-	
+		# Our caller expects ERR_ZA, but specified no expected CBF -- assume zero
+		local expected_err_cbf=0	# expect (CBF == 0)
+	fi
+
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" \
 			-a "${err_za}" = "${expected_err_za}" -a "${err_cbf}" = "${expected_err_cbf}" ]; then
 		zbc_test_print_passed

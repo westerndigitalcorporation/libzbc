@@ -260,7 +260,7 @@ struct zbc_zone {
 #define zbc_zone_conv_wp(z) ((z)->zbz_type == ZBC_ZT_WP_CONVENTIONAL)
 
 /** @brief Test if a zone type is sequential write required or preferred */
-#define zbc_zone_sequential(z) 	(zbc_zone_sequential_req(z) || \
+#define zbc_zone_sequential(z)	(zbc_zone_sequential_req(z) || \
 				 zbc_zone_sequential_pref(z))
 
 /** @brief Get a zone condition */
@@ -816,6 +816,9 @@ struct zbc_device_info {
  */
 enum zbc_sk {
 
+	/** Not ready */
+	ZBC_SK_NOT_READY	= 0x2,
+
 	/** Medium error */
 	ZBC_SK_MEDIUM_ERROR	= 0x3,
 
@@ -951,8 +954,8 @@ extern void zbc_errno_ext(struct zbc_device *dev, struct zbc_err_ext *err, size_
 
 /* Legacy zbc_errno structure */
 struct zbc_errno {
-        enum zbc_sk             sk;
-        enum zbc_asc_ascq       asc_ascq;
+	enum zbc_sk             sk;
+	enum zbc_asc_ascq       asc_ascq;
 };
 
 /**
@@ -1159,7 +1162,7 @@ enum zbc_reporting_options {
 
 	/* 12h to 3Eh Reserved */
 
-        /**
+	/**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
 	 */
 	ZBC_RO_NOT_WP		= 0x3f,
@@ -1276,7 +1279,7 @@ enum zbc_zone_op {
 enum zbc_zone_op_flags {
 
 	/**
- 	 * Operate on all possible zones.
+	 * Operate on all possible zones.
 	 */
 	ZBC_OP_ALL_ZONES = 0x0000001,
 
@@ -1354,7 +1357,7 @@ static inline int zbc_close_zone(struct zbc_device *dev,
 
 /**
  * @brief Finish a write pointer zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	First sector of the zone to finish
  * @param[in] flags	Zone operation flags
  *
@@ -1378,7 +1381,7 @@ static inline int zbc_finish_zone(struct zbc_device *dev,
 
 /**
  * @brief Reset the write pointer of a zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	First sector of the zone to reset
  * @param[in] flags	Zone operation flags
  *
@@ -1519,7 +1522,7 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
  * @param[out] nr_conv_recs	Number of returned conversion results records
  */
 extern int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all,
-			  bool use_32_byte_cdb, uint64_t lba,
+			       bool use_32_byte_cdb, uint64_t lba,
 			       unsigned int nr_zones, unsigned int new_type,
 			       struct zbc_conv_rec **pconv_recs,
 			       unsigned int *pnr_conv_recs);
@@ -1573,7 +1576,7 @@ enum zbc_mutation_target {
 /**
  * @brief Options for PMR device mutation.
  * FIXME these values are ad-hoc, for testing only.
-	 */
+ */
 enum zbc_mutation_opt_nz {
 	ZBC_MO_UNKNOWN		= 0x00,
 
