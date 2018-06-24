@@ -459,6 +459,8 @@ function zbc_run_mutation()
 
 function zbc_run_gamut()
 {
+    uname -a		# Record machine and kernel info
+
     zbc_test_get_device_info
 
     if [ ${mutations} == 0 ]; then
