@@ -45,6 +45,9 @@ int main(int argc, char **argv)
 	if (argc == 4) {
 		if (strcmp(argv[1], "-v") == 0) {
 			zbc_set_log_level("debug");
+		} else if (strcmp(argv[1], "--ALL") == 0) {
+			flags = ZBC_OP_ALL_ZONES;
+			zbc_set_log_level("debug");
 		} else {
 			printf("Unknown option \"%s\"\n", argv[1]);
 			return 1;

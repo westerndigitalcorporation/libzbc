@@ -655,6 +655,9 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 		/* Operate on the zone at lba */
 		zbc_sg_set_int64(&cmd.cdb[2], lba);
 
+	if (zbc_test_mode(dev))
+		zbc_sg_set_int64(&cmd.cdb[2], lba);
+
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 
