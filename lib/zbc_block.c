@@ -899,8 +899,8 @@ static int zbc_block_report_realms(struct zbc_device *dev,
  */
 static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					 bool use_32_byte_cdb, bool query,
-					 uint64_t lba, uint32_t nr_zones,
-					 uint32_t new_type,
+					 uint64_t lba, unsigned int nr_zones,
+					 unsigned int domain_id,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {
@@ -975,8 +975,8 @@ static int zbc_block_report_realms(struct zbc_device *dev,
 
 static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					 bool use_32_byte_cdb, bool query,
-					 uint64_t lba, uint32_t nr_zones,
-					 unt32_t new_type,
+					 uint64_t lba, unsigned int nr_zones,
+					 unsigned int domain_id,
 					 struct zbc_conv_rec *conv_recs,
 					 uint32_t *nr_conv_recs)
 {

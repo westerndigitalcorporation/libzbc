@@ -947,7 +947,7 @@ out:
  */
 static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
-				    uint32_t nr_zones, unsigned int new_type,
+				    uint32_t nr_zones, unsigned int domain_id,
 				    struct zbc_conv_rec *conv_recs,
 				    unsigned int *nr_conv_recs)
 {
@@ -991,9 +991,9 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 	 * |=====+=======================================================================|
 	 * | 0   |                        Operation Code (95h)                           |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |  All   |  ZSRC  | Rsvrd  |          Service Action (02h/03h)          |
+	 * | 1   |         Reserved         |          Service Action (02h/03h)          |
 	 * |-----+--------+--------------------------------------------------------------|
-	 * | 2   |        Deactivate Zone Type       |         Activate Zone Type        |
+	 * | 2   |  All   |  ZSRC  |                    Domain ID                        |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 3   | (MSB)                                                                 |
 	 * |- - -+---                        Zone Start ID                            ---|
@@ -1015,13 +1015,13 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 		cmd.cdb[1] = ZBC_SG_ZONE_QUERY_16_CDB_SA;
 	else
 		cmd.cdb[1] = ZBC_SG_ZONE_ACTIVATE_16_CDB_SA;
+	cmd.cdb[2] = domain_id & 0x3f; /* Domain ID to activate */
 	if (all)
-		cmd.cdb[1] |= 0x80; /* All */
+		cmd.cdb[2] |= 0x80; /* All */
 	if (zsrc) {
-		cmd.cdb[1] |= 0x40; /* ZSRC */
+		cmd.cdb[2] |= 0x40; /* ZSRC */
 		zbc_sg_set_int16(&cmd.cdb[13], (uint16_t)nr_zones);
 	}
-	cmd.cdb[2] = new_type & 0x0f; /* Activate Zone Type */
 	zbc_sg_set_int48(&cmd.cdb[3], zone_start_id);
 	zbc_sg_set_int32(&cmd.cdb[9], (uint32_t)bufsz);
 
@@ -1122,7 +1122,7 @@ out:
  */
 static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
-				    uint32_t nr_zones, uint32_t new_type,
+				    uint32_t nr_zones, uint32_t domain_id,
 				    struct zbc_conv_rec *conv_recs,
 				    uint32_t *nr_conv_recs)
 {
@@ -1168,9 +1168,9 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	 * |-----+---     Service Action (F800h for Convert, F810h for Query)         ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  |  All   |  ZSRC  |                     Reserved                        |
+	 * | 10  |  All   |  ZSRC  |                      Reserved                       |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 11  |         Deactivate Zone Type      |        Activate Zone Type         |
+	 * | 11  |     Reserved    |                      Domain ID                      |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 12  | (MSB)                                                                 |
 	 * |-----+---                         Starting Zone ID                        ---|
@@ -1202,9 +1202,8 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	if (all)
 		cmd.cdb[10] |= 0x80; /* All */
 
-	cmd.cdb[11] = new_type & 0x0f; /* Activate Zone Type */
+	cmd.cdb[11] = domain_id & 0x3f; /* Domain ID to activate */
 
-	/* FIXME add Deactivate Zone Type */
 	zbc_sg_set_int64(&cmd.cdb[12], zone_start_id);
 	zbc_sg_set_int32(&cmd.cdb[28], bufsz);
 
@@ -1304,15 +1303,15 @@ out:
 static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
-					unsigned int new_type,
-				        struct zbc_conv_rec *conv_recs,
+					unsigned int domain_id,
+					struct zbc_conv_rec *conv_recs,
 					unsigned int *nr_conv_recs)
 {
 	return use_32_byte_cdb ?
 	       zbc_scsi_zone_activate32(dev, zsrc, all, lba, query, nr_zones,
-					new_type, conv_recs, nr_conv_recs) :
+					domain_id, conv_recs, nr_conv_recs) :
 	       zbc_scsi_zone_activate16(dev, zsrc, all, lba, query, nr_zones,
-					new_type, conv_recs, nr_conv_recs);
+					domain_id, conv_recs, nr_conv_recs);
 }
 
 /**

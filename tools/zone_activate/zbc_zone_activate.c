@@ -27,13 +27,15 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
+	struct zbc_zone_domain *domains = NULL, *d;
 	struct zbc_zone_realm *realms = NULL, *r;
 	struct zbc_realm_item *ri;
 	struct zbc_conv_rec *conv_recs = NULL;
 	char *path;
 	struct zbc_zp_dev_control ctl;
 	uint64_t start;
-	unsigned int nr_units, nr_realms, nr_conv_recs = 0, new_type, dom_id;
+	unsigned int nr_units, nr_realms, nr_conv_recs = 0, new_type;
+	unsigned int nr_domains, domain_id;
 	int i, ret = 1, end;
 	bool query = false, fsnoz = false;
 	bool all = false, zone_addr = false, list = false, cdb32 = false;
@@ -145,7 +147,7 @@ usage:
 	if (!zone_addr) {
 		/*
 		 * Have to call zbc_list_zone_realms() to find the
-		 * starting zone and number of zones to convert.
+		 * starting zone and the number of zones to activate.
 		 */
 		ret = zbc_list_zone_realms(dev, &realms, &nr_realms);
 		if (ret != 0) {
@@ -175,16 +177,38 @@ usage:
 			ret = 1;
 			goto out;
 		}
-		dom_id = ri->zbi_dom_id;
+		domain_id = ri->zbi_dom_id;
 
 		/* Set the start LBA and the length in zones */
-		start = zbc_realm_start_lba(r, dom_id);
 		for (nr_units = 0, i = start; i < end; i++)
-			nr_units += zbc_realm_length(&realms[i], dom_id);
+			nr_units += zbc_realm_length(&realms[i], domain_id);
+
+		start = zbc_realm_start_lba(r, domain_id);
+	} else {
+		/* Find domain ID for the new zone type */
+		ret = zbc_list_domains(dev, &domains, &nr_domains);
+		if (ret != 0) {
+			fprintf(stderr, "zbc_list_domains failed %d\n", ret);
+			goto out;
+		}
+
+		for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
+			if (d->zbm_type == new_type) {
+				domain_id = i;
+				break;
+			}
+		}
+		if (i >= (int)nr_domains) {
+			fprintf(stderr,
+				"Device doesn't support zone type %u\n",
+				new_type);
+			ret = 1;
+			goto out;
+		}
 	}
 
 	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
-				     nr_units, new_type);
+				     nr_units, domain_id);
 	if (ret < 0) {
 		fprintf(stderr,
 			"Can't receive the number of conversion records, err %i (%s)\n",
@@ -227,13 +251,13 @@ usage:
 
 	if (query)
 		ret = zbc_zone_query(dev, !fsnoz, all, cdb32, start, nr_units,
-				     new_type, conv_recs, &nr_conv_recs);
+				     domain_id, conv_recs, &nr_conv_recs);
 	else if (list)
 		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-					new_type, conv_recs, &nr_conv_recs);
+					domain_id, conv_recs, &nr_conv_recs);
 	else
 		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-					new_type, NULL, &nr_conv_recs);
+					domain_id, NULL, &nr_conv_recs);
 
 	if (ret != 0) {
 		fprintf(stderr,
@@ -253,6 +277,8 @@ usage:
 		}
 	}
 out:
+	if (domains)
+		free(domains);
 	if (realms)
 		free(realms);
 	if (conv_recs)

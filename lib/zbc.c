@@ -94,16 +94,8 @@ static struct zbc_sg_asc_ascq_s {
 		"Insufficient-zone-resources"
 	},
 	{
-		ZBC_ASC_CONVERSION_TYPE_UNSUPP,
-		"Conversion-type-unsupported"
-	},
-	{
 		ZBC_ASC_ZONE_IS_INACTIVE,
 		"Zone-is-inactive"
-	},
-	{
-		ZBC_ASC_ZONE_NEEDS_RESETTING,
-		"Zone-needs-resetting"
 	},
 	{
 		ZBC_ASC_READ_ERROR,
@@ -937,6 +929,10 @@ int zbc_report_realms(struct zbc_device *dev,
 		      struct zbc_zone_realm *realms, unsigned int *nr_realms)
 {
 	struct zbc_device_info *di = &dev->zbd_info;
+	struct zbc_zone_realm *r;
+	struct zbc_zone *zones = NULL;
+	uint64_t lba;
+	unsigned int i, j, len;
 	int ret;
 
 	if (!zbc_dev_is_zone_dom(dev)) {
@@ -962,6 +958,47 @@ int zbc_report_realms(struct zbc_device *dev,
 			  ret, strerror(-ret));
 		return ret;
 	}
+	if (!realms)
+		goto out;
+
+	/* Allocate zone array */
+	zones = (struct zbc_zone *)calloc(1, sizeof(struct zbc_zone));
+	if (!zones) {
+		fprintf(stderr, "No memory\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * Get information about the first zone of every realm
+	 * and calculate the size of the realm in zones.
+	 */
+	for (i = 0; i < *nr_realms; i++) {
+		r = &realms[i];
+		for (j = 0; j < zbc_zone_realm_nr_domains(r); j++) {
+			if (!zbc_realm_actv_as_dom_id(r, j))
+				continue;
+			lba = zbc_realm_start_lba(r, j);
+			len = 1;
+			ret = zbc_report_zones(dev, lba, 0, zones, &len);
+			if (ret != 0) {
+				fprintf(stderr, "zbc_report_zones failed %d\n", ret);
+				goto out;
+			}
+			if (!len || zones->zbz_start != lba || zones->zbz_length == 0) {
+				fprintf(stderr,
+					"malformed zone response, start=%lu, len=%lu\n",
+					zones->zbz_start, zones->zbz_length);
+				goto out;
+			}
+
+			len = zbc_realm_block_length(r, j) / zones->zbz_length;
+			r->zbr_ri[j].zbi_length = len;
+		}
+	}
+
+out:
+	if (zones)
+		free(zones);
 
 	return 0;
 }
@@ -1025,7 +1062,7 @@ int zbc_list_zone_realms(struct zbc_device *dev,
 int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 		      bool all, bool use_32_byte_cdb,
 		      uint64_t lba, unsigned int nr_zones,
-		      unsigned int new_type, struct zbc_conv_rec *conv_recs,
+		      unsigned int domain_id, struct zbc_conv_rec *conv_recs,
 		      unsigned int *nr_conv_recs)
 {
 	if (!zbc_dev_is_zone_dom(dev)) {
@@ -1044,18 +1081,18 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						  all, use_32_byte_cdb,
 						  false, lba, nr_zones,
-						  new_type, conv_recs,
+						  domain_id, conv_recs,
 						  nr_conv_recs);
 }
 
 /**
  * zbc_zone_query - Receive information about activating all zones in a
- *                  specific range to a new type without actually performing
+ *                  specific range to a new domain without actually performing
  *                  the activation process
  */
 int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 		   bool all, bool use_32_byte_cdb,
-		   uint64_t lba, unsigned int nr_zones, unsigned int new_type,
+		   uint64_t lba, unsigned int nr_zones, unsigned int domain_id,
 		   struct zbc_conv_rec *conv_recs, unsigned int *nr_conv_recs)
 {
 	if (!zbc_dev_is_zone_dom(dev)) {
@@ -1074,7 +1111,7 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						  all, use_32_byte_cdb,
 						  true, lba, nr_zones,
-						  new_type, conv_recs,
+						  domain_id, conv_recs,
 						  nr_conv_recs);
 }
 
@@ -1084,7 +1121,7 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
  */
 int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 			   bool use_32_byte_cdb, uint64_t lba,
-			   unsigned int nr_zones, unsigned int new_type)
+			   unsigned int nr_zones, unsigned int domain_id)
 {
 	uint32_t nr_conv_recs = 0;
 	int ret;
@@ -1104,14 +1141,14 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						 all, use_32_byte_cdb,
 						 true, lba, nr_zones,
-						 new_type, NULL,
+						 domain_id, NULL,
 						 &nr_conv_recs);
 	return ret ? ret : (int)nr_conv_recs;
 }
 
 /**
  * zbc_zone_query_list - Receive information about activating all zones in a
- *                       specific range to a new type without actually
+ *                       specific range in a new domain without actually
  *                       performing the activation process. This function is
  *                       similar to \a zbc_zone_query, but it will allocate
  *                       the buffer space for the output list of activation
@@ -1120,7 +1157,7 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
  */
 int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32_byte_cdb,
 			uint64_t lba, unsigned int nr_zones,
-			unsigned int new_type,
+			unsigned int domain_id,
 			struct zbc_conv_rec **pconv_recs,
 			unsigned int *pnr_conv_recs)
 {
@@ -1129,7 +1166,7 @@ int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32
 	int ret;
 
 	ret = zbc_get_nr_cvt_records(dev, zsrc, all, use_32_byte_cdb,
-				     lba, nr_zones, new_type);
+				     lba, nr_zones, domain_id);
 	if (ret < 0)
 		return ret;
 	nr_conv_recs = (uint32_t)ret;
@@ -1144,7 +1181,7 @@ int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32
 	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
 						 all, use_32_byte_cdb,
 						 true, lba, nr_zones,
-						 new_type, conv_recs,
+						 domain_id, conv_recs,
 						 &nr_conv_recs);
 	*pconv_recs = conv_recs;
 	*pnr_conv_recs = nr_conv_recs;

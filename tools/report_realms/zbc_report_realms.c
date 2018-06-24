@@ -48,10 +48,8 @@ int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	unsigned int nr_realms = 0, nrlm = 0, j, len;
+	unsigned int nr_realms = 0, nrlm = 0;
 	struct zbc_zone_realm *realms = NULL, *r;
-	struct zbc_zone *zones = NULL;
-	uint64_t lba;
 	int i, ret = 1, num = 0;
 	char *path;
 
@@ -139,51 +137,12 @@ usage:
 		goto out;
 	}
 
-	/* Allocate zone array */
-	zones = (struct zbc_zone *)calloc(1, sizeof(struct zbc_zone));
-	if (!zones) {
-		fprintf(stderr, "No memory\n");
-		ret = 1;
-		goto out;
-	}
-
-	/*
-	 * Get information about the first zone of every realm
-	 * and calculate the size of the realm in zones.
-	 */
-	for (i = 0; i < (int)nrlm; i++) {
-		r = &realms[i];
-		for (j = 0; j < zbc_zone_realm_nr_domains(r); j++) {
-			if (!zbc_realm_actv_as_dom_id(r, j))
-				continue;
-			lba = zbc_realm_start_lba(r, j);
-			ret = zbc_report_zones(dev, lba, 0, zones, &len);
-			if (ret != 0) {
-				fprintf(stderr, "zbc_report_zones failed %d\n", ret);
-				ret = 1;
-				goto out;
-			}
-			if (!len || zones->zbz_start != lba || zones->zbz_length == 0) {
-				fprintf(stderr,
-					"malformed zone response, start=%lu, len=%lu\n",
-					zones->zbz_start, zones->zbz_length);
-				ret = 1;
-				goto out;
-			}
-
-			len = zbc_realm_block_length(r, j) / zones->zbz_length;
-			r->zbr_ri[j].zbi_length = len;
-		}
-	}
-
 	for (i = 0, r = realms; i < (int)nrlm; i++, r++)
 		zbc_print_realm(&info, r);
 
 out:
 	if (realms)
 		free(realms);
-	if (zones)
-		free(zones);
 	zbc_close(dev);
 
 	return ret;

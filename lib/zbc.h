@@ -85,7 +85,7 @@ struct zbc_drv {
 	 */
 	int		(*zbd_zone_query_cvt)(struct zbc_device *, bool, bool,
 					      bool, bool, uint64_t,
-					      uint32_t, uint32_t,
+					      unsigned int, unsigned int,
 					      struct zbc_conv_rec *,
 					      uint32_t *);
 

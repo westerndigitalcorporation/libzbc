@@ -88,7 +88,7 @@ enum zbc_zone_type {
 	/**
 	 * Sequential or before required zone: requires additional
 	 * initialization to become close to a regular conventional,
-	 * but it can be converted from SMR quickly.
+	 * but it can be activated from SMR quickly.
 	 */
 	ZBC_ZT_SEQ_OR_BEF_REQ	= 0x04,
 };
@@ -590,11 +590,11 @@ struct zbc_realm_item *zbc_realm_item_by_type(struct zbc_zone_realm *r,
 }
 
 /**
- * @brief Zone Conversion Results record.
+ * @brief Zone Activation Results record.
  *
  * A list of these descriptors is returned by ZONE ACTIVATE or ZONE QUERY
  * command to provide the caller with zone IDs and other information about
- * the converted zones.
+ * the activated zones.
  */
 struct zbc_conv_rec {
 
@@ -604,7 +604,7 @@ struct zbc_conv_rec {
 	uint64_t		zbe_start_zone;
 
 	/**
-	 * @brief Number of contiguous converted zones.
+	 * @brief Number of contiguous activated zones.
 	 */
 	uint32_t		zbe_nr_zones;
 
@@ -620,26 +620,26 @@ struct zbc_conv_rec {
 
 };
 
-/** @brief Get conversion record type */
+/** @brief Get activation record type */
 #define zbc_conv_rec_type(r)		((int)(r)->zbe_type)
 
-/** @brief Test if conversion record type is conventional */
+/** @brief Test if activation record type is conventional */
 #define zbc_conv_rec_conventional(r)	((r)->zbe_type == ZBC_ZT_CONVENTIONAL)
 
-/** @brief Test if conversion record type is sequential write required */
+/** @brief Test if activation record type is sequential write required */
 #define zbc_conv_rec_seq_req(r)		((r)->zbe_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Test if conversion record type is sequential write preferred */
+/** @brief Test if activatiion record type is sequential write preferred */
 #define zbc_conv_rec_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
 
-/** @brief Test if conversion record type is sequential or before required (SOBR) */
+/** @brief Test if activation record type is sequential or before required (SOBR) */
 #define zbc_conv_rec_sobr(r)		((r)->zbe_type == ZBC_ZT_SEQ_OR_BEF_REQ)
 
-/** @brief Test if conversion record type is conventional of SOBR */
+/** @brief Test if activation record type is conventional of SOBR */
 #define zbc_conv_rec_nonseq(r)		(zbc_conv_rec_conventional(r) || \
 					 zbc_conv_rec_sobr(r))
 
-/** @brief Test if conversion record type is sequential write required or preferred */
+/** @brief Test if activation record type is sequential write required or preferred */
 #define zbc_conv_rec_seq(r)		(zbc_conv_rec_seq_req(r) || \
 					 zbc_conv_rec_seq_pref(r))
 
@@ -651,7 +651,7 @@ struct zbc_conv_rec {
  */
 struct zbc_zp_dev_control {
 	/**
-	 * @brief Default number of zones to convert.
+	 * @brief Default number of zones to activate.
 	 */
 	uint32_t		zbm_nr_zones;
 
@@ -793,8 +793,7 @@ enum zbc_dev_flags {
 
 	/**
 	 * Indicates that the device supports Zone Domains command set
-	 * to allow zones on the device to be converted from CMR to SMR
-	 * and vice versa.
+	 * to allow zones on the device to be activated both as CMR and SMR.
 	 */
 	ZBC_ZONE_DOMAINS_SUPPORT = 0x00000002,
 
@@ -1026,17 +1025,9 @@ enum zbc_asc_ascq {
 	/** Insufficient zone resources */
 	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
 
-	/** Conversion type unsupported */
-	/* FIXME the exact sense code TBD */
-	ZBC_ASC_CONVERSION_TYPE_UNSUPP			= 0x210A,
-
 	/** Zone is inactive */
 	/* FIXME the exact sense code TBD */
 	ZBC_ASC_ZONE_IS_INACTIVE			= 0x210B,
-
-	/** Zone needs resetting */
-	/* FIXME the exact sense code TBD */
-	ZBC_ASC_ZONE_NEEDS_RESETTING			= 0x210C,
 
 	/** Read error */
 	ZBC_ASC_READ_ERROR				= 0x1100,
@@ -1656,70 +1647,70 @@ extern int zbc_list_zone_realms(struct zbc_device *dev,
 				unsigned int *pnr_realms);
 
 /**
- * @brief Convert a number of zones at the specified start to the new type
+ * @brief Activate the specified zones at a new zone domain
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] zsrc		If set, the nr_zones argument is valid
- * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] all		If set, try to activate all zones
  * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
- * @param[in] start_zone	512B sector of the first zone to convert
- * @param[in] nr_zones		The total number of zones to convert
- * @param[in] new_type		Zone type after conversion
- * @param[out] conv_recs	Array of conversion results records
- * @param[out] nr_conv_recs	The number of conversion results records
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to activate
+ * @param[out] conv_recs	Array of activation results records
+ * @param[out] nr_conv_recs	The number of activaton results records
  */
 extern int zbc_zone_activate(struct zbc_device *dev, bool zsrc, bool all,
 			     bool use_32_byte_cdb, uint64_t start_zone,
-			     unsigned int nr_zones, unsigned int new_type,
+			     unsigned int nr_zones, unsigned int domain_id,
 			     struct zbc_conv_rec *conv_recs,
 			     unsigned int *nr_conv_recs);
 
 /**
- * @brief Query about possible conversion results of a number of zones
+ * @brief Query about possible results of zone activation
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] zsrc		If set, the nr_zones argument is valid
- * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] all		If set, try to activate all zones
  * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
- * @param[in] start_zone	512B sector of the first zone to convert
- * @param[in] nr_zones		The total number of zones to convert
- * @param[in] new_zone		Zone type after conversion
- * @param[out] conv_recs	Array of conversion results records
- * @param[out] nr_conv_recs	The number of conversion results records
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to query about
+ * @param[out] conv_recs	Array of activation results records
+ * @param[out] nr_conv_recs	The number of activation results records
  */
 extern int zbc_zone_query(struct zbc_device *dev, bool zsrc, bool all,
-			   bool use_32_byte_cdb, uint64_t lba,
-			  unsigned int nr_zones, unsigned int new_type,
+			  bool use_32_byte_cdb, uint64_t lba,
+			  unsigned int nr_zones, unsigned int domain_id,
 			  struct zbc_conv_rec *conv_recs,
 			  unsigned int *nr_conv_recs);
 
 /**
- * @brief Return the expected number of conversion records
+ * @brief Return the expected number of activation records
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] zsrc		If set, the nr_zones argument is valid
- * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] all		If set, try to activate all zones
  * @param[in] use_32_byte_cdb	If true, use 32-byte SCSI command
- * @param[in] start_zone	512B sector of the first zone to convert
- * @param[in] nr_zones		The total number of zones to convert
- * @param[in] new_type		Zone type after conversion
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to activate
  */
 extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 				  bool use_32_byte_cdb, uint64_t lba,
-				  unsigned int nr_zones, unsigned int new_type);
+				  unsigned int nr_zones, unsigned int domain_id);
 
 /**
- * @brief Query about possible conversion results of a number of zones
+ * @brief Query about possible activation results of a number of zones
  * @param[in] dev		Device handle obtained with \a zbc_open
  * @param[in] zsrc		If set, the nr_zones argument is valid
- * @param[in] all		If set, try to convert maximum number of zones
+ * @param[in] all		If set, try to activate all zones
  * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
- * @param[in] start_zone	512B sector of the first zone to convert
- * @param[in] nr_zones		The total number of zones to convert
- * @param[in] new_type		Zone type after conversion
- * @param[out] conv_recs	Points to the returned array of convert records
- * @param[out] nr_conv_recs	Number of returned conversion results records
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to query about
+ * @param[out] conv_recs	Points to the returned activation records
+ * @param[out] nr_conv_recs	Number of returned activation results records
  */
 extern int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all,
 			       bool use_32_byte_cdb, uint64_t lba,
-			       unsigned int nr_zones, unsigned int new_type,
+			       unsigned int nr_zones, unsigned int domain_id,
 			       struct zbc_conv_rec **pconv_recs,
 			       unsigned int *pnr_conv_recs);
 /**

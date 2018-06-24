@@ -23,9 +23,10 @@
 int main(int argc, char **argv)
 {
 	struct zbc_device *dev;
-	struct zbc_conv_rec *conv_recs = NULL, *cr;
+	struct zbc_zone_domain *domains = NULL, *d;
 	struct zbc_zone_realm *realms = NULL, *r;
 	struct zbc_realm_item *ri;
+	struct zbc_conv_rec *conv_recs = NULL, *cr;
 	const char *sk_name, *ascq_name;
 	char *path;
 	struct zbc_device_info info;
@@ -34,7 +35,8 @@ int main(int argc, char **argv)
 	uint64_t start;
 	uint64_t err_cbf;
 	uint16_t err_za;
-	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0, dom_id;
+	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0;
+	unsigned int nr_domains, domain_id;
 	int i, ret, end;
 	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
 
@@ -185,12 +187,37 @@ int main(int argc, char **argv)
 				ret = 1;
 				goto out;
 			}
-			dom_id = ri->zbi_dom_id;
+			domain_id = ri->zbi_dom_id;
 
 			/* Set the start LBA and the length in zones */
-			start = zbc_realm_start_lba(r, dom_id);
 			for (nr_units = 0, i = start; i < end; i++)
-				nr_units += zbc_realm_length(&realms[i], dom_id);
+				nr_units += zbc_realm_length(&realms[i], domain_id);
+
+			start = zbc_realm_start_lba(r, domain_id);
+		} else {
+			/* Find domain ID for the new zone type */
+			ret = zbc_list_domains(dev, &domains, &nr_domains);
+			if (ret != 0) {
+				fprintf(stderr,
+					"[TEST][ERROR],zbc_list_domains failed, err %i (%s) %s\n",
+					ret, strerror(-ret), path);
+				ret = 1;
+				goto out;
+			}
+
+			for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
+				if (d->zbm_type == new_type) {
+					domain_id = i;
+					break;
+				}
+			}
+			if (i >= (int)nr_domains) {
+				fprintf(stderr,
+					"[TEST][ERROR],Device doesn't support zone type %u\n",
+					new_type);
+				ret = 1;
+				goto out;
+			}
 		}
 	}
 
@@ -283,6 +310,8 @@ int main(int argc, char **argv)
 	}
 
 out:
+	if (domains)
+		free(domains);
 	if (realms)
 		free(realms);
 	if (conv_recs)
