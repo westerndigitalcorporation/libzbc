@@ -547,9 +547,14 @@ if [ ! -z "${ATA_SCSI_NONSENSE}" ]; then
     export ATA_SCSI_NONSENSE=1
 fi
 
+ata_name=""
+if [ ${force_ata} -ne 0 ]; then
+	ata_name="_ata"
+fi
+
 # Establish log file for early failures
 if [ -z "${ZBC_TEST_LOG_PATH_BASE}" ]; then
-    ZBC_TEST_LOG_PATH_BASE=log/${dev_name}
+    ZBC_TEST_LOG_PATH_BASE=log/${dev_name}${ata_name}
 fi
 export ZBC_TEST_LOG_PATH_BASE
 set_logfile ""
