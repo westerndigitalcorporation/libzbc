@@ -34,14 +34,14 @@ static void zbc_print_realm(struct zbc_device_info *info,
 	       zbc_zone_type_str(zbc_zone_realm_type(r)),
 	       zbc_zone_realm_actv_flags(r));
 
-		for (i = 0; i < zbc_zone_realm_nr_domains(r); i++) {
-			printf("%u:[start %lu, end %lu, len %u]",
-			       zbc_realm_zone_type(r, i),
-			       zbc_sect2lba(info, zbc_realm_start_lba(r, i)),
-			       zbc_sect2lba(info, zbc_realm_end_lba(r, i)),
-			       zbc_realm_length(r, i));
-			printf(i == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : "; ");
-		}
+	for (i = 0; i < zbc_zone_realm_nr_domains(r); i++) {
+		printf("%u:[start %lu, end %lu, len %u]",
+		       zbc_realm_zone_type(r, i),
+		       zbc_sect2lba(info, zbc_realm_start_lba(r, i)),
+		       zbc_sect2lba(info, zbc_realm_end_lba(r, i)),
+		       zbc_realm_length(r, i));
+		printf(i == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : "; ");
+	}
 }
 
 int main(int argc, char **argv)

@@ -144,19 +144,19 @@ usage:
 	if (set_nz && !(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT)) {
 		fprintf(stderr,
 			"[TEST][ERROR],device doesn't support ZA control\n");
-			ret = 1;
+		ret = 1;
 		goto out;
 	}
 	if (set_urswrz && !(info.zbd_flags & ZBC_URSWRZ_SET_SUPPORT)) {
 		fprintf(stderr,
 			"[TEST][ERROR],device doesn't support unrestricted read control\n");
-			ret = 1;
+		ret = 1;
 		goto out;
 	}
 	if (set_max_activate && !(info.zbd_flags & ZBC_MAXACT_SET_SUPPORT)) {
 		fprintf(stderr,
 			"[TEST][ERROR],device doesn't support maximum activation control\n");
-			ret = 1;
+		ret = 1;
 		goto out;
 	}
 

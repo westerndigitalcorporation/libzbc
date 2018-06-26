@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 	enum zbc_mutation_target mt = ZBC_MT_UNKNOWN;
 	union zbc_mutation_opt opt;
 	struct zbc_supported_mutation *sm = NULL;
-	unsigned int nr_sm_recs, nrecs;
+	unsigned int nr_sm_recs;
 	int i, ret = 1, nz = 0, max_activate = 0;
 	bool upd = false, urswrz = false, set_nz = false;
 	bool list_mu = false, set_urswrz = false, set_max_activate = false;
@@ -247,17 +247,14 @@ usage:
 			ret = 1;
 			goto out;
 		}
+		if (!nr_sm_recs)
+			goto skip_lm;
 
 		printf("    %u supported mutation%s\n",
 		       nr_sm_recs, (nr_sm_recs > 1) ? "s" : "");
 
-		if (!nrecs || nrecs > nr_sm_recs)
-			nrecs = nr_sm_recs;
-		if (!nrecs)
-			goto skip_lm;
-
 		/* Allocate the array of supported mutation types/options */
-		sm = (struct zbc_supported_mutation *)calloc(nrecs,
+		sm = (struct zbc_supported_mutation *)calloc(nr_sm_recs,
 						 sizeof(struct zbc_supported_mutation));
 		if (!sm) {
 			fprintf(stderr, "No memory\n");
@@ -266,14 +263,14 @@ usage:
 		}
 
 		/* Get the supported mutationss */
-		ret = zbc_report_mutations(dev, sm, &nrecs);
+		ret = zbc_report_mutations(dev, sm, &nr_sm_recs);
 		if (ret != 0) {
 			fprintf(stderr, "zbc_report_mutations failed %d\n", ret);
 			ret = 1;
 			goto out;
 		}
 
-		for (i = 0; i < (int)nrecs; i++)
+		for (i = 0; i < (int)nr_sm_recs; i++)
 			zbc_print_supported_mutations(&sm[i]);
 
 skip_lm:

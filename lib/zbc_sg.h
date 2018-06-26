@@ -338,7 +338,7 @@ static inline void zbc_sg_set_int64(uint8_t *buf, uint64_t val)
  */
 static inline void zbc_sg_set_int48(uint8_t *buf, uint64_t val)
 {
-	val &= 0xffffffffffff;
+	val &= 0xffffffffffffLL;
 	zbc_sg_set_bytes(buf, &val, 6);
 }
 
@@ -395,7 +395,7 @@ static inline uint64_t zbc_sg_get_int48(uint8_t *buf)
 
 	zbc_sg_get_bytes(buf, &conv, 6);
 
-	return conv.val64 & 0xffffffffffff;
+	return conv.val64 & 0xffffffffffffLL;
 }
 
 /**
