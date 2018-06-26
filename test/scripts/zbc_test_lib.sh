@@ -194,7 +194,7 @@ function zbc_test_reset_device()
 
 	local max_act=`zbc_info ${device} | grep "Maximum number of zones to activate" | sed -e "s/.* //"`  #XXX
 	if [ -n "${max_act}" -a "${max_act}" != "unlimited" ]; then
-		echo "WARNING: zbc_test_reset_device did not set (max_conversion=${max_act}) to unlimited ${reason}" `_stacktrace`
+		echo "WARNING: zbc_test_reset_device did not set (max_activation=${max_act}) to unlimited ${reason}" `_stacktrace`
 	fi
 
 	zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
@@ -670,34 +670,6 @@ function zbc_test_get_target_zone_from_type_and_cond()
 	return 1
 }
 
-function UNUSED__zbc_test_get_target_zone_from_type_and_ignored_cond()
-{
-
-	local zone_type="${1}"
-	local zone_cond_ignore="${2}"
-
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" \
-				| zbc_zone_filter_out_cond "${zone_cond_ignore}"`; do
-
-		local _IFS="${IFS}"
-		IFS=$',\n'
-		set -- ${_line}
-
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
-		target_ptr=${7}
-
-		IFS="$_IFS"
-
-		return 0
-
-	done
-
-	return 1
-}
-
 function zbc_test_search_last_zone_vals_from_zone_type()
 {
 	local zone_type="${1}"
@@ -973,31 +945,17 @@ function zbc_test_count_zone_realms()
 	nr_realms=`cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]" | wc -l`
 }
 
-function UNUSED_zbc_test_count_zone_realms()
+function zbc_test_count_actv_as_conv_realms()
 {
 	local _IFS="${IFS}"
-	nr_zone_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_NON_SEQ})"`
+	nr_actv_as_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
 	IFS="$_IFS"
 }
 
-function UNUSED_zbc_test_count_seq_realms()
+function zbc_test_count_actv_as_seq_realms()
 {
 	local _IFS="${IFS}"
-	nr_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c; do echo $c; done | grep -c -E "(${ZT_SEQ})"`
-	IFS="$_IFS"
-}
-
-function zbc_test_count_cvt_to_conv_realms()
-{
-	local _IFS="${IFS}"
-	nr_cvt_to_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
-	IFS="$_IFS"
-}
-
-function zbc_test_count_cvt_to_seq_realms()
-{
-	local _IFS="${IFS}"
-	nr_cvt_to_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
+	nr_actv_as_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
 	IFS="$_IFS"
 }
 
@@ -1056,8 +1014,8 @@ function zbc_test_search_zone_realm_by_number()
 		realm_conv_len=${5}
 		realm_seq_start=`_trim ${6}`
 		realm_seq_len=${7}
-		realm_cvt_to_conv=${9}
-		realm_cvt_to_seq=${10}
+		realm_actv_as_conv=${9}
+		realm_actv_as_seq=${10}
 
 		IFS="$_IFS"
 
@@ -1068,80 +1026,41 @@ function zbc_test_search_zone_realm_by_number()
 	return 1
 }
 
-function UNUSED_zbc_test_search_zone_realm_by_type()
-{
-	local realm_search_type=${1}
-	local -i _skip=$(expr ${2:-0})
-
-	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,.*,.*"`; do
-
-		if [ ${_skip} -eq 0 ]; then
-
-			local _IFS="${IFS}"
-			IFS=$',\n'
-			set -- ${_line}
-
-			realm_num=$(expr ${2} + 0)
-			realm_type=${3}
-			realm_conv_start=`_trim ${4}`
-			realm_conv_len=${5}
-			realm_seq_start=`_trim ${6}`
-			realm_seq_len=${7}
-			realm_cvt_to_conv=${9}
-			realm_cvt_to_seq=${10}
-
-			IFS="$_IFS"
-
-			zbc_test_is_found_realm_faulty
-			if [ $? -eq 0 ]; then
-				return 0
-			fi
-
-		else
-			_skip=$(( ${_skip} - 1 ))
-		fi
-
-	done
-
-	return 1
-}
-
-# $1 is realm type, $2 is convertible_to
+# $1 is realm type, $2 is can_activate_as
 # Optional $3 = "NOFAULTY" specifies to skip faulty realms
-function zbc_test_search_realm_by_type_and_cvt()
+function zbc_test_search_realm_by_type_and_actv()
 {
 	local realm_search_type=${1}
 	local -i _skip=0	# _skip=$(expr ${3:-0})
 	local _NOFAULTY="$3"
-	local cvt
+	local actv
 
 	case "${2}" in
 	"conv")
-		cvt="Y,.*"
+		actv="Y,.*"
 		;;
 	"noconv")
-		cvt="N,.*"
+		actv="N,.*"
 		;;
 	"seq")
-		cvt=".*,Y"
+		actv=".*,Y"
 		;;
 	"noseq")
-		cvt=".*,N"
+		actv=".*,N"
 		;;
 	"both")
-		cvt="Y,Y"
+		actv="Y,Y"
 		;;
 	"none")
-		cvt="N,N"
+		actv="N,N"
 		;;
 	* )
-		_stacktrace_exit "zbc_test_search_realm_by_type_and_cvt bad cvt arg=\"$2\""
+		_stacktrace_exit "zbc_test_search_realm_by_type_and_actv bad can_activate_as arg=\"$2\""
 		;;
 	esac
 
 	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,${cvt}"`; do
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,${actv}"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
@@ -1155,8 +1074,8 @@ function zbc_test_search_realm_by_type_and_cvt()
 			realm_conv_len=${5}
 			realm_seq_start=`_trim ${6}`
 			realm_seq_len=${7}
-			realm_cvt_to_conv=${9}
-			realm_cvt_to_seq=${10}
+			realm_actv_as_conv=${9}
+			realm_actv_as_seq=${10}
 
 			IFS="$_IFS"
 

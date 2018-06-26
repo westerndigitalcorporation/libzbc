@@ -40,10 +40,10 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find a conventional realm that is convertible to sequential
-zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
+# Find a conventional realm that can be activated as sequential
+zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
 fi
 expected_err_cbf="${realm_seq_start}"
 

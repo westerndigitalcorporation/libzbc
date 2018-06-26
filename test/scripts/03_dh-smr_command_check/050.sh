@@ -28,10 +28,10 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find a CMR realm that is convertible to SMR
-zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "seq"
+# Find a CMR realm that can be activated as SMR
+zbc_test_search_realm_by_type_and_actv "0x1|0x4" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently CMR and convertible to SMR"
+    zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
 
 # Start testing
@@ -42,7 +42,7 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "ACTIVATE failed to smr_type=${smr_type}"
 
 if [ -z "${sk}" ]; then
-    # Verify that the realm is converted
+    # Verify that the realm has been activated
     zbc_test_get_zone_realm_info
     zbc_test_search_zone_realm_by_number ${realm_num}
     if [[ $? -ne 0 || ${realm_type} != @(0x2|0x3) ]]; then

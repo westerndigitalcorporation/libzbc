@@ -499,9 +499,9 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 				"    Setting maximum number of zones "
 				"to activate is supported\n");
 		}
-		if (info->zbd_max_conversion != 0)
+		if (info->zbd_max_activation != 0)
 			fprintf(out, "    Maximum number of zones to activate: %u\n",
-				info->zbd_max_conversion);
+				info->zbd_max_activation);
 		else
 			fprintf(out, "    Maximum number of zones"
 				     " to activate is unlimited\n");
@@ -751,9 +751,9 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 	struct zbc_device_info *di = &dev->zbd_info;
 	struct zbc_zone_realm *r;
 	struct zbc_zone *z, *zones = NULL;
-	struct zbc_conv_rec *conv_recs = NULL, *cr;
+	struct zbc_actv_res *actv_recs = NULL, *cr;
 	uint64_t lba, cmr_start = 0LL, smr_start = 0LL;
-	unsigned int nr_zones, nr_conv_recs = 0, zone_type, dnr, space_zones;
+	unsigned int nr_zones, nr_actv_recs = 0, zone_type, dnr, space_zones;
 	unsigned int cmr_len = 0, smr_len = 0, cmr_type = 0, smr_type = 0;
 	unsigned int cmr_cond = 0, smr_cond = 0;
 	int i, ret = 1, seam_zone;
@@ -803,9 +803,9 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 	lba = zbc_zone_start(z);
 	space_zones = nr_zones - seam_zone;
 
-	/* Get the number of conversion records */
-	ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
-				     space_zones, zone_type);
+	/* Get the number of activation records */
+	ret = zbc_get_nr_actv_records(dev, true, false, false, lba,
+				      space_zones, zone_type);
 	if (ret < 0) {
 		/* OK, try in once again with SMR zone space */
 		ret = 0;
@@ -822,28 +822,28 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 		lba = 0LL;
 		space_zones = seam_zone;
 
-		ret = zbc_get_nr_cvt_records(dev, true, false, false, lba,
-					     space_zones, zone_type);
+		ret = zbc_get_nr_actv_records(dev, true, false, false, lba,
+					      space_zones, zone_type);
 		if (ret < 0)
 			goto out;
 	}
 
-	nr_conv_recs = (uint32_t)ret;
+	nr_actv_recs = (uint32_t)ret;
 
-	/* Allocate conversion record array */
-	conv_recs = (struct zbc_conv_rec *)calloc(nr_conv_recs,
-						  sizeof(struct zbc_conv_rec));
-	if (!conv_recs) {
+	/* Allocate actviation results record array */
+	actv_recs = (struct zbc_actv_res *)calloc(nr_actv_recs,
+						  sizeof(struct zbc_actv_res));
+	if (!actv_recs) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	/*
-	 * Get the list of conversion records.
+	 * Get the list of activation records.
 	 * We will report pairs of them as realms.
 	 */
 	ret = zbc_zone_query(dev, true, true, false, lba, space_zones,
-			     zone_type, conv_recs, &nr_conv_recs);
+			     zone_type, actv_recs, &nr_actv_recs);
 	if (ret != 0)
 		goto out;
 
@@ -851,9 +851,9 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 	dnr = 0;
 	r = realms;
 	have_cmr = have_smr = false;
-	for (i = 0; i < (int)nr_conv_recs; i++) {
-		cr = &conv_recs[i];
-		if (zbc_conv_rec_nonseq(cr)) {
+	for (i = 0; i < (int)nr_actv_recs; i++) {
+		cr = &actv_recs[i];
+		if (zbc_actv_res_nonseq(cr)) {
 			if (have_cmr) {
 				zbc_error("%s: Unsupported CMR CR sequence\n",
 					  dev->zbd_filename);
@@ -866,7 +866,7 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 			cmr_cond = cr->zbe_condition;
 			have_cmr = true;
 		}
-		if (zbc_conv_rec_seq(cr)) {
+		if (zbc_actv_res_seq(cr)) {
 			if (have_smr) {
 				zbc_error("%s: Unsupported SMR CR sequence\n",
 					  dev->zbd_filename);
@@ -916,8 +916,8 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 out:
 	if (zones)
 		free(zones);
-	if (conv_recs)
-		free(conv_recs);
+	if (actv_recs)
+		free(actv_recs);
 
 	return ret;
 }
@@ -1062,15 +1062,15 @@ int zbc_list_zone_realms(struct zbc_device *dev,
 int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 		      bool all, bool use_32_byte_cdb,
 		      uint64_t lba, unsigned int nr_zones,
-		      unsigned int domain_id, struct zbc_conv_rec *conv_recs,
-		      unsigned int *nr_conv_recs)
+		      unsigned int domain_id, struct zbc_actv_res *actv_recs,
+		      unsigned int *nr_actv_recs)
 {
 	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_zone_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
 		/* FIXME need to implement! */
 		zbc_warning("%s: Zone activate/query is not implemented\n",
 			    dev->zbd_filename);
@@ -1078,11 +1078,11 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
-						  all, use_32_byte_cdb,
-						  false, lba, nr_zones,
-						  domain_id, conv_recs,
-						  nr_conv_recs);
+	return (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						   all, use_32_byte_cdb,
+						   false, lba, nr_zones,
+						   domain_id, actv_recs,
+						   nr_actv_recs);
 }
 
 /**
@@ -1093,14 +1093,14 @@ int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
 int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 		   bool all, bool use_32_byte_cdb,
 		   uint64_t lba, unsigned int nr_zones, unsigned int domain_id,
-		   struct zbc_conv_rec *conv_recs, unsigned int *nr_conv_recs)
+		   struct zbc_actv_res *actv_recs, unsigned int *nr_actv_recs)
 {
 	if (!zbc_dev_is_zone_dom(dev)) {
 		zbc_error("%s: Not a Zone Domains device\n",
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_zone_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
 		/* FIXME need to implement! */
 		zbc_warning("%s: Zone activation/query is not implemented\n",
 			    dev->zbd_filename);
@@ -1108,22 +1108,22 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 	}
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
-						  all, use_32_byte_cdb,
-						  true, lba, nr_zones,
-						  domain_id, conv_recs,
-						  nr_conv_recs);
+	return (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						   all, use_32_byte_cdb,
+						   true, lba, nr_zones,
+						   domain_id, actv_recs,
+						   nr_actv_recs);
 }
 
 /**
- * zbc_get_nr_cvt_records - Get the expected number of conversion records
- * 			    for a ZONE ACTIVATE or ZONE QUERY operation
+ * zbc_get_nr_actv_records - Get the expected number of activation records
+ * 			     for a ZONE ACTIVATE or ZONE QUERY operation
  */
-int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
-			   bool use_32_byte_cdb, uint64_t lba,
-			   unsigned int nr_zones, unsigned int domain_id)
+int zbc_get_nr_actv_records(struct zbc_device *dev, bool zsrc, bool all,
+			    bool use_32_byte_cdb, uint64_t lba,
+			    unsigned int nr_zones, unsigned int domain_id)
 {
-	uint32_t nr_conv_recs = 0;
+	uint32_t nr_actv_recs = 0;
 	int ret;
 
 	if (!zbc_dev_is_zone_dom(dev)) {
@@ -1131,19 +1131,19 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 			  dev->zbd_filename);
 		return -ENOTSUP;
 	}
-	if (!dev->zbd_drv->zbd_zone_query_cvt) {
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
 		/* FIXME need to implement! */
 		zbc_warning("%s: Zone activation/query is not implemented\n",
 			    dev->zbd_filename);
 		return -ENOTSUP;
 	}
 
-	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
-						 all, use_32_byte_cdb,
-						 true, lba, nr_zones,
-						 domain_id, NULL,
-						 &nr_conv_recs);
-	return ret ? ret : (int)nr_conv_recs;
+	ret = (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						  all, use_32_byte_cdb,
+						  true, lba, nr_zones,
+						  domain_id, NULL,
+						  &nr_actv_recs);
+	return ret ? ret : (int)nr_actv_recs;
 }
 
 /**
@@ -1158,33 +1158,33 @@ int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
 int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32_byte_cdb,
 			uint64_t lba, unsigned int nr_zones,
 			unsigned int domain_id,
-			struct zbc_conv_rec **pconv_recs,
-			unsigned int *pnr_conv_recs)
+			struct zbc_actv_res **pactv_recs,
+			unsigned int *pnr_actv_recs)
 {
-	struct zbc_conv_rec *conv_recs = NULL;
-	uint32_t nr_conv_recs;
+	struct zbc_actv_res *actv_recs = NULL;
+	uint32_t nr_actv_recs;
 	int ret;
 
-	ret = zbc_get_nr_cvt_records(dev, zsrc, all, use_32_byte_cdb,
-				     lba, nr_zones, domain_id);
+	ret = zbc_get_nr_actv_records(dev, zsrc, all, use_32_byte_cdb,
+				      lba, nr_zones, domain_id);
 	if (ret < 0)
 		return ret;
-	nr_conv_recs = (uint32_t)ret;
+	nr_actv_recs = (uint32_t)ret;
 
-	/* Allocate conversion record array */
-	conv_recs = (struct zbc_conv_rec *)
-		    calloc(nr_conv_recs, sizeof(struct zbc_conv_rec));
-	if (!conv_recs)
+	/* Allocate activation results record array */
+	actv_recs = (struct zbc_actv_res *)
+		    calloc(nr_actv_recs, sizeof(struct zbc_actv_res));
+	if (!actv_recs)
 		return -ENOMEM;
 
 	/* Now get the entire list */
-	ret = (dev->zbd_drv->zbd_zone_query_cvt)(dev, zsrc,
-						 all, use_32_byte_cdb,
-						 true, lba, nr_zones,
-						 domain_id, conv_recs,
-						 &nr_conv_recs);
-	*pconv_recs = conv_recs;
-	*pnr_conv_recs = nr_conv_recs;
+	ret = (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						  all, use_32_byte_cdb,
+						  true, lba, nr_zones,
+						  domain_id, actv_recs,
+						  &nr_actv_recs);
+	*pactv_recs = actv_recs;
+	*pnr_actv_recs = nr_actv_recs;
 
 	return ret;
 }

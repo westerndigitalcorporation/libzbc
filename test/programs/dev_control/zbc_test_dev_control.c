@@ -40,7 +40,7 @@ usage:
 		printf("Usage: %s [options] <dev>\n"
 		       "Options:\n"
 		       "  -v                        : Verbose mode\n"
-		       "  -nz <num>                 : Set the default number of zones to convert\n"
+		       "  -nz <num>                 : Set the default number of zones to activate\n"
 		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
 		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n"
 		       "  -q                        : Ouput only errors\n",

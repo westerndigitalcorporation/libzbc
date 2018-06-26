@@ -68,12 +68,12 @@
 /**
  * Zone activation results header size.
  */
-#define ZBC_CONV_RES_HEADER_SIZE	32
+#define ZBC_ACTV_RES_HEADER_SIZE	32
 
 /**
- * Zone activation results descriptor size.
+ * Zone activation results record size.
  */
-#define ZBC_CONV_RES_RECORD_SIZE	16
+#define ZBC_ACTV_RES_RECORD_SIZE	16
 
 /**
  * ZONE DOMAINS mode page size
@@ -948,21 +948,21 @@ out:
 static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
 				    uint32_t nr_zones, unsigned int domain_id,
-				    struct zbc_conv_rec *conv_recs,
-				    unsigned int *nr_conv_recs)
+				    struct zbc_actv_res *actv_recs,
+				    unsigned int *nr_actv_recs)
 {
-	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
+	size_t bufsz = ZBC_ACTV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_conv_recs)
-		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
-	if (*nr_conv_recs > (uint16_t)(-1)) {
-		zbc_error("%s: # of convert records %u is too high\n",
-			dev->zbd_filename, *nr_conv_recs);
+	if (*nr_actv_recs)
+		bufsz += (size_t)*nr_actv_recs * ZBC_ACTV_RES_RECORD_SIZE;
+	if (*nr_actv_recs > (uint16_t)(-1)) {
+		zbc_error("%s: # of activation result records %u is too high\n",
+			dev->zbd_filename, *nr_actv_recs);
 		return -EINVAL;
 	}
 	if (zone_start_id > 0xffffffffffffLL) {
@@ -1010,7 +1010,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_CVT_16_CDB_OPCODE;
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE;
 	if (query)
 		cmd.cdb[1] = ZBC_SG_ZONE_QUERY_16_CDB_SA;
 	else
@@ -1030,11 +1030,11 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_CONV_RES_HEADER_SIZE) {
+	if (cmd.out_bufsz < ZBC_ACTV_RES_HEADER_SIZE) {
 		zbc_error("%s: Not enough report data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_CONV_RES_HEADER_SIZE,
+			  ZBC_ACTV_RES_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
@@ -1043,7 +1043,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 	buf = (uint8_t *)cmd.out_buf;
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
-		size_t sz = ZBC_CONV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
 		if (sz > cmd.out_bufsz)
 			sz = cmd.out_bufsz;
 		zbc_debug("%s: %s REPLY (%ld/%ld B):\n",
@@ -1057,13 +1057,13 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 
 	/*
 	 * Collect the status bits and the boundary failure LBA
-	 * if CONVERTED bit is not set.
+	 * if ACTIVATED bit is not set.
 	 */
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[4]);
 		if (buf[4] & 0x40) /* CBI bit */
 			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[14]);
-		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
+		zbc_warning("%s: Zones %s activated {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not",
 			    dev->zbd_errno.err_za, dev->zbd_errno.err_cbf,
@@ -1077,39 +1077,39 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
 			goto out;
 	}
 
-	/* Get number of descriptors in result */
-	nr = zbc_sg_get_int32(buf) / ZBC_CONV_RES_RECORD_SIZE;
+	/* Get number of activation records in result */
+	nr = zbc_sg_get_int32(buf) / ZBC_ACTV_RES_RECORD_SIZE;
 
-	if (!conv_recs || !nr)
+	if (!actv_recs || !nr)
 		goto out;
 
 	/*
-	 * Only get as many conversion descriptors
+	 * Only get as many activation results records
 	 * as the allocated buffer allows.
 	 */
-	if (nr > *nr_conv_recs)
-		nr = *nr_conv_recs;
+	if (nr > *nr_actv_recs)
+		nr = *nr_actv_recs;
 
-	bufsz = (cmd.out_bufsz - ZBC_CONV_RES_HEADER_SIZE) /
-		ZBC_CONV_RES_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_ACTV_RES_HEADER_SIZE) /
+		ZBC_ACTV_RES_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get the conversion descriptors */
-	buf += ZBC_CONV_RES_HEADER_SIZE;
+	/* Get the activation results records */
+	buf += ZBC_ACTV_RES_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		conv_recs[i].zbe_type = buf[0] & 0x0f;
-		conv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
-		conv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
-		conv_recs[i].zbe_start_zone =
+		actv_recs[i].zbe_type = buf[0] & 0x0f;
+		actv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
+		actv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
+		actv_recs[i].zbe_start_zone =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 
-		buf += ZBC_CONV_RES_RECORD_SIZE;
+		buf += ZBC_ACTV_RES_RECORD_SIZE;
 	}
 
 out:
 	/* Return the number of descriptors */
-	*nr_conv_recs = nr;
+	*nr_actv_recs = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1123,18 +1123,18 @@ out:
 static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 				    uint64_t zone_start_id, bool query,
 				    uint32_t nr_zones, uint32_t domain_id,
-				    struct zbc_conv_rec *conv_recs,
-				    uint32_t *nr_conv_recs)
+				    struct zbc_actv_res *actv_recs,
+				    uint32_t *nr_actv_recs)
 {
-	size_t bufsz = ZBC_CONV_RES_HEADER_SIZE;
+	size_t bufsz = ZBC_ACTV_RES_HEADER_SIZE;
 	unsigned int i, nr = 0;
 	struct zbc_sg_cmd cmd;
 	size_t max_bufsz;
 	uint8_t *buf;
 	int ret;
 
-	if (*nr_conv_recs)
-		bufsz += (size_t)*nr_conv_recs * ZBC_CONV_RES_RECORD_SIZE;
+	if (*nr_actv_recs)
+		bufsz += (size_t)*nr_actv_recs * ZBC_ACTV_RES_RECORD_SIZE;
 
 	/* For in kernel ATA translation: align to 512 B */
 	bufsz = (bufsz + 511) & ~511;
@@ -1165,7 +1165,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	 * | 7   |                    Additional CDB Length (18h)                        |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 8   | (MSB)                                                                 |
-	 * |-----+---     Service Action (F800h for Convert, F810h for Query)         ---|
+	 * |-----+---     Service Action (F800h for Activate, F810h for Query)        ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  |  All   |  ZSRC  |                      Reserved                       |
@@ -1189,7 +1189,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	 * | 31  |                                                                 (LSB) |
 	 * +=============================================================================+
 	 */
-	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_CVT_32_CDB_OPCODE;
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE;
 	cmd.cdb[7] = 0x18;
 	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_ZONE_QUERY_32_CDB_SA :
 					      ZBC_SG_ZONE_ACTIVATE_32_CDB_SA);
@@ -1212,11 +1212,11 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_CONV_RES_HEADER_SIZE) {
+	if (cmd.out_bufsz < ZBC_ACTV_RES_HEADER_SIZE) {
 		zbc_error("%s: Not enough report data received"
 			  " (need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
-			  ZBC_CONV_RES_HEADER_SIZE,
+			  ZBC_ACTV_RES_HEADER_SIZE,
 			  cmd.out_bufsz);
 		ret = -EIO;
 		goto out;
@@ -1225,7 +1225,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 	buf = (uint8_t *)cmd.out_buf;
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
-		size_t sz = ZBC_CONV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
 		if (sz > cmd.out_bufsz)
 			sz = cmd.out_bufsz;
 		zbc_debug("%s: %s REPLY (%ld/%ld B):\n",
@@ -1239,13 +1239,13 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 
 	/*
 	 * Collect the status bits and the boundary failure LBA
-	 * if CONVERTED bit is not set.
+	 * if ACTIVATED bit is not set.
 	 */
 	if ((buf[4] & 0x80) == 0) {
 		dev->zbd_errno.err_za = zbc_sg_get_int16(&buf[4]);
 		if (buf[4] & 0x40) /* CBI bit */
 			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[14]);
-		zbc_warning("%s: Zones %s converted {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
+		zbc_warning("%s: Zones %s activated {ERR=0x%04x CBF=0x%lx (%svalid)}\n",
 			    dev->zbd_filename,
 			    query ? "will not be" : "not",
 			    dev->zbd_errno.err_za, dev->zbd_errno.err_cbf,
@@ -1259,39 +1259,39 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
 			goto out;
 	}
 
-	/* Get number of descriptors in result */
-	nr = zbc_sg_get_int32(buf) / ZBC_CONV_RES_RECORD_SIZE;
+	/* Get the number of records in activation results */
+	nr = zbc_sg_get_int32(buf) / ZBC_ACTV_RES_RECORD_SIZE;
 
-	if (!conv_recs || !nr)
+	if (!actv_recs || !nr)
 		goto out;
 
 	/*
-	 * Only get as many conversion descriptors
+	 * Only get as many activation results records
 	 * as the allocated buffer allows.
 	 */
-	if (nr > *nr_conv_recs)
-		nr = *nr_conv_recs;
+	if (nr > *nr_actv_recs)
+		nr = *nr_actv_recs;
 
-	bufsz = (cmd.out_bufsz - ZBC_CONV_RES_HEADER_SIZE) /
-		ZBC_CONV_RES_RECORD_SIZE;
+	bufsz = (cmd.out_bufsz - ZBC_ACTV_RES_HEADER_SIZE) /
+		ZBC_ACTV_RES_RECORD_SIZE;
 	if (nr > bufsz)
 		nr = bufsz;
 
-	/* Get the conversion descriptors */
-	buf += ZBC_CONV_RES_HEADER_SIZE;
+	/* Get the activation result records */
+	buf += ZBC_ACTV_RES_HEADER_SIZE;
 	for (i = 0; i < nr; i++) {
-		conv_recs[i].zbe_type = buf[0] & 0x0f;
-		conv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
-		conv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
-		conv_recs[i].zbe_start_zone =
+		actv_recs[i].zbe_type = buf[0] & 0x0f;
+		actv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
+		actv_recs[i].zbe_nr_zones = zbc_sg_get_int32(&buf[4]);
+		actv_recs[i].zbe_start_zone =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 
-		buf += ZBC_CONV_RES_RECORD_SIZE;
+		buf += ZBC_ACTV_RES_RECORD_SIZE;
 	}
 
 out:
-	/* Return the number of descriptors */
-	*nr_conv_recs = nr;
+	/* Return the number of recordrs */
+	*nr_actv_recs = nr;
 
 	/* Cleanup */
 	zbc_sg_cmd_destroy(&cmd);
@@ -1304,14 +1304,14 @@ static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool zsrc, bool 
 					bool use_32_byte_cdb, bool query,
 					uint64_t lba, uint32_t nr_zones,
 					unsigned int domain_id,
-					struct zbc_conv_rec *conv_recs,
-					unsigned int *nr_conv_recs)
+					struct zbc_actv_res *actv_recs,
+					unsigned int *nr_actv_recs)
 {
 	return use_32_byte_cdb ?
 	       zbc_scsi_zone_activate32(dev, zsrc, all, lba, query, nr_zones,
-					domain_id, conv_recs, nr_conv_recs) :
+					domain_id, actv_recs, nr_actv_recs) :
 	       zbc_scsi_zone_activate16(dev, zsrc, all, lba, query, nr_zones,
-					domain_id, conv_recs, nr_conv_recs);
+					domain_id, actv_recs, nr_actv_recs);
 }
 
 /**
@@ -1779,7 +1779,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 
 	}
 
-	di->zbd_max_conversion = zbc_sg_get_int16(&buf[20]);
+	di->zbd_max_activation = zbc_sg_get_int16(&buf[20]);
 
 	return 0;
 }
@@ -2017,7 +2017,7 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_zone_op		= zbc_scsi_zone_op,
 	.zbd_report_domains	= zbc_scsi_report_domains,
 	.zbd_report_realms	= zbc_scsi_report_realms,
-	.zbd_zone_query_cvt	= zbc_scsi_zone_query_activate,
+	.zbd_zone_query_actv	= zbc_scsi_zone_query_activate,
 	.zbd_report_mutations	= zbc_scsi_report_mutations,
 	.zbd_mutate		= zbc_scsi_mutate,
 };

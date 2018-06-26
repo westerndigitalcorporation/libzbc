@@ -18,7 +18,7 @@ zbc_test_init $0 "ZONE ACTIVATE(16): SWP to CMR (realm addressing)" $*
 zbc_test_get_device_info
 
 if [ ${seq_pref_zone} -eq 0 ]; then
-    zbc_test_print_not_applicable "Device does not support conversion from SWP zone type"
+    zbc_test_print_not_applicable "Device does not support activation of SWP zone type"
 fi
 
 if [ ${conv_zone} -ne 0 ]; then
@@ -32,10 +32,10 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find a SWP realm that is convertable to CMR
-zbc_test_search_realm_by_type_and_cvt "0x3" "conv"
+# Find a SWP realm that can be activated as CMR
+zbc_test_search_realm_by_type_and_actv "0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently SWP and convertible to CMR"
+    zbc_test_print_not_applicable "No realm is currently SWP and can be activated as CMR"
 fi
 
 # Start testing
@@ -46,7 +46,7 @@ zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
-    # Verify that the realm is converted
+    # Verify that the realm has been activated
     zbc_test_get_zone_realm_info
     zbc_test_search_zone_realm_by_number ${realm_num}
     if [[ $? -ne 0 || ${realm_type} != @(0x1|0x4) ]]; then

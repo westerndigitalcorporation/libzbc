@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 	struct zbc_zone_domain *domains = NULL, *d;
 	struct zbc_zone_realm *realms = NULL, *r;
 	struct zbc_realm_item *ri;
-	struct zbc_conv_rec *conv_recs = NULL, *cr;
+	struct zbc_actv_res *actv_recs = NULL, *cr;
 	const char *sk_name, *ascq_name;
 	char *path;
 	struct zbc_device_info info;
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 	uint64_t start;
 	uint64_t err_cbf;
 	uint16_t err_za;
-	unsigned int oflags, nr_units, nr_realms, new_type, nr_conv_recs = 0;
+	unsigned int oflags, nr_units, nr_realms, new_type, nr_actv_recs = 0;
 	unsigned int nr_domains, domain_id;
 	int i, ret, end;
 	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
@@ -45,9 +45,9 @@ int main(int argc, char **argv)
 		printf("Usage: %s [options] <dev> <start zone realm> <num realms> <conv|seq>\n"
 		       "or\n%s -z [options] <dev> <start zone LBA> <num zones> <conv|seq|sobr|seqp>\n"
 		       "Options:\n"
-		       "    -a            : Try to convert all, even if not every zone can be\n"
+		       "    -a            : Try to activate all, even if not every zone can be\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n"
-		       "    -n            : Set the number of zones to convert via FSNOZ\n"
+		       "    -n            : Set the number of zones to activate via FSNOZ\n"
 		       "    -v            : Verbose mode\n",
 		       argv[0], argv[0]);
 		return 1;
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
 	if (i >= argc) {
 		fprintf(stderr,
-			"[TEST][ERROR],Missing number of %ss to convert\n",
+			"[TEST][ERROR],Missing number of %ss to activate\n",
 			zone_addr ? "zone" : "zone realm");
 		return 1;
 	}
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 			goto out;
 		}
 		if (no_query)
-			nr_conv_recs = nr_realms << 1;
+			nr_actv_recs = nr_realms << 1;
 
 		if (!zone_addr) {
 			if (start + nr_units > nr_realms) {
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 			goto out;
 		}
 
-		/* Set the number of zones to convert via a separate command */
+		/* Set the number of zones to activate via a separate command */
 		ctl.zbm_nr_zones = nr_units;
 		ctl.zbm_urswrz = 0xff;
 		ctl.zbm_max_activate = 0xffff;
@@ -253,8 +253,8 @@ int main(int argc, char **argv)
 	}
 
 	if (!no_query) {
-		ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
-					nr_units, new_type);
+		ret = zbc_get_nr_actv_records(dev, !fsnoz, all, cdb32, start,
+					      nr_units, new_type);
 		if (ret < 0) {
 			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 			sk_name = zbc_sk_str(zbc_err.sk);
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 			err_za = zbc_err.err_za;
 			err_cbf = zbc_err.err_cbf;
 			fprintf(stderr,
-				"[TEST][ERROR],Can't get the number of conversion records, err %i (%s)\n",
+				"[TEST][ERROR],Can't get the number of activation records, err %i (%s)\n",
 				ret, strerror(-ret));
 			printf("[TEST][ERROR][SENSE_KEY],%s\n", sk_name);
 			printf("[TEST][ERROR][ASC_ASCQ],%s\n", ascq_name);
@@ -273,20 +273,20 @@ int main(int argc, char **argv)
 			ret = 1;
 			goto out;
 		}
-		nr_conv_recs = (uint32_t)ret;
+		nr_actv_recs = (uint32_t)ret;
 	}
 
-	/* Allocate conversion record array */
-	conv_recs = (struct zbc_conv_rec *)calloc(nr_conv_recs,
-						  sizeof(struct zbc_conv_rec));
-	if (!conv_recs) {
+	/* Allocate activation results record array */
+	actv_recs = (struct zbc_actv_res *)calloc(nr_actv_recs,
+						  sizeof(struct zbc_actv_res));
+	if (!actv_recs) {
 		fprintf(stderr, "[TEST][ERROR],No memory\n");
 		goto out;
 	}
 
-	/* Convert zones */
+	/* Activate zones */
 	ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-				new_type, conv_recs, &nr_conv_recs);
+				new_type, actv_recs, &nr_actv_recs);
 	if (ret != 0) {
 		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 		sk_name = zbc_sk_str(zbc_err.sk);
@@ -300,9 +300,9 @@ int main(int argc, char **argv)
 			printf("[TEST][ERROR][ERR_CBF],%lu\n", err_cbf);
 		}
 	}
-	for (i = 0; i < (int)nr_conv_recs; i++) {
-		cr = &conv_recs[i];
-		printf("[CVT_RECORD],%lu,%u,%x,%x\n",
+	for (i = 0; i < (int)nr_actv_recs; i++) {
+		cr = &actv_recs[i];
+		printf("[ACTV_RECORD],%lu,%u,%x,%x\n",
 		       cr->zbe_start_zone,
 		       cr->zbe_nr_zones,
 		       cr->zbe_type,
@@ -314,8 +314,8 @@ out:
 		free(domains);
 	if (realms)
 		free(realms);
-	if (conv_recs)
-		free(conv_recs);
+	if (actv_recs)
+		free(actv_recs);
 	zbc_close(dev);
 
 	return ret;

@@ -37,19 +37,19 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find the total number of convertible realms
+# Find the total number of zone realms
 zbc_test_count_zone_realms		# nr_realms
 
 if [ ${nr_realms} -le 6 ]; then
     zbc_test_print_not_applicable "Not enough realms to run this configuration"
 fi
 
-# Configure the zone realms, with all realms freshly converted except 0 and 5.
-# This ends up with all conversion realms sequential except realms 0-20 and the last realm.
+# Configure the zone realms, with all realms freshly activated SMR except 0 and 5.
+# This ends up with all zone realms sequential except realms 0-20 and the last realm.
 
 activate_fail()
 {
-    printf "\nFailed to convert device to intended test configuration ($*)"
+    printf "\nFailed to activate device realms to intended test configuration ($*)"
     exit 1
 }
 

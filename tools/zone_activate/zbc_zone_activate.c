@@ -30,11 +30,11 @@ int main(int argc, char **argv)
 	struct zbc_zone_domain *domains = NULL, *d;
 	struct zbc_zone_realm *realms = NULL, *r;
 	struct zbc_realm_item *ri;
-	struct zbc_conv_rec *conv_recs = NULL;
+	struct zbc_actv_res *actv_recs = NULL;
 	char *path;
 	struct zbc_zp_dev_control ctl;
 	uint64_t start;
-	unsigned int nr_units, nr_realms, nr_conv_recs = 0, new_type;
+	unsigned int nr_units, nr_realms, nr_actv_recs = 0, new_type;
 	unsigned int nr_domains, domain_id;
 	int i, ret = 1, end;
 	bool query = false, fsnoz = false;
@@ -49,11 +49,11 @@ usage:
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
 		       "    -q            : Query only\n"
-		       "    -a            : Convert all\n"
-		       "    -n            : Set the number of zones to convert via separate call\n"
+		       "    -a            : Activate all\n"
+		       "    -n            : Set the number of zones to activate via a separate call\n"
 		       "    -32           : Use 32-byte SCSI commands, default is 16\n"
-		       "    -l            : List conversion records\n\n"
-		       "Zone conversion types:\n"
+		       "    -l            : List activation results records\n\n"
+		       "Zone types:\n"
 		       "    conv          : conventional\n"
 		       "    sobr          : sequential or before required\n"
 		       "    seq or seqr   : sequential write required\n"
@@ -102,7 +102,7 @@ usage:
 
 	if (i >= argc) {
 		fprintf(stderr, "Missing the number of %ss to activate\n",
-			zone_addr ? "zone" : "conversion realm");
+			zone_addr ? "zone" : "realm");
 		goto usage;
 	}
 	nr_units = atoi(argv[i++]);
@@ -207,21 +207,21 @@ usage:
 		}
 	}
 
-	ret = zbc_get_nr_cvt_records(dev, !fsnoz, all, cdb32, start,
-				     nr_units, domain_id);
+	ret = zbc_get_nr_actv_records(dev, !fsnoz, all, cdb32, start,
+				      nr_units, domain_id);
 	if (ret < 0) {
 		fprintf(stderr,
-			"Can't receive the number of conversion records, err %i (%s)\n",
+			"Can't receive the number of activation records, err %i (%s)\n",
 			ret, strerror(-ret));
 		ret = 1;
 		goto out;
 	}
-	nr_conv_recs = ret;
+	nr_actv_recs = ret;
 
-	/* Allocate conversion record array */
-	conv_recs = (struct zbc_conv_rec *)calloc(nr_conv_recs,
-						  sizeof(struct zbc_conv_rec));
-	if (!conv_recs) {
+	/* Allocate activation results record array */
+	actv_recs = (struct zbc_actv_res *)calloc(nr_actv_recs,
+						  sizeof(struct zbc_actv_res));
+	if (!actv_recs) {
 		fprintf(stderr, "No memory\n");
 		ret = 1;
 		goto out;
@@ -235,7 +235,7 @@ usage:
 		fsnoz = true;
 
 	if (fsnoz) {
-		/* Set the number of zones to convert via a separate command */
+		/* Set the number of zones to activate via a separate command */
 		ctl.zbm_nr_zones = nr_units;
 		ctl.zbm_urswrz = 0xff;
 		ctl.zbm_max_activate = 0xffff;
@@ -251,13 +251,13 @@ usage:
 
 	if (query)
 		ret = zbc_zone_query(dev, !fsnoz, all, cdb32, start, nr_units,
-				     domain_id, conv_recs, &nr_conv_recs);
+				     domain_id, actv_recs, &nr_actv_recs);
 	else if (list)
 		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-					domain_id, conv_recs, &nr_conv_recs);
+					domain_id, actv_recs, &nr_actv_recs);
 	else
 		ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-					domain_id, NULL, &nr_conv_recs);
+					domain_id, NULL, &nr_actv_recs);
 
 	if (ret != 0) {
 		fprintf(stderr,
@@ -268,12 +268,12 @@ usage:
 	}
 
 	if (list) {
-		for (i = 0; i < (int)nr_conv_recs; i++) {
+		for (i = 0; i < (int)nr_actv_recs; i++) {
 			printf("%03i LBA:%012lu Size:%08u Type:%02Xh Cond:%02Xh\n",
-			       i, conv_recs[i].zbe_start_zone,
-			       conv_recs[i].zbe_nr_zones,
-			       conv_recs[i].zbe_type,
-			       conv_recs[i].zbe_condition);
+			       i, actv_recs[i].zbe_start_zone,
+			       actv_recs[i].zbe_nr_zones,
+			       actv_recs[i].zbe_type,
+			       actv_recs[i].zbe_condition);
 		}
 	}
 out:
@@ -281,8 +281,8 @@ out:
 		free(domains);
 	if (realms)
 		free(realms);
-	if (conv_recs)
-		free(conv_recs);
+	if (actv_recs)
+		free(actv_recs);
 	zbc_close(dev);
 
 	return ret;

@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on converted back to conventional device" $*
+zbc_test_init $0 "Run ZBC test on activated back to conventional device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/allcmr2
 
@@ -29,28 +29,28 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find the first sequential realm that is convertible to conventional
-zbc_test_search_realm_by_type_and_cvt "${ZT_SEQ}" "conv"
+# Find the first sequential realm that can be activated as conventional
+zbc_test_search_realm_by_type_and_actv "${ZT_SEQ}" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently sequential and convertible to conventional"
+    zbc_test_print_not_applicable "No realm is currently sequential and can be activated as conventional"
 fi
 
-# Find the total number of convertible realms
+# Find the total number of zone realms that can be activated as conventional
 zbc_test_count_zone_realms		# nr_realms
-zbc_test_count_cvt_to_conv_realms
-if [ $nr_cvt_to_conv_realms -eq 0 ]; then
+zbc_test_count_actv_as_conv_realms
+if [ $nr_actv_as_conv_realms -eq 0 ]; then
     # This should not happen because we found one just above
-    zbc_test_print_failed "WARNING: No realms are convertible to conventional"
+    zbc_test_print_failed "WARNING: No realms can be activated conventional"
 fi
-if [ $(expr "${realm_num}" + "${nr_cvt_to_conv_realms}") -gt ${nr_realms} ]; then
-    nr_cvt_to_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
+if [ $(expr "${realm_num}" + "${nr_actv_as_conv_realms}") -gt ${nr_realms} ]; then
+    nr_actv_as_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 
-# Convert the realms to the configuration for the run we invoke below
+# Activate the realms to the configuration for the run we invoke below
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_cvt_to_conv_realms} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to convert device to intended test configuration ${realm_num} ${nr_cvt_to_conv_realms} ${cmr_type}"
+    printf "\nFailed to activate device realms to intended test configuration ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}"
     exit 1
 fi
 

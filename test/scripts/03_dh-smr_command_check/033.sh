@@ -28,17 +28,17 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find the first SMR realm that is convertible to CMR
-zbc_test_search_realm_by_type_and_cvt "0x2|0x3" "conv"
+# Find the first SMR realm that can be activated as CMR
+zbc_test_search_realm_by_type_and_actv "0x2|0x3" "conv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently SMR and convertible to CMR"
+    zbc_test_print_not_applicable "No realm is currently SMR and can be activated as CMR"
 fi
 
-# Assume that all convertible realms are contiguous
-zbc_test_count_cvt_to_conv_realms
+# Assume that all the realms that can be activated are contiguous
+zbc_test_count_actv_as_conv_realms
 
 # Calculate the total number of zones in this range of realms
-zbc_test_calc_nr_realm_zones ${realm_num} ${nr_cvt_to_conv_realms}
+zbc_test_calc_nr_realm_zones ${realm_num} ${nr_actv_as_conv_realms}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_seq_start} ${nr_seq_zones}  ${cmr_type}
@@ -47,9 +47,9 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_seq_star
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "ACTIVATE failed to cmr_type=${cmr_type}"
 
-# Verify that no convertible SMR realm is present
+# Verify that no SMR realms that can be activated as CMR are present
 zbc_test_get_zone_realm_info
-zbc_test_search_realm_by_type_and_cvt "0x2|0x3" "conv"
+zbc_test_search_realm_by_type_and_actv "0x2|0x3" "conv"
 if [ $? -eq 0 ]; then
     sk=${realm_num}
     expected_sk="no-seq-to-conv"

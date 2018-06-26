@@ -12,11 +12,11 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(16): non-convertible SMR to CMR (realm addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(16): non-activation SMR to CMR (realm addressing)" $*
 
 # Set expected error code
 expected_sk="Aborted-command"
-expected_asc="Conversion-type-unsupported"
+expected_asc="Activation-type-unsupported"
 
 # Get drive information
 zbc_test_get_device_info
@@ -32,10 +32,10 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find the first SMR realm that is not convertible to CMR
-zbc_test_search_realm_by_type_and_cvt "0x2|0x3" "noconv"
+# Find the first SMR realm that cannot be activated as CMR
+zbc_test_search_realm_by_type_and_actv "0x2|0x3" "noconv"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently SMR and NON-convertible to CMR"
+    zbc_test_print_not_applicable "No realm is currently SMR and can't be activated as CMR"
 fi
 
 # Start testing

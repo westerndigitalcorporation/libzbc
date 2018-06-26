@@ -901,8 +901,8 @@ static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, unsigned int nr_zones,
 					 unsigned int domain_id,
-					 struct zbc_conv_rec *conv_recs,
-					 uint32_t *nr_conv_recs)
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
 {
 	/* FIXME N/I */
 	return -EOPNOTSUPP;
@@ -977,8 +977,8 @@ static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool
 					 bool use_32_byte_cdb, bool query,
 					 uint64_t lba, unsigned int nr_zones,
 					 unsigned int domain_id,
-					 struct zbc_conv_rec *conv_recs,
-					 uint32_t *nr_conv_recs)
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
 {
 	return -EOPNOTSUPP;
 }
@@ -1016,5 +1016,5 @@ struct zbc_drv zbc_block_drv =
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
 	.zbd_report_realms	= zbc_block_report_realms,
-	.zbd_zone_query_cvt	= zbc_block_zone_query_activate,
+	.zbd_zone_query_actv	= zbc_block_zone_query_activate,
 };

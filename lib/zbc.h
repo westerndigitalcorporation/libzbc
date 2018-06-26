@@ -80,14 +80,14 @@ struct zbc_drv {
 					     unsigned int *);
 
 	/**
-	 * Convert zones from one CMR/SMR type to the other or query
-	 * about the possible results of such conversion.
+	 * Activate zones as a CMR or SMR type or query
+	 * about the possible results of such activation.
 	 */
-	int		(*zbd_zone_query_cvt)(struct zbc_device *, bool, bool,
-					      bool, bool, uint64_t,
-					      unsigned int, unsigned int,
-					      struct zbc_conv_rec *,
-					      uint32_t *);
+	int		(*zbd_zone_query_actv)(struct zbc_device *, bool, bool,
+					       bool, bool, uint64_t,
+					       unsigned int, unsigned int,
+					       struct zbc_actv_res *,
+					       uint32_t *);
 
 	/**
 	 * Receive a list of supported mutation types and options.

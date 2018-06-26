@@ -596,7 +596,7 @@ struct zbc_realm_item *zbc_realm_item_by_type(struct zbc_zone_realm *r,
  * command to provide the caller with zone IDs and other information about
  * the activated zones.
  */
-struct zbc_conv_rec {
+struct zbc_actv_res {
 
 	/**
 	 * @brief Starting zone ID.
@@ -620,28 +620,28 @@ struct zbc_conv_rec {
 
 };
 
-/** @brief Get activation record type */
-#define zbc_conv_rec_type(r)		((int)(r)->zbe_type)
+/** @brief Get activation results record type */
+#define zbc_actv_res_type(r)		((int)(r)->zbe_type)
 
-/** @brief Test if activation record type is conventional */
-#define zbc_conv_rec_conventional(r)	((r)->zbe_type == ZBC_ZT_CONVENTIONAL)
+/** @brief Test if activation results record type is conventional */
+#define zbc_actv_res_conventional(r)	((r)->zbe_type == ZBC_ZT_CONVENTIONAL)
 
-/** @brief Test if activation record type is sequential write required */
-#define zbc_conv_rec_seq_req(r)		((r)->zbe_type == ZBC_ZT_SEQUENTIAL_REQ)
+/** @brief Test if activation results record type is sequential write required */
+#define zbc_actv_res_seq_req(r)		((r)->zbe_type == ZBC_ZT_SEQUENTIAL_REQ)
 
-/** @brief Test if activatiion record type is sequential write preferred */
-#define zbc_conv_rec_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
+/** @brief Test if activatiion results record type is sequential write preferred */
+#define zbc_actv_res_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
 
 /** @brief Test if activation record type is sequential or before required (SOBR) */
-#define zbc_conv_rec_sobr(r)		((r)->zbe_type == ZBC_ZT_SEQ_OR_BEF_REQ)
+#define zbc_actv_res_sobr(r)		((r)->zbe_type == ZBC_ZT_SEQ_OR_BEF_REQ)
 
-/** @brief Test if activation record type is conventional of SOBR */
-#define zbc_conv_rec_nonseq(r)		(zbc_conv_rec_conventional(r) || \
-					 zbc_conv_rec_sobr(r))
+/** @brief Test if activation results record type is conventional of SOBR */
+#define zbc_actv_res_nonseq(r)		(zbc_actv_res_conventional(r) || \
+					 zbc_actv_res_sobr(r))
 
 /** @brief Test if activation record type is sequential write required or preferred */
-#define zbc_conv_rec_seq(r)		(zbc_conv_rec_seq_req(r) || \
-					 zbc_conv_rec_seq_pref(r))
+#define zbc_actv_res_seq(r)		(zbc_actv_res_seq_req(r) || \
+					 zbc_actv_res_seq_pref(r))
 
 /**
  * @brief Zone Provisioning device control structure.
@@ -946,7 +946,7 @@ struct zbc_device_info {
 	 * Maximum allowable value for NUMBER OF ZONES value in
 	 * ZONE ACTIVATE or ZONE QUERY command. Zero means no maximum.
 	 */
-	uint32_t		zbd_max_conversion;
+	uint32_t		zbd_max_activation;
 
 };
 
@@ -1552,7 +1552,7 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 /**
  * @brief Get zone domain information
  * @param[in] dev	  Device handle obtained with \a zbc_open
- * @param[in] domains	  Pointer to the array of convert descriptors to fill
+ * @param[in] domains	  Pointer to the array of domain descriptors to fill
  * @param[in] nr_domains  Number of domain descriptors in the array \a domains
  *
  * Get zone domain information from a DH-SMR device.
@@ -1592,7 +1592,7 @@ extern int zbc_list_domains(struct zbc_device *dev,
 /**
  * @brief Get zone realm information
  * @param[in] dev	  Device handle obtained with \a zbc_open
- * @param[in] realms	  Pointer to the array of convert descriptors to fill
+ * @param[in] realms	  Pointer to the array of realm descriptors to fill
  * @param[out] nr_realms  Number of realm descriptors in the array \a realms
  *
  * Get zone realm information from a DH-SMR device.
@@ -1655,14 +1655,14 @@ extern int zbc_list_zone_realms(struct zbc_device *dev,
  * @param[in] start_zone	512B sector of the first zone to activate
  * @param[in] nr_zones		The total number of zones to activate
  * @param[in] domain_id		Zone domain to activate
- * @param[out] conv_recs	Array of activation results records
- * @param[out] nr_conv_recs	The number of activaton results records
+ * @param[out] actv_recs	Array of activation results records
+ * @param[out] nr_actv_recs	The number of activaton results records
  */
 extern int zbc_zone_activate(struct zbc_device *dev, bool zsrc, bool all,
 			     bool use_32_byte_cdb, uint64_t start_zone,
 			     unsigned int nr_zones, unsigned int domain_id,
-			     struct zbc_conv_rec *conv_recs,
-			     unsigned int *nr_conv_recs);
+			     struct zbc_actv_res *actv_recs,
+			     unsigned int *nr_actv_recs);
 
 /**
  * @brief Query about possible results of zone activation
@@ -1673,14 +1673,14 @@ extern int zbc_zone_activate(struct zbc_device *dev, bool zsrc, bool all,
  * @param[in] start_zone	512B sector of the first zone to activate
  * @param[in] nr_zones		The total number of zones to activate
  * @param[in] domain_id		Zone domain to query about
- * @param[out] conv_recs	Array of activation results records
- * @param[out] nr_conv_recs	The number of activation results records
+ * @param[out] actv_recs	Array of activation results records
+ * @param[out] nr_actv_recs	The number of activation results records
  */
 extern int zbc_zone_query(struct zbc_device *dev, bool zsrc, bool all,
 			  bool use_32_byte_cdb, uint64_t lba,
 			  unsigned int nr_zones, unsigned int domain_id,
-			  struct zbc_conv_rec *conv_recs,
-			  unsigned int *nr_conv_recs);
+			  struct zbc_actv_res *actv_recs,
+			  unsigned int *nr_actv_recs);
 
 /**
  * @brief Return the expected number of activation records
@@ -1692,9 +1692,9 @@ extern int zbc_zone_query(struct zbc_device *dev, bool zsrc, bool all,
  * @param[in] nr_zones		The total number of zones to activate
  * @param[in] domain_id		Zone domain to activate
  */
-extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
-				  bool use_32_byte_cdb, uint64_t lba,
-				  unsigned int nr_zones, unsigned int domain_id);
+extern int zbc_get_nr_actv_records(struct zbc_device *dev, bool zsrc, bool all,
+				   bool use_32_byte_cdb, uint64_t lba,
+				   unsigned int nr_zones, unsigned int domain_id);
 
 /**
  * @brief Query about possible activation results of a number of zones
@@ -1705,14 +1705,14 @@ extern int zbc_get_nr_cvt_records(struct zbc_device *dev, bool zsrc, bool all,
  * @param[in] start_zone	512B sector of the first zone to activate
  * @param[in] nr_zones		The total number of zones to activate
  * @param[in] domain_id		Zone domain to query about
- * @param[out] conv_recs	Points to the returned activation records
- * @param[out] nr_conv_recs	Number of returned activation results records
+ * @param[out] actv_recs	Points to the returned activation records
+ * @param[out] nr_actv_recs	Number of returned activation results records
  */
 extern int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all,
 			       bool use_32_byte_cdb, uint64_t lba,
 			       unsigned int nr_zones, unsigned int domain_id,
-			       struct zbc_conv_rec **pconv_recs,
-			       unsigned int *pnr_conv_recs);
+			       struct zbc_actv_res **pactv_recs,
+			       unsigned int *pnr_actv_recs);
 /**
  * @brief Read or change persistent DH-SMR device settings
  * @param[in] dev		Device handle obtained with \a zbc_open

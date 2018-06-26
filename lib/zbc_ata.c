@@ -533,7 +533,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		 * FIXME the following field is not in
 		 * the current proposal, layout TBD.
 		 */
-		dev->zbd_info.zbd_max_conversion =
+		dev->zbd_info.zbd_max_activation =
 			zbc_ata_get_qword(&buf[64]) & 0xffff;
 	}
 	return 0;

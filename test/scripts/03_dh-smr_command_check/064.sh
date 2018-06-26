@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): non-convertible CMR to SMR (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): non-activation CMR to SMR (zone addressing)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -33,10 +33,10 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find the first CMR realm that is not convertible to SMR
-zbc_test_search_realm_by_type_and_cvt "0x1|0x4" "noseq"
+# Find the first CMR realm that cannot be activated as SMR
+zbc_test_search_realm_by_type_and_actv "0x1|0x4" "noseq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently CMR and NON-convertible to SMR"
+    zbc_test_print_not_applicable "No realm is currently CMR and can't be activated as SMR"
 fi
 
 # Start testing

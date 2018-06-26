@@ -37,17 +37,17 @@ fi
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Find a conventional realm that is convertible to sequential
-zbc_test_search_realm_by_type_and_cvt "${ZT_NON_SEQ}" "seq"
+# Find a conventional realm that can be activated as sequential
+zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
 fi
 
-# Assume that all convertible realms are contiguous
-zbc_test_count_cvt_to_seq_realms
+# Assume that all the realms that can be activated are contiguous
+zbc_test_count_actv_as_seq_realms
 
-# Set the maximum realms convertible too small for the number of zones
-maxd=$(( ${nr_cvt_to_seq_realms} - 1 ))
+# Set the maximum realms that can be activated too small for the number of zones
+maxd=$(( ${nr_actv_as_seq_realms} - 1 ))
 
 # Lower the maximum number of realms to activate
 zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd ${maxd} ${device}
@@ -57,11 +57,11 @@ zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to change max_activate to ${maxd}"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} ${nr_cvt_to_seq_realms} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} ${nr_actv_as_seq_realms} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_err "ACTIVATE type=${smr_type} realm=${realm_num} count=${nr_cvt_to_seq_realms}"
+zbc_test_check_err "ACTIVATE type=${smr_type} realm=${realm_num} count=${nr_actv_as_seq_realms}"
 
 # Check failed
 zbc_test_check_failed

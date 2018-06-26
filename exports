@@ -29,7 +29,7 @@ global:
 	zbc_list_zone_realms;
 	zbc_zone_activate;
 	zbc_zone_query;
-	zbc_get_nr_cvt_records;
+	zbc_get_nr_actv_records;
 	zbc_zone_query_list;
 	zbc_zone_activation_ctl;
 	zbc_report_mutations;

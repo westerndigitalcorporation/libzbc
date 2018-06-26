@@ -58,7 +58,7 @@ usage:
 		       "  -lm                       : List mutations supported by the device\n"
 		       "  -mu <type> <model>        : Mutate to the specified numeric type and model\n"
 		       "  -mu <target>              : Mutate to the specified target\n\n"
-		       "  -nz <num>                 : Set the default number of zones to convert\n"
+		       "  -nz <num>                 : Set the default number of zones to activate\n"
 		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
 		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n\n"
 		       "Mutation targets:\n"
