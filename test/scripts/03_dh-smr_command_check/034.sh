@@ -41,6 +41,10 @@ fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_conv_start} ${realm_conv_len} ${smr_type}
+if [ $? -eq 2 ]; then
+   zbc_test_print_passed
+   exit 0
+fi
 
 # Check result
 zbc_test_get_sk_ascq

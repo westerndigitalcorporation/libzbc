@@ -38,7 +38,8 @@ int main(int argc, char **argv)
 	unsigned int oflags, nr_units, nr_realms, new_type, nr_actv_recs = 0;
 	unsigned int nr_domains, domain_id;
 	int i, ret, end;
-	bool no_query = false, zone_addr = false, all = false, cdb32 = false, fsnoz = false;
+	bool no_query = false, zone_addr = false, all = false, cdb32 = false;
+	bool fsnoz = false, get_dom = true;
 
 	/* Check command line */
 	if (argc < 5) {
@@ -182,9 +183,9 @@ int main(int argc, char **argv)
 			ri = zbc_realm_item_by_type(r, new_type);
 			if (ri == NULL) {
 				fprintf(stderr,
-					"[TEST][ERROR],Realm #%lu doesn't support zone type %u\n",
-					start, new_type);
-				ret = 1;
+					"[TEST][ERROR],Realm %lu doesn't support zone type %u (%s)\n",
+					start, new_type, zbc_zone_type_str(new_type));
+				ret = 2;
 				goto out;
 			}
 			domain_id = ri->zbi_dom_id;
@@ -194,30 +195,33 @@ int main(int argc, char **argv)
 				nr_units += zbc_realm_length(&realms[i], domain_id);
 
 			start = zbc_realm_start_lba(r, domain_id);
-		} else {
-			/* Find domain ID for the new zone type */
-			ret = zbc_list_domains(dev, &domains, &nr_domains);
-			if (ret != 0) {
-				fprintf(stderr,
-					"[TEST][ERROR],zbc_list_domains failed, err %i (%s) %s\n",
-					ret, strerror(-ret), path);
-				ret = 1;
-				goto out;
-			}
+			get_dom = false;
+		}
+	}
 
-			for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
-				if (d->zbm_type == new_type) {
-					domain_id = i;
-					break;
-				}
+	if (get_dom) {
+		/* Find domain ID for the new zone type */
+		ret = zbc_list_domains(dev, &domains, &nr_domains);
+		if (ret != 0) {
+			fprintf(stderr,
+				"[TEST][ERROR],zbc_list_domains failed, err %i (%s) %s\n",
+				ret, strerror(-ret), path);
+			ret = 1;
+			goto out;
+		}
+
+		for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
+			if (d->zbm_type == new_type) {
+				domain_id = i;
+				break;
 			}
-			if (i >= (int)nr_domains) {
-				fprintf(stderr,
-					"[TEST][ERROR],Device doesn't support zone type %u\n",
-					new_type);
-				ret = 1;
-				goto out;
-			}
+		}
+		if (i >= (int)nr_domains) {
+			fprintf(stderr,
+				"[TEST][ERROR],Device doesn't support zone type %u\n (%s)",
+				new_type, zbc_zone_type_str(new_type));
+			ret = 2;
+			goto out;
 		}
 	}
 
@@ -254,7 +258,7 @@ int main(int argc, char **argv)
 
 	if (!no_query) {
 		ret = zbc_get_nr_actv_records(dev, !fsnoz, all, cdb32, start,
-					      nr_units, new_type);
+					      nr_units, domain_id);
 		if (ret < 0) {
 			zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 			sk_name = zbc_sk_str(zbc_err.sk);
@@ -286,7 +290,7 @@ int main(int argc, char **argv)
 
 	/* Activate zones */
 	ret = zbc_zone_activate(dev, !fsnoz, all, cdb32, start, nr_units,
-				new_type, actv_recs, &nr_actv_recs);
+				domain_id, actv_recs, &nr_actv_recs);
 	if (ret != 0) {
 		zbc_errno_ext(dev, &zbc_err, sizeof(zbc_err));
 		sk_name = zbc_sk_str(zbc_err.sk);

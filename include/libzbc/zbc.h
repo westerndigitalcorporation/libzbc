@@ -576,6 +576,32 @@ static inline bool zbc_realm_actv_as_type(struct zbc_zone_realm *r,
 	return false;
 }
 
+/** @brief Test if the zone realm can be activated as a conventional zone type */
+static inline bool zbc_zone_realm_actv_as_conv(struct zbc_zone_realm *r)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if ((r->zbr_ri[i].zbi_type == ZBC_ZT_CONVENTIONAL ||
+		    r->zbr_ri[i].zbi_type == ZBC_ZT_SEQ_OR_BEF_REQ) &&
+		    (r->zbr_actv_flags & (1 << i)))
+			return true;
+	}
+
+	return false;
+}
+
+/** @brief Test if the zone realm can be activated as a sequential zone type */
+static inline bool zbc_zone_realm_actv_as_seq(struct zbc_zone_realm *r)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if ((r->zbr_ri[i].zbi_type == ZBC_ZT_SEQUENTIAL_REQ ||
+		    r->zbr_ri[i].zbi_type == ZBC_ZT_SEQUENTIAL_PREF) &&
+		    (r->zbr_actv_flags & (1 << i)))
+			return true;
+	}
+
+	return false;
+}
+
 /** @brief Get the realm item that corresponds to the specified zone type */
 static inline
 struct zbc_realm_item *zbc_realm_item_by_type(struct zbc_zone_realm *r,

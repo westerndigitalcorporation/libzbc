@@ -448,7 +448,14 @@ function zbc_run_mutation()
 	set_logfile $1/urswrz_y
         reset_device
         zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
-        zbc_run_config ${section_list[@]}
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+	    return
+	fi
+
+	zbc_run_config ${section_list[@]}
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+	    return
+	fi
 
 	if [ -z ${skip_urswrz_n} ]; then
 	    echo -e "\n###### Run the dhsmr test suite with URSWRZ disabled"

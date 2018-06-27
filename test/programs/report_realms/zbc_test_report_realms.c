@@ -109,19 +109,22 @@ usage:
 	}
 
 	for (i = 0, r = realms; i < (int)nr_realms; i++, r++) {
-		printf("[ZONE_REALM_INFO],%03d:,%u,0x%x,0x%x;",
+		printf("[ZONE_REALM_INFO],%03d,%u,0x%x,0x%x,%s,%s,%u,;",
 		zbc_zone_realm_number(r),
 		zbc_zone_realm_domain(r),
 		zbc_zone_realm_type(r),
-		zbc_zone_realm_actv_flags(r));
+		zbc_zone_realm_actv_flags(r),
+		zbc_zone_realm_actv_as_conv(r) ? "Y" : "N",
+		zbc_zone_realm_actv_as_seq(r) ? "Y" : "N",
+		zbc_zone_realm_nr_domains(r));
 
 		for (j = 0; j < zbc_zone_realm_nr_domains(r); j++) {
-			printf("%u:%lu,%lu,%u",
+			printf("%u:%lu:%lu:%u",
 			zbc_realm_zone_type(r, j),
 			zbc_sect2lba(&info, zbc_realm_start_lba(r, j)),
 			zbc_sect2lba(&info, zbc_realm_end_lba(r, j)),
 			zbc_realm_length(r, j));
-			printf(j == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : "; ");
+			printf(j == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : ";");
 		}
 	}
 

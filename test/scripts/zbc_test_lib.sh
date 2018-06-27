@@ -948,14 +948,14 @@ function zbc_test_count_zone_realms()
 function zbc_test_count_actv_as_conv_realms()
 {
 	local _IFS="${IFS}"
-	nr_actv_as_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $i; done | grep -c Y`
+	nr_actv_as_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h; do echo $f; done | grep -c Y`
 	IFS="$_IFS"
 }
 
 function zbc_test_count_actv_as_seq_realms()
 {
 	local _IFS="${IFS}"
-	nr_actv_as_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h i j; do echo $j; done | grep -c Y`
+	nr_actv_as_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h; do echo $g; done | grep -c Y`
 	IFS="$_IFS"
 }
 
@@ -963,38 +963,45 @@ function zbc_test_count_actv_as_seq_realms()
 function zbc_test_is_found_realm_faulty()
 {
 	local _target_slba
+	local _realm_start
+	local _realm_len
 	zbc_test_get_zone_info
 
-	zbc_test_get_target_zone_from_slba ${realm_seq_start}
-	for (( i=0 ; i<${realm_seq_len} ; i++ )) ; do
-		if [ $? -ne 0 ]; then
-			break
-		fi
-		if [ ${target_size} -eq 0 ]; then
-			break
-		fi
-		if [[ ${target_cond} == @(0xd|0xf) ]]; then
-			return 1
-		fi
-		_target_slba=$(( ${target_slba} + ${target_size} ))
-		zbc_test_get_target_zone_from_slba ${_target_slba}
+	for (( j=0 ; j<${realm_nr_domains} ; j++ )) ; do
+		_realm_start=${realm_start[j]}
+		_realm_len=${realm_len[j]}
+		zbc_test_get_target_zone_from_slba ${_realm_start}
+		for (( i=0 ; i<${_realm_len} ; i++ )) ; do
+			if [ $? -ne 0 ]; then
+				break
+			fi
+			if [ ${target_size} -eq 0 ]; then
+				break
+			fi
+			if [[ ${target_cond} == @(0xd|0xf) ]]; then
+				return 1
+			fi
+			_target_slba=$(( ${target_slba} + ${target_size} ))
+			zbc_test_get_target_zone_from_slba ${_target_slba}
+		done
 	done
 
-	zbc_test_get_target_zone_from_slba ${realm_conv_start}
-	for (( i=0 ; i<${realm_conv_len} ; i++ )) ; do
-		if [ $? -ne 0 ]; then
-			break
-		fi
-		if [ ${target_size} -eq 0 ]; then
-			break
-		fi
-		if [[ ${target_cond} == @(0xd|0xf) ]]; then
-			return 1
-		fi
-		_target_slba=$(( ${target_slba} + ${target_size} ))
-		zbc_test_get_target_zone_from_slba ${_target_slba}
-	done
+	return 0
+}
 
+function zbc_parse_realm_item()
+{
+	local _ifs="${IFS}"
+	local -i _dom=${1}
+
+	IFS=$':\n'
+	set -- ${2}
+
+	realm_dom_type[${_dom}]=${1}
+	realm_start[$_dom]=${2}
+	realm_end[$_dom]=${3}
+	realm_len[$_dom]=${4}
+	IFS="$_ifs"
 	return 0
 }
 
@@ -1002,21 +1009,34 @@ function zbc_test_search_zone_realm_by_number()
 {
 	local realm_number=`printf "%03u" "${1}"`
 
-	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],(${realm_number}),.*,.*,.*,.*,.*,.*,.*,.*"`; do
+	# [ZONE_REALM_INFO],<num>,<domain>,<type>,<actv_mask>,<actv_as_conv>,<actv_as_seq>,<nr_domains>;<type-spcific info>;...
+	# 1                 2     3        4      5           6              7             8
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],(${realm_number}),.*,.*,.*,.*,.*,.*"`; do
 
 		local _IFS="${IFS}"
+		local -i _dom=0
+		realm_dom_type=()
+		realm_start=()
+		realm_end=()
+		realm_len=()
+
 		IFS=$',\n'
 		set -- ${_line}
 
-		realm_type=${3}
-		realm_conv_start=`_trim ${4}`
-		realm_conv_len=${5}
-		realm_seq_start=`_trim ${6}`
-		realm_seq_len=${7}
-		realm_actv_as_conv=${9}
-		realm_actv_as_seq=${10}
+		realm_domain=${3}
+		realm_type=${4}
+		realm_actv_mask=${5}
+		realm_actv_as_conv=${6}
+		realm_actv_as_seq=${7}
+		realm_nr_domains=${8}
 
+		IFS=$';\n'
+		set -- ${_line}
+		shift
+		for item in $@; do
+			zbc_parse_realm_item $_dom $item
+			_dom=${_dom}+1
+		done
 		IFS="$_IFS"
 
 		return 0
@@ -1059,24 +1079,33 @@ function zbc_test_search_realm_by_type_and_actv()
 		;;
 	esac
 
-	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
-	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,(${realm_search_type}),.*,.*,.*,.*,.*,${actv}"`; do
+	# [ZONE_REALM_INFO],<num>,<domain>,<type>,<actv_mask>,<actv_as_conv>,<actv_as_seq>,<nr_domains>;<type-spcific info>;...
+	# 1                 2     3        4      5           6              7             8
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,.*,(${realm_search_type}),.*,${actv},.*"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
 			local _IFS="${IFS}"
+			local -i _dom=0
+
 			IFS=$',\n'
 			set -- ${_line}
 
 			realm_num=$(expr ${2} + 0)
-			realm_type=${3}
-			realm_conv_start=`_trim ${4}`
-			realm_conv_len=${5}
-			realm_seq_start=`_trim ${6}`
-			realm_seq_len=${7}
-			realm_actv_as_conv=${9}
-			realm_actv_as_seq=${10}
+			realm_domain=${3}
+			realm_type=${4}
+			realm_actv_mask=${5}
+			realm_actv_as_conv=${6}
+			realm_actv_as_seq=${7}
+			realm_nr_domains=${8}
 
+			IFS=$';\n'
+			set -- ${_line}
+			shift
+			for item in $@; do
+				zbc_parse_realm_item $_dom $item
+				_dom=${_dom}+1
+			done
 			IFS="$_IFS"
 
 			if [ "${_NOFAULTY}" != "NOFAULTY" ]; then
@@ -1101,20 +1130,54 @@ function zbc_test_calc_nr_realm_zones()
 {
 	local realm_num=${1}
 	local -i _nr_realms=${2}
+	local _actv_as_conv
+	local _actv_as_seq
+	local -i _nr_domains
 	nr_conv_zones=0
 	nr_seq_zones=0
 
-	# [ZONE_REALM_INFO],<num>,<type>,<conv_start>,<conv_len>,<seq_start>,<seq_len>,<ko>,<to_conv>,<to_seq>
+	# [ZONE_REALM_INFO],<num>,<domain>,<type>,<actv_mask>,<actv_as_conv>,<actv_as_seq>,<nr_domains>;<type-spcific info>;...
+	# 1                 2     3        4      5           6              7             8
 	for _line in `cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]"`; do
 
 		local _IFS="${IFS}"
+		local -i _dom=0
+
 		IFS=$',\n'
 		set -- ${_line}
 
 		if [ $(expr ${2} + 0) -ge ${realm_num} ]; then
 
-			nr_conv_zones=$(expr ${nr_conv_zones} + ${5})
-			nr_seq_zones=$(expr ${nr_seq_zones} + ${7})
+			_actv_as_conv=${6}
+			_actv_as_seq=${7}
+			_nr_domains=${8}
+
+			IFS=$';\n'
+			set -- ${_line}
+			shift
+			for item in $@; do
+				zbc_parse_realm_item $_dom $item
+				_dom=${_dom}+1
+			done
+
+			if [ $_actv_as_conv -eq "Y" ]; then
+				for (( i=0; i<_nr_domains; i++ )); do
+					if [[ ${realm_dom_type[i]} == ${ZT_CONV} || \
+					      ${realm_dom_type[i]} == ${ZT_SOBR} ]]; then
+						nr_conv_zones=$(expr ${nr_conv_zones} + ${realm_len[i]})
+					fi
+				done
+			fi
+
+			if [ $_actv_as_seq -eq "Y" ]; then
+				for (( i=0; i<_nr_domains; i++ )); do
+					if [[ ${realm_dom_type[i]} == ${ZT_SWR} || \
+					      ${realm_dom_type[i]} == ${ZT_SWP} ]]; then
+						nr_seq_zones=$(expr ${nr_conv_zones} + ${realm_len[i]})
+					fi
+				done
+			fi
+
 			_nr_realms=$(( ${_nr_realms} - 1 ))
 
 		fi
