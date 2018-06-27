@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE zero blocks exactly at End of Medium" $*
+zbc_test_init $0 "READ across the End of Medium" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -21,11 +21,11 @@ expected_asc="Logical-block-address-out-of-range"
 # Get drive information
 zbc_test_get_device_info
 
-target_lba=$(( ${max_lba} + 1 ))
+target_lba=${max_lba}
 
 # Start testing
-# Write zero blocks at the first LBA beyond End of Medium
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 0
+# Attempt to read across the End of Medium
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} $(( 2 * ${lblk_per_pblk} ))
 
 # Check result
 zbc_test_get_sk_ascq

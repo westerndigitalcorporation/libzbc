@@ -920,7 +920,7 @@ function zbc_test_get_zones_cond()
 
 function zbc_test_get_seq_zones_cond_or_NA()
 {
-	zbc_test_get_zones_cond ${ZT_SEQ} $1
+	zbc_test_get_zones_cond ${ZT_SEQ} "$@"
 	if [ $? -ne 0 ]; then
 	    if [ $# -gt 1 ]; then
 	        zbc_test_print_not_applicable "No available sequential zone sequence of length $#"
