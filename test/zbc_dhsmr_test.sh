@@ -151,6 +151,9 @@ for (( i=0; i<${argc}; i++ )); do
 		_cskip_list+=" -s "
 		_cskip_list+="${argv[$i]}"
 		;;
+	-u | --unpublished )
+		EXTRA_SECTIONS="09"
+		;;
 	-a | --ata )
 		force_ata=1
 		;;
@@ -371,13 +374,13 @@ function zbc_run_config()
 
 	case "${section}" in
 	"00")
-		section_name="command completion"
+		section_name="ZBC command completion"
 		;;
 	"01")
-		section_name="sense key, sense code"
+		section_name="ZBC sense key, sense code"
 		;;
 	"02")
-		section_name="zone state machine"
+		section_name="ZBC zone state machine"
 		;;
 	"03")
 		section_name="DH-SMR command"
@@ -389,7 +392,7 @@ function zbc_run_config()
 		section_name="DH-SMR WPC zone"
 		;;
 	"08")
-		section_name="SCSI-only"
+		section_name="ZBC SCSI-only"
 		;;
 	"09")
 		section_name="site-local (unpublished)"
@@ -573,14 +576,16 @@ else
     prepare_lists "03" "04"			# parent section list
 
     if [ ${force_ata} -eq 0 ]; then
+	# For SCSI ZA meta-children
 	# Sections 00, 01, and 02 contain ZBC (non-ZA) scripts.
 	# Section 05 has ZA tests that should run once per activation config.
 	# Section 08 has tests that are only valid on SCSI drives.
 	# Section 09 has site-local tests.
-	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 09" # for SCSI ZA meta-children
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 ${EXTRA_SECTIONS}"
     else
+	# For ATA ZA meta-children
 	# Omit Section 08_scsi_only for ATA drives
-	export ZBC_TEST_SECTION_LIST="00 01 02 05 09"	 # for ATA ZA meta-children
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 ${EXTRA_SECTIONS}"
     fi
 
     zbc_run_gamut
