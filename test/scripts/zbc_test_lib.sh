@@ -707,55 +707,6 @@ function zbc_test_search_last_zone_vals_from_zone_type()
 
 	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}" | tail -n 1`; do
 
-	return 1
-}
-
-# Select a zone for testing and return info.
-#
-# If ${test_zone_type} is set, search for that; otherwise search for SWR|SWP.
-# $1 is a regular expression denoting the desired zone condition.
-# If $1 is omitted, a zone is matched if it is available (not OFFLINE, etc).
-#
-# Return info is the same as zbc_test_search_vals_*
-# If no matching zone is found, exit with "N/A" message.
-function zbc_test_get_zone_or_NA()
-{
-	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
-	local _zone_cond="${1:-${ZC_AVAIL}}"
-
-	zbc_test_get_zone_info
-	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
-	if [ $? -ne 0 ]; then
-		zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
-		zbc_test_print_not_applicable \
-		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
-	fi
-}
-
-# Select a Write-Pointer zone for testing and return info.
-# Argument and return information are the same as zbc_test_get_zone_or_NA.
-function zbc_test_get_wp_zone_or_NA()
-{
-	local _zone_type="${test_zone_type:-${ZT_SEQ}}"
-
-	if [ "${_zone_type}" = "${ZT_CONV}" ]; then
-		zbc_test_print_not_applicable \
-			"Zone type ${_zone_type} is not a write-pointer zone type"
-	fi
-
-	zbc_test_get_zone_or_NA "$@"
-}
-
-# zbc_test_zone_tuple zone_type num_zones
-# Returns the first zone of a contiguous sequence of length nz with the specified type.
-# Returns non-zero if the request could not be met.
-function zbc_test_zone_tuple()
-{
-	local zone_type="${1}"
-	local -i nz=${2}
-
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
-
 		local _IFS="${IFS}"
 		IFS=$',\n'
 		set -- ${_line}
@@ -827,6 +778,21 @@ function zbc_test_search_wp_zone_cond_or_NA()
 function zbc_test_search_non_seq_zone_cond_or_NA()
 {
 	local _zone_type="${ZT_NON_SEQ}"
+	local _zone_cond="${1:-${ZC_AVAIL}}"
+
+	zbc_test_get_zone_info
+	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	if [ $? -ne 0 ]; then
+		zbc_test_print_not_applicable \
+		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
+	fi
+}
+
+# Select a Sequential zone for testing and return info.
+# Argument and return information are the same as zbc_test_search_zone_cond_or_NA.
+function zbc_test_search_seq_zone_cond_or_NA()
+{
+	local _zone_type="${ZT_SEQ}"
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
