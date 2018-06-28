@@ -39,13 +39,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # Add one zone-size to the starting zone to realm-misalign it for the test
-zbc_test_get_target_zone_from_slba ${realm_conv_start}
+zbc_test_get_target_zone_from_slba $(zbc_realm_smr_start)
 
-start_lba=$(( ${realm_conv_start} + ${target_size} ))
+start_lba=$(( $(zbc_realm_smr_start) + ${target_size} ))
 expected_err_cbf="${start_lba}"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} ${realm_conv_len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} $(zbc_realm_smr_len) ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

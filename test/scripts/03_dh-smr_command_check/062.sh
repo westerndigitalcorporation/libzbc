@@ -37,12 +37,13 @@ fi
 # Assume that all the realms that can be activated SMR are contiguous
 zbc_test_count_zone_realms
 zbc_test_count_actv_as_seq_realms
+start_smr_lba=$(zbc_realm_smr_start)
 
 # Calculate the total number of zones in this range of realms
 zbc_test_calc_nr_realm_zones ${realm_num} ${nr_actv_as_seq_realms}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${realm_conv_start} ${nr_conv_zones} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${start_smr_lba} ${nr_seq_zones} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

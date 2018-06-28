@@ -182,11 +182,11 @@ function zbc_test_reset_device()
 
 	if [ ${maxact_control} -ne 0 ]; then
 		# Allow the main ACTIVATE tests to run unhindered
-		zbc_test_run ${bin_path}/zbc_test_dev_control -maxd unlimited ${device}
+		zbc_test_run ${bin_path}/zbc_test_dev_control -maxr unlimited ${device}
 		if [ $? -ne 0 ]; then
-			reason="because \'zbc_test_dev_control -maxd unlimited\' failed"
+			reason="because \'zbc_test_dev_control -maxr unlimited\' failed"
 		else
-			reason="even though \'zbc_test_dev_control -maxd unlimited\' returned success"
+			reason="even though \'zbc_test_dev_control -maxr unlimited\' returned success"
 		fi
 	else
 		reason="because maxact_control=${maxact_control}"
@@ -968,8 +968,8 @@ function zbc_test_is_found_realm_faulty()
 	zbc_test_get_zone_info
 
 	for (( j=0 ; j<${realm_nr_domains} ; j++ )) ; do
-		_realm_start=${realm_start[j]}
-		_realm_len=${realm_len[j]}
+		_realm_start=${realm_start_lba[j]}
+		_realm_len=${realm_length[j]}
 		zbc_test_get_target_zone_from_slba ${_realm_start}
 		for (( i=0 ; i<${_realm_len} ; i++ )) ; do
 			if [ $? -ne 0 ]; then
@@ -998,11 +998,101 @@ function zbc_parse_realm_item()
 	set -- ${2}
 
 	realm_dom_type[${_dom}]=${1}
-	realm_start[$_dom]=${2}
-	realm_end[$_dom]=${3}
-	realm_len[$_dom]=${4}
+	realm_start_lba[$_dom]=${2}
+	realm_end_lba[$_dom]=${3}
+	realm_length[$_dom]=${4}
 	IFS="$_ifs"
 	return 0
+}
+
+# Echo realm start LBA for a certain zone type. {1} is the type in textual form - conv|seq|seqp|sobr
+# zbc_test_search_zone_realm_by_number() or zbc_test_search_realm_by_type_and_actv() must be called
+# before attempting to call this one.
+function zbc_realm_start()
+{
+	local -i _zt
+
+	case "${1}" in
+	"conv")
+		_zt=$(( ${ZT_CONV} ))
+		;;
+	"seq")
+		_zt=$(( ${ZT_SWR} ))
+		;;
+	"seqp")
+		_zt=$(( ${ZT_SWP} ))
+		;;
+	"sobr")
+		_zt=$(( ${ZT_SOBR} ))
+		;;
+	* )
+		_stacktrace_exit "zbc_realm_start bad zone type arg=\"$1\""
+		;;
+	esac
+
+	for (( i=0 ; i<${realm_nr_domains} ; i++ )) ; do
+		if [[ ${realm_dom_type[i]} == $_zt ]]; then
+			echo "${realm_start_lba[i]}"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+function zbc_realm_cmr_start()
+{
+	zbc_realm_start "${cmr_type}"
+}
+
+function zbc_realm_smr_start()
+{
+	zbc_realm_start "${smr_type}"
+}
+
+# Echo realm length in zones for a certain zone type. {1} is the type in textual form - conv|seq|seqp|sobr
+# zbc_test_search_zone_realm_by_number() or zbc_test_search_realm_by_type_and_actv() must be called
+# before attempting to call this one.
+function zbc_realm_len()
+{
+	local -i _zt
+
+	case "${1}" in
+	"conv")
+		_zt=$(( ${ZT_CONV} ))
+		;;
+	"seq")
+		_zt=$(( ${ZT_SWR} ))
+		;;
+	"seqp")
+		_zt=$(( ${ZT_SWP} ))
+		;;
+	"sobr")
+		_zt=$(( ${ZT_SOBR} ))
+		;;
+	* )
+		_stacktrace_exit "zbc_realm_len bad zone type arg=\"$1\""
+		;;
+	esac
+
+	for (( i=0 ; i<${realm_nr_domains} ; i++ )) ; do
+		if [[ ${realm_dom_type[i]} == $_zt ]]; then
+			echo "${realm_length[i]}"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+function zbc_realm_cmr_len()
+{
+	zbc_realm_len "${cmr_type}"
+}
+
+function zbc_realm_smr_len()
+{
+	zbc_realm_len "${smr_type}"
 }
 
 function zbc_test_search_zone_realm_by_number()
@@ -1016,9 +1106,9 @@ function zbc_test_search_zone_realm_by_number()
 		local _IFS="${IFS}"
 		local -i _dom=0
 		realm_dom_type=()
-		realm_start=()
-		realm_end=()
-		realm_len=()
+		realm_start_lba=()
+		realm_end_lba=()
+		realm_length=()
 
 		IFS=$',\n'
 		set -- ${_line}
@@ -1141,7 +1231,7 @@ function zbc_test_calc_nr_realm_zones()
 	for _line in `cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]"`; do
 
 		local _IFS="${IFS}"
-		local -i _dom=0
+		local -i _dom
 
 		IFS=$',\n'
 		set -- ${_line}
@@ -1155,25 +1245,28 @@ function zbc_test_calc_nr_realm_zones()
 			IFS=$';\n'
 			set -- ${_line}
 			shift
+			_dom=0
 			for item in $@; do
 				zbc_parse_realm_item $_dom $item
 				_dom=${_dom}+1
 			done
 
-			if [ $_actv_as_conv -eq "Y" ]; then
+			if [ "${_actv_as_conv}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
-					if [[ ${realm_dom_type[i]} == ${ZT_CONV} || \
-					      ${realm_dom_type[i]} == ${ZT_SOBR} ]]; then
-						nr_conv_zones=$(expr ${nr_conv_zones} + ${realm_len[i]})
+					if [[ ${realm_dom_type[i]} == $(( ${ZT_CONV} )) || \
+					      ${realm_dom_type[i]} == $(( ${ZT_SOBR} )) ]]; then
+						nr_conv_zones=$(expr ${nr_conv_zones} + ${realm_length[i]})
+						break
 					fi
 				done
 			fi
 
-			if [ $_actv_as_seq -eq "Y" ]; then
+			if [ "${_actv_as_seq}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
-					if [[ ${realm_dom_type[i]} == ${ZT_SWR} || \
-					      ${realm_dom_type[i]} == ${ZT_SWP} ]]; then
-						nr_seq_zones=$(expr ${nr_conv_zones} + ${realm_len[i]})
+					if [[ ${realm_dom_type[i]} == $(( ${ZT_SWR} )) || \
+					      ${realm_dom_type[i]} == $(( ${ZT_SWP} )) ]]; then
+						nr_seq_zones=$(expr ${nr_conv_zones} + ${realm_length[i]})
+						break
 					fi
 				done
 			fi

@@ -36,12 +36,13 @@ fi
 
 # Assume that all the realms that can be activated are contiguous
 zbc_test_count_actv_as_conv_realms
+start_cmr_lba=$(zbc_realm_cmr_start)
 
 # Calculate the total number of zones in this range of realms
 zbc_test_calc_nr_realm_zones ${realm_num} ${nr_actv_as_conv_realms}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_seq_start} ${nr_seq_zones}  ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${start_cmr_lba} ${nr_conv_zones} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

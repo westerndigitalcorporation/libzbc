@@ -45,7 +45,7 @@ zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
 fi
-expected_err_cbf="${realm_seq_start}"
+expected_err_cbf="$(zbc_realm_smr_start)"
 
 # Start testing
 if [ cmr_type = "wpc" ]; then
@@ -54,17 +54,17 @@ if [ cmr_type = "wpc" ]; then
 fi
 
 # Activate the realm to sequential
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_conv_start} ${realm_conv_len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_cmr_start) $(zbc_realm_cmr_len) ${smr_type}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to activate realm to sequential type ${smr_type}"
 
 # Make the first zone of the realm non-empty
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${realm_seq_start} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} $(zbc_realm_smr_start) ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${realm_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial write failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
 # Now try to activate the realm from sequential back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_smr_start) $(zbc_realm_smr_len) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
@@ -79,6 +79,6 @@ fi
 zbc_test_check_failed
 if [ "${smr_type}" != "seqp" ]; then
     # Zone did not deactivate -- reset and deactivate it
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${realm_seq_start}
-    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(zbc_realm_smr_start)
+    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_smr_start) $(zbc_realm_smr_len) ${cmr_type}
 fi

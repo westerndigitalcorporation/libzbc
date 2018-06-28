@@ -39,7 +39,17 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
+lba=$(zbc_realm_cmr_start)
+if [ $? -ne 0 ]; then
+   zbc_test_print_passed
+   exit 0
+fi
+len=$(zbc_realm_cmr_len)
+if [ $? -ne 0 ]; then
+   zbc_test_print_passed
+   exit 0
+fi
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z ${device} ${lba} ${len} ${cmr_type}
 if [ $? -eq 2 ]; then
    zbc_test_print_passed
    exit 0

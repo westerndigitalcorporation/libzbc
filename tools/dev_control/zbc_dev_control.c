@@ -60,7 +60,7 @@ usage:
 		       "  -mu <target>              : Mutate to the specified target\n\n"
 		       "  -nz <num>                 : Set the default number of zones to activate\n"
 		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
-		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n\n"
+		       "  -maxr <num>|\"unlimited\" : Set the maximum number of realms to activate\n\n"
 		       "Mutation targets:\n"
 		       "  NON_ZONED                 : A classic, not zoned, device\n"
 		       "  HM_ZONED                  : Host-managed SMR device, no CMR zones\n"
@@ -175,7 +175,7 @@ usage:
 				goto usage;
 			}
 			set_nz = true;
-		} else if (strcmp(argv[i], "-maxd") == 0) {
+		} else if (strcmp(argv[i], "-maxr") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
@@ -185,7 +185,7 @@ usage:
 			} else {
 				max_activate = strtol(argv[i], NULL, 10);
 				if (max_activate <= 0) {
-					fprintf(stderr, "invalid -maxd value\n");
+					fprintf(stderr, "invalid -maxr value\n");
 					goto usage;
 				}
 			}

@@ -39,10 +39,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Add one to the starting LBA to zone-misalign it for the test
-start_lba=$(( ${realm_conv_start} + 1 ))
+start_lba=$(( $(zbc_realm_smr_start) + 1 ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} ${realm_conv_len} ${smr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${start_lba} $(zbc_realm_smr_len) ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq

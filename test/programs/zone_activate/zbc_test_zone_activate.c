@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 				fprintf(stderr,
 					"[TEST][ERROR],Realm [%lu/%u] out of range\n",
 					start, nr_units);
-				ret = 1;
+				ret = 2;
 				goto out;
 			}
 			end = start + nr_units;

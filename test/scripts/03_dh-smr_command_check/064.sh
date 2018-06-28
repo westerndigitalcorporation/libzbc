@@ -40,7 +40,17 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${realm_conv_start} ${realm_conv_len} ${smr_type}
+lba=$(zbc_realm_smr_start)
+if [ $? -ne 0 ]; then
+   zbc_test_print_passed
+   exit 0
+fi
+len=$(zbc_realm_smr_len)
+if [ $? -ne 0 ]; then
+   zbc_test_print_passed
+   exit 0
+fi
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${lba} ${len} ${smr_type}
 if [ $? -eq 2 ]; then
    zbc_test_print_passed
    exit 0

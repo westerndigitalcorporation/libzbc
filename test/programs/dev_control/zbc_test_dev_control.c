@@ -42,7 +42,7 @@ usage:
 		       "  -v                        : Verbose mode\n"
 		       "  -nz <num>                 : Set the default number of zones to activate\n"
 		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
-		       "  -maxd <num>|\"unlimited\" : Set the maximum number of realms to activate\n"
+		       "  -maxr <num>|\"unlimited\" : Set the maximum number of realms to activate\n"
 		       "  -q                        : Ouput only errors\n",
 		       argv[0]);
 		return 1;
@@ -67,7 +67,7 @@ usage:
 				goto usage;
 			}
 			set_nz = true;
-		} else if (strcmp(argv[i], "-maxd") == 0) {
+		} else if (strcmp(argv[i], "-maxr") == 0) {
 			if (i >= (argc - 1))
 				goto usage;
 			i++;
@@ -78,7 +78,7 @@ usage:
 				max_activate = strtol(argv[i], NULL, 10);
 				if (max_activate <= 0) {
 					fprintf(stderr,
-						"[TEST][ERROR],invalid -maxd value\n");
+						"[TEST][ERROR],invalid -maxr value\n");
 					goto usage;
 				}
 			}

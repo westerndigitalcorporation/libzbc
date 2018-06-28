@@ -35,7 +35,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} ${realm_seq_start} ${realm_seq_len} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -32 ${device} $(zbc_realm_cmr_start) $(zbc_realm_cmr_len) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

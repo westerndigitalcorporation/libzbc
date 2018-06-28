@@ -41,7 +41,8 @@ zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
 # Start testing
 msg="WARNING: Attempted ACTIVATE test on non-ZD device"
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${realm_seq_start} $(( 2 * ${realm_seq_len:?"${msg}"} )) ${cmr_type}
+realm_conv_len=$(zbc_realm_cmr_len)
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_cmr_start) $(( 2 * ${realm_conv_len:?"${msg}"} )) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

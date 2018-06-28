@@ -17,7 +17,7 @@ zbc_test_init $0 "ZONE ACTIVATE(32): in excess of max_activate (realm addressing
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
 expected_asc="${ERR_ZA_ASC}"
-expected_err_za="0x0400"	# MAXDX
+expected_err_za="0x0400"	# MAXRX
 
 # Get drive information
 zbc_test_get_device_info
@@ -44,17 +44,21 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
+zbc_test_count_zone_realms
 zbc_test_count_actv_as_seq_realms
+if [ $(expr "${realm_num}" + "${nr_actv_as_seq_realms}") -gt ${nr_realms} ]; then
+    nr_actv_as_seq_realms=$(expr "${nr_realms}" - "${realm_num}")
+fi
 
 # Set the maximum realms that can be activated too small for the number of zones
-maxd=$(( ${nr_actv_as_seq_realms} - 1 ))
+maxr=$(( ${nr_actv_as_seq_realms} - 1 ))
 
 # Lower the maximum number of realms to activate
-zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd ${maxd} ${device}
+zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxr ${maxr} ${device}
 
 # Make sure the command succeeded
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to change max_activate to ${maxd}"
+zbc_test_fail_if_sk_ascq "Failed to change max_activate to ${maxr}"
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} ${nr_actv_as_seq_realms} ${smr_type}
@@ -67,4 +71,4 @@ zbc_test_check_err "ACTIVATE type=${smr_type} realm=${realm_num} count=${nr_actv
 zbc_test_check_failed
 
 # Post-process
-zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxd unlimited ${device}
+zbc_test_run ${bin_path}/zbc_test_dev_control -q -maxr unlimited ${device}

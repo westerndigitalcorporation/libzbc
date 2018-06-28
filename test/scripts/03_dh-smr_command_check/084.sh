@@ -20,6 +20,7 @@ zbc_test_get_device_info
 if [ ${seq_pref_zone} -eq 0 ]; then
     zbc_test_print_not_applicable "Device does not support SWP zone type"
 fi
+smr_type="seqp"
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -36,7 +37,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_conv_start} ${realm_conv_len} "seqp"
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} 1 ${smr_type}
 if [ $? -eq 2 ]; then
    zbc_test_print_passed
    exit 0

@@ -51,16 +51,16 @@ fi
 zbc_test_calc_nr_realm_zones ${realm_num} 2		# into ${nr_conv_zones}
 
 # Record ACTIVATE start LBA and number of zones for both directions
-conv_lba=${realm_conv_start}
+conv_lba=$(zbc_realm_cmr_start)
 conv_nz=${nr_conv_zones}
-seq_lba=${realm_seq_start}
+seq_lba=$(zbc_realm_smr_start)
 seq_nz=${nr_seq_zones}
 
 # Lookup info on the second realm			# into ${realm_*}
 zbc_test_search_zone_realm_by_number $(( ${realm_num} + 1 ))
 
 # Lookup info on the second realm's first sequential zone
-zbc_test_get_target_zone_from_slba ${realm_seq_start}	# into ${target_*}
+zbc_test_get_target_zone_from_slba $(zbc_realm_smr_start)	# into ${target_*}
 
 # Calculate the start LBA of the second realm's second zone
 write_zlba=$(( ${target_slba} + ${target_size} ))
@@ -80,7 +80,7 @@ zbc_test_fail_if_sk_ascq "Failed to activate realm to sequential type ${smr_type
 # Write an LBA in the second zone of the second realm to make it NON-EMPTY
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${realm_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial write failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
 # Now try to activate the sequential realms back as conventional
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}

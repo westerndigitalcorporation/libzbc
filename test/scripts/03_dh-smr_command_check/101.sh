@@ -40,7 +40,7 @@ zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 # Use the size of the last realm when trying ACTIVATE at End of Medium
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${realm_seq_len} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) $(zbc_realm_cmr_len) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
