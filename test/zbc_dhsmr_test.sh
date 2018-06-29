@@ -43,6 +43,7 @@ function zbc_print_usage()
 	echo "  -f | --format            : Force formatting of the test device. By default, only"
 	echo "                             TCMU emulated device is formatted."
 	echo "  -n | --noformat          : Skip formatting of the test device."
+	echo "  -c | --current           : Only run the current mutation even if DUT supports MUTATE."
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -116,6 +117,7 @@ export batch_mode=0	# If set, do not stop on first failed test script
 force_ata=0
 format_dut=0
 skip_format_dut=0
+current_mutation=0	# Only test the current mutation even if the DUT supports MUTATE
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -162,6 +164,9 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-n | --noformat )
 		skip_format_dut=1
+		;;
+	-c | --current )
+		current_mutation=1
 		;;
 	-q | --quick )
 		ZBC_MUTATIONS=" "
@@ -482,7 +487,10 @@ function zbc_run_gamut()
 
     zbc_test_get_device_info
 
-    if [ ${mutations} == 0 ]; then
+    if [ ${current_mutation} ]; then
+	zbc_run_mutation ""
+	return
+    elif [ ${mutations} == 0 ]; then
         echo -e "\n\n######### `date` Device doesn't support mutation"
         zbc_run_mutation ""
 	return
