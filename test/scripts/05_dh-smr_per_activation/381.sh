@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate Implicitly-OPEN non-first domain (zone addr)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): deactivate Implicitly-OPEN non-first domain" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"

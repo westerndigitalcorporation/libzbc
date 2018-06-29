@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate CLOSED partly-written sequential zone (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): deactivate CLOSED partly-written sequential zone" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
