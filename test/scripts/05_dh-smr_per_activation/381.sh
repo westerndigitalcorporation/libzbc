@@ -46,14 +46,15 @@ zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
 fi
+# Record ACTIVATE start LBA for both directions
+conv_lba=$(zbc_realm_cmr_start)
+seq_lba=$(zbc_realm_smr_start)
 
 # Calculate number of zones in two realms starting at ${realm_num}
 zbc_test_calc_nr_realm_zones ${realm_num} 2		# into ${nr_conv_zones}
 
-# Record ACTIVATE start LBA and number of zones for both directions
-conv_lba=$(zbc_realm_cmr_start)
+# Record ACTIVATE number of zones for both directions
 conv_nz=${nr_conv_zones}
-seq_lba=$(zbc_realm_smr_start)
 seq_nz=${nr_seq_zones}
 
 # Lookup info on the second realm			# into ${realm_*}

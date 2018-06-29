@@ -93,12 +93,6 @@ function _stacktrace_exit()
 	exit 1
 }
 
-# Trim leading zeros off of result strings so expr doesn't think they are octal
-function _trim()
-{
-	echo $1 | sed -e "s/^00*\(.\)/\1/"
-}
-
 # For test script creation:
 function zbc_test_init()
 {
@@ -231,8 +225,7 @@ function zbc_test_meta_run()
 	${_cmd} 2>&1 | tee -a ${log_file} 2>&1
 	local ret=${PIPESTATUS[0]}
 
-	return 0
-#	return ${ret}	# seems more annoying than helpful
+	return ${ret}
 }
 
 # Get information functions
@@ -1098,6 +1091,10 @@ function zbc_realm_smr_len()
 function zbc_test_search_zone_realm_by_number()
 {
 	local realm_number=`printf "%03u" "${1}"`
+	realm_dom_type=()
+	realm_start_lba=()
+	realm_end_lba=()
+	realm_length=()
 
 	# [ZONE_REALM_INFO],<num>,<domain>,<type>,<actv_mask>,<actv_as_conv>,<actv_as_seq>,<nr_domains>;<type-spcific info>;...
 	# 1                 2     3        4      5           6              7             8
@@ -1105,10 +1102,6 @@ function zbc_test_search_zone_realm_by_number()
 
 		local _IFS="${IFS}"
 		local -i _dom=0
-		realm_dom_type=()
-		realm_start_lba=()
-		realm_end_lba=()
-		realm_length=()
 
 		IFS=$',\n'
 		set -- ${_line}
@@ -1144,6 +1137,10 @@ function zbc_test_search_realm_by_type_and_actv()
 	local -i _skip=0	# _skip=$(expr ${3:-0})
 	local _NOFAULTY="$3"
 	local actv
+	realm_dom_type=()
+	realm_start_lba=()
+	realm_end_lba=()
+	realm_length=()
 
 	case "${2}" in
 	"conv")
@@ -1171,7 +1168,7 @@ function zbc_test_search_realm_by_type_and_actv()
 
 	# [ZONE_REALM_INFO],<num>,<domain>,<type>,<actv_mask>,<actv_as_conv>,<actv_as_seq>,<nr_domains>;<type-spcific info>;...
 	# 1                 2     3        4      5           6              7             8
-	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,.*,(${realm_search_type}),.*,${actv},.*"`; do
+	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,.*,(${realm_search_type}),0x.*,${actv},.*"`; do
 
 		if [ ${_skip} -eq 0 ]; then
 
@@ -1181,7 +1178,7 @@ function zbc_test_search_realm_by_type_and_actv()
 			IFS=$',\n'
 			set -- ${_line}
 
-			realm_num=$(expr ${2} + 0)
+			realm_num=$(( ${2} ))
 			realm_domain=${3}
 			realm_type=${4}
 			realm_actv_mask=${5}
@@ -1218,7 +1215,7 @@ function zbc_test_search_realm_by_type_and_actv()
 
 function zbc_test_calc_nr_realm_zones()
 {
-	local realm_num=${1}
+	local _realm_num=${1}
 	local -i _nr_realms=${2}
 	local _actv_as_conv
 	local _actv_as_seq
@@ -1236,7 +1233,7 @@ function zbc_test_calc_nr_realm_zones()
 		IFS=$',\n'
 		set -- ${_line}
 
-		if [ $(expr ${2} + 0) -ge ${realm_num} ]; then
+		if [[ $(( ${2} )) -ge $(( ${_realm_num} )) ]]; then
 
 			_actv_as_conv=${6}
 			_actv_as_seq=${7}
@@ -1254,8 +1251,8 @@ function zbc_test_calc_nr_realm_zones()
 			if [ "${_actv_as_conv}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
 					if [[ ${realm_dom_type[i]} == $(( ${ZT_CONV} )) || \
-					      ${realm_dom_type[i]} == $(( ${ZT_SOBR} )) ]]; then
-						nr_conv_zones=$(expr ${nr_conv_zones} + ${realm_length[i]})
+					${realm_dom_type[i]} == $(( ${ZT_SOBR} )) ]]; then
+						nr_conv_zones=$(( ${nr_conv_zones} + ${realm_length[i]} ))
 						break
 					fi
 				done
@@ -1264,8 +1261,8 @@ function zbc_test_calc_nr_realm_zones()
 			if [ "${_actv_as_seq}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
 					if [[ ${realm_dom_type[i]} == $(( ${ZT_SWR} )) || \
-					      ${realm_dom_type[i]} == $(( ${ZT_SWP} )) ]]; then
-						nr_seq_zones=$(expr ${nr_conv_zones} + ${realm_length[i]})
+					${realm_dom_type[i]} == $(( ${ZT_SWP} )) ]]; then
+						nr_seq_zones=$(( ${nr_seq_zones} + ${realm_length[i]} ))
 						break
 					fi
 				done

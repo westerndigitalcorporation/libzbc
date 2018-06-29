@@ -341,7 +341,7 @@ function zbc_run_section()
 
 		if [ ${print_list} -ne 1 ]; then
 			res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
-			if [ ${ret} -ne 0 -o "${res}" = "TESTRESULT==Failed" ]; then
+			if [[ ${ret} != 0 || ${res} =~ TESTRESULT==Failed* ]]; then
 				ret=1
 				if [ ${batch_mode} -eq 0 ]; then
 					break
@@ -351,6 +351,7 @@ function zbc_run_section()
 
 	done
 
+	rc=${ret}
 	return ${ret}
 }
 
@@ -433,28 +434,31 @@ function zbc_run_mutation()
     zbc_test_get_device_info
 
     if [ "${ur_control}" == 0 ]; then
-        echo -e "\n###### Device doesn't support unrestricted reads control"
-        if [ "${unrestricted_read}" == 0 ]; then
-            echo "###### Running the dhsmr test suite with URSWRZ disabled"
+	echo -e "\n###### Device doesn't support unrestricted reads control"
+	if [ "${unrestricted_read}" == 0 ]; then
+	    echo "###### Running the dhsmr test suite with URSWRZ disabled"
 	    set_logfile $1/urswrz_n
         else
-            echo "###### Running the dhsmr test suite with URSWRZ enabled"
+	    echo "###### Running the dhsmr test suite with URSWRZ enabled"
 	    set_logfile $1/urswrz_y
-        fi
-        reset_device
-        zbc_run_config ${section_list[@]}
-    else
-        echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
-	set_logfile $1/urswrz_y
-        reset_device
-        zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+	fi
+	reset_device
+	zbc_run_config ${section_list[@]}
 	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
-	    return
+	    return 1
+	fi
+    else
+	echo -e "\n###### Run the dhsmr test suite with URSWRZ enabled"
+	set_logfile $1/urswrz_y
+	reset_device
+	zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur y ${device}
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+	    return 1
 	fi
 
 	zbc_run_config ${section_list[@]}
 	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
-	    return
+	    return 1
 	fi
 
 	if [ -z ${skip_urswrz_n} ]; then
@@ -463,8 +467,13 @@ function zbc_run_mutation()
 	    reset_device
 	    zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur n ${device}
 	    zbc_run_config ${section_list[@]}
+	    if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+		return 1
+	    fi
 	fi
     fi
+
+    return 0
 }
 
 function zbc_run_gamut()
@@ -490,8 +499,10 @@ function zbc_run_gamut()
 	fi
         reset_device
 	zbc_run_mutation "${m}"
-      done
-    fi
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+	    return 1
+	fi
+    done
 
     if [ -n "${ZBC_MUTATIONS}" ]; then
       for m in ${ZBC_MUTATIONS} ; do
