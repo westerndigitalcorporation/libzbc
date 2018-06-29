@@ -57,7 +57,7 @@ if [ ${boundary_lba} -gt ${max_lba} ]; then
     expected_asc="Logical-block-address-out-of-range"
 else
     # Check the the zone just before the boundary for availability
-    read_check_available ${target_cond}		# sets expected_* if not
+    zbc_read_check_available ${target_cond}		# sets expected_* if not
 
     # Some zone types need to be filled before the read
     if [[ "${sk}" = "" && ${target_type} == @(${ZT_RESTRICT_READ_GE_WP}) ]]; then
@@ -69,7 +69,7 @@ else
     zbc_test_get_target_zone_from_slba ${boundary_lba}
 
     # Check the the zone just after the boundary for availability
-    read_check_available ${target_cond}		# sets expected_* if not
+    zbc_read_check_available ${target_cond}		# sets expected_* if not
 fi
 
 # Read across the boundary at the end of a zone-type in LBA space

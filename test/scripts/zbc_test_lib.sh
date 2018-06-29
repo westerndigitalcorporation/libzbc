@@ -460,7 +460,7 @@ function zbc_test_count_inactive_zones()
 }
 
 # Set expected errors if zone is not available for write
-function write_check_available()
+function zbc_write_check_available()
 {
     local target_cond="$1"
     #XXX Emulator may check these zone conditions before boundary checks
@@ -479,15 +479,12 @@ function write_check_available()
 }
 
 # Set expected errors if zone is not available for read
-function read_check_available()
+function zbc_read_check_available()
 {
     local target_cond="$1"
     #XXX Emulator may check these zone conditions before boundary checks
     if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
-        if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
-           expected_sk="Aborted-command"
-           expected_asc="Zone-is-inactive"
-        elif [ "${target_cond}" = "0xf" ]; then
+        if [ "${target_cond}" = "0xf" ]; then
            expected_sk="Data-protect"		# ZBC 5.3(b)(B)
            expected_asc="Zone-is-offline"
         fi
