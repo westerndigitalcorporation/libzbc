@@ -478,10 +478,10 @@ function write_check_available()
            expected_sk="Aborted-command"
            expected_asc="Zone-is-inactive"
         elif [ "${target_cond}" = "0xf" ]; then
-           expected_sk="Medium-error"
+           expected_sk="Data-protect"
            expected_asc="Zone-is-offline"
         elif [ "${target_cond}" = "0xd" ]; then
-           expected_sk="Medium-error"
+           expected_sk="Data-protect"
            expected_asc="Zone-is-read-only"
         fi
     fi
@@ -497,8 +497,7 @@ function read_check_available()
            expected_sk="Aborted-command"
            expected_asc="Zone-is-inactive"
         elif [ "${target_cond}" = "0xf" ]; then
-           # expected_sk="Data-protect"        #XXX ZBC 5.3(b)(B)
-           expected_sk="Medium-error"          #XXX ZBC 4.4.3.5.8(f)
+           expected_sk="Data-protect"		# ZBC 5.3(b)(B)
            expected_asc="Zone-is-offline"
         fi
     fi
