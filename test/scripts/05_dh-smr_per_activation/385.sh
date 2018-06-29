@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate Implicitly-OPEN partly-written sequential zone (zone addressing)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate Implicitly-OPEN partly-written non-sequential zone (zone addressing)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -45,7 +45,7 @@ zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
 fi
-expected_err_cbf="${domain_seq_start}"
+expected_err_cbf="${domain_conv_start}"
 
 # Start testing
 if [ cmr_type = "wpc" ]; then
@@ -53,32 +53,26 @@ if [ cmr_type = "wpc" ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Convert the domain to sequential
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
-
 # Make the first zone of the domain non-empty
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_conv_start} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_conv_start} zone_type=${cmr_type}"
 
-# Now try to convert the domain from sequential back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
+# Attempt to convert the domain to sequential
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
 
 # Check result
 zbc_test_get_sk_ascq
-if [ "${smr_type}" = "seqp" ]; then
-    #XXX Arguably a SEQP zone must be empty to deactivate, but the emulator allows non-empty for now
-    zbc_test_check_no_sk_ascq "${smr_type} to ${cmr_type}"
+if [ "${cmr_type}" = "conv" ]; then
+    zbc_test_check_no_sk_ascq "${cmr_type} to ${smr_type}"	# conventional zone does not expect failure
 else
-    zbc_test_check_err "convert ${smr_type} to ${cmr_type}"
+    zbc_test_check_err "convert ${cmr_type} to ${smr_type}"	# WPC zone expects failure
 fi
 
 # Post-processing -- put the domain back the way we found it
 zbc_test_check_failed
-if [ "${smr_type}" != "seqp" ]; then
-    # Zone did not deactivate -- reset and deactivate it
+if [ "${cmr_type}" == "conv" ]; then
+    # Convert the realm back to its starting type
     zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${domain_seq_start}
     zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
 fi

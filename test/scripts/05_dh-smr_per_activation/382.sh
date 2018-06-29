@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate Implicitly-OPEN non-first domain (zone addr)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): attempt to deactivate Explicitly-OPEN but unwritten sequential zone (zone addressing)" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -37,34 +37,15 @@ else
     zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
 fi
 
-zbc_test_get_zone_info
+# Get conversion domain information
 zbc_test_get_cvt_domain_info
 
 # Find a conventional domain that is convertible to sequential
-# Assume there are two in a row
 zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
 fi
-
-# Calculate number of zones in two domains starting at ${domain_num}
-zbc_test_calc_nr_domain_zones ${domain_num} 2		# into ${nr_conv_zones}
-
-# Record ACTIVATE start LBA and number of zones for both directions
-conv_lba=${domain_conv_start}
-conv_nz=${nr_conv_zones}
-seq_lba=${domain_seq_start}
-seq_nz=${nr_seq_zones}
-
-# Lookup info on the second domain			# into ${domain_*}
-zbc_test_search_cvt_domain_by_number $(( ${domain_num} + 1 ))
-
-# Lookup info on the second domain's first sequential zone
-zbc_test_get_target_zone_from_slba ${domain_seq_start}	# into ${target_*}
-
-# Calculate the start LBA of the second domain's second zone
-write_zlba=$(( ${target_slba} + ${target_size} ))
-expected_err_cbf="${write_zlba}"
+expected_err_cbf="${domain_seq_start}"
 
 # Start testing
 if [ cmr_type = "wpc" ]; then
@@ -72,37 +53,32 @@ if [ cmr_type = "wpc" ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Convert the two domains to sequential
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${conv_lba} ${conv_nz} ${smr_type}
+# Convert the domain to sequential
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
 
-# Write an LBA in the second zone of the second domain to make it NON-EMPTY
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
+# Open the first zone of the domain, but do not write any data into it
+zbc_test_run ${bin_path}/zbc_test_open_zone ${device} ${domain_seq_start}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial write failed at ${domain_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "OPEN of zone failed at ${domain_seq_start} zone_type=${smr_type}"
 
-# Now try to convert the domains from sequential back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
+# Now try to convert the domain from sequential back to conventional
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
 if [ "${smr_type}" = "seqp" ]; then
     #XXX Arguably a SEQP zone must be empty to deactivate, but the emulator allows non-empty for now
-    zbc_test_check_no_sk_ascq
+    zbc_test_check_no_sk_ascq "${smr_type} to ${cmr_type}"
 else
-    zbc_test_check_err
+    zbc_test_check_err "convert ${smr_type} to ${cmr_type}"
 fi
-
-# Check failed
-zbc_test_check_failed
 
 # Post-processing -- put the domain back the way we found it
+zbc_test_check_failed
 if [ "${smr_type}" != "seqp" ]; then
     # Zone did not deactivate -- reset and deactivate it
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${write_zlba}
-    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${domain_seq_start}
+    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
 fi
-
-# Post process
-rm -f ${zone_info_file}
