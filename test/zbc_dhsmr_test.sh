@@ -575,6 +575,8 @@ else
     # CMR/SMR).  The child script instances process ZBC_TEST_SECTION_LIST.
     prepare_lists "03" "04"			# parent section list
 
+    #XXX This isn't right, because we need to skip section 8 with SAT also.
+    #XXX Workaround is to specify  -s "08.*"  on the command line in that case.
     if [ ${force_ata} -eq 0 ]; then
 	# For SCSI ZA meta-children
 	# Sections 00, 01, and 02 contain ZBC (non-ZA) scripts.
