@@ -920,6 +920,22 @@ function zbc_test_get_wp_zones_cond_or_NA()
 
 function zbc_test_get_zone_realm_info()
 {
+	if [ ${conv_zone} -ne 0 ]; then
+		cmr_type="conv"
+	elif [ ${sobr_zone} -ne 0 ]; then
+		cmr_type="sobr"
+	else
+		zbc_test_print_not_applicable "Conventional zones are not supported by the device"
+	fi
+
+	if [ ${seq_req_zone} -ne 0 ]; then
+		smr_type="seq"
+	elif [ ${seq_pref_zone} -ne 0 ]; then
+		smr_type="seqp"
+	else
+		zbc_test_print_not_applicable "Sequential zones are not supported by the device"
+	fi
+
 	local _cmd="${bin_path}/zbc_test_report_realms ${device}"
 	echo "" >> ${log_file} 2>&1
 	echo "## Executing: ${_cmd} > ${zone_realm_info_file} 2>&1" >> ${log_file} 2>&1

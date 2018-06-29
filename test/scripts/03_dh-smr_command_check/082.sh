@@ -21,14 +21,6 @@ if [ ${seq_pref_zone} -eq 0 ]; then
     zbc_test_print_not_applicable "Device does not support activation of SWP zone type"
 fi
 
-if [ ${seq_req_zone} -ne 0 ]; then
-    smr_type="seq"
-elif [ ${seq_pref_zone} -ne 0 ]; then
-    smr_type="seqp"
-else
-    zbc_test_print_not_applicable "No sequential zones are supported by the device"
-fi
-
 # Get zone realm information
 zbc_test_get_zone_realm_info
 

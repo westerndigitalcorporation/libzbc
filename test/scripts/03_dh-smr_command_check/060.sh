@@ -17,14 +17,6 @@ zbc_test_init $0 "ZONE ACTIVATE(32): CMR to SMR (zone addressing)" $*
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${seq_req_zone} -ne 0 ]; then
-    smr_type="seq"
-elif [ ${seq_pref_zone} -ne 0 ]; then
-    smr_type="seqp"
-else
-    zbc_test_print_not_applicable "No sequential zones are supported by the device"
-fi
-
 # Get zone realm information
 zbc_test_get_zone_realm_info
 

@@ -22,14 +22,6 @@ expected_asc="Invalid-field-in-cdb"
 # Get information
 zbc_test_get_device_info
 
-if [ ${conv_zone} -ne 0 ]; then
-    cmr_type="conv"
-elif [ ${sobr_zone} -ne 0 ]; then
-    cmr_type="sobr"
-else
-    zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
-fi
-
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 

@@ -16,14 +16,6 @@ zbc_test_init $0 "ZONE ACTIVATE(32): LBA crossing out of range (zone addressing)
 
 zbc_test_get_device_info
 
-if [ ${conv_zone} -ne 0 ]; then
-    cmr_type="conv"
-elif [ ${sobr_zone} -ne 0 ]; then
-    cmr_type="sobr"
-else
-    zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
-fi
-
 # Set expected error code
 # ZA-r4 5.y.3.1 ZONE ID plus NUMBER OF ZONES is out of range
 expected_sk="Illegal-request"

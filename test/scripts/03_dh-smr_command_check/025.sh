@@ -21,14 +21,6 @@ expected_asc="Activation-type-unsupported"
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${conv_zone} -ne 0 ]; then
-    cmr_type="conv"
-elif [ ${sobr_zone} -ne 0 ]; then
-    cmr_type="sobr"
-else
-    zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
-fi
-
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
