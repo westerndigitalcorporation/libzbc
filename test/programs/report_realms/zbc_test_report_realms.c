@@ -109,7 +109,7 @@ usage:
 	}
 
 	for (i = 0, r = realms; i < (int)nr_realms; i++, r++) {
-		printf("[ZONE_REALM_INFO],%03d,%u,0x%x,0x%x,%s,%s,%u,;",
+		printf("[ZONE_REALM_INFO],%d,%u,0x%x,0x%x,%s,%s,%u,;",
 		zbc_zone_realm_number(r),
 		zbc_zone_realm_domain(r),
 		zbc_zone_realm_type(r),

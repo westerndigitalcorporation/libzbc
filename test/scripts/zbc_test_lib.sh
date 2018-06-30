@@ -1106,7 +1106,7 @@ function zbc_realm_smr_len()
 
 function zbc_test_search_zone_realm_by_number()
 {
-	local realm_number=`printf "%03u" "${1}"`
+	local realm_number=${1}
 	realm_dom_type=()
 	realm_start_lba=()
 	realm_end_lba=()
