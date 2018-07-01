@@ -308,7 +308,7 @@ function prepare_lists()
 # Run test cases of a section
 function zbc_run_section()
 {
-	local ret=0
+	local -i ret=0
 	local section_num="$1"
 	local section_name="$2"
 
@@ -346,7 +346,7 @@ function zbc_run_section()
 
 		if [ ${print_list} -ne 1 ]; then
 			res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
-			if [[ ${ret} != 0 || ${res} =~ TESTRESULT==Failed* ]]; then
+			if [[ ${ret} -ne 0 || ${res} =~ TESTRESULT==Failed* ]]; then
 				ret=1
 				if [ ${batch_mode} -eq 0 ]; then
 					break
@@ -356,7 +356,6 @@ function zbc_run_section()
 
 	done
 
-	rc=${ret}
 	return ${ret}
 }
 
@@ -423,9 +422,9 @@ function zbc_run_config()
 function set_logfile()
 {
     if [ -z "$1" ]; then
-        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}
+	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}
     else
-        ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/$1
+	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_BASE}/$1
     fi
     local log_path=${ZBC_TEST_LOG_PATH}
     mkdir -p ${log_path}
@@ -443,7 +442,7 @@ function zbc_run_mutation()
 	if [ "${unrestricted_read}" == 0 ]; then
 	    echo "###### Running the dhsmr test suite with URSWRZ disabled"
 	    set_logfile $1/urswrz_n
-        else
+	else
 	    echo "###### Running the dhsmr test suite with URSWRZ enabled"
 	    set_logfile $1/urswrz_y
 	fi
@@ -487,58 +486,59 @@ function zbc_run_gamut()
 
     zbc_test_get_device_info
 
-    if [ ${current_mutation} ]; then
+    if [ ${current_mutation} == 1 ]; then
 	zbc_run_mutation ""
 	return
     elif [ ${mutations} == 0 ]; then
-        echo -e "\n\n######### `date` Device doesn't support mutation"
-        zbc_run_mutation ""
+	echo -e "\n\n######### `date` Device doesn't support mutation"
+	zbc_run_mutation ""
 	return
     fi
 
     if [ -n "${ZD_MUTATIONS}" -o -n "${SOBR_MUTATIONS}" ]; then
-      for m in ${ZD_MUTATIONS} ${SOBR_MUTATIONS} ; do
-	echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
-	set_logfile ${m}
-	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
-	if [ $? -ne 0 ]; then
-	    echo "Mutation of ${device} to ${m} failed"
-	    continue
-	fi
-        reset_device
-	zbc_run_mutation "${m}"
-	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
-	    return 1
-	fi
-    done
+	for m in ${ZD_MUTATIONS} ${SOBR_MUTATIONS} ; do
+	    echo -e "\n\n######### `date` Run the dhsmr test suite under mutation ${m}"
+	    set_logfile ${m}
+	    zbc_test_run zbc_dev_control -v -mu ${m} ${device}
+	    if [ $? -ne 0 ]; then
+		echo "Mutation of ${device} to ${m} failed"
+		continue
+	    fi
+	    reset_device
+	    zbc_run_mutation "${m}"
+	    if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
+		return 1
+	    fi
+	done
+    fi
 
     if [ -n "${ZBC_MUTATIONS}" ]; then
-      for m in ${ZBC_MUTATIONS} ; do
-	echo -e "\n\n######### `date` Run the zbc test suite under mutation ${m}"
-	set_logfile ${m}
-	zbc_test_run zbc_dev_control -v -mu ${m} ${device}
-	if [ $? -ne 0 ]; then
-	    echo "Mutation of ${device} to ${m} failed"
-	    continue
-	fi
-        reset_device
+	for m in ${ZBC_MUTATIONS} ; do
+	    echo -e "\n\n######### `date` Run the zbc test suite under mutation ${m}"
+	    set_logfile ${m}
+	    zbc_test_run zbc_dev_control -v -mu ${m} ${device}
+	    if [ $? -ne 0 ]; then
+		echo "Mutation of ${device} to ${m} failed"
+		continue
+	    fi
+	    reset_device
 
-	local arg_b=""
-	if [ ${batch_mode} -ne 0 ] ; then
-	    arg_b="-b"
-	fi
+	    local arg_b=""
+	    if [ ${batch_mode} -ne 0 ] ; then
+		arg_b="-b"
+	    fi
 
-	local arg_a=""
-	if [ ${force_ata} -ne 0 ]; then
+	    local arg_a=""
+	    if [ ${force_ata} -ne 0 ]; then
 		arg_a="-a"
-	fi
+	    fi
 
-	(   # subshell protects outer shell variables from the changes made here
-	    ZBC_TEST_LOG_PATH_BASE=${ZBC_TEST_LOG_PATH_BASE}/${m}
-    	    ZBC_TEST_SECTION_LIST="00 01 02"	# for ZBC meta-children
-	    zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${cexec_list} ${cskip_list} ${device}
-	)
-      done
+	    (   # subshell protects outer shell variables from the changes made here
+		ZBC_TEST_LOG_PATH_BASE=${ZBC_TEST_LOG_PATH_BASE}/${m}
+		ZBC_TEST_SECTION_LIST="00 01 02"	# for ZBC meta-children
+		zbc_test_meta_run ./zbc_dhsmr_test.sh ${arg_a} ${arg_b} -n ${cexec_list} ${cskip_list} ${device}
+	    )
+	done
     fi
 
     echo -e "\n\n######### `date` Last test completed"	# for the datestamp
@@ -557,11 +557,13 @@ function zbc_run_gamut()
 # Configure mutations to be tested
 
 if [ -z "${ZBC_MUTATIONS}" -a  -z "${ZD_MUTATIONS}" -a -z "${SOBR_MUTATIONS}" ]; then
-    ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
+	ZBC_MUTATIONS="HM_ZONED_1PCNT_B  HM_ZONED_2PCNT_BT  HA_ZONED_1PCNT_B"
 		# HM_ZONED  HA_ZONED  HA_ZONED_2PCNT_BT
-    ZD_MUTATIONS="ZD_1CMR_BOT  ZD_1CMR_BOT_SWP  ZD_FAULTY"
-		# ZD_1CMR_BOT_TOP  ZONE_ACT  ZD_1CMR_BT_SMR  ZD_BARE_BONE  ZD_STX
-    SOBR_MUTATIONS="ZD_SOBR  ZD_SOBR_EMPTY  ZD_SOBR_SWP"
+
+	ZD_MUTATIONS="ZD_1CMR_BOT  ZD_1CMR_BOT_SWP  ZD_FAULTY"
+		# ZD_1CMR_BOT_TOP  ZONE_DOM  ZD_1CMR_BT_SMR  ZD_BARE_BONE  ZD_STX
+
+	SOBR_MUTATIONS="ZD_SOBR  ZD_SOBR_EMPTY  ZD_SOBR_SWP"
 fi
 
 #XXX SPEC needs resolving
@@ -594,7 +596,7 @@ if [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
     prepare_lists ${ZBC_TEST_SECTION_LIST}
     zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
-    # Section 03 contains ZD tests that should be run once for each mutation.
+    # Section 03 contains Zone Domain tests that should be run once for each mutation.
     #
     # Section 04 recursively invokes this script multiple times per mutation,
     # each time with a different activation configuration (pure CMR and mixed
@@ -603,6 +605,7 @@ else
 
     #XXX This isn't right, because we need to skip section 8 with SAT also.
     #XXX Workaround is to specify  -s "08.*"  on the command line in that case.
+
     if [ ${force_ata} -eq 0 ]; then
 	# For SCSI ZD meta-children
 	# Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
@@ -610,8 +613,9 @@ else
 	# Section 08 has tests that are only valid on SCSI drives.
 	# Section 09 has site-local tests.
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 ${EXTRA_SECTIONS}"
+
     else
-	# For ATA ZA meta-children
+	# For ATA ZD meta-children
 	# Omit Section 08_scsi_only for ATA drives
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 ${EXTRA_SECTIONS}"
     fi

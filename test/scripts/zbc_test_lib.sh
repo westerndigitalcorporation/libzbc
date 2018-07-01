@@ -465,16 +465,16 @@ function zbc_write_check_available()
     local target_cond="$1"
     #XXX Emulator may check these zone conditions before boundary checks
     if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
-        if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
-           expected_sk="Aborted-command"
-           expected_asc="Zone-is-inactive"
-        elif [ "${target_cond}" = "0xf" ]; then
-           expected_sk="Data-protect"
-           expected_asc="Zone-is-offline"
-        elif [ "${target_cond}" = "0xd" ]; then
-           expected_sk="Data-protect"
-           expected_asc="Zone-is-read-only"
-        fi
+	if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
+	   expected_sk="Aborted-command"
+	   expected_asc="Zone-is-inactive"
+	elif [ "${target_cond}" = "0xf" ]; then
+	   expected_sk="Data-protect"
+	   expected_asc="Zone-is-offline"
+	elif [ "${target_cond}" = "0xd" ]; then
+	   expected_sk="Data-protect"
+	   expected_asc="Zone-is-read-only"
+	fi
     fi
 }
 
@@ -484,10 +484,13 @@ function zbc_read_check_available()
     local target_cond="$1"
     #XXX Emulator may check these zone conditions before boundary checks
     if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
-        if [ "${target_cond}" = "0xf" ]; then
-           expected_sk="Data-protect"		# ZBC 5.3(b)(B)
-           expected_asc="Zone-is-offline"
-        fi
+	if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
+	   : #XXX expected_sk="Aborted-command"
+	   : #XXX expected_asc="Zone-is-inactive"
+	elif [ "${target_cond}" = "0xf" ]; then
+	   expected_sk="Data-protect"
+	   expected_asc="Zone-is-offline"
+	fi
     fi
 }
 

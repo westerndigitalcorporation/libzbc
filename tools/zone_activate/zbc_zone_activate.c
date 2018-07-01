@@ -44,8 +44,8 @@ int main(int argc, char **argv)
 	if (argc < 5) {
 		fprintf(stderr, "Not enough arguments\n");
 usage:
-		printf("Usage:\n%s [options] <dev> <start realm> <num realms> <conv|seq[p]|sobr|seqr>\n"
-		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv|seq[p]|sobr|seqr>\n"
+		printf("Usage:\n%s [options] <dev> <start realm> <num realms> <conv|seq[r]|sobr|seqp>\n"
+		       "or\n%s -z [options] <dev> <start zone lba> <num zones> <conv|seq[r]|sobr|seqp>\n"
 		       "Options:\n"
 		       "    -v            : Verbose mode\n"
 		       "    -q            : Query only\n"

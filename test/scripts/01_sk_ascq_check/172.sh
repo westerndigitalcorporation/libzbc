@@ -28,7 +28,7 @@ zbc_test_get_zone_info
 zbc_test_get_target_zone_from_slba ${last_zone_lba}
 
 # If the zone is inactive, our initial reset and write are expected to fail
-write_check_available ${target_cond}
+zbc_write_check_available ${target_cond}
 
 # Start testing
 if [[ ${target_type} == @(${ZT_WP}) ]]; then

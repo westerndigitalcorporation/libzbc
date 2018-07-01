@@ -52,7 +52,7 @@ write_zlba=$(( ${target_slba} + ${target_size} ))
 expected_err_cbf="${write_zlba}"
 
 # Start testing
-if [ cmr_type = "wpc" ]; then
+if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi

@@ -32,7 +32,7 @@ fi
 expected_err_cbf="$(zbc_realm_smr_start)"
 
 # Start testing
-if [ cmr_type = "wpc" ]; then
+if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
@@ -56,7 +56,7 @@ if [ "${smr_type}" = "seqp" ]; then
     #XXX Arguably a SEQP zone must be empty to deactivate, but the emulator allows non-empty for now
     zbc_test_check_no_sk_ascq "${smr_type} to ${cmr_type}"
 else
-    zbc_test_check_err "convert ${smr_type} to ${cmr_type}"
+    zbc_test_check_err "activate ${smr_type} as ${cmr_type}"
 fi
 
 # Post-processing -- put the realm back the way we found it
