@@ -14,7 +14,7 @@
 
 zbc_test_init $0 "RESET_WRITE_PTR ZONE-ID ignored when ALL bit is set" $*
 
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info
@@ -24,6 +24,7 @@ zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
+# Attempt RESET ALL, specifying a bad LBA which is expected to be IGNORED
 zbc_test_run ${bin_path}/zbc_test_reset_zone --ALL ${device} $(( ${max_lba} + 2 ))
 
 # Get SenseKey, ASC/ASCQ

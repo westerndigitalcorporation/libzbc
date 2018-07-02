@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "OPEN_ZONE empty to explicit open to explicit open (ALL bit set)" $*
 
-expected_cond="0x3"
+expected_cond="${ZC_EOPEN}"
 
 # Get drive information
 zbc_test_get_device_info
@@ -24,7 +24,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_cond "${ZT_SEQ}" "0x1"
+zbc_test_get_target_zone_from_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No EMPTY Sequential zones"
 fi

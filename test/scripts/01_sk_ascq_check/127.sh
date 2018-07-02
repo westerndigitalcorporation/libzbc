@@ -14,7 +14,7 @@
 
 zbc_test_init $0 "OPEN_ZONE ZONE-ID ignored when ALL bit is set" $*
 
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info
@@ -23,13 +23,14 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_cond "${ZT_SEQ}" "0x1"
+zbc_test_get_target_zone_from_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No EMPTY Sequential zones"
 fi
 target_lba=${target_slba}
 
 # Start testing
+# Attempt OPEN ALL, specifying a bad LBA which is expected to be IGNORED
 zbc_test_run ${bin_path}/zbc_test_open_zone --ALL ${device} $(( ${max_lba} + 2 ))
 
 # Get SenseKey, ASC/ASCQ
