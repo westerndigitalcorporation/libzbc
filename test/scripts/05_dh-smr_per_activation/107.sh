@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): LBA range crosses domain boundary (zone addr)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): LBA range crosses realm boundary (zone addr)" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
@@ -21,22 +21,14 @@ expected_asc="Invalid-field-in-cdb"
 # Get information
 zbc_test_get_device_info
 
-if [ ${seq_req_zone} -ne 0 ]; then
-    smr_type="seq"
-elif [ ${seq_pref_zone} -ne 0 ]; then
-    smr_type="seqp"
-else
-    zbc_test_print_not_applicable "No sequential zones are supported by the device"
-fi
-
 zbc_test_get_zone_info
-zbc_test_get_cvt_domain_info
+zbc_test_get_zone_realm_info
 
-zbc_test_count_cvt_domains		# into nr_domains
-zbc_test_search_cvt_domain_by_number $(( ${nr_domains} - 1 ))
+zbc_test_count_zone_realms		# into nr_realms
+zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
-target_lba=${domain_conv_start}
-target_nzone=$(( ${domain_conv_len} + ${domain_seq_len} ))
+target_lba=$(zbc_realm_cmr_start)
+target_nzone=$(( $(zbc_realm_cmr_len) + $(zbc_realm_smr_len) ))
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${target_lba} ${target_nzone} ${smr_type}

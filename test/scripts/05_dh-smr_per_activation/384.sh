@@ -21,53 +21,37 @@ expected_err_za="0x4100"	# CBI | ZNRESET
 
 zbc_test_get_device_info
 
-if [ ${seq_req_zone} -ne 0 ]; then
-    smr_type="seq"
-elif [ ${seq_pref_zone} -ne 0 ]; then
-    smr_type="seqp"
-else
-    zbc_test_print_not_applicable "No sequential zones are supported by the device"
-fi
+# Get realm information
+zbc_test_get_zone_realm_info
 
-if [ ${conv_zone} -ne 0 ]; then
-    cmr_type="conv"
-elif [ ${wpc_zone} -ne 0 ]; then
-    cmr_type="wpc"
-else
-    zbc_test_print_not_applicable "No non-sequential zones are supported by the device"
-fi
-
-# Get conversion domain information
-zbc_test_get_cvt_domain_info
-
-# Find a conventional domain that is convertible to sequential
-zbc_test_search_domain_by_type_and_cvt "${ZT_NON_SEQ}" "seq" "NOFAULTY"
+# Find a conventional realm that can be activated as sequential
+zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No domain is currently conventional and convertible to sequential"
+    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
 fi
-expected_err_cbf="${domain_seq_start}"
+expected_err_cbf="$(zbc_realm_smr_start)"
 
 # Start testing
-if [ cmr_type = "wpc" ]; then
+if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Convert the domain to sequential
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_conv_start} ${domain_conv_len} ${smr_type}
+# Activate the realm as sequential
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_cmr_start) $(zbc_realm_cmr_len) ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to convert domain to sequential type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to activate realm as sequential type ${smr_type}"
 
 zbc_test_get_zone_info
-zbc_test_get_zone_from_slba ${domain_seq_start} 
+zbc_test_get_target_zone_from_slba $(zbc_realm_smr_start)
 
-# Make the first zone of the domain FULL
-zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${domain_seq_start} ${target_size}
+# Make the first zone of the realm FULL
+zbc_test_run ${bin_path}/zbc_test_write_zone ${device} $(zbc_realm_smr_start) ${target_size}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial WRITE failed at ${domain_seq_start} zone_type=${smr_type}"
+zbc_test_fail_if_sk_ascq "Initial WRITE failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
-# Now try to convert the domain from sequential back to conventional
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
+# Now try to activate the realm back as conventional
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_smr_start) $(zbc_realm_smr_len) ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
@@ -75,13 +59,13 @@ if [ "${smr_type}" = "seqp" ]; then
     #XXX Arguably a SEQP zone must be empty to deactivate, but the emulator allows non-empty for now
     zbc_test_check_no_sk_ascq "${smr_type} to ${cmr_type}"
 else
-    zbc_test_check_err "convert ${smr_type} to ${cmr_type}"
+    zbc_test_check_err "activate ${smr_type} as ${cmr_type}"
 fi
 
-# Post-processing -- put the domain back the way we found it
+# Post-processing -- put the realm back the way we found it
 zbc_test_check_failed
 if [ "${smr_type}" != "seqp" ]; then
     # Zone did not deactivate -- reset and deactivate it
-    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${domain_seq_start}
-    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${domain_seq_start} ${domain_seq_len} ${cmr_type}
+    zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} $(zbc_realm_smr_start)
+    zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_smr_start) $(zbc_realm_smr_len) ${cmr_type}
 fi
