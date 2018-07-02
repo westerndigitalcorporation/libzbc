@@ -11,6 +11,6 @@
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 
 # Run test 05.300 with a conventional zone
-test_zone_type="0x1"
+test_zone_type="${ZT_CONV}"
 
 . scripts/05_dh-smr_per_activation/300.sh
