@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "RESET_WRITE_PTR implicit open to explicit open to empty (ALL bit set)" $*
 
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info

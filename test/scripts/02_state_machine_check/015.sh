@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "FINISH_ZONE implicit open to explicit open to full" $*
 
-expected_cond="0xe"
+expected_cond="${ZC_FULL}"
 
 # Get drive information
 zbc_test_get_device_info

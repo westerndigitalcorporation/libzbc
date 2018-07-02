@@ -15,7 +15,7 @@
 # CLOSE transitions an OPEN zone to EMPTY if the WP is pointing to the start of the zone
 zbc_test_init $0 "CLOSE_ZONE implicit open to empty" $*
 
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info

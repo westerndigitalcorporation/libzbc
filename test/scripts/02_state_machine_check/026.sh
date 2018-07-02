@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "CLOSE_ZONE empty to empty (ALL bit set)" $*
 
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info

@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "CLOSE_ZONE closed to closed (ALL bit set)" $*
 
-expected_cond="0x4"
+expected_cond="${ZC_CLOSED}"
 
 # Get drive information
 zbc_test_get_device_info

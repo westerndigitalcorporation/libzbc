@@ -14,7 +14,7 @@
 
 zbc_test_init $0 "WRITE (zero-length) closed to implicit open" $*
 
-expected_cond="0x2"
+expected_cond="${ZC_IOPEN}"
 
 # Get drive information
 zbc_test_get_device_info

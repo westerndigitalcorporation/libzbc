@@ -15,7 +15,7 @@
 
 zbc_test_init $0 "OPEN_ZONE implicit open to explicit open to explicit_open (ALL bit set)" $*
 
-expected_cond="0x3"
+expected_cond="${ZC_EOPEN}"
 
 # Get drive information
 zbc_test_get_device_info
