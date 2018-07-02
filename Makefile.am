@@ -58,6 +58,7 @@ include test/programs/close_zone/Makemodule.am
 include test/programs/finish_zone/Makemodule.am
 include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
+include test/programs/report_domains/Makemodule.am
 include test/programs/report_realms/Makemodule.am
 include test/programs/zone_activate/Makemodule.am
 include test/programs/dev_control/Makemodule.am
