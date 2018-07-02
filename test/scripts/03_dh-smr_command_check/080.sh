@@ -26,7 +26,7 @@ smr_zone="seqp"
 zbc_test_get_zone_realm_info
 
 # Find a CMR realm that can be activated as SMR
-zbc_test_search_realm_by_type_and_actv "0x1|0x4" "seq"
+zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
