@@ -29,7 +29,7 @@ fi
 zbc_test_get_zone_realm_info
 
 # Find the first SMR realm that cannot be activated as CMR
-zbc_test_search_realm_by_type_and_actv "0x2|0x3" "noconv"
+zbc_test_search_realm_by_type_and_actv "${ZT_SEQ}" "noconv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently SMR and can't be activated as CMR"
 fi

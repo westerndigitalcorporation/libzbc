@@ -25,7 +25,7 @@ fi
 zbc_test_get_zone_realm_info
 
 # Find the first SMR realm that can be activated as CMR
-zbc_test_search_realm_by_type_and_actv "0x2|0x3" "conv"
+zbc_test_search_realm_by_type_and_actv "${ZT_SEQ}" "conv"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently SMR and can be activated as CMR"
 fi
@@ -47,7 +47,7 @@ zbc_test_fail_if_sk_ascq "ACTIVATE failed to cmr_type=${cmr_type}"
 
 # Verify that no SMR realms that can be activated as CMR are present
 zbc_test_get_zone_realm_info
-zbc_test_search_realm_by_type_and_actv "0x2|0x3" "conv"
+zbc_test_search_realm_by_type_and_actv "${ZT_SEQ}" "conv"
 if [ $? -eq 0 ]; then
     sk=${realm_num}
     expected_sk="no-seq-to-conv"
