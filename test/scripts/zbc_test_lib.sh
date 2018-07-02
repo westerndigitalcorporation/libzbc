@@ -61,9 +61,10 @@ function zbc_test_lib_init()
 	declare -rg ZC_EOPEN="0x3"			# EXPLICITLY OPEN zone condition
 	declare -rg ZC_OPEN="${ZC_IOPEN}|${ZC_EOPEN}"	# Either OPEN zone condition
 	declare -rg ZC_CLOSED="0x4"			# CLOSED zone condition
-	declare -rg ZC_FULL="0xe"			# FULL zone condition
-	declare -rg ZC_RDONLY="0xd"			# READ ONLY zone condition
 	declare -rg ZC_INACTIVE="0xc"			# INACTIVE zone condition
+	declare -rg ZC_RDONLY="0xd"			# READ ONLY zone condition
+	declare -rg ZC_FULL="0xe"			# FULL zone condition
+	declare -rg ZC_OFFLINE="0xf"			# READ ONLY zone condition
 	declare -rg ZC_NON_FULL="0x0|0x1|0x2|0x3|0x4"	# Non-FULL available zone conditions
 	declare -rg ZC_AVAIL="${ZC_NON_FULL}|${ZC_FULL}" # available zone conditions
 }
@@ -468,10 +469,10 @@ function zbc_write_check_available()
 	if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
 	   expected_sk="Aborted-command"
 	   expected_asc="Zone-is-inactive"
-	elif [ "${target_cond}" = "0xf" ]; then
+	elif [ "${target_cond}" = "${ZC_OFFLINE}" ]; then
 	   expected_sk="Data-protect"
 	   expected_asc="Zone-is-offline"
-	elif [ "${target_cond}" = "0xd" ]; then
+	elif [ "${target_cond}" = "${ZC_RDONLY}" ]; then
 	   expected_sk="Data-protect"
 	   expected_asc="Zone-is-read-only"
 	fi
@@ -485,9 +486,10 @@ function zbc_read_check_available()
     #XXX Emulator may check these zone conditions before boundary checks
     if [ -n "${CHECK_ZC_BEFORE_ZT}" -a ${CHECK_ZC_BEFORE_ZT} -ne 0 ]; then
 	if [ "${target_cond}" = "${ZC_INACTIVE}" ]; then
-	   : #XXX expected_sk="Aborted-command"
-	   : #XXX expected_asc="Zone-is-inactive"
-	elif [ "${target_cond}" = "0xf" ]; then
+	   : #XXX Some versions of the spec allow read of inactive zones
+	     #XXX expected_sk="Aborted-command"
+	     #XXX expected_asc="Zone-is-inactive"
+	elif [ "${target_cond}" = "${ZC_OFFLINE}" ]; then
 	   expected_sk="Data-protect"
 	   expected_asc="Zone-is-offline"
 	fi
@@ -987,7 +989,7 @@ function zbc_test_is_found_realm_faulty()
 			if [ ${target_size} -eq 0 ]; then
 				break
 			fi
-			if [[ ${target_cond} == @(0xd|0xf) ]]; then
+			if [[ ${target_cond} == @(${ZC_RDONLY}|${ZC_OFFLINE}) ]]; then
 				return 1
 			fi
 			_target_slba=$(( ${target_slba} + ${target_size} ))
