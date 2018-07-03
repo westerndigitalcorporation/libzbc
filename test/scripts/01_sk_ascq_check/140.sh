@@ -24,7 +24,7 @@ fi
 
 if [ ${max_open} -eq 0 ]; then
     if [ "${device_model}" != "Host-managed" ]; then
-	zbc_test_print_not_applicable "Device is not Host-managed"
+	zbc_test_print_not_applicable "Device is not Host-managed (max_open=0)"
     fi
     zbc_test_print_not_applicable "WARNING: Device reports max_open as zero"
 fi
