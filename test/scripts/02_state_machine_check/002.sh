@@ -25,7 +25,7 @@ zbc_test_search_seq_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq

@@ -19,9 +19,6 @@ expected_cond="${ZC_IOPEN}"
 # Get drive information
 zbc_test_get_device_info
 
-# Get zone information
-zbc_test_get_zone_info
-
 zbc_test_get_seq_zones_cond_or_NA "IOPENL"
 target_lba=${target_slba}
 
@@ -44,6 +41,6 @@ if [ -z "${sk}" ]; then
 fi
 
 # Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
+zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
 
 rm -f ${zone_info_file}

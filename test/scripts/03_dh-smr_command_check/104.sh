@@ -20,8 +20,6 @@ expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 zbc_test_get_device_info
-
-zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
 # Find a conventional realm that can be activated as sequential
@@ -42,6 +40,3 @@ zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed
-
-# Post process
-rm -f ${zone_info_file}

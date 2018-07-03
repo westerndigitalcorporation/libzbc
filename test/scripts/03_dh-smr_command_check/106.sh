@@ -20,8 +20,6 @@ expected_asc="${ERR_ZA_ASC}"
 expected_err_za="0x0200"	# BADNRZ
 
 zbc_test_get_device_info
-
-zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
 # Find a conventional realm that can be activated as sequential
@@ -31,7 +29,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Add one to the number of zones to realm-misalign it for the test
-zbc_test_get_target_zone_from_slba $(zbc_realm_smr_start)
 len=$(( $(zbc_realm_smr_len) + 1 ))
 
 # Start testing
@@ -43,6 +40,3 @@ zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed
-
-# Post process
-rm -f ${zone_info_file}

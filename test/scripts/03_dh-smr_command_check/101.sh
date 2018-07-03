@@ -21,8 +21,6 @@ expected_asc="Invalid-field-in-cdb"
 
 # Get information
 zbc_test_get_device_info
-
-zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
 # Select last realm
@@ -40,6 +38,3 @@ zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed
-
-# Post process
-rm -f ${zone_info_file}

@@ -20,7 +20,6 @@ expected_asc="${ERR_ZA_ASC}"
 expected_err_za="0x4001"	# CBI | Zone Boundary Violation
 
 zbc_test_get_device_info
-
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 

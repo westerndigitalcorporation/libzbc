@@ -14,15 +14,13 @@
 
 zbc_test_init $0 "ZONE ACTIVATE(32): LBA crossing out of range (zone addressing)" $*
 
-zbc_test_get_device_info
-
 # Set expected error code
 # ZA-r4 5.y.3.1 ZONE ID plus NUMBER OF ZONES is out of range
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 # Get information
-zbc_test_get_zone_info
+zbc_test_get_device_info
 zbc_test_get_zone_realm_info
 
 # Select last realm
@@ -42,6 +40,3 @@ zbc_test_check_err
 
 # Check failed
 zbc_test_check_failed
-
-# Post process
-rm -f ${zone_info_file}
