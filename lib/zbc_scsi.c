@@ -133,7 +133,7 @@ static int zbc_scsi_test_sat(struct zbc_device *dev)
 	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
 	zbc_sg_set_int64(&cmd.cdb[2], 0);
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
-	cmd.cdb[14] = 0;
+	cmd.cdb[14] = ZBC_RO_PARTIAL;
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
