@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE zero blocks to beyond at End of Medium" $*
+zbc_test_init $0 "WRITE zero blocks to beyond End of Medium" $*
 
 # Set expected error code
 expected_sk="Illegal-request"

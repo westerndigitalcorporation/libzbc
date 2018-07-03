@@ -23,7 +23,7 @@ fi
 
 # Set expected error code
 expected_sk="Aborted-command"
-expected_asc="Actvation-type-unsupported"
+expected_asc="Activation-type-unsupported"
 
 # Get zone realm information
 zbc_test_get_zone_realm_info
