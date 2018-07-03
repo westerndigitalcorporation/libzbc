@@ -26,7 +26,7 @@ zbc_test_get_zone_realm_info
 # Find a conventional realm that can be activated as sequential
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
 
 # Add one zone-size to the starting zone to realm-misalign it for the test
