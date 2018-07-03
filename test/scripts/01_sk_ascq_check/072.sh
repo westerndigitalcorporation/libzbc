@@ -52,11 +52,7 @@ if [ ${max_open} -ge ${nr_avail_seq_zones} ]; then
 fi
 
 # Make sure we have available a writable zone that is not OPEN
-zbc_test_search_zone_cond "${ZC_EMPTY}|${ZC_NOT_WP}"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable
-	"No suitable zone for this test (test_zone_type=${test_zone_type})"
-fi
+zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_NOT_WP}"
 
 # Start testing
 # Explicitly open ${max_open} sequential zones of ${seq_zone_type}
