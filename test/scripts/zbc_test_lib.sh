@@ -583,31 +583,6 @@ function zbc_test_close_nr_zones()
 	return 1
 }
 
-function zbc_test_get_target_zone_from_type()
-{
-	local zone_type="${1}"
-
-	for _line in `zbc_zones | zbc_zone_filter_in_type "${zone_type}"`; do
-
-		local _IFS="${IFS}"
-		IFS=$',\n'
-		set -- ${_line}
-
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
-		target_ptr=${7}
-
-		IFS="$_IFS"
-
-		return 0
-
-	done
-
-	return 1
-}
-
 function zbc_test_get_target_zone_from_slba()
 {
 
@@ -636,9 +611,9 @@ function zbc_test_get_target_zone_from_slba()
 	return 1
 }
 
-# These functions look for a zone aleady in the condition
+# These _search_ functions look for a zone aleady in the condition
 
-function zbc_test_get_target_zone_from_type_and_cond()
+function zbc_test_search_target_zone_from_type_and_cond()
 {
 	local zone_type="${1}"
 	local zone_cond="${2}"
@@ -703,7 +678,7 @@ function zbc_test_search_zone_cond()
 
 	zbc_test_get_zone_info
 
-	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_search_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		return 1
 	fi
@@ -716,7 +691,7 @@ function zbc_test_search_zone_cond_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_search_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_print_not_applicable \
 		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
@@ -745,7 +720,7 @@ function zbc_test_search_non_seq_zone_cond_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_search_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_print_not_applicable \
 		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
@@ -760,7 +735,7 @@ function zbc_test_search_seq_zone_cond_or_NA()
 	local _zone_cond="${1:-${ZC_AVAIL}}"
 
 	zbc_test_get_zone_info
-	zbc_test_get_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
+	zbc_test_search_target_zone_from_type_and_cond "${_zone_type}" "${_zone_cond}"
 	if [ $? -ne 0 ]; then
 		zbc_test_print_not_applicable \
 		    "No zone is of type ${_zone_type} and condition ${_zone_cond}"
@@ -814,7 +789,7 @@ function zbc_test_get_zones()
 	return 1
 }
 
-# These functions set the zone(s) to the specified condition(s)
+# These _get_ functions set the zone(s) to the specified condition(s)
 
 # zbc_test_get_zones_cond type cond1 [cond2...]
 # Sets zbc_test_search_vals from the first zone of a

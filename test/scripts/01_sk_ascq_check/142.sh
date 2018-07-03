@@ -59,7 +59,7 @@ fi
 
 # Start testing
 # Get one of the sequential zones and set it to CLOSED
-zbc_test_get_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
+zbc_test_search_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
 target_lba=${target_slba}
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${target_lba} ${lblk_per_pblk}
 zbc_test_run ${bin_path}/zbc_test_close_zone ${device} ${target_lba}

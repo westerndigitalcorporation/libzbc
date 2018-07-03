@@ -69,7 +69,7 @@ else
     zbc_test_get_zone_info
 
     # Attempt to FINISH an EMPTY zone to IMPLICITLY OPEN it and exceed the limit
-    zbc_test_get_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
+    zbc_test_search_target_zone_from_type_and_cond ${seq_zone_type} ${ZC_EMPTY}
     zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
 
     # Check result
