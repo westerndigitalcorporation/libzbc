@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on mixed conventional-sequential device" $*
+zbc_test_init $0 "Run ZBC test on mixed conventional/sequential device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix
 
@@ -22,10 +22,10 @@ zbc_test_get_device_info
 zbc_test_get_zone_realm_info
 
 # Activate roughly half of the realms as sequential -
-# Find a conventional realm that can be activated as such
+# Find a non-sequential realm that can be activated as such
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
 fi
 
 # Find the total number of realms that can be activated as sequential

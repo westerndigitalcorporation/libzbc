@@ -28,7 +28,7 @@ fi
 # Get realm information
 zbc_test_get_zone_realm_info
 
-# Find a conventional realm that can be activated as sequential
+# Find a Sequential-or-Before-Required realm that can be activated as sequential
 zbc_test_search_realm_by_type_and_actv "${ZT_SOBR}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently Sequential-or-Before-Required and can be activated as sequential"

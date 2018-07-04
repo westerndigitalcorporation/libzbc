@@ -24,11 +24,11 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
-# Find a conventional realm that can be activated as sequential
+# Find a non-sequential realm that can be activated as sequential
 # Assume there are two in a row
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
 fi
 # Record ACTIVATE start LBA for both directions
 conv_lba=$(zbc_realm_cmr_start)
@@ -67,7 +67,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
-# Now try to activate the sequential realms back as conventional
+# Now try to activate the sequential realms back as non-sequential
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
 
 # Check result

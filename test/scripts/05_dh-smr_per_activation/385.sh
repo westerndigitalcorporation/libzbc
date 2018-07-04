@@ -24,10 +24,10 @@ zbc_test_get_device_info
 # Get realm information
 zbc_test_get_zone_realm_info
 
-# Find a conventional realm that can be activated as sequential
+# Find a non-sequential realm that can be activated as sequential
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently conventional and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
 fi
 expected_err_cbf="$(zbc_realm_cmr_start)"
 
