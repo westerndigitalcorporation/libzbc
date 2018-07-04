@@ -396,6 +396,9 @@ function zbc_run_config()
 	"05")
 		section_name="DH-SMR SOBR zone"
 		;;
+	"07")
+		section_name="ZA SCSI-only"
+		;;
 	"08")
 		section_name="ZBC SCSI-only"
 		;;
@@ -610,13 +613,14 @@ else
 	# For SCSI ZD meta-children
 	# Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
 	# Section 05 has ZD tests that should run once per activation config.
-	# Section 08 has tests that are only valid on SCSI drives.
+	# Sections 07 and 08 have per-activation tests that are only valid on
+	#    SCSI drives:  07 for ZA commands, 08 for original ZBC commands.
 	# Section 09 has site-local tests.
-	export ZBC_TEST_SECTION_LIST="00 01 02 05 08 ${EXTRA_SECTIONS}"
+	export ZBC_TEST_SECTION_LIST="00 01 02 05 07 08 ${EXTRA_SECTIONS}"
 
     else
 	# For ATA ZD meta-children
-	# Omit Section 08_scsi_only for ATA drives
+	# Omit SCSI-only sections for ATA drives
 	export ZBC_TEST_SECTION_LIST="00 01 02 05 ${EXTRA_SECTIONS}"
     fi
 
