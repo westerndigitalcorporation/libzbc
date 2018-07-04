@@ -1122,12 +1122,22 @@ function zbc_test_search_zone_realm_by_number()
 	return 1
 }
 
+# Return non-zero if realm $1 has zones R/O or offline
+function zbc_test_is_realm_faulty()
+{
+	local _target_slba
+	local _realm_start
+	local _realm_len
+	zbc_test_get_zone_info
+	zbc_test_search_zone_realm_by_number $1
+	zbc_test_is_found_realm_faulty
+}
+
 # $1 is realm type, $2 is can_activate_as
 # Optional $3 = "NOFAULTY" specifies to skip faulty realms
 function zbc_test_search_realm_by_type_and_actv()
 {
 	local realm_search_type=${1}
-	local -i _skip=0	# _skip=$(expr ${3:-0})
 	local _NOFAULTY="$3"
 	local actv
 	realm_dom_type=()
@@ -1163,43 +1173,48 @@ function zbc_test_search_realm_by_type_and_actv()
 	# 1                 2     3        4      5           6              7             8
 	for _line in `cat ${zone_realm_info_file} | grep -E "\[ZONE_REALM_INFO\],.*,.*,(${realm_search_type}),0x.*,${actv},.*"`; do
 
-		if [ ${_skip} -eq 0 ]; then
+		local _IFS="${IFS}"
+		local -i _dom=0
 
-			local _IFS="${IFS}"
-			local -i _dom=0
+		IFS=$',\n'
+		set -- ${_line}
 
-			IFS=$',\n'
-			set -- ${_line}
+		realm_num=$(( ${2} ))
+		realm_domain=${3}
+		realm_type=${4}
+		realm_actv_mask=${5}
+		realm_actv_as_conv=${6}
+		realm_actv_as_seq=${7}
+		realm_nr_domains=${8}
 
-			realm_num=$(( ${2} ))
-			realm_domain=${3}
-			realm_type=${4}
-			realm_actv_mask=${5}
-			realm_actv_as_conv=${6}
-			realm_actv_as_seq=${7}
-			realm_nr_domains=${8}
+		IFS=$';\n'
+		set -- ${_line}
+		shift
+		for item in $@; do
+			zbc_parse_realm_item $_dom $item
+			_dom=${_dom}+1
+		done
+		IFS="$_IFS"
 
-			IFS=$';\n'
-			set -- ${_line}
-			shift
-			for item in $@; do
-				zbc_parse_realm_item $_dom $item
-				_dom=${_dom}+1
-			done
-			IFS="$_IFS"
-
-			if [ "${_NOFAULTY}" != "NOFAULTY" ]; then
-				return 0
-			fi
-
-			zbc_test_is_found_realm_faulty
-			if [ $? -eq 0 ]; then
-				return 0
-			fi
-
-		else
-			_skip=$(( ${_skip} - 1 ))
+		if [ "${_NOFAULTY}" != "NOFAULTY" ]; then
+			return 0
 		fi
+
+		# Ensure the returned realm is OK for write testing, etc
+		zbc_test_is_found_realm_faulty
+		if [ $? -ne 0 ]; then
+			continue
+		fi
+
+		# Ensure two contiguous realms needed by some tests
+		zbc_test_is_realm_faulty $(( ${realm_num} + 1 ))
+		if [ $? -ne 0 ]; then
+			continue
+		fi
+
+		# Reset the found realm to the first of the pair
+		zbc_test_search_zone_realm_by_number ${realm_num}
+		return 0
 
 	done
 
@@ -1323,6 +1338,11 @@ function zbc_test_print_res()
 function zbc_test_print_passed()
 {
 	zbc_test_print_res "${green}" "Passed"
+}
+
+function zbc_test_print_passed_lib()
+{
+	zbc_test_print_res "${green}" "Passed (lib)"
 }
 
 function zbc_test_print_not_applicable()
