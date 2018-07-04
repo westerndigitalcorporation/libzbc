@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): deactivate Implicitly-OPEN sequential zone with no data" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): deactivate Implicitly-OPEN SMR zone with no data" $*
 
 # Set expected error code
 expected_sk="${ERR_ZA_SK}"
@@ -24,29 +24,29 @@ zbc_test_get_device_info
 # Get realm information
 zbc_test_get_zone_realm_info
 
-# Find a non-sequential realm that can be activated as sequential
+# Find a CMR realm that can be activated as SMR
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
 expected_err_cbf="$(zbc_realm_smr_start)"
 
 # Start testing
-# Activate the realm as sequential
+# Activate the realm as SMR
 if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_cmr_start) $(zbc_realm_cmr_len) ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to activate realm as sequential type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to activate realm as SMR type ${smr_type}"
 
 # Implicitly open the first zone of the realm with a zero-length write
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} $(zbc_realm_smr_start) 0
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
-# Now try to activate the realm back as non-sequential
+# Now try to activate the realm back as CMR
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_smr_start) $(zbc_realm_smr_len) ${cmr_type}
 
 # Check result

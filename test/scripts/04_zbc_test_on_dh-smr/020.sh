@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on mixed conventional/sequential device" $*
+zbc_test_init $0 "Run ZBC test activated as a mixed CMR/SMR device" $*
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix
 
@@ -21,19 +21,19 @@ zbc_test_get_device_info
 # Get zone realm information
 zbc_test_get_zone_realm_info
 
-# Activate roughly half of the realms as sequential -
-# Find a non-sequential realm that can be activated as such
+# Activate roughly half of the realms as SMR -
+# Find a CMR realm that can be activated as SMR
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
 
-# Find the total number of realms that can be activated as sequential
+# Find the total number of realms that can be activated as SMR
 zbc_test_count_zone_realms		# nr_realms
 zbc_test_count_actv_as_seq_realms
 if [ $nr_actv_as_seq_realms -eq 0 ]; then
     # This should not happen because we found one just above
-    zbc_test_print_failed "No realms can be activated as sequential"
+    zbc_test_print_failed "WARNING: No realm can be activated as SMR"
 
 fi
 if [ $(expr "${realm_num}" + "${nr_actv_as_seq_realms}") -gt ${nr_realms} ]; then

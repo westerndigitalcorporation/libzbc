@@ -24,11 +24,11 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
-# Find a non-sequential realm that can be activated as sequential
+# Find a CMR realm that can be activated as SMR
 # Assume there are two in a row
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No realm is currently non-sequential and can be activated as sequential"
+    zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
 fi
 # Record ACTIVATE start LBA for both directions
 conv_lba=$(zbc_realm_cmr_start)
@@ -44,7 +44,7 @@ seq_nz=${nr_seq_zones}
 # Lookup info on the second realm			# into ${realm_*}
 zbc_test_search_zone_realm_by_number $(( ${realm_num} + 1 ))
 
-# Lookup info on the second realm's first sequential zone
+# Lookup info on the second realm's first SMR zone
 zbc_test_get_target_zone_from_slba $(zbc_realm_smr_start)	# into ${target_*}
 
 # Calculate the start LBA of the second realm's second zone
@@ -57,17 +57,17 @@ if [ cmr_type = "sobr" ]; then
     zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
 fi
 
-# Activate the two realms as sequential
+# Activate the two realms as SMR
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${conv_lba} ${conv_nz} ${smr_type}
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Failed to activate realm to sequential type ${smr_type}"
+zbc_test_fail_if_sk_ascq "Failed to activate realm to SMR type ${smr_type}"
 
 # Write an LBA in the second zone of the second realm to make it NON-EMPTY
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} ${write_zlba} ${lblk_per_pblk}
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial write failed at $(zbc_realm_smr_start) zone_type=${smr_type}"
 
-# Now try to activate the sequential realms back as non-sequential
+# Now try to activate the SMR realms back as CMR
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${seq_lba} ${seq_nz} ${cmr_type}
 
 # Check result

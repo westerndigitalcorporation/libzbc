@@ -23,7 +23,7 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
-# Find a non-sequential realm that can be activated as sequential
+# Find a CMR realm that can be activated as SMR
 zbc_test_search_realm_by_type_and_actv "${ZT_NON_SEQ}" "seq"
 if [ $? -ne 0 ]; then
     zbc_test_print_not_applicable "No realm is currently CMR and can be activated as SMR"
