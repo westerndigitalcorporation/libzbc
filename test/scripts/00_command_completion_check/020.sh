@@ -18,14 +18,7 @@ zbc_test_init $0 "OPEN_ZONE command completion" $*
 # Get drive information
 zbc_test_get_device_info
 
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_search_target_zone_from_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY Sequential zones"
-fi
+zbc_test_search_seq_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
 # Start testing
