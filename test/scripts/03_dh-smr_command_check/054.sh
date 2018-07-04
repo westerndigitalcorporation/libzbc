@@ -34,7 +34,7 @@ fi
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} 1 ${smr_type}
 if [ $? -eq 2 ]; then
-   zbc_test_print_passed
+   zbc_test_print_passed_lib
    exit 0
 fi
 
