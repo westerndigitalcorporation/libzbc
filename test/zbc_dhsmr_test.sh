@@ -340,6 +340,10 @@ function zbc_run_section()
 			continue
 		fi
 
+		# ZT_SOBR and ZT_CONV are used by some scripts before sourcing zbc_test_lib.sh
+		export ZT_SOBR
+		export ZT_CONV
+
 		c=`get_case_num ${t}`
 		./${section_path}/${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${section_num} ${device}
 		ret=$(( ${ret} | $? ))
