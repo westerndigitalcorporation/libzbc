@@ -28,6 +28,7 @@ zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_p
 zbc_test_get_sk_ascq
 zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
 
+# OPEN ALL does not promote Implicit to Explicit
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} -1
 
 # Get SenseKey, ASC/ASCQ

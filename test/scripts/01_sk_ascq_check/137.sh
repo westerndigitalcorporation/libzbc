@@ -14,22 +14,22 @@
 
 zbc_test_init $0 "CLOSE_ZONE ZONE-ID ignored when ALL bit is set" $*
 
-expected_cond="${ZC_EMPTY}"
-
 # Get drive information
 zbc_test_get_device_info
 
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_search_target_zone_from_type_and_cond "${ZT_SEQ}" "${ZC_EMPTY}"
-if [ $? -ne 0 ]; then
-    zbc_test_print_not_applicable "No EMPTY Sequential zones"
-fi
+zbc_test_search_wp_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
 
+if [ ${target_type} = ${ZT_SOBR} ]; then
+    expected_cond="${ZC_IOPEN}"
+else
+    expected_cond="${ZC_CLOSED}"
+fi
+
 # Start testing
+# Make the zone non-empty
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
+
 # Attempt CLOSE ALL, specifying a bad LBA which is expected to be IGNORED
 zbc_test_run ${bin_path}/zbc_test_close_zone --ALL ${device} $(( ${max_lba} + 2 ))
 
@@ -37,7 +37,7 @@ zbc_test_run ${bin_path}/zbc_test_close_zone --ALL ${device} $(( ${max_lba} + 2 
 zbc_test_get_sk_ascq
 
 # Get zone information
-zbc_test_get_zone_info "1"
+zbc_test_get_zone_info
 
 # Get target zone condition
 zbc_test_get_target_zone_from_slba ${target_lba}

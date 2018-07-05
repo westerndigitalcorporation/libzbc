@@ -15,13 +15,17 @@
 
 zbc_test_init $0 "FINISH_ZONE implicit open to full (ALL bit set)" $*
 
-expected_cond="${ZC_FULL}"
-
 # Get drive information
 zbc_test_get_device_info
 
 zbc_test_search_wp_zone_cond_or_NA "${ZC_EMPTY}"
 target_lba=${target_slba}
+
+if [ ${target_type} = ${ZT_SOBR} ]; then
+    expected_cond="${ZC_IOPEN}"
+else
+    expected_cond="${ZC_FULL}"
+fi
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
@@ -34,7 +38,7 @@ zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} -1
 zbc_test_get_sk_ascq
 
 # Get zone information
-zbc_test_get_zone_info "5"
+zbc_test_get_zone_info
 
 # Get target zone condition
 zbc_test_get_target_zone_from_slba ${target_lba}
