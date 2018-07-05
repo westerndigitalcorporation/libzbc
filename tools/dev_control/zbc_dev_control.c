@@ -82,8 +82,9 @@ usage:
 		       "  ZD_SOBR_SWP               : Same as ZD_SOBR, but with SWP zones instead of SWR\n"
 		       "  ZD_SOBR_EMPTY             : Same as ZD_SOBR, but SOBR zones start EMPTY instead of FULL\n"
 		       "  ZD_BARE_BONE              : DH-SMR device supporting Zone Domains and minimal features\n"
-		       "  ZD_STX                    : Same as ZONE_DOM, but no REPORT REALMS\n"
-		       "  ZD_FAULTY                 : Same as ZONE_DOM, several offline and read-only zones injected \n",
+		       "  ZD_STX                    : Same as ZD_ZONE_DOM, but no REPORT REALMS\n"
+		       "  ZD_FAULTY                 : Same as ZD_ZONE_DOM, several offline and read-only zones injected \n"
+		       "  ZD_SOBR_FAULTY            : Same as ZD_SOBR_EMPTY, several offline and read-only zones injected \n",
 
 		       argv[0]);
 		return 1;
@@ -158,6 +159,9 @@ usage:
 			} else if (strcmp(argv[i], "ZD_FAULTY") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_FAULTY;
+			} else if (strcmp(argv[i], "ZD_SOBR_FAULTY") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_SOBR_FAULTY;
 			}
 			if (mt == ZBC_MT_UNKNOWN) {
 				fprintf(stderr, "unknown mutation target %s\n",

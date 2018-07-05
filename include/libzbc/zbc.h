@@ -1827,6 +1827,7 @@ enum zbc_mutation_opt_zd {
 	ZBC_MO_ZD_SWP           = 0x09, /* ZD, like ZBC_MO_ZD_NO_CMR but SWP */
 	ZBC_MO_ZD_SOBR_SWP      = 0x0a, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but SWP */
 	ZBC_MO_ZD_SOBR_EMPTY    = 0x0b, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but start EMPTY */
+	ZBC_MO_ZD_SOBR_FAULTY   = 0x0c, /* ZBC_MO_ZD_SOBR_EMPTY, with readonly and offline zones */
 };
 
 /*
