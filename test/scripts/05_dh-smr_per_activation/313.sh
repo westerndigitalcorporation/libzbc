@@ -12,20 +12,19 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "FINISH a READ-ONLY zone" $*
+zbc_test_init $0 "FINISH an OFFLINE zone" $*
 
 # Get drive information
 zbc_test_get_device_info
 
-# Set expected error code -- ZBC 4.4.3.5.7.1(f)
 expected_sk="Data-protect"
-expected_asc="Zone-is-read-only"
+expected_asc="Zone-is-offline"
 
 # Search target zone
-zbc_test_search_zone_cond_or_NA ${ZC_RDONLY}
+zbc_test_search_zone_cond_or_NA ${ZC_OFFLINE}
 
 # Start testing
-# Try finishing the READ_ONLY zone
+# Try writing into the OFFLINE zone
 zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
 
 # Check result

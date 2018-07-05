@@ -12,25 +12,21 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "FINISH a READ-ONLY zone" $*
+zbc_test_init $0 "READ a READ-ONLY zone" $*
 
 # Get drive information
 zbc_test_get_device_info
-
-# Set expected error code -- ZBC 4.4.3.5.7.1(f)
-expected_sk="Data-protect"
-expected_asc="Zone-is-read-only"
 
 # Search target zone
 zbc_test_search_zone_cond_or_NA ${ZC_RDONLY}
 
 # Start testing
-# Try finishing the READ_ONLY zone
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+# Try reading from the READ_ONLY zone
+zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_slba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq "zone_type=${target_type}"
+zbc_test_check_no_sk_ascq "zone_type=${target_type}"
 
 # Post process
 zbc_test_check_failed
