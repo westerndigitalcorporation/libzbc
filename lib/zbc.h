@@ -187,31 +187,31 @@ struct zbc_device {
 /**
  * Test if a device is zoned.
  */
-#define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
-#define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
-				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+#define zbc_dev_model(dev)		((dev)->zbd_info.zbd_model)
+#define zbc_dev_is_zoned(dev)		(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
+					 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
 /*
  * Zone Domains device property checks.
  */
-#define zbc_dev_is_zone_dom(dev) (zbc_dev_is_zoned(dev) && \
-				  (dev)->zbd_info.zbd_flags & \
-				  ZBC_ZONE_DOMAINS_SUPPORT)
-#define zbc_supp_mutate(dev)	((dev)->zbd_info.zbd_flags & \
-				 ZBC_MUTATE_SUPPORT)
-#define zbc_supp_report_realms	((dev)->zbd_info.zbd_flags & \
-				 ZBC_REPORT_REALMS_SUPPORT)
-#define zbc_supp_zone_query	((dev)->zbd_info.zbd_flags & \
-				 ZBC_ZONE_QUERY_SUPPORT)
-#define zbc_supp_za_control	((dev)->zbd_info.zbd_flags & \
-				 ZBC_ZA_CONTROL_SUPPORT)
-#define zbc_supp_conv_zone	((dev)->zbd_info.zbd_flags & \
-				 ZBC_CONV_ZONE_SUPPORT)
-#define zbc_supp_seq_req_zone	((dev)->zbd_info.zbd_flags & \
-				 ZBC_SEQ_REQ_ZONE_SUPPORT)
-#define zbc_supp_seq_pref_zone	((dev)->zbd_info.zbd_flags & \
-				 ZBC_SEQ_PREF_ZONE_SUPPORT)
-#define zbc_supp_sobr_zone	((dev)->zbd_info.zbd_flags & \
-				 ZBC_SOBR_ZONE_SUPPORT)
+#define zbc_dev_is_zone_dom(dev)	(zbc_dev_is_zoned(dev) && \
+					  (dev)->zbd_info.zbd_flags & \
+					  ZBC_ZONE_DOMAINS_SUPPORT)
+#define zbc_supp_mutate(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_MUTATE_SUPPORT)
+#define zbc_supp_report_realms(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_REPORT_REALMS_SUPPORT)
+#define zbc_supp_zone_query(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZONE_QUERY_SUPPORT)
+#define zbc_supp_za_control(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZA_CONTROL_SUPPORT)
+#define zbc_supp_conv_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_CONV_ZONE_SUPPORT)
+#define zbc_supp_seq_req_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_REQ_ZONE_SUPPORT)
+#define zbc_supp_seq_pref_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_PREF_ZONE_SUPPORT)
+#define zbc_supp_sobr_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_SOBR_ZONE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

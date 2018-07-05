@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "ZONE ACTIVATE(32): LBA range crosses realm boundary (zone addr)" $*
+zbc_test_init $0 "ZONE ACTIVATE(32): LBA range crosses domain boundary (zone addr)" $*
 
 # Set expected error code
 expected_sk="Illegal-request"

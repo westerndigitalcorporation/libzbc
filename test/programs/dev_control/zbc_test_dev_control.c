@@ -41,8 +41,8 @@ usage:
 		       "Options:\n"
 		       "  -v                        : Verbose mode\n"
 		       "  -nz <num>                 : Set the default number of zones to activate\n"
-		       "  -ur y|n                   : Enable of disable unrestricted reads\n"
-		       "  -maxr <num>|\"unlimited\" : Set the maximum number of realms to activate\n"
+		       "  -ur y|n                   : Enable or disable unrestricted reads\n"
+		       "  -maxr <num>|\"unlimited\"   : Set the maximum number of realms to activate\n"
 		       "  -q                        : Ouput only errors\n",
 		       argv[0]);
 		return 1;
