@@ -1449,6 +1449,10 @@ static int zbc_scsi_dev_control(struct zbc_device *dev,
 	if (ret)
 		zbc_error("%s: Can't update Zone Provisioning mode page\n",
 			  dev->zbd_filename);
+	else
+		zbc_debug("%s: MODE SELECT fsnoz=%u urswrz=%u max_activate=%u\n",
+				dev->zbd_filename, ctl->zbm_nr_zones,
+				ctl->zbm_urswrz, ctl->zbm_max_activate);
 
 	return ret;
 }
