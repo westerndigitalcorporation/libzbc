@@ -38,17 +38,17 @@ fi
 # Start testing
 lba=$(zbc_realm_smr_start)
 if [ $? -ne 0 ]; then
-   zbc_test_print_passed_lib
+   zbc_test_print_passed_lib "No realm_smr_start"
    exit 0
 fi
 len=$(zbc_realm_smr_len)
 if [ $? -ne 0 ]; then
-   zbc_test_print_passed_lib
+   zbc_test_print_passed_lib "No realm_smr_len"
    exit 0
 fi
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -n ${device} ${lba} $i{len} ${smr_type}
 if [ $? -eq 2 ]; then
-   zbc_test_print_passed_lib
+   zbc_test_print_passed_lib "zbc_test_zone_activate"
    exit 0
 fi
 

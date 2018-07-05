@@ -1342,7 +1342,7 @@ function zbc_test_print_passed()
 
 function zbc_test_print_passed_lib()
 {
-	zbc_test_print_res "${green}" "Passed (lib)"
+	zbc_test_print_res "${green}" "Passed (lib) $@"
 }
 
 function zbc_test_print_not_applicable()
