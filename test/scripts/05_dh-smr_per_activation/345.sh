@@ -10,7 +10,6 @@
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
 
-# Run test 05.313 with a conventional zone
 test_zone_type="${ZT_CONV}"
 
-. scripts/05_dh-smr_per_activation/313.sh
+. scripts/05_dh-smr_per_activation/343.sh "$@"
