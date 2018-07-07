@@ -28,7 +28,9 @@ zbc_test_count_zone_realms		# into nr_realms
 zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
 target_lba=$(zbc_realm_cmr_start)
-target_nzone=$(( $(zbc_realm_cmr_len) + $(zbc_realm_smr_len) ))
+realm_cmr_len=$(zbc_realm_cmr_len)
+realm_smr_len=$(zbc_realm_smr_len)
+target_nzone=$(( ${zbc_realm_cmr_len:-0} + ${zbc_realm_smr_len:-0} ))
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${target_lba} ${target_nzone} ${smr_type}
