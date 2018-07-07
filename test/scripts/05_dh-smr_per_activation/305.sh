@@ -34,7 +34,7 @@ expected_err_cbf="$(zbc_realm_cmr_start)"
 # Start testing
 if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
-    zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
+    zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 fi
 
 # Make the first zone of the realm non-empty

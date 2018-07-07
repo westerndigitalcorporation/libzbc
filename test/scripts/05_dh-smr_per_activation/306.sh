@@ -36,7 +36,7 @@ zbc_test_get_target_zone_from_slba $(zbc_realm_cmr_start)
 
 # Start testing
 # Make sure the deactivating zones are EMPTY
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
+zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 
 # Make the first zone of the realm FULL
 zbc_test_run ${bin_path}/zbc_test_write_zone ${device} $(zbc_realm_cmr_start) ${target_size}

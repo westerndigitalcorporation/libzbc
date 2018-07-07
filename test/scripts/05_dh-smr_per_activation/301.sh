@@ -54,7 +54,7 @@ expected_err_cbf="${write_zlba}"
 # Start testing
 if [ cmr_type = "sobr" ]; then
     # Make sure the deactivating zones are EMPTY
-    zbc_test_run ${bin_path}/zbc_test_reset_zone -v -32 -z ${device} -1
+    zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 fi
 
 # Activate the two realms as SMR
