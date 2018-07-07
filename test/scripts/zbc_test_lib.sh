@@ -1353,7 +1353,11 @@ function zbc_test_print_not_applicable()
 
 function zbc_test_print_failed()
 {
-	zbc_test_print_res "${red}" "Failed  $*"
+	zbc_test_print_res "${red}" "Failed"
+
+	if [ -n "$1" ]; then
+		echo "           FAIL INFO: $*" | tee -a ${log_file}
+	fi
 }
 
 function zbc_test_print_failed_sk()
