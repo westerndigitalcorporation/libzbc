@@ -12,4 +12,4 @@
 
 test_zone_type="${ZT_CONV}"
 
-. scripts/05_dh-smr_per_activation/320.sh "$@"
+. scripts/01_sk_ascq_check/320.sh "$@"

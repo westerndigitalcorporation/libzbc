@@ -12,4 +12,4 @@
 
 test_zone_type="${ZT_SOBR}"
 
-. scripts/05_dh-smr_per_activation/353.sh "$@"
+. scripts/01_sk_ascq_check/353.sh "$@"
