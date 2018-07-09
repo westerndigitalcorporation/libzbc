@@ -748,174 +748,127 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 				     struct zbc_zone_realm *realms,
 				     unsigned int *nr_realms)
 {
-	struct zbc_device_info *di = &dev->zbd_info;
+	struct zbc_zone_domain *domains, *d;
 	struct zbc_zone_realm *r;
-	struct zbc_zone *z, *zones = NULL;
-	struct zbc_actv_res *actv_recs = NULL, *cr;
-	uint64_t lba, cmr_start = 0LL, smr_start = 0LL;
-	unsigned int nr_zones, nr_actv_recs = 0, zone_type, dnr, space_zones;
-	unsigned int cmr_len = 0, smr_len = 0, cmr_type = 0, smr_type = 0;
-	unsigned int cmr_cond = 0, smr_cond = 0;
-	int i, ret = 1, seam_zone;
-	bool have_cmr, have_smr;
+	struct zbc_realm_item *ri;
+	struct zbc_actv_res *actv_recs = NULL, *ar;
+	uint64_t lba, start = 0LL;
+	unsigned int nr_domains, len, zone_size;
+	unsigned int nr_actv_recs = 0;
+	unsigned int j, type, old_type = 0, cond = 0, nor = 0;
+	unsigned int domain_id, domain_zones;
+	int i, ret = 1;
+	struct zbc_zone zone;
 
-	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RO_ALL, &nr_zones);
-	if (ret != 0)
-		goto out;
-
-	/* Allocate zone array */
-	zones = (struct zbc_zone *)calloc(nr_zones, sizeof(struct zbc_zone));
-	if (!zones) {
-		ret = -ENOMEM;
-		goto out;
+	/* Get the list of zone domains available at the storage server */
+	ret = zbc_list_domains(dev, &domains, &nr_domains);
+	if (ret != 0) {
+		zbc_error("%s: zbc_list domains failed %d\n",
+			  dev->zbd_filename, ret);
+		return ret;
 	}
 
-	/* Get zone information */
-	ret = zbc_report_zones(dev, 0LL, ZBC_RO_ALL, zones, &nr_zones);
-	if (ret != 0)
-		goto out;
-
-	/* Try to find the first SMR zone */
-	z = zones;
-	seam_zone = -1;
-	for (i = 0; i < (int)nr_zones; i++, z++) {
-		if (zbc_zone_sequential(z)) {
-			seam_zone = i;
-			break;
-		}
-	}
-	if (seam_zone < 0) {
-		zbc_error("%s: No seam found\n", dev->zbd_filename);
-		ret = -EINVAL;
+	/* Get zone size in blocks (assume it is the same for all zones) */
+	memset(&zone, 0, sizeof(struct zbc_zone));
+	len = 1;
+	ret = zbc_report_zones(dev, 0LL, ZBC_RO_PARTIAL, &zone, &len);
+	if (ret != 0) {
+		zbc_error("%s: zbc_report_zones failed %d\n",
+			  dev->zbd_filename, ret);
 		goto out;
 	}
-
-	/* Try CMR zone space first for the query */
-	if (di->zbd_flags & ZBC_CONV_ZONE_SUPPORT) {
-		zone_type = ZBC_ZT_CONVENTIONAL;
-	} else if (di->zbd_flags & ZBC_SOBR_ZONE_SUPPORT) {
-		zone_type = ZBC_ZT_SEQ_OR_BEF_REQ;
-	} else {
-		zbc_error("%s: No CMR zone supported\n", dev->zbd_filename);
-		ret = -ENOTSUP;
+	if (!len || zone.zbz_start != 0LL || zone.zbz_length == 0) {
+		zbc_error("%s: Malformed zone response, start=%lu, len=%lu\n",
+			  dev->zbd_filename, zone.zbz_start, zone.zbz_length);
 		goto out;
 	}
-	lba = zbc_zone_start(z);
-	space_zones = nr_zones - seam_zone;
+	zone_size = zone.zbz_length;
 
-	/* Get the number of activation records */
-	ret = zbc_get_nr_actv_records(dev, true, false, false, lba,
-				      space_zones, zone_type);
-	if (ret < 0) {
-		/* OK, try in once again with SMR zone space */
-		ret = 0;
-		if (di->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) {
-			zone_type = ZBC_ZT_SEQUENTIAL_REQ;
-		} else if (di->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) {
-			zone_type = ZBC_ZT_SEQUENTIAL_PREF;
-		} else {
-			zbc_error("%s: No SMR zone supported\n",
-				  dev->zbd_filename);
-			ret = -ENOTSUP;
-			goto out;
-		}
-		lba = 0LL;
-		space_zones = seam_zone;
+	for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
+		domain_zones = zbc_zone_domain_blk_size(d) / zone_size;
+		domain_id = zbc_zone_domain_id(d);
+		lba = zbc_zone_domain_start_lba(d);
+		zbc_debug("\n%s: Dom %u Type:%u Start:%lu Zones:%u\n",
+			  dev->zbd_filename, domain_id, zbc_zone_domain_type(d),
+			  lba, domain_zones);
 
 		ret = zbc_get_nr_actv_records(dev, true, false, false, lba,
-					      space_zones, zone_type);
+					      domain_zones, domain_id);
 		if (ret < 0)
 			goto out;
-	}
+		nr_actv_recs = (uint32_t)ret;
 
-	nr_actv_recs = (uint32_t)ret;
-
-	/* Allocate actviation results record array */
-	actv_recs = (struct zbc_actv_res *)calloc(nr_actv_recs,
-						  sizeof(struct zbc_actv_res));
-	if (!actv_recs) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/*
-	 * Get the list of activation records.
-	 * We will report pairs of them as realms.
-	 */
-	ret = zbc_zone_query(dev, true, true, false, lba, space_zones,
-			     zone_type, actv_recs, &nr_actv_recs);
-	if (ret != 0)
-		goto out;
-
-	/* Fill zone realm information */
-	dnr = 0;
-	r = realms;
-	have_cmr = have_smr = false;
-	for (i = 0; i < (int)nr_actv_recs; i++) {
-		cr = &actv_recs[i];
-		if (zbc_actv_res_nonseq(cr)) {
-			if (have_cmr) {
-				zbc_error("%s: Unsupported CMR CR sequence\n",
-					  dev->zbd_filename);
-				ret = -ENOTSUP;
-				goto out;
-			}
-			cmr_start = cr->zbe_start_zone;
-			cmr_len = cr->zbe_nr_zones;
-			cmr_type = cr->zbe_type;
-			cmr_cond = cr->zbe_condition;
-			have_cmr = true;
+		/* Allocate actviation results record array */
+		if (actv_recs)
+			free(actv_recs);
+		actv_recs = calloc(nr_actv_recs, sizeof(struct zbc_actv_res));
+		if (!actv_recs) {
+			ret = -ENOMEM;
+			goto out;
 		}
-		if (zbc_actv_res_seq(cr)) {
-			if (have_smr) {
-				zbc_error("%s: Unsupported SMR CR sequence\n",
-					  dev->zbd_filename);
-				ret = -ENOTSUP;
-				goto out;
-			}
-			smr_start = cr->zbe_start_zone;
-			smr_len = cr->zbe_nr_zones;
-			smr_type = cr->zbe_type;
-			smr_cond = cr->zbe_condition;
-			have_smr = true;
-		}
-		if (have_cmr && have_smr) {
-			if (r) {
-				r->zbr_number = dnr;
-				if (cmr_cond == ZBC_ZC_INACTIVE &&
-				    smr_cond == ZBC_ZC_INACTIVE) {
-					zbc_error("%s: Can't determine realm type\n",
-						  dev->zbd_filename);
-					ret = -EINVAL;
-					goto out;
+
+		/*
+		 * Get the list of activation records.
+		 * We will report pairs of them as realms.
+		 */
+		ret = zbc_zone_query(dev, true, false, false, lba, domain_zones,
+				     domain_id, actv_recs, &nr_actv_recs);
+		if (ret != 0)
+			goto out;
+
+		if (!nor)
+			nor = nr_actv_recs / 2;
+
+		/* Fill zone realm information */
+		r = realms;
+		for (j = 0, ar = actv_recs; j < nr_actv_recs; j++, ar++) {
+			if (j & 1) {
+				start = ar->zbe_start_zone;
+				len = ar->zbe_nr_zones;
+				type = ar->zbe_type;
+				cond = ar->zbe_condition;
+				zbc_debug("%s: OAR: %lu/%u type:%u cond:%u\n",
+					  dev->zbd_filename, start, len, type, cond);
+				if (r) {
+					if (!i) {
+						r->zbr_number = j;
+						r->zbr_type = 0;
+						r->zbr_dom_id = domain_id;
+						r->zbr_actv_flags = 0;
+						r->zbr_nr_domains = nr_domains;
+					}
+
+					r->zbr_actv_flags |= 1 << domain_id;
+					if (old_type == type)
+						r->zbr_type = type;
+
+					ri = &r->zbr_ri[i];
+					ri->zbi_start_lba = start;
+					ri->zbi_end_lba = start + len * zone_size - 1;
+					ri->zbi_length = len;
+					ri->zbi_dom_id = domain_id;
+					ri->zbi_type = type;
+
+					r++;
 				}
-/* FIXME new realm structure */
-#if 0
-				r->zbr_type = (cmr_cond == ZBC_ZC_INACTIVE) ? smr_type : cmr_type;
-				r->zbr_convertible = 0;
-				if (cmr_len)
-					r->zbr_convertible |= ZBC_CVT_TO_CONV;
-				if (smr_len)
-					r->zbr_convertible |= ZBC_CVT_TO_SEQ;
-
-				r->zbr_conv_start = zbc_dev_lba2sect(dev, cmr_start);
-				r->zbr_conv_length = cmr_len;
-				r->zbr_seq_start = zbc_dev_lba2sect(dev, smr_start);
-				r->zbr_seq_length = smr_len;
-#endif
-				r++;
+			} else {
+				start = ar->zbe_start_zone;
+				len = ar->zbe_nr_zones;
+				type = ar->zbe_type;
+				cond = ar->zbe_condition;
+				old_type = ar->zbe_type;
+				zbc_debug("%s: EAR: %lu/%u old type:%u cond:%u\n",
+					  dev->zbd_filename, start, len, old_type, cond);
 			}
-			have_cmr = have_smr = false;
-			dnr++;
+
 		}
-		if (r && dnr >= *nr_realms)
-			break;
 	}
-	*nr_realms = dnr;
+
+	*nr_realms = nor;
 
 out:
-	if (zones)
-		free(zones);
+	if (domains)
+		free(domains);
 	if (actv_recs)
 		free(actv_recs);
 
@@ -930,9 +883,9 @@ int zbc_report_realms(struct zbc_device *dev,
 {
 	struct zbc_device_info *di = &dev->zbd_info;
 	struct zbc_zone_realm *r;
-	struct zbc_zone *zones = NULL;
 	uint64_t lba;
 	unsigned int i, j, len;
+	struct zbc_zone	zone;
 	int ret;
 
 	if (!zbc_dev_is_zone_dom(dev)) {
@@ -959,14 +912,7 @@ int zbc_report_realms(struct zbc_device *dev,
 		return ret;
 	}
 	if (!realms)
-		goto out;
-
-	/* Allocate zone array */
-	zones = (struct zbc_zone *)calloc(1, sizeof(struct zbc_zone));
-	if (!zones) {
-		fprintf(stderr, "No memory\n");
-		return -ENOMEM;
-	}
+		return 0;
 
 	/*
 	 * Get information about the first zone of every realm
@@ -979,26 +925,22 @@ int zbc_report_realms(struct zbc_device *dev,
 				continue;
 			lba = zbc_realm_start_lba(r, j);
 			len = 1;
-			ret = zbc_report_zones(dev, lba, 0, zones, &len);
+			ret = zbc_report_zones(dev, lba, ZBC_RO_PARTIAL, &zone, &len);
 			if (ret != 0) {
-				fprintf(stderr, "zbc_report_zones failed %d\n", ret);
-				goto out;
+				zbc_error("%s: zbc_report_zones failed %d (%s)\n",
+					  dev->zbd_filename, ret, strerror(-ret));
+				return ret;
 			}
-			if (!len || zones->zbz_start != lba || zones->zbz_length == 0) {
-				fprintf(stderr,
-					"malformed zone response, start=%lu, len=%lu\n",
-					zones->zbz_start, zones->zbz_length);
-				goto out;
+			if (!len || zone.zbz_start != lba || zone.zbz_length == 0) {
+				zbc_error("%s: Malformed zone response, start=%lu, len=%lu\n",
+					  dev->zbd_filename, zone.zbz_start, zone.zbz_length);
+				return ret;
 			}
 
-			len = zbc_realm_block_length(r, j) / zones->zbz_length;
+			len = zbc_realm_block_length(r, j) / zone.zbz_length;
 			r->zbr_ri[j].zbi_length = len;
 		}
 	}
-
-out:
-	if (zones)
-		free(zones);
 
 	return 0;
 }

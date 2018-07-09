@@ -369,6 +369,13 @@ struct zbc_zone_domain {
 /** @brief Get zone domain end LBA */
 #define zbc_zone_domain_end_lba(d)	((unsigned long long)(d)->zbm_end_lba)
 
+/** @brief Get zone domain size in blocks */
+static inline uint64_t zbc_zone_domain_blk_size(struct zbc_zone_domain *d)
+{
+	return zbc_zone_domain_end_lba(d) -
+	       zbc_zone_domain_start_lba(d) + 1LL;
+}
+
 /**
  * The number of domain slots in a realm. Each slot corresponds
  * to a zone domain with a distinctive zone type.
