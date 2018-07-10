@@ -21,7 +21,7 @@ expected_sk="Illegal-request"
 expected_asc="Attempt-to-read-invalid-data"	# read across WP
 
 # Search target LBA
-zbc_test_search_wp_zone_cond_or_NA ${ZC_NON_FULL}
+zbc_test_search_wp_zone_cond_or_NA "${ZC_NON_FULL}"
 target_lba=${target_ptr}
 
 # Start testing
