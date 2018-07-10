@@ -42,6 +42,8 @@ static void zbc_print_realm(struct zbc_device_info *info,
 		       zbc_realm_length(r, i));
 		printf(i == zbc_zone_realm_nr_domains(r) - 1 ? "\n" : "; ");
 	}
+	if (i == 0)
+		printf("\n");
 }
 
 int main(int argc, char **argv)
