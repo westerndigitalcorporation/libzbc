@@ -12,7 +12,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE across zone-type spaces (cross-type boundary violation)" $*
+zbc_test_init $0 "WRITE across zone-type spaces (cross-domain boundary)" $*
 
 # Set expected error code - ZBC 4.4.3.4.2 penultimate paragraph
 expected_sk="Illegal-request"
@@ -33,8 +33,7 @@ if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
 fi
 
 if [ $? -ne 0 ]; then
-    # Most likely the test is broken...
-    zbc_test_print_not_applicable "Device has no zones of any valid type"
+    zbc_test_print_not_applicable "Device has only one domain"
 fi
 
 boundary_lba=$(( ${target_slba} + ${target_size} ))	# first LBA after boundary
