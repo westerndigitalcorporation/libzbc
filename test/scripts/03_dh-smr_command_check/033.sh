@@ -27,7 +27,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
-zbc_test_count_actv_as_conv_realms
 start_cmr_lba=$(zbc_realm_cmr_start)
 
 # Calculate the total number of zones in this range of realms

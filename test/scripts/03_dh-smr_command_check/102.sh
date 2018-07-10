@@ -24,15 +24,21 @@ zbc_test_get_device_info
 zbc_test_get_zone_realm_info
 
 # Select last realm
-zbc_test_count_zone_realms		# into nr_realms
 zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
+cmr_len=$(zbc_realm_cmr_len)
+smr_len=$(zbc_realm_smr_len)
+cmr_start=$(zbc_realm_cmr_start)
+smr_start=$(zbc_realm_smr_start)
+
+msg="WARNING: Realm has neither cmr_start nor smr_start"
+target_lba=${cmr_start:-${smr_start:?"${msg}"}}
+
 # Use double the size of the last realm when trying ACTIVATE across End of Medium
+target_nzone=$(( 2 * ${cmr_len:-${smr_len:-0}} ))
 
 # Start testing
-msg="WARNING: Attempted ACTIVATE test on non-ZD device"
-realm_conv_len=$(zbc_realm_cmr_len)
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(zbc_realm_cmr_start) $(( 2 * ${realm_conv_len:?"${msg}"} )) ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${target_lba} ${target_nzone} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq

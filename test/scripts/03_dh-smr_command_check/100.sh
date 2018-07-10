@@ -36,8 +36,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
-zbc_test_count_zone_realms
-zbc_test_count_actv_as_seq_realms
 if [ $(expr "${realm_num}" + "${nr_actv_as_seq_realms}") -gt ${nr_realms} ]; then
     nr_actv_as_seq_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi

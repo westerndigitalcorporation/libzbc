@@ -27,8 +27,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
-zbc_test_count_zone_realms
-zbc_test_count_actv_as_conv_realms
 if [ $(expr "${realm_num}" + "${nr_actv_as_conv_realms}") -gt ${nr_realms} ]; then
     nr_actv_as_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
@@ -38,7 +36,6 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_a
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "ACTIVATE failed to cmr_type=${cmr_type}"
 
 if [ -z "${sk}" ]; then
     # Verify that no SMR realms that can be activated as CMR are present

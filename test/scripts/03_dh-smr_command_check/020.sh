@@ -31,7 +31,6 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} 1 ${sm
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "ACTIVATE failed to smr_type=${smr_type}"
 
 if [ -z "${sk}" ]; then
     # Verify that the realm has been activated

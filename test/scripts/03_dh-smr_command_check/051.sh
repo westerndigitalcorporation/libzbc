@@ -31,7 +31,6 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 ${device} ${realm_num} 1 
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_no_sk_ascq
 
 if [ -z "${sk}" ]; then
     # Verify that the realm has been activated
@@ -45,5 +44,6 @@ if [ -z "${sk}" ]; then
 fi
 
 # Check failed
+zbc_test_check_no_sk_ascq
 zbc_test_check_failed
 

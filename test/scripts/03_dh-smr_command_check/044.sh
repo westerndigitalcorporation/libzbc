@@ -31,8 +31,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
-zbc_test_count_zone_realms
-zbc_test_count_actv_as_seq_realms
 start_smr_lba=$(zbc_realm_smr_start)
 
 # Calculate the total number of zones in this range of realms
@@ -43,7 +41,6 @@ zbc_test_run ${bin_path}/zbc_test_zone_activate -v -z -n ${device} ${start_smr_l
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "ACTIVATE failed"
 
 if [ -z "${sk}" ]; then
     # Verify that no CMR realms that can be activated as SMR are present

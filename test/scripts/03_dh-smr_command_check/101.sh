@@ -24,13 +24,16 @@ zbc_test_get_device_info
 zbc_test_get_zone_realm_info
 
 # Select last realm
-zbc_test_count_zone_realms		# into nr_realms
 zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
+cmr_len=$(zbc_realm_cmr_len)
+smr_len=$(zbc_realm_smr_len)
+
 # Use the size of the last realm when trying ACTIVATE at End of Medium
+target_nzone=${cmr_len:-${smr_len:-0}}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) $(zbc_realm_cmr_len) ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} $(( ${max_lba} + 1 )) ${target_nzone} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
