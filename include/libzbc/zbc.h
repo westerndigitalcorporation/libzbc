@@ -1816,6 +1816,7 @@ enum zbc_mutation_opt_smr {
 	ZBC_MO_SMR_1PCNT_B      = 0x02, /* SMR with 1% of CMR zones at bottom */
 	ZBC_MO_SMR_2PCNT_BT     = 0x03, /* SMR with 2% of CMR zones at bottom */
 					/* and one CMR zone below high LBA */
+	ZBC_MO_SMR_FAULTY       = 0x04, /* SMR with readonly and offline zones */
  };
 
 /**
@@ -1828,6 +1829,7 @@ enum zbc_mutation_opt_zd {
 	ZBC_MO_ZD_1_CMR_BOT     = 0x02, /* ZD, one CMR-only realm at bottom */
 	ZBC_MO_ZD_1_CMR_BOT_TOP = 0x03, /* ZD, CMR-only realms at bottom and top */
 	ZBC_MO_ZD_SOBR_NO_CMR   = 0x04, /* Zone Domains, SOBR, no CMR-only realms */
+	ZBC_MO_ZD_1_CMR_BT_SWR	= 0x05, /* ZD, SWR, CMR realms at bottom and top */
 	ZBC_MO_ZD_BBONE         = 0x06, /* ZD, no CMR-only, no setting features */
 	ZBC_MO_ZD_STX           = 0x07, /* ZD, no CMR-only, no REPORT REALMS */
 	ZBC_MO_ZD_FAULTY        = 0x08, /* ZD, no CMR-only, read-only/offline zones */

@@ -66,6 +66,7 @@ usage:
 		       "  HM_ZONED                  : Host-managed SMR device, no CMR zones\n"
 		       "  HM_ZONED_1PCNT_B          : Host-managed SMR device, 1%% CMR at bottom\n"
 		       "  HM_ZONED_2PCNT_BT         : Host-managed SMR device, 2%% CMR at bottom, one CMR zone at top\n"
+		       "  HM_ZONED_FAULTY           : Host-managed SMR device with offline and read-only zones\n"
 		       "  HA_ZONED                  : Host-aware SMR device, no CMR zones\n"
 		       "  HA_ZONED_1PCNT_B          : Host-aware SMR device, 1%% CMR at bottom\n"
 		       "  HA_ZONED_2PCNT_BT         : Host-aware SMR device, 2%% CMR at bottom, one CMR zone at top\n"
@@ -74,9 +75,10 @@ usage:
 							" command set, conventional CMR zones, no CMR-only realms\n"
 		       "  ZD_1CMR_BOT               : Same as ZONE_DOM, but the first zone realm"
 							" is CMR-only\n"
+		       "  ZD_1CMR_BOT_SWP           : Same as ZD_1CMR_BOT, but with SWP zones instead of SWR\n"
 		       "  ZD_1CMR_BOT_TOP           : Same as ZONE_DOM, but the first and last zone"
 							" realms are CMR-only\n"
-		       "  ZD_1CMR_BOT_SWP           : Same as ZD_1CMR_BOT, but with SWP zones instead of SWR\n"
+		       "  ZD_1CMR_BT_SMR	    : Same as ZD_1CMR_BOT_TOP, but initially all SMR\n"
 		       "  ZD_SOBR or ZONE_DOM_SOBR  : DH-SMR device supporting Zone Domains"
 							" command set, SOBR CMR zones, no CMR-only realms\n"
 		       "  ZD_SOBR_SWP               : Same as ZD_SOBR, but with SWP zones instead of SWR\n"
@@ -117,6 +119,9 @@ usage:
 			} else if (strcmp(argv[i], "HM_ZONED_2PCNT_BT") == 0) {
 				mt = ZBC_MT_HM_ZONED;
 				opt.smr = ZBC_MO_SMR_2PCNT_BT;
+			} else if (strcmp(argv[i], "HM_ZONED_FAULTY") == 0) {
+				mt = ZBC_MT_HM_ZONED;
+				opt.smr = ZBC_MO_SMR_FAULTY;
 			} else if (strcmp(argv[i], "HA_ZONED") == 0) {
 				mt = ZBC_MT_HA_ZONED;
 				opt.smr = ZBC_MO_SMR_NO_CMR;
@@ -132,12 +137,15 @@ usage:
 			} else if (strcmp(argv[i], "ZD_1CMR_BOT") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_1_CMR_BOT;
-			} else if (strcmp(argv[i], "ZD_1CMR_BOT_TOP") == 0) {
-				mt = ZBC_MT_ZONE_DOM;
-				opt.zd = ZBC_MO_ZD_1_CMR_BOT_TOP;
 			} else if (strcmp(argv[i], "ZD_1CMR_BOT_SWP") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_SWP;
+			} else if (strcmp(argv[i], "ZD_1CMR_BOT_TOP") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_1_CMR_BOT_TOP;
+			} else if (strcmp(argv[i], "ZD_1CMR_BT_SMR") == 0) {
+				mt = ZBC_MT_ZONE_DOM;
+				opt.zd = ZBC_MO_ZD_1_CMR_BT_SWR;
 			} else if (strcmp(argv[i], "ZD_SOBR_SWP") == 0) {
 				mt = ZBC_MT_ZONE_DOM;
 				opt.zd = ZBC_MO_ZD_SOBR_SWP;
