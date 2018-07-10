@@ -24,7 +24,6 @@ zbc_test_get_device_info
 zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
-zbc_test_count_zone_realms		# into nr_realms
 zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
 target_lba=$(zbc_realm_cmr_start)

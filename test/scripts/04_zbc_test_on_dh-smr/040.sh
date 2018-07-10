@@ -20,10 +20,6 @@ zbc_test_get_device_info
 
 # Get zone realm information
 zbc_test_get_zone_realm_info
-
-# Find the total number of zone realms
-zbc_test_count_zone_realms		# nr_realms
-
 if [ ${nr_realms} -le 6 ]; then
     zbc_test_print_not_applicable "Not enough realms to run this configuration"
 fi
@@ -33,7 +29,7 @@ fi
 
 activate_fail()
 {
-    printf "\nFailed to activate device realms to intended test configuration ($*)"
+    printf "\nFailed to activate device realms to intended test configuration ($*)\n"
     exit 1
 }
 

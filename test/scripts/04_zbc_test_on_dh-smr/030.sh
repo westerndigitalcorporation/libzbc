@@ -28,8 +28,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Find the total number of zone realms that can be activated as CMR
-zbc_test_count_zone_realms		# nr_realms
-zbc_test_count_actv_as_conv_realms
 if [ $nr_actv_as_conv_realms -eq 0 ]; then
     # This should not happen because we found one just above
     zbc_test_print_failed "WARNING: No realms can be activated CMR"
@@ -42,7 +40,7 @@ fi
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to activate device realms to intended test configuration ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}"
+    printf "\nFailed to activate device realms to intended test configuration ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}\n"
     exit 1
 fi
 
