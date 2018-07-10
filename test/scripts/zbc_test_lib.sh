@@ -900,6 +900,10 @@ function zbc_test_get_wp_zones_cond_or_NA()
 
 function zbc_test_get_zone_realm_info()
 {
+	if [ ${report_realms} -eq 0 ]; then
+		zbc_test_print_not_applicable "REPORT REALMS is not supported by the device"
+	fi
+
 	if [ ${conv_zone} -ne 0 ]; then
 		cmr_type="conv"
 	elif [ ${sobr_zone} -ne 0 ]; then
@@ -923,22 +927,26 @@ function zbc_test_get_zone_realm_info()
 
 	${VALGRIND} ${_cmd} > ${zone_realm_info_file} 2>> ${log_file}
 
+	_zbc_test_count_zone_realms
+	_zbc_test_count_actv_as_conv_realms
+	_zbc_test_count_actv_as_seq_realms
+
 	return 0
 }
 
-function zbc_test_count_zone_realms()
+function _zbc_test_count_zone_realms()
 {
 	nr_realms=`cat ${zone_realm_info_file} | grep "\[ZONE_REALM_INFO\]" | wc -l`
 }
 
-function zbc_test_count_actv_as_conv_realms()
+function _zbc_test_count_actv_as_conv_realms()
 {
 	local _IFS="${IFS}"
 	nr_actv_as_conv_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h; do echo $f; done | grep -c Y`
 	IFS="$_IFS"
 }
 
-function zbc_test_count_actv_as_seq_realms()
+function _zbc_test_count_actv_as_seq_realms()
 {
 	local _IFS="${IFS}"
 	nr_actv_as_seq_realms=`cat ${zone_realm_info_file} | while IFS=, read a b c d e f g h; do echo $g; done | grep -c Y`
@@ -1259,7 +1267,7 @@ function zbc_test_calc_nr_realm_zones()
 			if [ "${_actv_as_conv}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
 					if [[ ${realm_dom_type[i]} == $(( ${ZT_CONV} )) || \
-					${realm_dom_type[i]} == $(( ${ZT_SOBR} )) ]]; then
+					      ${realm_dom_type[i]} == $(( ${ZT_SOBR} )) ]]; then
 						nr_conv_zones=$(( ${nr_conv_zones} + ${realm_length[i]} ))
 						break
 					fi
@@ -1269,7 +1277,7 @@ function zbc_test_calc_nr_realm_zones()
 			if [ "${_actv_as_seq}" == "Y" ]; then
 				for (( i=0; i<_nr_domains; i++ )); do
 					if [[ ${realm_dom_type[i]} == $(( ${ZT_SWR} )) || \
-					${realm_dom_type[i]} == $(( ${ZT_SWP} )) ]]; then
+					      ${realm_dom_type[i]} == $(( ${ZT_SWP} )) ]]; then
 						nr_seq_zones=$(( ${nr_seq_zones} + ${realm_length[i]} ))
 						break
 					fi
@@ -1544,7 +1552,9 @@ function zbc_test_dump_zone_info()
 
 function zbc_test_dump_zone_realm_info()
 {
-	zbc_report_realms ${device} > ${dump_zone_realm_info_file}
+	if [ ${report_realms} -ne 0 ]; then
+		zbc_report_realms ${device} > ${dump_zone_realm_info_file}
+	fi
 }
 
 # Dump info files after a failed test -- returns 1 if test failed
