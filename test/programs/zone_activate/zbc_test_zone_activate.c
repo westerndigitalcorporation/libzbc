@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "libzbc/zbc.h"
 #include "zbc_private.h"
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
 	}
 	start = atol(argv[i++]);
 
-	if (i >= argc) {
+	if (i >= argc || !isdigit(*argv[i])) {
 		fprintf(stderr,
 			"[TEST][ERROR],Missing number of %ss to activate\n",
 			zone_addr ? "zone" : "zone realm");
