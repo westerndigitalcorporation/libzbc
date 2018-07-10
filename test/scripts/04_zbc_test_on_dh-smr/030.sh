@@ -32,15 +32,36 @@ if [ $nr_actv_as_conv_realms -eq 0 ]; then
     # This should not happen because we found one just above
     zbc_test_print_failed "WARNING: No realms can be activated CMR"
 fi
+
 if [ $(expr "${realm_num}" + "${nr_actv_as_conv_realms}") -gt ${nr_realms} ]; then
     nr_actv_as_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
 
+#XXX Should compute the number of zones currently not CMR that could be converted
+nr=$(( nr_actv_as_conv_realms/2 ))
+if [ ${nr} -eq 0 ]; then
+    nr=1
+fi
+
+# If activation size is restricted, stay within the limit
+#XXX There must be a better way to do this
+max_act=`zbc_info ${device} | grep "Maximum number of zones to activate" | sed -e "s/.* //"`  #XXX
+if [ ${max_act} != "unlimited" ]; then
+    zbc_test_calc_nr_realm_zones ${realm_num} ${nr}
+    while [ ${nr_seq_zones} -gt ${max_act} ]; do
+	nr=$(( ${nr} / 2 ))
+	if [ ${nr} -eq 0 ]; then
+	    zbc_test_print_not_applicable "Cannot activate sequential zones (max_activate=${max_act})"
+	fi
+	zbc_test_calc_nr_realm_zones ${realm_num} ${nr}
+    done
+fi
+
 # Activate the realms to the configuration for the run we invoke below
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr} ${cmr_type}
 if [ $? -ne 0 ]; then
-    printf "\nFailed to activate device realms to intended test configuration ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}\n"
+    printf "\nFailed to activate device realms to intended test configuration ${realm_num} ${nr} ${cmr_type}\n"
     exit 1
 fi
 

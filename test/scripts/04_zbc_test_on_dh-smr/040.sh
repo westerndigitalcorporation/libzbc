@@ -24,6 +24,11 @@ if [ ${nr_realms} -le 6 ]; then
     zbc_test_print_not_applicable "Not enough realms to run this configuration"
 fi
 
+max_act=`zbc_info ${device} | grep "Maximum number of zones to activate" | sed -e "s/.* //"`  #XXX
+if [ ${max_act} != "unlimited" ]; then
+    zbc_test_print_not_applicable "This test requires unlimited activation size"
+fi
+
 # Configure the zone realms, with all realms freshly activated SMR except 0 and 5.
 # This ends up with all zone realms sequential except realms 0-20 and the last realm.
 
