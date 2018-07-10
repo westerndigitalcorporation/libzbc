@@ -20,18 +20,23 @@ expected_asc="Invalid-field-in-cdb"
 
 # Get information
 zbc_test_get_device_info
-
-zbc_test_get_zone_info
 zbc_test_get_zone_realm_info
 
 zbc_test_search_zone_realm_by_number $(( ${nr_realms} - 1 ))
 
-target_lba=$(zbc_realm_cmr_start)
-realm_cmr_len=$(zbc_realm_cmr_len)
-realm_smr_len=$(zbc_realm_smr_len)
-target_nzone=$(( ${zbc_realm_cmr_len:-0} + ${zbc_realm_smr_len:-0} ))
+cmr_start=$(zbc_realm_cmr_start)
+smr_start=$(zbc_realm_smr_start)
+cmr_len=$(zbc_realm_cmr_len)
+smr_len=$(zbc_realm_smr_len)
+
+msg="WARNING: Realm $(( ${nr_realms} - 1 )) has neither cmr_start nor smr_start"
+target_lba=${cmr_start:-${smr_start:?"${msg}"}}
+
+# Use the sum of the realm sizes in CMR and SMR domains (if both available)
+target_nzone=$(( ${cmr_len:-${smr_len:-0}} + ${smr_len:-${cmr_len:-0}} ))
 
 # Start testing
+# Try to activate a zone range spanning the realm of the last CMR zone and realm of the the first SMR zone.
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -32 -z ${device} ${target_lba} ${target_nzone} ${smr_type}
 
 # Check result
@@ -40,4 +45,3 @@ zbc_test_check_err
 
 # Post process
 zbc_test_check_failed
-rm -f ${zone_info_file}

@@ -901,7 +901,7 @@ function zbc_test_get_wp_zones_cond_or_NA()
 function zbc_test_get_zone_realm_info()
 {
 	if [ ${report_realms} -eq 0 ]; then
-		zbc_test_print_not_applicable "REPORT REALMS is not supported by the device"
+		echo "NOTE: REPORT REALMS will be emulated by libzbc"
 	fi
 
 	if [ ${conv_zone} -ne 0 ]; then
