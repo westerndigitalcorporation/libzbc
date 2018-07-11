@@ -27,12 +27,22 @@ if [ $? -ne 0 ]; then
 fi
 
 # Assume that all the realms that can be activated are contiguous
-if [ $(expr "${realm_num}" + "${nr_actv_as_conv_realms}") -gt ${nr_realms} ]; then
-    nr_actv_as_conv_realms=$(expr "${nr_realms}" - "${realm_num}")
+actv_realms=${nr_actv_as_conv_realms}
+if [ $(expr "${realm_num}" + "${actv_realms}") -gt ${nr_realms} ]; then
+    actv_realms=$(expr "${nr_realms}" - "${realm_num}")
+fi
+
+# Check whether our attempted activation will exceed the limit
+zbc_test_calc_nr_realm_zones ${realm_num} ${actv_realms}
+max_act=`zbc_info ${device} | grep "Maximum number of zones to activate" | sed -e "s/.* //"`  #XXX
+if [[ ${max_act} != "unlimited" && ${max_act} -lt ${nr_conv_zones} ]]; then
+    expected_sk="${ERR_ZA_SK}"
+    expected_asc="${ERR_ZA_ASC}"
+    expected_err_za="0x0400"        # MAXRX - attempt to exceed maximum conversion
 fi
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${nr_actv_as_conv_realms} ${cmr_type}
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v ${device} ${realm_num} ${actv_realms} ${cmr_type}
 
 # Check result
 zbc_test_get_sk_ascq
@@ -47,7 +57,11 @@ if [ -z "${sk}" ]; then
     fi
 fi
 
-# Check failed
-zbc_test_check_no_sk_ascq
-zbc_test_check_failed
+if [ -z "${expected_sk}" ]; then
+    zbc_test_check_no_sk_ascq
+else
+    zbc_test_check_sk_ascq
+fi
 
+# Check failed
+zbc_test_check_failed
