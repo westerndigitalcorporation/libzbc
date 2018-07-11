@@ -831,16 +831,18 @@ static int zbc_emulate_report_realms(struct zbc_device *dev,
 					  dev->zbd_filename, start, len, type, cond);
 				if (r) {
 					if (!i) {
-						r->zbr_number = j;
+						r->zbr_number = j / 2;
+						r->zbr_dom_id = 0;
 						r->zbr_type = 0;
-						r->zbr_dom_id = domain_id;
 						r->zbr_actv_flags = 0;
 						r->zbr_nr_domains = nr_domains;
 					}
 
 					r->zbr_actv_flags |= 1 << domain_id;
-					if (old_type == type)
+					if (old_type == type) {
+						r->zbr_dom_id = domain_id;
 						r->zbr_type = type;
+					}
 
 					ri = &r->zbr_ri[i];
 					ri->zbi_start_lba = start;
