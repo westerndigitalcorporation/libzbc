@@ -34,6 +34,16 @@
  */
 #define ZBC_ZONE_DESCRIPTOR_OFFSET		64
 
+/**
+ * REPORT ZONE DOMAINS ouput header size.
+ */
+#define ZBC_RPT_DOMAINS_HEADER_SIZE		64
+
+/**
+ * REPORT ZONE DOMAINS output descriptor size.
+ */
+#define ZBC_RPT_DOMAINS_RECORD_SIZE		32
+
 /*
  * REPORT REALMS output header size.
  */
@@ -66,6 +76,7 @@
  */
 #define ZBC_ATA_REPORT_ZONES_EXT_AF		0x00
 #define ZBC_ATA_REPORT_REALMS_EXT_AF		0x01 /* FIXME value TBD */
+#define ZBC_ATA_REPORT_ZONE_DOMAINS_EXT_AF	0x02 /* FIXME value TBD */
 
 #define ZBC_ATA_CLOSE_ZONE_EXT_AF		0x01
 #define ZBC_ATA_FINISH_ZONE_EXT_AF		0x02
@@ -1070,8 +1081,125 @@ static int zbc_ata_report_domains(struct zbc_device *dev,
 				  struct zbc_zone_domain *domains,
 				  unsigned int nr_domains)
 {
-	/* FIXME N/I */
-	return -EOPNOTSUPP;
+	size_t bufsz = ZBC_RPT_DOMAINS_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	size_t max_bufsz;
+	struct zbc_sg_cmd cmd;
+	uint8_t *buf;
+	int ret;
+
+	if (domains)
+		bufsz += (size_t)nr_domains * ZBC_RPT_DOMAINS_RECORD_SIZE;
+
+	bufsz = (bufsz + 4095) & ~4095;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	/* Allocate and intialize REPORT ZONE DOMAINS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (85h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Multiple count      |              Protocol             |  ext   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                      features (15:8) reserved                         |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   |                  features (7:0), action (02h)  FIXME TBD              |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5-6 |                             count                                     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 7-12|                           LBA reserved                                |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 13  |                   Device, bit 6 shall be set to 1                     |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |                           Command (4Ah)                               |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                             Control                                   |
+	 * +=============================================================================+
+	 */
+	cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
+	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+	/* DMA protocol, ext=1 */
+	cmd.cdb[1] = (0x06 << 1) | 0x01;
+	/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
+	cmd.cdb[2] = 0x0e;
+	/* Fill AF, Count and Device */
+	cmd.cdb[4] = ZBC_ATA_REPORT_ZONE_DOMAINS_EXT_AF;
+	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
+	cmd.cdb[6] = (bufsz / 512) & 0xff;
+	cmd.cdb[13] = 1 << 6;
+	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_IN;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0) {
+		/* Get sense data if enabled */
+		if (ret == -EIO &&
+		    zbc_ata_sense_data_enabled(&cmd) &&
+		    ((dev->zbd_errno.sk != ZBC_SK_ILLEGAL_REQUEST) ||
+		     (dev->zbd_errno.asc_ascq !=
+		      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)))
+			zbc_ata_request_sense_data_ext(dev);
+		goto out;
+	}
+
+	if (cmd.out_bufsz < ZBC_RPT_DOMAINS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT ZONE DOMAINS data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_RPT_DOMAINS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get the number of domain descriptors in result */
+	buf = (uint8_t *)cmd.out_buf;
+	/* FIXME header format TBD */
+	nr = buf[0];
+
+	if (!domains || !nr)
+		goto out;
+
+	/* Find the number of domain descriptors to fill */
+	if (nr < nr_domains)
+		nr_domains = nr;
+
+	bufsz = (cmd.out_bufsz - ZBC_RPT_DOMAINS_HEADER_SIZE) /
+		ZBC_RPT_DOMAINS_RECORD_SIZE;
+	if (nr_domains > bufsz)
+		nr_domains = bufsz;
+
+	/* Get zone domain descriptors */
+	buf += ZBC_RPT_DOMAINS_HEADER_SIZE;
+	for (i = 0; i < nr_domains; i++) {
+		domains[i].zbm_id = buf[0];
+		domains[i].zbm_type = buf[1];
+
+		domains[i].zbm_start_lba =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[16]));
+		domains[i].zbm_end_lba =
+			zbc_dev_lba2sect(dev, zbc_ata_get_qword(&buf[24]));
+
+		buf += ZBC_RPT_DOMAINS_RECORD_SIZE;
+	}
+
+out:
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	/* Return the number of domain descriptors */
+	return nr;
 }
 
 /**
@@ -1210,16 +1338,16 @@ static int zbc_ata_report_realms(struct zbc_device *dev,
 		if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
 			realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
 		realms->zbr_actv_flags = buf[1];
-		realms->zbr_number = zbc_sg_get_int16(&buf[2]);
+		realms->zbr_number = zbc_ata_get_word(&buf[2]);
 		ptr = buf + ZBC_RPT_REALMS_ITEM_OFFSET;
 		for (j = 0; j < ZBC_NR_ZONE_TYPES; j++) {
 			if (realms->zbr_actv_flags & (1 << j)) {
 				realms->zbr_ri[j].zbi_dom_id = j;
 				realms->zbr_ri[j].zbi_type = domains[j].zbm_type;
 				realms->zbr_ri[j].zbi_start_lba =
-					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
+					zbc_dev_lba2sect(dev, zbc_ata_get_qword(ptr));
 				realms->zbr_ri[j].zbi_end_lba =
-					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
+					zbc_dev_lba2sect(dev, zbc_ata_get_qword(ptr + 8));
 				/*
 				 * zbi_start and zbi_length values are not calculated
 				 * here because we need to know the zone size.
@@ -1679,6 +1807,7 @@ struct zbc_drv zbc_ata_drv = {
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
+	.zbd_report_domains	= zbc_ata_report_domains,
 	.zbd_report_realms	= zbc_ata_report_realms,
 };
 
