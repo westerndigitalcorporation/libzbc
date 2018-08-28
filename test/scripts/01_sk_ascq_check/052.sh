@@ -17,6 +17,8 @@ zbc_test_init $0 "RESET zone LBA at End of Medium" $*
 # Set expected error code
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
+alt_expected_sk="Illegal-request"
+alt_expected_asc="Logical-block-address-out-of-range"
 
 # Get drive information
 zbc_test_get_device_info

@@ -725,9 +725,16 @@ function zbc_test_check_sk_ascq()
 {
 	if [ "${sk}" = "${expected_sk}" -a "${asc}" = "${expected_asc}" ]; then
 		zbc_test_print_passed
-	else
-		zbc_test_print_failed_sk "$*"
+		return
 	fi
+
+	if [ "${alt_expected_sk}" != "" -a "${sk}" = "${alt_expected_sk}" ] &&
+	   [ "${alt_expected_asc}" != "" -a "${asc}" = "${alt_expected_asc}" ]; then
+		zbc_test_print_passed
+		return
+	fi
+
+	zbc_test_print_failed_sk "$*"
 }
 
 function zbc_test_check_no_sk_ascq()
