@@ -23,6 +23,7 @@
 enum zbc_oflags_internal {
 
 	/** Open device in test mode */
+	ZBC_O_SETZONES		= 0x20000000,
 	ZBC_O_DEVTEST		= 0x40000000,
 	ZBC_O_DIRECT		= 0x80000000,
 

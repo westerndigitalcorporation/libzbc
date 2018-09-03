@@ -220,7 +220,8 @@ static void zbc_fake_close_metadata(struct zbc_fake_device *fdev)
 /**
  * zbc_fake_open_metadata - Open metadata file of a fake device.
  */
-static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
+static int zbc_fake_open_metadata(struct zbc_fake_device *fdev,
+				  bool setzones)
 {
 	struct zbc_fake_meta *meta;
 	struct zbc_device_info *dev_info;
@@ -242,7 +243,7 @@ static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 		 * for a set_zones call.
 		 */
 		if (errno == ENOENT)
-			return 0;
+			return setzones ? 0 : -ENXIO;
 		ret = -errno;
 		zbc_error("%s: open metadata file %s failed %d (%s)\n",
 			  fdev->dev.zbd_filename,
@@ -290,7 +291,7 @@ static int zbc_fake_open_metadata(struct zbc_fake_device *fdev)
 			  fdev->dev.zbd_filename,
 			  meta_path);
 		zbc_fake_close_metadata(fdev);
-		ret = 0;
+		ret = setzones ? 0 : -ENXIO;
 		goto out;
 	}
 
@@ -477,7 +478,7 @@ static int zbc_fake_open(const char *filename, int flags,
 		goto out_free_filename;
 
 	/* Open metadata */
-	ret = zbc_fake_open_metadata(fdev);
+	ret = zbc_fake_open_metadata(fdev, flags & ZBC_O_SETZONES);
 	if (ret != 0)
 		goto out_free_filename;
 

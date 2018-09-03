@@ -119,8 +119,13 @@ usage:
 	path = argv[i];
 	ret = zbc_open(path, O_RDWR, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "Open %s failed (%s)\n",
-			path, strerror(-ret));
+		if (ret == -ENODEV)
+			fprintf(stderr,
+				"Open %s failed (not a zoned block device)\n",
+				path);
+		else
+			fprintf(stderr, "Open %s failed (%s)\n",
+				path, strerror(-ret));
 		return 1;
 	}
 
