@@ -14,12 +14,11 @@
  *         Christophe Louargant (christophe.louargant@wdc.com)
  */
 
-/***** Including files *****/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <libgen.h>
 #include <string.h>
+#include <linux/limits.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -27,8 +26,6 @@
 
 #include "zbc.h"
 #include "zbc_sg.h"
-
-/***** Private data *****/
 
 /**
  * Definition of the commands
@@ -442,35 +439,103 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 }
 
 /**
- * SG command maximum transfer length in number of 4KB pages.
- * This may limits the SG reported value to a smaller value
- * likely to work with most HBAs.
+ * Get the absolute device path from the device filename.
  */
-#define ZBC_SG_MAX_SEGMENTS	128
+static void zbc_sg_get_device_path(struct zbc_device *dev, char *path)
+{
+	struct stat lst;
+	char target[PATH_MAX];
+	ssize_t len;
+
+	strncpy(path, dev->zbd_filename, PATH_MAX - 1);
+
+	while (1) {
+		if (lstat(path, &lst) != 0) {
+			zbc_error("%s: lstat %s failed %d (%s)\n",
+				  dev->zbd_filename, path,
+				  errno, strerror(errno));
+			return;
+		}
+
+		if (!S_ISLNK(lst.st_mode))
+			return;
+
+		len = readlink(path, target, PATH_MAX - 1);
+		if (len < 0) {
+			zbc_error("%s: readlink failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno, strerror(errno));
+			return;
+		}
+		target[len] = '\0';
+		strncpy(path, target, PATH_MAX);
+	}
+}
 
 /**
- * Get the maximum allowed command size of a block device.
+ * Get a sysfs file integer value.
  */
-static int zbc_sg_max_segments(struct zbc_device *dev)
+static int zbc_sg_get_sysfs_val(char *sysfs_path, unsigned long *val)
 {
-	unsigned int max_segs = ZBC_SG_MAX_SEGMENTS;
-	FILE *fmax_segs;
+	int ret = -1;
+	FILE *f;
+
+	f = fopen(sysfs_path, "r");
+	if (f) {
+		ret = fscanf(f, "%lu", val);
+		if (ret == 1)
+			ret = 0;
+		fclose(f);
+	}
+
+	return ret;
+}
+
+/**
+ * SG command maximum transfer length in number of 4KB pages.
+ * This may limit the SG reported value to a smaller value likely to work
+ * with most HBAs.
+ */
+#define ZBC_SG_MAX_SEGMENTS	256
+
+/**
+ * Get the maximum allowed number of memory segments of a command.
+ */
+static unsigned long zbc_sg_get_max_segments(struct zbc_device *dev)
+{
+	unsigned long max_segs;
+	char path[PATH_MAX];
 	char str[128];
-	int ret;
+
+	zbc_sg_get_device_path(dev, path);
 
 	snprintf(str, sizeof(str),
 		 "/sys/block/%s/queue/max_segments",
-		 basename(dev->zbd_filename));
-
-	fmax_segs = fopen(str, "r");
-	if (fmax_segs) {
-		ret = fscanf(fmax_segs, "%u", &max_segs);
-		if (ret != 1)
-			max_segs = ZBC_SG_MAX_SEGMENTS;
-		fclose(fmax_segs);
-	}
+		 basename(path));
+	if (zbc_sg_get_sysfs_val(str, &max_segs) < 0)
+		max_segs = ZBC_SG_MAX_SEGMENTS;
 
 	return max_segs;
+}
+
+/**
+ * Get the maximum allowed number of bytes of a command.
+ */
+static unsigned long zbc_sg_get_max_bytes(struct zbc_device *dev)
+{
+	unsigned long max_bytes;
+	char path[PATH_MAX];
+	char str[128];
+
+	zbc_sg_get_device_path(dev, path);
+
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/queue/max_sectors_kb",
+		 basename(path));
+	if (zbc_sg_get_sysfs_val(str, &max_bytes) < 0)
+		max_bytes = 0;
+
+	return max_bytes * 1024;
 }
 
 /**
@@ -478,8 +543,8 @@ static int zbc_sg_max_segments(struct zbc_device *dev)
  */
 void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 {
+	unsigned long max_bytes = 0, max_segs = ZBC_SG_MAX_SEGMENTS;
 	struct stat st;
-	size_t sgsz = 0;
 	int ret;
 
 	/* Get device stats */
@@ -491,23 +556,24 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 	}
 
 	if (S_ISCHR(st.st_mode)) {
-		ret = ioctl(dev->zbd_sg_fd, SG_GET_SG_TABLESIZE, &sgsz);
+		ret = ioctl(dev->zbd_sg_fd, SG_GET_SG_TABLESIZE, &max_segs);
 		if (ret != 0) {
 			zbc_debug("%s: SG_GET_SG_TABLESIZE ioctl failed %d (%s)\n",
 				  dev->zbd_filename,
 				  errno,
 				  strerror(errno));
-			sgsz = 0;
+			max_segs = ZBC_SG_MAX_SEGMENTS;
 		}
+		max_bytes = 0;
 	} else if (S_ISBLK(st.st_mode)) {
-		sgsz = zbc_sg_max_segments(dev);
+		max_segs = zbc_sg_get_max_segments(dev);
+		max_bytes = zbc_sg_get_max_bytes(dev);
 	}
 
 out:
-	if (!sgsz || sgsz > ZBC_SG_MAX_SEGMENTS)
-		sgsz = ZBC_SG_MAX_SEGMENTS;
-	dev->zbd_info.zbd_max_rw_sectors =
-		((uint64_t)sgsz * sysconf_pagesize()) >> 9;
+	if (!max_bytes || max_segs * sysconf_pagesize() < max_bytes)
+		max_bytes = max_segs * sysconf_pagesize();
+	dev->zbd_info.zbd_max_rw_sectors = max_bytes >> 9;
 
 	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
 		  dev->zbd_filename,
