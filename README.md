@@ -63,7 +63,8 @@ not,  please   see  <http://opensource.org/licenses/BSD-2-Clause>  and
 
 To report problems, please contact:
 * Damien Le Moal  (damien.lemoal@wdc.com)
-* Adam Manzanares (adam.manzanares@wdc.com)
+* Dmitry Fomichev (dmitry.fomichev@wdc.com)
+* David Butterfield (david.butterfield@wdc.com)
 
 PLEASE DO NOT SUBMIT CONFIDENTIAL INFORMATION OR INFORMATION SPECIFIC
 TO DRIVES THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
