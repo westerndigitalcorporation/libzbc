@@ -294,9 +294,7 @@ usage:
 
 	if (zbc_zone_sequential_req(iozone) &&
 	    !zbc_zone_full(iozone))
-		sector_max = zbc_zone_start(iozone) +
-			zbc_zone_length(iozone) -
-			zbc_zone_wp(iozone);
+		sector_max = zbc_zone_wp(iozone) - zbc_zone_start(iozone);
 	else
 		sector_max = zbc_zone_length(iozone);
 
