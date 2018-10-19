@@ -6,8 +6,8 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2020, Western Digital. All rights reserved.
 
-test_zone_type="${ZT_SOBR}"
+test_zone_type="${ZT_CONV}|${ZT_SOBR}"
 
-. scripts/01_sk_ascq_check/073.sh "$@"
+. scripts/00_command_completion_check/072.sh "$@"

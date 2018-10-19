@@ -10,42 +10,37 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE full zone" $*
+zbc_test_init $0 "WRITE full zone (type=${test_zone_type:-${ZT_SEQ}})" $*
 
-# Expected error code for host-managed devices
-expected_sk="Illegal-request"
-expected_asc="Invalid-field-in-cdb"
 
 # Get drive information
 zbc_test_get_device_info
 
-# Set target zone type
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
+# Search target zone
+zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_NOT_WP}"
+
+if [ ${target_type} = ${ZT_SWR} ]; then
+	# Expected error code for sequential write required zones
+	expected_sk="Illegal-request"
+	expected_asc="Invalid-field-in-cdb"
 else
-    zone_type="0x2"
+	expected_sk=""
+	expected_asc=""
 fi
 
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target zone
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
+# Specify post-processing to occur when script exits
+zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+if [ ${target_type} != ${ZT_SOBR} ]; then
+	zbc_test_run ${bin_path}/zbc_test_finish_zone -v ${device} ${target_slba}
+else
+	zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_ptr} ${lblk_per_pblk}
+fi
+zbc_test_fail_exit_if_sk_ascq "FINISH failed, zone_type=${target_type}"
 
 zbc_test_run ${bin_path}/zbc_test_write_zone -v -n 1 ${device} ${target_slba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq
-
-if [ ${device_model} = "Host-aware" ]; then
-    zbc_test_check_no_sk_ascq
-else
-    zbc_test_check_sk_ascq
-fi
-
-test_zone_type="${ZT_CONV}"
-
-. scripts/01_sk_ascq_check/074.sh "$@"
+zbc_test_check_sk_ascq

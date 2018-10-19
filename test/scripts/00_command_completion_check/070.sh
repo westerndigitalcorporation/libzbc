@@ -10,7 +10,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE command completion" $*
+zbc_test_init $0 "WRITE command completion (conventional)" $*
 
 # Set expected error code
 expected_sk=""
@@ -19,8 +19,15 @@ expected_asc=""
 # Get drive information
 zbc_test_get_device_info
 
-zbc_test_search_seq_zone_cond_or_NA ${ZC_EMPTY}
-target_lba=${target_ptr}
+zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_NOT_WP}"
+if [[ $target_cond != $ZC_NOT_WP ]]; then
+	target_lba=$(( ${target_ptr} ))
+
+	# Specify post-processing to occur when script exits
+	zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
+else
+	target_lba=$(( ${target_slba} ))
+fi
 
 # Specify post process
 zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}

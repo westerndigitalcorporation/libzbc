@@ -9,18 +9,23 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE ${test_io_size:-"one logical"} block(s) unaligned ending below write pointer (type=${test_zone_type:-${ZT_SEQ}})" $*
+zbc_test_init $0 "WRITE with unaligned ending physical block (type=${test_zone_type:-${ZT_SEQ}})" $*
+
+# Set expected error code
+expected_sk="Illegal-request"
+expected_asc="Unaligned-write-command"		# ending physical unaligned
 
 # Get drive information
 zbc_test_get_device_info
 
-write_size=${test_io_size:-1}
-
-expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"		# Write starting and ending below WP
+# if physical block size == logical block size then this failure cannot occur
+if [ ${physical_block_size} -eq ${logical_block_size} ]; then
+    zbc_test_print_not_applicable \
+	"physical_block_size=logical_block_size (${logical_block_size} B)"
+fi
 
 # Search target LBA
-zbc_test_get_wp_zones_cond_or_NA "IOPENL"	# get a zone and write the first block
+zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_NOT_WP}"
 initial_wp=${target_ptr}
 expected_cond="${target_cond}"
 
@@ -28,15 +33,18 @@ expected_cond="${target_cond}"
 zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 # Start testing
-# Attempt to write one of the same LBA again
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${write_size}
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 1
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_get_target_zone_from_slba ${target_slba}
 
-if [[ ${target_type} != @(${ZT_DISALLOW_WRITE_LT_WP}) ]]; then
-    zbc_test_check_zone_cond_wp ${initial_wp} "zone_type=${target_type}"
+if [[ ${target_type} == @(${ZT_CONV}) ]]; then
+    # Don't check WP on conventional zones
+    zbc_test_check_zone_cond "zone_type=${target_type}"
+elif [[ ${target_type} != @(${ZT_REQUIRE_WRITE_PHYSALIGN}) ]]; then
+    # Write should have succeeded -- check that the WP has updated
+    zbc_test_check_zone_cond_wp $(( ${target_slba} + 1 )) "zone_type=${target_type}"
 else
     # Write should have failed -- check WP is unmodified
     zbc_test_check_sk_ascq_zone_cond_wp ${initial_wp} "zone_type=${target_type}"
