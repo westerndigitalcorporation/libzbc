@@ -3,57 +3,61 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2016-2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "CLOSE_ZONE implicit open to closed" $*
+if [[ -n "${test_io_size}" && ${test_io_size} -eq 0 ]]; then
+    # CLOSE transitions an OPEN zone to EMPTY if the WP points to the start of the zone
+    end_state="EMPTY"
+    expected_cond="${ZC_EMPTY}"
+else
+    end_state="CLOSED"
+    expected_cond="${ZC_CLOSED}"
+fi
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
-expected_cond="0x4"
+zbc_test_init $0 "CLOSE_ZONE IMPLICIT OPEN to ${end_state} (type=${test_zone_type:-${ZT_SEQ}})" $*
 
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
+zbc_test_get_wp_zones_cond_or_NA "EMPTY"
+write_size=${test_io_size:-${lblk_per_pblk}}
 
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
-target_lba=${target_slba}
+# Specify post process
+zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
-zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
+# Make the zone Implicitly-Open
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} ${write_size}
+zbc_test_fail_exit_if_sk_ascq \
+    "Initial WRITE of ${write_size} block(s) failed, zone_type=${target_type}"
+
+if [[ ${target_type} != @(${ZT_SEQ}) ]]; then
+    expected_sk="Illegal-request"
+    expected_asc="Invalid-field-in-cdb"
+    expected_cond="${ZC_IOPEN}"		# unchanged
+fi
+
+zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_slba}
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq
 
-# Get zone information
-zbc_test_get_zone_info "4"
-
 # Get target zone condition
-zbc_test_get_target_zone_from_slba ${target_lba}
+zbc_test_get_target_zone_from_slba ${target_slba}
 
 # Check result
-zbc_test_check_zone_cond
-
-# Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
-rm -f ${zone_info_file}
-
+if [[ ${target_type} == @(${ZT_SEQ}) ]]; then
+    zbc_test_check_zone_cond_wp $(( ${target_slba} + ${write_size} )) \
+	"type=${target_type} cond=${target_cond} write_size=${write_size}"
+else
+    zbc_test_check_sk_ascq_zone_cond_wp $(( ${target_slba} + ${write_size} )) \
+	"type=${target_type} cond=${target_cond} write_size=${write_size}"
+fi

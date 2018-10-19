@@ -12,37 +12,25 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE implicit open to implicit open" $*
+zbc_test_init $0 "WRITE ${test_io_size:-"one physical"} block(s) implicit open to implicit open (type=${test_zone_type:-${ZT_SEQ}})" $*
 
-expected_cond="0x2"
+expected_cond="${ZC_IOPEN}"
 
 # Get drive information
 zbc_test_get_device_info
 
 # Search target LBA
-zbc_test_get_wp_zone_or_NA ${ZC_EMPTY}
-target_lba=${target_slba}
+zbc_test_get_wp_zones_cond_or_NA "IOPENL"
+write_size=${test_io_size:-${lblk_per_pblk}}
+
+# Specify post process
+zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 # Start testing
-# Write the first block of the zone
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
-zbc_test_get_sk_ascq
-zbc_test_fail_if_sk_ascq "Initial WRITE failed, zone_type=${target_type}"
+# Write starting at the write pointer
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} \
+			$(( ${target_slba} + ${lblk_per_pblk} )) ${write_size}
+zbc_test_fail_exit_if_sk_ascq "WRITE failed, zone_type=${target_type}"
 
-if [ -z "${sk}" ]; then
-    # Write the next block in the zone
-    zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} $(( ${target_lba} + ${lblk_per_pblk} )) ${lblk_per_pblk}
-    zbc_test_get_sk_ascq
-    zbc_test_fail_if_sk_ascq "WRITE failed, zone_type=${target_type}"
-
-    if [ -z "${sk}" ]; then
-        zbc_test_get_zone_info
-        zbc_test_get_target_zone_from_slba ${target_lba}
-        zbc_test_check_zone_cond
-    fi
-fi
-
-# Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
-
-rm -f ${zone_info_file}
+zbc_test_get_target_zone_from_slba ${target_slba}
+zbc_test_check_zone_cond_wp $(( ${target_slba} + ${lblk_per_pblk} + ${write_size} ))

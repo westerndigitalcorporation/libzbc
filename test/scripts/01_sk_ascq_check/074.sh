@@ -3,48 +3,53 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2016-2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "WRITE physical sector unaligned write to sequential zone" $*
+zbc_test_init $0 "WRITE with unaligned ending physical block (type=${test_zone_type:-${ZT_SEQ}})" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"
+expected_asc="Unaligned-write-command"		# ending physical unaligned
 
 # Get drive information
 zbc_test_get_device_info
 
-# if device model is host-aware or physical block size == logical block size
-# then it is "not reported"
-if [ ${device_model} = "Host-aware" \
-     -o $((physical_block_size)) -eq $((logical_block_size)) ]; then
-    zbc_test_print_not_applicable
+# if physical block size == logical block size then this failure cannot occur
+if [ ${physical_block_size} -eq ${logical_block_size} ]; then
+    zbc_test_print_not_applicable \
+	"physical_block_size=logical_block_size (${logical_block_size} B)"
 fi
 
-# Get zone information
-zone_type="0x2"
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_get_target_zone_from_type_and_ignored_cond ${zone_type} "0xe"
-target_lba=$((target_ptr))
+zbc_test_search_zone_cond_or_NA "${ZC_EMPTY}|${ZC_NOT_WP}"
+initial_wp=${target_ptr}
+expected_cond="${target_cond}"
+
+# Specify post-processing to occur when script exits
+zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_slba}
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} 1
+zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_slba} 1
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
+zbc_test_get_target_zone_from_slba ${target_slba}
 
-# Post process
-rm -f ${zone_info_file}
-
+if [[ ${target_type} == @(${ZT_CONV}) ]]; then
+    # Don't check WP on conventional zones
+    zbc_test_check_zone_cond "zone_type=${target_type}"
+elif [[ ${target_type} != @(${ZT_REQUIRE_WRITE_PHYSALIGN}) ]]; then
+    # Write should have succeeded -- check that the WP has updated
+    zbc_test_check_zone_cond_wp $(( ${target_slba} + 1 )) "zone_type=${target_type}"
+else
+    # Write should have failed -- check WP is unmodified
+    zbc_test_check_sk_ascq_zone_cond_wp ${initial_wp} "zone_type=${target_type}"
+fi

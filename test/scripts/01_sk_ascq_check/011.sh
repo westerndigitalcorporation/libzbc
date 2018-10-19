@@ -3,14 +3,13 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2016-2018, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. You should have received a copy of the BSD 2-clause license along
 # with libzbc. If not, see  <http://opensource.org/licenses/BSD-2-Clause>.
-#
 
 . scripts/zbc_test_lib.sh
 
@@ -24,8 +23,8 @@ expected_asc="Invalid-field-in-cdb"
 zbc_test_get_device_info
 
 # Start testing
-report_option=10
-zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${report_option} ${device}
+reporting_option=10
+zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${reporting_option} ${device}
 
 # Check result
 zbc_test_get_sk_ascq

@@ -12,13 +12,13 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "OPEN zone LBA at End of Medium" $*
+zbc_test_init $0 "OPEN_ZONE LBA at End of Medium" $*
 
 # Set expected error code
 expected_sk="Illegal-request"
-expected_asc="Invalid-field-in-cdb"
+expected_asc="Logical-block-address-out-of-range"	# ZBC-2
 alt_expected_sk="Illegal-request"
-alt_expected_asc="Logical-block-address-out-of-range"
+alt_expected_asc="Invalid-field-in-cdb"			# ZBC-1
 
 # Get drive information
 zbc_test_get_device_info
