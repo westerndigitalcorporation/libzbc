@@ -99,7 +99,7 @@ static struct zbc_sg_asc_ascq_s {
  * zbc_set_log_level - Set the library log level
  */
 void
-zbc_set_log_level(char *log_level)
+zbc_set_log_level(char const *log_level)
 {
 	if (!log_level) {
 		/* Set default */
