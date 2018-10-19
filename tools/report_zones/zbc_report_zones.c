@@ -28,7 +28,7 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 				  int zno,
 				  int lba_unit)
 {
-	char *start, *length;
+	char const *start, *length;
 
 	if (lba_unit) {
 		start = "block";
@@ -38,7 +38,43 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		length = "sectors";
 	}
 
-	if (zbc_zone_conventional(z)) {
+	if (zbc_zone_sobr(z)) {
+		if (zbc_zone_condition(z) == ZBC_ZC_IMP_OPEN ||
+		    zbc_zone_condition(z) == ZBC_ZC_EMPTY) {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s, wp %llu\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+					  zbc_zone_wp(z));
+		} else {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length);
+		}
+		return;
+	}
+
+	if (zbc_zone_conventional(z) || zbc_zone_inactive(z) || zbc_zone_gap(z)) {
 		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
 		       "%llu %s\n",
 		       zno,
@@ -48,16 +84,16 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_condition_str(zbc_zone_condition(z)),
 		       start,
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-		       zbc_zone_start(z),
+				  zbc_zone_start(z),
 		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-		       zbc_zone_length(z),
+				  zbc_zone_length(z),
 		       length);
 		return;
 	}
 
 	if (zbc_zone_sequential(z)) {
-		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset recommended %d, "
-		       "non_seq %d, %s %llu, %llu %s, wp %llu\n",
+		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset "
+		       "recommended %d, non_seq %d, %s %llu, %llu %s, wp %llu\n",
 		       zno,
 		       zbc_zone_type(z),
 		       zbc_zone_type_str(zbc_zone_type(z)),
@@ -66,10 +102,13 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_rwp_recommended(z),
 		       zbc_zone_non_seq(z),
 		       start,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) : zbc_zone_start(z),
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) : zbc_zone_length(z),
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+				  zbc_zone_start(z),
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+				  zbc_zone_length(z),
 		       length,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) : zbc_zone_wp(z));
+		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+				  zbc_zone_wp(z));
 		return;
 	}
 
@@ -90,7 +129,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	unsigned long long sector = 0, nr_sectors = 0;
-	enum zbc_reporting_options ro = ZBC_RO_ALL;
+	enum zbc_zone_reporting_options ro = ZBC_RZ_RO_ALL;
 	unsigned int nr_zones = 0, nz = 0;
 	struct zbc_zone *z, *zones = NULL;
 	unsigned int lba_unit = 0;
@@ -160,27 +199,31 @@ usage:
 			i++;
 
 			if (strcmp(argv[i], "all") == 0) {
-				ro = ZBC_RO_ALL;
+				ro = ZBC_RZ_RO_ALL;
 			} else if (strcmp(argv[i], "empty") == 0) {
-				ro = ZBC_RO_EMPTY;
+				ro = ZBC_RZ_RO_EMPTY;
 			} else if (strcmp(argv[i], "imp_open") == 0) {
-				ro = ZBC_RO_IMP_OPEN;
+				ro = ZBC_RZ_RO_IMP_OPEN;
 			} else if (strcmp(argv[i], "exp_open") == 0) {
-				ro = ZBC_RO_EXP_OPEN;
+				ro = ZBC_RZ_RO_EXP_OPEN;
 			} else if (strcmp(argv[i], "closed") == 0) {
-				ro = ZBC_RO_CLOSED;
+				ro = ZBC_RZ_RO_CLOSED;
 			} else if (strcmp(argv[i], "full") == 0) {
-				ro = ZBC_RO_FULL;
+				ro = ZBC_RZ_RO_FULL;
 			} else if (strcmp(argv[i], "rdonly") == 0) {
-				ro = ZBC_RO_RDONLY;
+				ro = ZBC_RZ_RO_RDONLY;
 			} else if (strcmp(argv[i], "offline") == 0) {
-				ro = ZBC_RO_OFFLINE;
+				ro = ZBC_RZ_RO_OFFLINE;
+			} else if (strcmp(argv[i], "inactive") == 0) {
+				ro = ZBC_RZ_RO_INACTIVE;
 			} else if (strcmp(argv[i], "reset") == 0) {
-				ro = ZBC_RO_RWP_RECOMMENDED;
+				ro = ZBC_RZ_RO_RWP_RECMND;
 			} else if (strcmp(argv[i], "non_seq") == 0) {
-				ro = ZBC_RO_NON_SEQ;
+				ro = ZBC_RZ_RO_NON_SEQ;
 			} else if (strcmp(argv[i], "not_wp") == 0) {
-				ro = ZBC_RO_NOT_WP;
+				ro = ZBC_RZ_RO_NOT_WP;
+			} else if (strcmp(argv[i], "gap") == 0) {
+				ro = ZBC_RZ_RO_GAP;
 			} else {
 				fprintf(stderr, "Unknown reporting option \"%s\"\n",
 					argv[i]);
@@ -275,7 +318,7 @@ usage:
 
 		z = &zones[i];
 
-		if (ro == ZBC_RO_ALL) {
+		if (ro == ZBC_RZ_RO_ALL) {
 			/* Check */
 			if (zbc_zone_start(z) != sector) {
 				printf("[WARNING] Zone %05d: sector %llu should be %llu\n",
@@ -291,7 +334,7 @@ usage:
 
 	}
 
-	if (start == 0 && ro == ZBC_RO_ALL) {
+	if (start == 0 && ro == ZBC_RZ_RO_ALL) {
 		/* Check */
 		if ( zbc_sect2lba(&info, nr_sectors) != info.zbd_lblocks ) {
 			printf("[WARNING] %llu logical blocks reported "

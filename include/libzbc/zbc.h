@@ -25,6 +25,9 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#define ZBC_NEW_RPT_REALMS
+
+
 /**
  * @mainpage
  *
@@ -85,6 +88,17 @@ enum zbc_zone_type {
 	 */
 	ZBC_ZT_SEQUENTIAL_PREF	= 0x03,
 
+	/**
+	 * Sequential or before required zone: requires additional
+	 * initialization to become close to a regular conventional,
+	 * but it can be activated from SMR quickly.
+	 */
+	ZBC_ZT_SEQ_OR_BEF_REQ	= 0x04,
+
+	/**
+	 * Gap zone. Gaps are allowed between zone domains.
+	 */
+	ZBC_ZT_GAP		= 0x05,
 };
 
 /**
@@ -114,7 +128,7 @@ enum zbc_zone_condition {
 	ZBC_ZC_EMPTY		= 0x01,
 
 	/**
-	 * Implicitely open zone (i.e. a write command was issued to
+	 * Implicitly open zone (i.e. a write command was issued to
 	 * the zone).
 	 */
 	ZBC_ZC_IMP_OPEN		= 0x02,
@@ -132,17 +146,22 @@ enum zbc_zone_condition {
 	ZBC_ZC_CLOSED		= 0x04,
 
 	/**
+	 * Inacive zone: an unmapped zone of a Zone Domains device.
+	 */
+	ZBC_ZC_INACTIVE		= 0x05,
+
+	/**
 	 * Read-only zone: any zone that can only be read.
 	 */
 	ZBC_ZC_RDONLY		= 0x0d,
 
 	/**
-	 * Full zone (a write pointer zones only).
+	 * Full zone (write pointer zones only).
 	 */
 	ZBC_ZC_FULL		= 0x0e,
 
 	/**
-	 * Offline zone: unuseable zone.
+	 * Offline zone: unusable zone.
 	 */
 	ZBC_ZC_OFFLINE		= 0x0f,
 
@@ -227,7 +246,7 @@ struct zbc_zone {
 	uint8_t			zbz_attributes;
 
 	/**
-	 * Padding to 64 Bytes.
+	 * Padding to 32 bytes.
 	 */
 	uint8_t			__pad[5];
 
@@ -245,9 +264,15 @@ struct zbc_zone {
 /** @brief Test if a zone type is sequential write preferred */
 #define zbc_zone_sequential_pref(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
 
+/** @brief Test if a zone type is sequential or before required (SOBR) */
+#define zbc_zone_sobr(z) ((z)->zbz_type == ZBC_ZT_SEQ_OR_BEF_REQ)
+
 /** @brief Test if a zone type is sequential write required or preferred */
-#define zbc_zone_sequential(z) 	(zbc_zone_sequential_req(z) || \
+#define zbc_zone_sequential(z)	(zbc_zone_sequential_req(z) || \
 				 zbc_zone_sequential_pref(z))
+
+/** @brief Test if a zone type is gap */
+#define zbc_zone_gap(z)		((z)->zbz_type == ZBC_ZT_GAP)
 
 /** @brief Get a zone condition */
 #define zbc_zone_condition(z)	((int)(z)->zbz_condition)
@@ -280,11 +305,14 @@ struct zbc_zone {
 /** @brief Test if a zone condition is offline */
 #define zbc_zone_offline(z)	((z)->zbz_condition == ZBC_ZC_OFFLINE)
 
+/** @brief Test if a zone condition is inactive */
+#define zbc_zone_inactive(z)	((z)->zbz_condition == ZBC_ZC_INACTIVE)
+
 /** @brief Test if a zone has the reset recommended flag set */
 #define zbc_zone_rwp_recommended(z) ((z)->zbz_attributes & \
 				     ZBC_ZA_RWP_RECOMMENDED)
 
-/** @brief Test if a zone has the non sequential write resource allocated flag set */
+/** @brief Test if a zone has non sequential write resource flag set */
 #define zbc_zone_non_seq(z)	((z)->zbz_attributes & ZBC_ZA_NON_SEQ)
 
 /** @brief Get a zone start 512B sector */
@@ -295,6 +323,414 @@ struct zbc_zone {
 
 /** @brief Get a zone write pointer 512B sector position */
 #define zbc_zone_wp(z)		((unsigned long long)(z)->zbz_write_pointer)
+
+/**
+ * @brief Zone domain descriptor
+ *
+ * Provide all information about a single zone domain supported by the
+ * device. This structure is populated with the information returned to
+ * the client after succesful execution of REPORT ZONE DOMAINS SCSI command
+ * or REPORT DOMAINS DMA ATA command.
+ */
+struct zbc_zone_domain {
+
+	/**
+	 * Start LBA of this zone domain.
+	 */
+	uint64_t		zbm_start_lba;
+
+	/**
+	 * End LBA of this zone domain.
+	 */
+	uint64_t		zbm_end_lba;
+
+	/**
+	 * The number of zones in this zone domain.
+	 */
+	uint32_t		zbm_nr_zones;
+
+	/**
+	 * Domain ID. Zone domains are numbered from 0 by
+	 * the server, incrementing in ascending order by 1.
+	 */
+	uint8_t			zbm_id;
+
+	/**
+	 * All zones activated in the LBA range of this
+	 * domain will be of this type.
+	 */
+	uint8_t			zbm_type;
+
+	/**
+	 * These flags are internal to the library,
+	 * not a part of Zone Domains specification.
+	 */
+	uint8_t			zbm_flags;
+
+	/**
+	 * Padding to 24 bytes.
+	 */
+	uint8_t			__pad[5];
+};
+
+/** @brief Get zone domain ID */
+#define zbc_zone_domain_id(d)		((unsigned int)(d)->zbm_id)
+
+/** @brief Get zone domain type */
+#define zbc_zone_domain_type(d)		((unsigned int)(d)->zbm_type)
+
+/** @brief Get zone domain start LBA */
+#define zbc_zone_domain_start_lba(d)	((unsigned long long)(d)->zbm_start_lba)
+
+/** @brief Get zone domain end LBA */
+#define zbc_zone_domain_end_lba(d)	((unsigned long long)(d)->zbm_end_lba)
+
+/** @brief Get zone domain number of zones */
+#define zbc_zone_domain_nr_zones(d)	((unsigned int)(d)->zbm_nr_zones)
+
+/** @brief Get zone domain size in blocks */
+static inline uint64_t zbc_zone_domain_blk_size(struct zbc_zone_domain *d)
+{
+	return zbc_zone_domain_end_lba(d) -
+	       zbc_zone_domain_start_lba(d) + 1LL;
+}
+
+/**
+ * The number of domain slots in a realm. Each slot corresponds
+ * to a zone domain with a distinctive zone type.
+ */
+#define ZBC_NR_ZONE_TYPES	4
+
+/**
+ * @brief Zone realm item
+ *
+ * Provides information about a single domain in a zone realm.
+ *
+*/
+struct zbc_realm_item {
+
+	/**
+	 * Start LBA for this domain.
+	 */
+	uint64_t		zbi_start_lba;
+
+	/**
+	 * End LBA for this domain.
+	 */
+	uint64_t		zbi_end_lba;
+
+	/**
+	 * Length in zones. Not provided by REPORT REALMS,
+	 * but calculated for convenience.
+	 */
+	uint32_t		zbi_length;
+
+	/**
+	 * Domain ID.
+	 */
+	uint8_t			zbi_dom_id;
+
+	/**
+	 * The corresponding zone type. This one is provided
+	 * by REPORT ZONE DOMAINS, not REPORT REALMS.
+	 */
+	uint8_t			zbi_type;
+
+	/**
+	 * Padding to 24 bytes.
+	 */
+	uint8_t			__pad[2];
+};
+
+/**
+ * @brief Zone realm descriptor
+ *
+ * Provide all information about a single zone realm defined by the
+ * device. This structure is typically populated with the information
+ * returned to the client after succesful execution of REPORT REALMS
+ * SCSI command or REPORT REALMS DMA ATA command.
+ */
+struct zbc_zone_realm {
+
+	/**
+	 * Zone realm ID as returned by REPORT REALMS.
+	 * The lowest is 0.
+	 */
+	uint16_t		zbr_number;
+
+	/**
+	 * The currently active domain ID. This is the type of all
+	 * zones in the realm (enum zbc_zone_type).
+	 */
+	uint8_t			zbr_dom_id;
+
+	/**
+	 * Current realm zone type. This the type of all zones
+	 * in the realm (enum zbc_zone_type).
+	 */
+	uint8_t			zbr_type;
+
+	/**
+	 * A set of flags indicating what zone types can be
+	 * activated in this realm.
+	 */
+	uint8_t			zbr_actv_flags;
+
+	/**
+	 * The number of valid items in \a zbr_ri array below.
+	 */
+	uint8_t			zbr_nr_domains;
+
+	/**
+	 * Realm restrictions.
+	 */
+	uint8_t			zbr_restr;
+
+	/**
+	 * Padding to 8 bytes.
+	 */
+	uint8_t			__pad[2];
+
+	/**
+	 * Array of realm items. Depending on the number of domains,
+	 * some of the entlies in this array may be empty.
+	 */
+	struct zbc_realm_item	zbr_ri[ZBC_NR_ZONE_TYPES];
+};
+
+/** @brief Get the zone realm number */
+static inline int zbc_zone_realm_number(struct zbc_zone_realm *r)
+{
+	return r->zbr_number;
+}
+
+/** @brief Get the zone realm domain ID */
+static inline int zbc_zone_realm_domain(struct zbc_zone_realm *r)
+{
+	return r->zbr_dom_id;
+}
+
+/** @brief Get the zone realm type */
+static inline int zbc_zone_realm_type(struct zbc_zone_realm *r)
+{
+	return r->zbr_type;
+}
+
+/** @brief Test if a zone realm type is CONVENTIONAL */
+static inline bool zbc_zone_realm_conventional(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_CONVENTIONAL);
+}
+
+/** @brief Get activation flags of a realm */
+static inline uint8_t zbc_zone_realm_actv_flags(struct zbc_zone_realm *r)
+{
+	return r->zbr_actv_flags;
+}
+
+/** @brief Get the number of valid domain records in a realm */
+static inline
+unsigned int zbc_zone_realm_nr_domains(struct zbc_zone_realm *r)
+{
+	return r->zbr_nr_domains;
+}
+
+/** @brief Test if a zone realm type is SEQUENTIAL OR BEFORE REQUIRED */
+static inline bool zbc_zone_realm_sobr(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQ_OR_BEF_REQ);
+}
+
+/** @brief Test if a zone realm type is SEQUENTIAL WRITE REQUIRED */
+static inline bool zbc_zone_realm_sequential(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQUENTIAL_REQ);
+}
+
+/** @brief Test if a zone realm type is SEQUENTIAL WRITE PREFERRED */
+static inline bool zbc_zone_realm_seq_pref(struct zbc_zone_realm *r)
+{
+	return (r->zbr_type == ZBC_ZT_SEQUENTIAL_PREF);
+}
+
+/** @brief Get realm zone type for a particular domain */
+static inline unsigned int zbc_realm_zone_type(struct zbc_zone_realm *r,
+					       unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_type;
+}
+
+/** @brief Get realm start LBA for a particular domain as a 512B sector */
+static inline uint64_t zbc_realm_start_lba(struct zbc_zone_realm *r,
+					   unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_start_lba;
+}
+
+/** @brief Get the end LBA of a realm for a particular domain */
+static inline uint64_t zbc_realm_end_lba(struct zbc_zone_realm *r,
+					 unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_end_lba;
+}
+
+/** @brief Get realm length in 512B sectors for a particular domain */
+static inline uint64_t zbc_realm_block_length(struct zbc_zone_realm *r,
+					      unsigned int dom_id)
+{
+	return zbc_realm_end_lba(r, dom_id) -
+	       zbc_realm_start_lba(r, dom_id) + 1LL;
+}
+
+/** @brief Get the realm length in zones for a particular domain */
+static inline uint32_t zbc_realm_length(struct zbc_zone_realm *r,
+					unsigned int dom_id)
+{
+	return r->zbr_ri[dom_id].zbi_length;
+}
+
+static inline bool zbc_realm_actv_as_dom_id(struct zbc_zone_realm *r,
+					    unsigned int dom_id)
+{
+	return (bool)(r->zbr_actv_flags & (1 << dom_id));
+}
+
+/** @brief Test if the zone realm can be activated as the specified zone type */
+static inline bool zbc_realm_actv_as_type(struct zbc_zone_realm *r,
+					  enum zbc_zone_type zt)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if (zt == r->zbr_ri[i].zbi_type)
+			return (bool)(r->zbr_actv_flags & (1 << i));
+	}
+
+	return false;
+}
+
+/** @brief Test if the zone realm can be activated as a conventional zone type */
+static inline bool zbc_zone_realm_actv_as_conv(struct zbc_zone_realm *r)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if ((r->zbr_ri[i].zbi_type == ZBC_ZT_CONVENTIONAL ||
+		    r->zbr_ri[i].zbi_type == ZBC_ZT_SEQ_OR_BEF_REQ) &&
+		    (r->zbr_actv_flags & (1 << i)))
+			return true;
+	}
+
+	return false;
+}
+
+/** @brief Test if the zone realm can be activated as a sequential zone type */
+static inline bool zbc_zone_realm_actv_as_seq(struct zbc_zone_realm *r)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if ((r->zbr_ri[i].zbi_type == ZBC_ZT_SEQUENTIAL_REQ ||
+		    r->zbr_ri[i].zbi_type == ZBC_ZT_SEQUENTIAL_PREF) &&
+		    (r->zbr_actv_flags & (1 << i)))
+			return true;
+	}
+
+	return false;
+}
+
+/** @brief Get the realm item that corresponds to the specified zone type */
+static inline
+struct zbc_realm_item *zbc_realm_item_by_type(struct zbc_zone_realm *r,
+					      enum zbc_zone_type zt)
+{
+	for (int i = 0; i < r->zbr_nr_domains; i++) {
+		if (zt == r->zbr_ri[i].zbi_type)
+			return &r->zbr_ri[i];
+	}
+
+	return NULL;
+}
+
+/**
+ * @brief Zone Activation Results record.
+ *
+ * A list of these descriptors is returned by ZONE ACTIVATE or ZONE QUERY
+ * command to provide the caller with zone IDs and other information about
+ * the activated zones.
+ */
+struct zbc_actv_res {
+
+	/**
+	 * @brief Starting zone ID.
+	 */
+	uint64_t		zbe_start_zone;
+
+	/**
+	 * @brief Number of contiguous activated zones.
+	 */
+	uint64_t		zbe_nr_zones;
+
+	/**
+	 * @brief Domain ID of all zones in this range.
+	 */
+	uint8_t			zbe_domain;
+
+	/**
+	 * @brief Zone type of all zones in this range.
+	 */
+	uint8_t			zbe_type;
+
+	/**
+	 * @brief Zone condition of all zones in this range.
+	 */
+	uint8_t			zbe_condition;
+
+};
+
+/** @brief Get activation results record type */
+#define zbc_actv_res_type(r)		((int)(r)->zbe_type)
+
+/** @brief Test if activation results record type is conventional */
+#define zbc_actv_res_conventional(r)	((r)->zbe_type == ZBC_ZT_CONVENTIONAL)
+
+/** @brief Test if activation results record type is sequential write required */
+#define zbc_actv_res_seq_req(r)		((r)->zbe_type == ZBC_ZT_SEQUENTIAL_REQ)
+
+/** @brief Test if activatiion results record type is sequential write preferred */
+#define zbc_actv_res_seq_pref(r)	((r)->zbe_type == ZBC_ZT_SEQUENTIAL_PREF)
+
+/** @brief Test if activation record type is sequential or before required (SOBR) */
+#define zbc_actv_res_sobr(r)		((r)->zbe_type == ZBC_ZT_SEQ_OR_BEF_REQ)
+
+/** @brief Test if activation results record type is conventional of SOBR */
+#define zbc_actv_res_nonseq(r)		(zbc_actv_res_conventional(r) || \
+					 zbc_actv_res_sobr(r))
+
+/** @brief Test if activation record type is sequential write required or preferred */
+#define zbc_actv_res_seq(r)		(zbc_actv_res_seq_req(r) || \
+					 zbc_actv_res_seq_pref(r))
+
+/**
+ * @brief Zone Domains device control structure.
+ *
+ * The contents of this structure mirror fields in
+ * ZONE DOMAINS Mode page.
+ */
+struct zbc_zd_dev_control {
+	/**
+	 * @brief Default number of zones to activate.
+	 */
+	uint32_t		zbt_nr_zones;
+
+	/**
+	 * @brief Maximum number of LBA realms that can be activated at once.
+	 */
+	uint16_t		zbt_max_activate;
+
+	/**
+	 * @brief URSWRZ setting. Zero value means off.
+	 *
+	 * FIXME setting URSWRZ this way is vendor-specific.
+	 * A standard method should be eventually defined.
+	 */
+	uint8_t			zbt_urswrz;
+
+};
 
 /**
  * Vendor ID string maximum length.
@@ -417,6 +853,70 @@ enum zbc_dev_flags {
 	 */
 	ZBC_UNRESTRICTED_READ = 0x00000001,
 
+	/**
+	 * Indicates that the device supports Zone Domains command set
+	 * to allow zones on the device to be activated both as CMR and SMR.
+	 */
+	ZBC_ZONE_DOMAINS_SUPPORT = 0x00000002,
+
+	/**
+	 * Indicates that the device supports Mutation command set
+	 * to allow it to change between different device types,
+	 * such as Zoned to Legacy or Zone Domains.
+	 */
+	ZBC_MUTATE_SUPPORT = 0x00000004,
+
+	/**
+	 * Indicates that modification of the URSWRZ setting is supported.
+	 */
+	ZBC_URSWRZ_SET_SUPPORT = 0x00000008,
+
+	/**
+	 * Indicates that modiifcation of MAXIMUM ACTIVATION is supported by device.
+	 */
+	ZBC_MAXACT_SET_SUPPORT = 0x00000010,
+
+	/**
+	 * Indicates that REPORT REALMS command is supported by device.
+	 */
+	ZBC_REPORT_REALMS_SUPPORT = 0x00000020,
+
+	/**
+	 * Indicates that setting FSNOZ value is supported by device.
+	 */
+	ZBC_ZA_CONTROL_SUPPORT = 0x00000080,
+
+	/**
+	 * Indicates that NOZSRC bit in ZONE ACTIVATE/QUERY
+	 * is supported by device.
+	 */
+	ZBC_NOZSRC_SUPPORT = 0x000000100,
+
+	/**
+	 * Indicates that Conventional zone type is supported by device.
+	 */
+	ZBC_CONV_ZONE_SUPPORT = 0x00000200,
+
+	/**
+	 * Indicates that Sequential Write Required zone type is supported.
+	 */
+	ZBC_SEQ_REQ_ZONE_SUPPORT = 0x00000400,
+
+	/**
+	 * Indicates that Sequential Write Preferred zone type is supported.
+	 */
+	ZBC_SEQ_PREF_ZONE_SUPPORT = 0x00000800,
+
+	/**
+	 * Indicates that Sequential Or Before Required zone type is supported.
+	 */
+	ZBC_SOBR_ZONE_SUPPORT = 0x00001000,
+
+	/**
+	 * Indicates that Gap zone type is supported, i.e. gaps
+	 * are possible between domains.
+	 */
+	ZBC_GAP_ZONE_SUPPORT = 0x00002000,
 };
 
 /**
@@ -511,6 +1011,18 @@ struct zbc_device_info {
 	 */
 	uint32_t		zbd_max_nr_open_seq_req;
 
+	/**
+	 * Maximum allowable value for NUMBER OF ZONES value in
+	 * ZONE ACTIVATE or ZONE QUERY command. Zero means no maximum.
+	 */
+	uint32_t		zbd_max_activation;
+
+	/**
+	 * Subsequent Number of Zones. This is the current value of
+	 * NUMBER OF ZONES value set in Zone Activation control.
+	 */
+	uint32_t		zbd_snoz;
+
 };
 
 /**
@@ -539,6 +1051,9 @@ enum zbc_sk {
 
 	/** Medium error */
 	ZBC_SK_MEDIUM_ERROR	= 0x3,
+
+	/** Hardware Error */
+	ZBC_SK_HARDWARE_ERROR	= 0x4,
 
 	/** Illegal request */
 	ZBC_SK_ILLEGAL_REQUEST	= 0x5,
@@ -579,8 +1094,17 @@ enum zbc_asc_ascq {
 	/** Zone is in the read-only condition */
 	ZBC_ASC_ZONE_IS_READ_ONLY			= 0x2708,
 
+	/** Zone is offline */
+	ZBC_ASC_ZONE_IS_OFFLINE				= 0x2C0E,
+
 	/** Insufficient zone resources */
 	ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES		= 0x550E,
+
+	/** Zone is inactive */
+	ZBC_ASC_ZONE_IS_INACTIVE			= 0x2C12,
+
+	/** Attempt to access GAP zone */
+	ZBC_ASC_ATTEMPT_TO_ACCESS_GAP_ZONE		= 0x2109,
 
 	/** Read error */
 	ZBC_ASC_READ_ERROR				= 0x1100,
@@ -590,6 +1114,21 @@ enum zbc_asc_ascq {
 
 	/** Format in progress */
 	ZBC_ASC_FORMAT_IN_PROGRESS			= 0x0404,
+
+	/** Parameter list length error */
+	ZBC_ASC_PARAMETER_LIST_LENGTH_ERROR		= 0x1a00,
+
+	/** Invalid field in parameter list */
+	ZBC_ASC_INVALID_FIELD_IN_PARAMETER_LIST		= 0x2600,
+
+	/** Internal target failure */
+	ZBC_ASC_INTERNAL_TARGET_FAILURE			= 0x4400,
+
+	/** Invalid command operation code */
+	ZBC_ASC_INVALID_COMMAND_OPERATION_CODE		= 0x2000,
+
+	/** Zone reset WP recommended */
+	ZBC_ASC_ZONE_RESET_WP_RECOMMENDED		= 0x2A16,
 };
 
 /**
@@ -597,8 +1136,11 @@ enum zbc_asc_ascq {
  *
  * Standard and ZBC defined SCSI sense key and additional
  * sense codes are used to describe the error.
+ *
+ * Some commands return additional information identifying
+ * the location of the failure.
  */
-struct zbc_errno {
+struct zbc_err_ext {
 
 	/** Sense code */
 	enum zbc_sk		sk;
@@ -606,17 +1148,52 @@ struct zbc_errno {
 	/** Additional sense code and sense code qualifier */
 	enum zbc_asc_ascq	asc_ascq;
 
+	/** Sense Data Information Field */
+	unsigned long long	err_info;
+
+	/** Sense Data Command Specific Information Field */
+	unsigned long long	err_csinfo;
+
+	/*** Conversion Boundary Failure field (48 bits) */
+	uint64_t		err_cbf;
+
+	/** Error information from ZONE ACTIVATE results header bytes 4-5 */
+	uint16_t		err_za;
 };
 
 /**
  * @brief Get detailed error code of last operation
  * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] size	Number of bytes of error report to return
  * @param[out] err	Address where to return the error report
  *
  * Returns at the address specified by \a err a detailed error report
- * of the last command execued. The error report is composed of the
+ * of the last command executed. If size >= sizeof(struct zbc_err) then
+ * the entire zbc_err structure is returned; otherwise the first size
+ * bytes are returned.
+ *
+ * For successsful commands, all fields are set to 0.
+ */
+extern void zbc_errno_ext(struct zbc_device *dev, struct zbc_err_ext *err, size_t size);
+
+/* Legacy zbc_errno structure */
+struct zbc_errno {
+	enum zbc_sk             sk;
+	enum zbc_asc_ascq       asc_ascq;
+};
+
+/**
+ * @brief Get legacy error code of last operation
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[out] err	Address where to return the error report
+ *
+ * Returns at the address specified by \a err a detailed error report
+ * of the last command executed. The error report is composed of the
  * SCSI sense key, sense code and sense code qualifier.
  * For successsful commands, all three information are set to 0.
+ *
+ * The values returned here are the same as the first two fields
+ * returned by zbc_errno_ext().
  */
 extern void zbc_errno(struct zbc_device *dev, struct zbc_errno  *err);
 
@@ -635,6 +1212,12 @@ extern const char *zbc_sk_str(enum zbc_sk sk);
  * @return A string describing a sense code and sense code qualifier.
  */
 extern const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
+
+/**
+ * @brief return libzbc version as a string.
+ *
+ */
+extern char const *zbc_version(void);
 
 /**
  * @brief Test if a device is a zoned block device
@@ -737,84 +1320,111 @@ extern void zbc_get_device_info(struct zbc_device *dev,
 extern void zbc_print_device_info(struct zbc_device_info *info, FILE *out);
 
 /**
- * @brief Reporting options definitions
+ * @brief REPORT ZONES reporting options definitions
  *
  * Used to filter the zone information returned by the execution of a
  * REPORT ZONES command. Filtering is based on the value of the reporting
  * option and on the condition of the zones at the time of the execution of
  * the REPORT ZONES command.
  *
- * ZBC_RO_PARTIAL is not a filter: this reporting option can be combined
+ * ZBC_RZ_RO_PARTIAL is not a filter: this reporting option can be combined
  * (or'ed) with any other filter option to limit the number of reported
  * zone information to the size of the REPORT ZONES command buffer.
  */
-enum zbc_reporting_options {
+enum zbc_zone_reporting_options {
 
 	/**
 	 * List all of the zones in the device.
 	 */
-	ZBC_RO_ALL		= 0x00,
+	ZBC_RZ_RO_ALL		= 0x00,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_EMPTY.
 	 */
-	ZBC_RO_EMPTY		= 0x01,
+	ZBC_RZ_RO_EMPTY		= 0x01,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_IMP_OPEN.
 	 */
-	 ZBC_RO_IMP_OPEN	= 0x02,
+	 ZBC_RZ_RO_IMP_OPEN	= 0x02,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_EXP_OPEN.
 	 */
-	ZBC_RO_EXP_OPEN		= 0x03,
+	ZBC_RZ_RO_EXP_OPEN	= 0x03,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_CLOSED.
 	 */
-	ZBC_RO_CLOSED		= 0x04,
+	ZBC_RZ_RO_CLOSED	= 0x04,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_FULL.
 	 */
-	ZBC_RO_FULL		= 0x05,
+	ZBC_RZ_RO_FULL		= 0x05,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_RDONLY.
 	 */
-	ZBC_RO_RDONLY		= 0x06,
+	ZBC_RZ_RO_RDONLY	= 0x06,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
 	 */
-	ZBC_RO_OFFLINE		= 0x07,
+	ZBC_RZ_RO_OFFLINE	= 0x07,
 
-	/* 08h to 0Fh Reserved */
+	/**
+	 * List the zones with a Zone Condition of ZBC_ZC_INACTIVE.
+	 */
+	ZBC_RZ_RO_INACTIVE	= 0x08,
+
+	/* 09h to 0Fh Reserved */
 
 	/**
 	 * List the zones with a zone attribute ZBC_ZA_RWP_RECOMMENDED set.
 	 */
-	ZBC_RO_RWP_RECOMMENDED	= 0x10,
+	ZBC_RZ_RO_RWP_RECMND	= 0x10,
 
 	/**
 	 * List the zones with a zone attribute ZBC_ZA_NON_SEQ set.
 	 */
-	ZBC_RO_NON_SEQ		= 0x11,
+	ZBC_RZ_RO_NON_SEQ	= 0x11,
 
-	/* 12h to 3Eh Reserved */
+	/* 12h to 3Dh Reserved */
+
+	/**
+	 * List of the zones with a Zone Type of ZBC_ZT_GAP.
+	 */
+	ZBC_RZ_RO_GAP		= 0x3e,
 
 	/**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
 	 */
-	ZBC_RO_NOT_WP		= 0x3f,
+	ZBC_RZ_RO_NOT_WP	= 0x3f,
 
 	/**
 	 * Partial report flag.
 	 */
-	ZBC_RO_PARTIAL		= 0x80,
+	ZBC_RZ_RO_PARTIAL	= 0x80,
 
 };
+
+/* Compatibility names from earlier version of libzbc */
+#define zbc_reporting_options	zbc_zone_reporting_options
+#define ZBC_RO_ALL		ZBC_RZ_RO_ALL
+#define ZBC_RO_EMPTY		ZBC_RZ_RO_EMPTY
+#define ZBC_RO_IMP_OPEN		ZBC_RZ_RO_IMP_OPEN
+#define ZBC_RO_EXP_OPEN		ZBC_RZ_RO_EXP_OPEN
+#define ZBC_RO_CLOSED		ZBC_RZ_RO_CLOSED
+#define ZBC_RO_FULL		ZBC_RZ_RO_FULL
+#define ZBC_RO_RDONLY		ZBC_RZ_RO_RDONLY
+#define ZBC_RO_OFFLINE		ZBC_RZ_RO_OFFLINE
+#define ZBC_RO_INACTIVE		ZBC_RZ_RO_INACTIVE
+#define ZBC_RO_RWP_RECOMMENDED	ZBC_RZ_RO_RWP_RECMND
+#define ZBC_RO_NON_SEQ		ZBC_RZ_RO_NON_SEQ
+#define ZBC_RO_GAP		ZBC_RZ_RO_GAP
+#define ZBC_RO_NOT_WP		ZBC_RZ_RO_NOT_WP
+#define ZBC_RO_PARTIAL		ZBC_RZ_RO_PARTIAL
 
 /**
  * @brief Get zone information
@@ -835,7 +1445,7 @@ enum zbc_reporting_options {
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 extern int zbc_report_zones(struct zbc_device *dev,
-			    uint64_t sector , enum zbc_reporting_options ro,
+			    uint64_t sector, enum zbc_zone_reporting_options ro,
 			    struct zbc_zone *zones, unsigned int *nr_zones);
 
 /**
@@ -853,7 +1463,7 @@ extern int zbc_report_zones(struct zbc_device *dev,
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
-				      enum zbc_reporting_options ro,
+				      enum zbc_zone_reporting_options ro,
 				      unsigned int *nr_zones)
 {
 	return zbc_report_zones(dev, sector, ro, NULL, nr_zones);
@@ -867,18 +1477,18 @@ static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
  * @param[out] zones	The array of zone information filled
  * @param[out] nr_zones	Number of zones in the array \a zones
  *
- * Similar to \a zbc_report_zones, but also allocates an appropriatly sized
+ * Similar to \a zbc_report_zones, but also allocates an appropriately sized
  * array of zone information structures and return the address of the array
  * at the address specified by \a zones. The size of the array allocated and
  * filled is returned at the address specified by \a nr_zones. Freeing of the
- * memory used by the array of zone information strcutrues allocated by this
- * function is the responsability of the caller.
+ * memory used by the array of zone information structures allocated by this
+ * function is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  * Returns -ENOMEM if memory could not be allocated for \a zones.
  */
 extern int zbc_list_zones(struct zbc_device *dev,
-			  uint64_t sector, enum zbc_reporting_options ro,
+			  uint64_t sector, enum zbc_zone_reporting_options ro,
 			  struct zbc_zone **zones, unsigned int *nr_zones);
 
 /**
@@ -921,7 +1531,7 @@ enum zbc_zone_op {
 enum zbc_zone_op_flags {
 
 	/**
- 	 * Operate on all possible zones.
+	 * Operate on all possible zones.
 	 */
 	ZBC_OP_ALL_ZONES = 0x0000001,
 
@@ -934,7 +1544,7 @@ enum zbc_zone_op_flags {
  * @param[in] op	The operation to perform
  * @param[in] flags	Zone operation flags
  *
- * Exexcute an operation on the zone of \a dev starting at the sector
+ * Execute an operation on the zone of \a dev starting at the sector
  * specified by \a sector. The target zone must be a write pointer zone,
  * that is, its type must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
  * The validity of the operation (reset, open, close or finish) depends on the
@@ -949,9 +1559,32 @@ extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 			      enum zbc_zone_op op, unsigned int flags);
 
 /**
+ * @brief Execute an operation on a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first target zone
+ * @param[in] count	The number of zones to process (0 still means one zone)
+ * @param[in] op	The operation to perform
+ * @param[in] flags	Zone operation flags
+ *
+ * Execute an operation on one or more zones of \a dev starting at the sector
+ * specified by \a sector. The target zones must be write pointer zones,
+ * that is, their type must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The validity of the operation (reset, open, close or finish) depends on the
+ * condition of the target group of zones. See \a zbc_reset_zone, \a zbc_open_zone,
+ * \a zbc_close_zone and \a zbc_finish_zone for details.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * the operation is executed on all possible zones.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
+			     unsigned int count, enum zbc_zone_op op,
+			     unsigned int flags);
+
+/**
  * @brief Explicitly open a zone
  * @param[in] dev	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to open
+ * @param[in] sector	The first sector of the zone to open
  * @param[in] flags	Zone operation flags
  *
  * Explicitly open the zone of \a dev starting at the sector specified by
@@ -975,9 +1608,36 @@ static inline int zbc_open_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Explicitly open a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first zone to open
+ * @param[in] count	The number of zones to open (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Explicitly open \a count zones of \a dev starting at the sector specified by
+ * \a sector. Target zones must be write pointer zones, that is, their type
+ * must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The condition of target zones must be ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN or
+ * ZBC_ZC_CLOSED. Otherwise, an error will be returned. Opening zones with
+ * the condition ZBC_ZC_EXP_OPEN has no effect (the zone condition is
+ * unchanged).
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * all possible zones that can be explictly open will be (see ZBC/ZAC
+ * specifications regarding the result of such operation).
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_open_zones(struct zbc_device *dev, uint64_t sector,
+				 unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_OPEN_ZONE, flags);
+}
+
+/**
  * @brief Close an open zone
  * @param[in] dev	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to close
+ * @param[in] sector	The first sector of the zone to close
  * @param[in] flags	Zone operation flags
  *
  * Close an implictly or explictly open zone. The zone to close is identified
@@ -998,8 +1658,32 @@ static inline int zbc_close_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Close a group of open zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first zone to close
+ * @param[in] count	The number of zones to close (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Close an implictly or explictly open zone. The zone to close is identified
+ * by its first sector specified by \a sector. The target zone must be a write
+ * pointer zone, that is, of type ZBC_ZT_SEQUENTIAL_REQ or
+ * ZBC_ZT_SEQUENTIAL_PREF. Attempting to close a zone that is empty, full or
+ * already closed will succeed and the zone condition will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * implicitly and explicitly open zones are closed.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_close_zones(struct zbc_device *dev, uint64_t sector,
+				  unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_CLOSE_ZONE, flags);
+}
+
+/**
  * @brief Finish a write pointer zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	First sector of the zone to finish
  * @param[in] flags	Zone operation flags
  *
@@ -1022,8 +1706,32 @@ static inline int zbc_finish_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Finish a group of write pointer zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to finish
+ * @param[in] count	The number of zones to finish (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Transition some (\a count) write pointer zones to the full condition.
+ * The first target zone is identified by the first sector specified by \a sector.
+ * Target zones must be write pointer zones, that is, of type ZBC_ZT_SEQUENTIAL_REQ
+ * or ZBC_ZT_SEQUENTIAL_PREF. Attempting to finish zones that are already full will
+ * succeed and the zone condition will remain unchanged. If ZBC_OP_ALL_ZONES is set
+ * in \a flags then \a sector is ignored and all implicitly and explicitly open
+ * zones as well as all closed zones are transitioned to the full condition.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_finish_zones(struct zbc_device *dev, uint64_t sector,
+				   unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_FINISH_ZONE, flags);
+}
+
+/**
  * @brief Reset the write pointer of a zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
+ * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	First sector of the zone to reset
  * @param[in] flags	Zone operation flags
  *
@@ -1045,7 +1753,464 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
- * @brief Read sectors form a device
+ * @brief Reset the write pointer of a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to reset
+ * @param[in] count	The number of zones to reset (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Resets write pointers of \a count of zones starting from the first sector
+ * of the first zone specified by \a sector. Target zones must be write pointer
+ * zones, that is, of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * Attempting to reset write pointer zones that are already empty will succeed
+ * and the condition of the the processed zones will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * write pointer zones that are not empty will be reset.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_reset_zones(struct zbc_device *dev, uint64_t sector,
+				  unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_RESET_ZONE, flags);
+}
+
+/**
+ * @brief REPORT ZONE DOMAINS reporting options definitions
+ *
+ * Used to filter the zone information returned by the execution of a
+ * REPORT ZONE DOMAINS command.
+ */
+enum zbc_domain_report_options {
+
+	/* Report all zone domains */
+	ZBC_RZD_RO_ALL		= 0x00,
+
+	/* Report all zone domains that for which all zones are active */
+	ZBC_RZD_RO_ALL_ACTIVE	= 0x01,
+
+	/* Report all zone domains that have active zones */
+	ZBC_RZD_RO_ACTIVE	= 0x02,
+
+	/* Report all zone domains that do not have any active zones */
+	ZBC_RZD_RO_INACTIVE	= 0x03,
+};
+
+/**
+ * @brief Get zone domain information
+ * @param[in] dev	  Device handle obtained with \a zbc_open
+ * @param[in] sector	  The starting sector for the report
+ * @param[in] ro	  Domain reporting options
+ * @param[in] domains	  Pointer to the array of domain descriptors to fill
+ * @param[in] nr_domains  Number of domain descriptors in the array \a domains
+ *
+ * Get zone domain information from a Zone Domains device.
+ * The \a domains array must be allocated by the caller and
+ * \a nr_domains must contain the size of the allocated array (the number of
+ * descriptors in the array). The number of returned domains may depend on the
+ * chosen reporting options.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ *         Upon success, returns the total number of records that the device is
+ *         reporting. This number may potentially exceed \a nr_domains. In this
+ *         case, only \a nr_domains records in the input buffer are filled.
+ */
+extern int zbc_report_domains(struct zbc_device *dev, uint64_t sector,
+			      enum zbc_domain_report_options ro,
+			      struct zbc_zone_domain *domains,
+			      unsigned int nr_domains);
+
+/**
+ * @brief List zone domain information
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] sector		The starting sector for report
+ * @param[in] ro		Domain reporting options
+ * @param[out] domains		Array of zone domain descriptors
+ * @param[out] nr_domains	Number of domains in the array \a domains
+ *
+ * Similar to \a zbc_report_domains, but also allocates an appropriately sized
+ * array of zone domain descriptorss and returns the address of the array
+ * at the address specified by \a domains. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_domains. Freeing of the
+ * memory used by the array of domain descriptors allocated by this function
+ * is the responsibility of the caller.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENOMEM if memory could not be allocated for \a domains.
+ */
+extern int zbc_list_domains(struct zbc_device *dev, uint64_t sector,
+			    enum zbc_domain_report_options ro,
+			    struct zbc_zone_domain **pdomains,
+			    unsigned int *pnr_domains);
+
+/**
+ * @brief REPORT REALMS reporting options definitions
+ *
+ * Used to filter the zone information returned by the execution of a
+ * REPORT REALMS command.
+ */
+enum zbc_realm_report_options {
+
+	/* Report all realms */
+	ZBC_RR_RO_ALL		= 0x00,
+
+	/* Report all realms that contain active SOBR zones */
+	ZBC_RR_RO_SOBR		= 0x01,
+
+	/* Report all realms that contain active SWR zones */
+	ZBC_RR_RO_SWR		= 0x02,
+
+	/* Report all realms that contain active SWP zones */
+	ZBC_RR_RO_SWP		= 0x03,
+};
+
+/**
+ * @brief Get zone realm information
+ * @param[in] dev	  Device handle obtained with \a zbc_open
+ * @param[in] ro	  Realm reporting options
+ * @param[in] sector	  The starting sector of the first realm to report
+ * @param[in] realms	  Pointer to the array of realm descriptors to fill
+ * @param[out] nr_realms  Number of realm descriptors in the array \a realms
+ *
+ * Get zone realm information from a DH-SMR device.
+ * The \a realms array must be allocated by the caller and
+ * \a nr_realms must point to the size of the allocated array (the number of
+ * descriptors in the array). The number of returned realm records may depend
+ * on the chosen reporting options.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_report_realms(struct zbc_device *dev, uint64_t sector,
+			     enum zbc_realm_report_options ro,
+			     struct zbc_zone_realm *realms,
+			     unsigned int *nr_realms);
+
+/**
+ * @brief Get the number of available zone realm descriptors.
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] nr_realms	The number of zone realms to be reported
+ *
+ * Similar to \a zbc_report_realms, but returns only the number of
+ * zone realms that \a zbc_report_realms would have returned.
+ * This is useful to determine the total number of realms of a device
+ * to allocate an array of zone realm descriptors for use with
+ * \a zbc_report_realms.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_report_nr_realms(struct zbc_device *dev,
+				       unsigned int *nr_realms)
+{
+	return zbc_report_realms(dev, 0LL, ZBC_RR_RO_ALL, NULL, nr_realms);
+}
+
+/**
+ * @brief List zone realm information
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] sector	  	The starting sector of the first realm to report
+ * @param[in] ro		Realm reporting options
+ * @param[out] prealms		Pointer to an array of zone realm descriptors
+ * @param[out] pnr_realms	Points to the number of realms in \a realms
+ *
+ * Similar to \a zbc_report_realms, but also allocates an appropriately sized
+ * array of zone realm descriptorss and returns the address of the array
+ * at the address specified by \a realms. The size of the array allocated and
+ * filled is returned at the address specified by \a nr_realms. Freeing of the
+ * memory used by the array of realm descriptors allocated by this function
+ * is the responsibility of the caller.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENOMEM if memory could not be allocated for \a realms.
+ */
+extern int zbc_list_zone_realms(struct zbc_device *dev, uint64_t sector,
+				enum zbc_realm_report_options ro,
+				struct zbc_zone_realm **prealms,
+				unsigned int *pnr_realms);
+
+/**
+ * @brief Activate the specified zones at a new zone domain
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
+ * @param[in] all		If set, try to activate all zones
+ * @param[in] use_32_byte_cdb	If true, use ZONE ACTIVATE(32)
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to activate
+ * @param[out] actv_recs	Array of activation results records
+ * @param[out] nr_actv_recs	The number of activaton results records
+ */
+extern int zbc_zone_activate(struct zbc_device *dev, bool zsrc, bool all,
+			     bool use_32_byte_cdb, uint64_t start_zone,
+			     unsigned int nr_zones, unsigned int domain_id,
+			     struct zbc_actv_res *actv_recs,
+			     unsigned int *nr_actv_recs);
+
+/**
+ * @brief Query about possible results of zone activation
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
+ * @param[in] all		If set, try to activate all zones
+ * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to query about
+ * @param[out] actv_recs	Array of activation results records
+ * @param[out] nr_actv_recs	The number of activation results records
+ */
+extern int zbc_zone_query(struct zbc_device *dev, bool zsrc, bool all,
+			  bool use_32_byte_cdb, uint64_t lba,
+			  unsigned int nr_zones, unsigned int domain_id,
+			  struct zbc_actv_res *actv_recs,
+			  unsigned int *nr_actv_recs);
+
+/**
+ * @brief Return the expected number of activation records
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
+ * @param[in] all		If set, try to activate all zones
+ * @param[in] use_32_byte_cdb	If true, use 32-byte SCSI command
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to activate
+ */
+extern int zbc_get_nr_actv_records(struct zbc_device *dev, bool zsrc, bool all,
+				   bool use_32_byte_cdb, uint64_t lba,
+				   unsigned int nr_zones, unsigned int domain_id);
+
+/**
+ * @brief Query about possible activation results of a number of zones
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] zsrc		If set, the nr_zones argument is valid
+ * @param[in] all		If set, try to activate all zones
+ * @param[in] use_32_byte_cdb	If true, use ZONE QUERY(32)
+ * @param[in] start_zone	512B sector of the first zone to activate
+ * @param[in] nr_zones		The total number of zones to activate
+ * @param[in] domain_id		Zone domain to query about
+ * @param[out] actv_recs	Points to the returned activation records
+ * @param[out] nr_actv_recs	Number of returned activation results records
+ */
+extern int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all,
+			       bool use_32_byte_cdb, uint64_t lba,
+			       unsigned int nr_zones, unsigned int domain_id,
+			       struct zbc_actv_res **pactv_recs,
+			       unsigned int *pnr_actv_recs);
+/**
+ * @brief Read or change persistent DH-SMR device settings
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] ctl		Contains all supported variables to control
+ * @param[in] set		If false, just get the settings, otherwise set
+ *
+ * Typically, to set values, this function is called with \a set = false first
+ * to get the current values, then the caller modifes the members of \a ctl
+ * that need to be modified and then calls this function again with
+ * \a set = true.
+ */
+extern int zbc_zone_activation_ctl(struct zbc_device *dev,
+				   struct zbc_zd_dev_control *ctl, bool set);
+
+
+/**
+ * @brief Zoned Block Device Statistics
+ *
+ * This structure is filled with statistic counters that
+ * are obtained by calling \a zbc_get_zbd_stats() function.
+ */
+struct zbc_zoned_blk_dev_stats {
+
+	/** Maximum Open Zones */
+	unsigned long long	max_open_zones;
+
+	/** Maximum Explicitly Open SWR and SWP Zones */
+	unsigned long long	max_exp_open_seq_zones;
+
+	/** Maximum Implicitly Open SWR and SWP Zones */
+	unsigned long long	max_imp_open_seq_zones;
+
+	/** Maximum Implicitly Open SOBR Zones */
+	unsigned long long	max_imp_open_sobr_zones;
+
+	/** Minimum Empty Zones */
+	unsigned long long	min_empty_zones;
+
+	/** Zones Emptied */
+	unsigned long long	zones_emptied;
+
+	/** Maximum Non-sequential Zones */
+	unsigned long long	max_non_seq_zones;
+
+	/** Suboptimal Write Commands */
+	unsigned long long	subopt_write_cmds;
+
+	/** Commands Exceeding Optimal Limit */
+	unsigned long long	cmds_above_opt_lim;
+
+	/** Failed Explicit Opens */
+	unsigned long long	failed_exp_opens;
+
+	/** Read Rule Violations */
+	unsigned long long	read_rule_fails;
+
+	/** Write Rule Violations */
+	unsigned long long	write_rule_fails;
+};
+
+/**
+ * @brief Get Zoned Block Device statistics
+ *
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] stats		Points to \a zbc_zoned_blk_dev_stats
+ *                              structure allocaled by the caller
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENXIO if the device or the driver doesn't support ZBD statistics.
+ */
+extern int zbc_get_zbd_stats(struct zbc_device *dev,
+			     struct zbc_zoned_blk_dev_stats *stats);
+
+/**
+ * @brief Target types for device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_target {
+
+	/**
+	 * Unknown mutation target.
+	 */
+	ZBC_MT_UNKNOWN		= 0x00,
+
+	/**
+	 * Legacy (non-zoned) device.
+	 */
+	ZBC_MT_NON_ZONED	= 0x01,
+
+	/**
+	 * Host-managed zoned device.
+	 */
+	ZBC_MT_HM_ZONED		= 0x02,
+
+	/**
+	 * Host-aware zoned device.
+	 */
+	ZBC_MT_HA_ZONED		= 0x03,
+
+	/**
+	 * DH-SMR Zone DOmains device, no CMR-only zones.
+	 */
+	ZBC_MT_ZONE_DOM		= 0x04,
+
+};
+
+/**
+ * @brief Options for PMR device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_opt_nz {
+	ZBC_MO_UNKNOWN		= 0x00,
+
+	/*
+	 * Legacy PMR device.
+	 */
+	ZBC_MO_NZ_GENERIC	= 0x01,
+};
+
+/**
+ * @brief Options for HM and HA SMR device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_opt_smr {
+	ZBC_MO_SMR_UNKNOWN      = 0x00, /* Reserved */
+	ZBC_MO_SMR_NO_CMR       = 0x01, /* SMR with no CMR zones */
+	ZBC_MO_SMR_1PCNT_B      = 0x02, /* SMR with 1% of CMR zones at bottom */
+	ZBC_MO_SMR_2PCNT_BT     = 0x03, /* SMR with 2% of CMR zones at bottom */
+					/* and one CMR zone below high LBA */
+	ZBC_MO_SMR_FAULTY       = 0x04, /* SMR with readonly and offline zones */
+ };
+
+/**
+ * @brief Options Zone Domains device mutation.
+ * FIXME these values are ad-hoc, for testing only.
+ */
+enum zbc_mutation_opt_zd {
+	ZBC_MO_ZD_UNKNOWN       = 0x00, /* Reserved */
+	ZBC_MO_ZD_NO_CMR        = 0x01, /* Zone Domains, no CMR-only realms */
+	ZBC_MO_ZD_1_CMR_BOT     = 0x02, /* ZD, one CMR-only realm at bottom */
+	ZBC_MO_ZD_1_CMR_BOT_TOP = 0x03, /* ZD, CMR-only realms at bottom and top */
+	ZBC_MO_ZD_SOBR_NO_CMR   = 0x04, /* Zone Domains, SOBR, no CMR-only realms */
+	ZBC_MO_ZD_1_CMR_BT_SWR	= 0x05, /* ZD, SWR, CMR realms at bottom and top */
+	ZBC_MO_ZD_BBONE         = 0x06, /* ZD, no CMR-only, no setting features */
+	ZBC_MO_ZD_FAULTY        = 0x07, /* ZD, no CMR-only, read-only/offline zones */
+	ZBC_MO_ZD_SWP           = 0x08, /* ZD, like ZBC_MO_ZD_NO_CMR but SWP */
+	ZBC_MO_ZD_SOBR_SWP      = 0x09, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but SWP */
+	ZBC_MO_ZD_SOBR_EMPTY    = 0x0a, /* ZD, like ZBC_MO_ZD_SOBR_NO_CMR, but start EMPTY */
+	ZBC_MO_ZD_SOBR_FAULTY   = 0x0b, /* ZBC_MO_ZD_SOBR_EMPTY, with readonly and offline zones */
+	ZBC_MO_ZD_1_SOBR_BOT_TOP= 0x0c, /* ZD, like ZBC_MO_ZD_1_CMR_BOT_TOP, but with SOBR */
+};
+
+/*
+ * @brief Combined options for all mutation types.
+ */
+union zbc_mutation_opt {
+	enum zbc_mutation_opt_nz nz;
+	enum zbc_mutation_opt_smr smr;
+	enum zbc_mutation_opt_zd zd;
+};
+
+/*
+ * @brief The record returned by REPORT MUTATIONS command.
+ */
+struct zbc_supported_mutation {
+	enum zbc_mutation_target zbs_mt;
+	union zbc_mutation_opt zbs_opt;
+};
+
+/*
+ * @brief Provide the list of mutation types/options supported by the device.
+ *
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] sm		Caller supplied buffer to get supported mutations.
+ * @param[out] nr_sm_recs	The number of returned supported mutations
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_report_mutations(struct zbc_device *dev,
+				struct zbc_supported_mutation *sm,
+				unsigned int *nr_sm_recs);
+
+/**
+ * @brief Provide the number of mutation types/options supported by the device.
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[out] nr_sm_recs	The number of returned supported mutations
+ *
+ * Similar to \a zbc_report_mutations, but returns only the number of
+ * supported mutation records that \a zbc_report_mutations would have returned.
+ * This is useful to determine the total number of records in order to
+ * to allocate an array of supported mutation records for use with
+ * \a zbc_report_mutations.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_report_nr_rpt_mutations(struct zbc_device *dev,
+					      unsigned int *nr_sm_recs)
+{
+	return zbc_report_mutations(dev, NULL, nr_sm_recs);
+}
+
+/**
+ * @brief Mutate this device to a new type (legacy, SMR, DH-SMR, etc.)
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] mt	Mutation target device type
+ * @param[in] opt	Mutation option (model)
+ *
+ * Mutation can be performed either between the fundamental types, such as
+ * Legacy CMR to zoned SMR, or in more fine tuned way, such as adding
+ * or removing CMR-only zones.
+ */
+extern int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+		      union zbc_mutation_opt opt);
+
+/**
+ * @brief Read sectors from a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] buf	Caller supplied buffer to read into
  * @param[in] count	Number of 512B sectors to read

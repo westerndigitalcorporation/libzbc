@@ -6,12 +6,14 @@ global:
 
 ZBC_GLOBAL {
 global:
+	zbc_version;
 	zbc_set_log_level;
 	zbc_device_type_str;
 	zbc_device_model_str;
 	zbc_zone_type_str;
 	zbc_zone_condition_str;
 	zbc_errno;
+	zbc_errno_ext;
 	zbc_sk_str;
 	zbc_asc_ascq_str;
 	zbc_device_is_zoned;
@@ -22,6 +24,19 @@ global:
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;
+	zbc_zone_group_op;
+	zbc_report_domains;
+	zbc_list_domains;
+	zbc_report_realms;
+	zbc_list_zone_realms;
+	zbc_zone_activate;
+	zbc_zone_query;
+	zbc_get_nr_actv_records;
+	zbc_zone_query_list;
+	zbc_zone_activation_ctl;
+	zbc_get_zbd_stats;
+	zbc_report_mutations;
+	zbc_mutate;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_flush;

@@ -28,8 +28,8 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	unsigned long long lba = 0;
 	struct zbc_device *dev;
-	enum zbc_reporting_options ro = ZBC_RO_ALL;
-	enum zbc_reporting_options partial = 0;
+	enum zbc_zone_reporting_options ro = ZBC_RZ_RO_ALL;
+	enum zbc_zone_reporting_options partial = 0;
 	int i, ret = 1;
 	struct zbc_zone *z, *zones = NULL;
 	unsigned int nr_zones;
@@ -76,7 +76,7 @@ usage:
 
 		} else if (strcmp(argv[i], "-p") == 0) {
 
-			partial = ZBC_RO_PARTIAL;
+			partial = ZBC_RZ_RO_PARTIAL;
 
 		} else if (argv[i][0] == '-') {
 
@@ -105,8 +105,8 @@ usage:
 
 	ret = zbc_open(argv[i], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
+			ret, strerror(-ret), argv[i]);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -147,14 +147,14 @@ usage:
 	for (i = 0; i < (int)nr_zones; i++) {
 		z = &zones[i];
 		if (zbc_zone_conventional(z))
-			printf("[ZONE_INFO],%05d,0x%x,0x%x,%llu,%llu,N/A\n",
+			printf("[ZONE_INFO],%d,0x%x,0x%x,%llu,%llu,N/A\n",
 			       i,
 			       zbc_zone_type(z),
 			       zbc_zone_condition(z),
 			       zbc_sect2lba(&info, zbc_zone_start(z)),
 			       zbc_sect2lba(&info, zbc_zone_length(z)));
 		else
-			printf("[ZONE_INFO],%05d,0x%x,0x%x,%llu,%llu,%llu\n",
+			printf("[ZONE_INFO],%d,0x%x,0x%x,%llu,%llu,%llu\n",
 			       i,
 			       zbc_zone_type(z),
 			       zbc_zone_condition(z),

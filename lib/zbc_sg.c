@@ -34,7 +34,7 @@
  */
 static struct zbc_sg_cmd_s
 {
-	char		*cdb_cmd_name;
+	char const	*cdb_cmd_name;
 	int		cdb_opcode;
 	int		cdb_sa;
 	size_t		cdb_length;
@@ -67,6 +67,24 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_READ_CAPACITY_CDB_SA,
 		ZBC_SG_READ_CAPACITY_CDB_LENGTH,
 		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_MODE_SENSE] =
+	{
+		"MODE SENSE 10",
+		ZBC_SG_MODE_SENSE_CDB_OPCODE,
+		0,
+		ZBC_SG_MODE_SENSE_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_MODE_SELECT] =
+	{
+		"MODE SELECT 10",
+		ZBC_SG_MODE_SELECT_CDB_OPCODE,
+		0,
+		ZBC_SG_MODE_SELECT_CDB_LENGTH,
+		SG_DXFER_TO_DEV
 	},
 
 	[ZBC_SG_READ] =
@@ -141,6 +159,15 @@ static struct zbc_sg_cmd_s
 		SG_DXFER_NONE
 	},
 
+	[ZBC_SG_SEQUENTIALIZE_ZONE] =
+	{
+		"SEQUENTIALIZE ZONE",
+		ZBC_SG_SEQUENTIALIZE_ZONE_CDB_OPCODE,
+		ZBC_SG_SEQUENTIALIZE_ZONE_CDB_SA,
+		ZBC_SG_SEQUENTIALIZE_ZONE_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
+
 	[ZBC_SG_SET_ZONES] =
 	{
 		"SET ZONES",
@@ -156,6 +183,87 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE,
 		ZBC_SG_SET_WRITE_POINTER_CDB_SA,
 		ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH,
+		SG_DXFER_NONE
+	},
+
+	[ZBC_SG_REPORT_REALMS] =
+	{
+		"REPORT REALMS",
+		ZBC_SG_REPORT_REALMS_CDB_OPCODE,
+		ZBC_SG_REPORT_REALMS_CDB_SA,
+		ZBC_SG_REPORT_REALMS_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_REPORT_ZONE_DOMAINS] =
+	{
+		"REPORT ZONE DOMAINS",
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE,
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA,
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_ZONE_ACTIVATE_16] =
+	{
+		"ZONE ACTIVATE (16)",
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
+		ZBC_SG_ZONE_ACTIVATE_16_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_ZONE_QUERY_16] =
+	{
+		"ZONE QUERY (16)",
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
+		ZBC_SG_ZONE_QUERY_16_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_ZONE_ACTIVATE_32] =
+	{
+		"ZONE ACTIVATE (32)",
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
+		ZBC_SG_ZONE_ACTIVATE_32_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_ZONE_QUERY_32] =
+	{
+		"ZONE QUERY (32)",
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
+		ZBC_SG_ZONE_QUERY_32_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_RECEIVE_DIAG_RESULTS] =
+	{
+		"RECEIVE DIAGNOSTIC RESULTS",
+		ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE,
+		0,
+		ZBC_SG_RECEIVE_DIAG_RES_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_REPORT_MUTATIONS] =
+	{
+		"REPORT MUTATIONS",
+		ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE,
+		ZBC_SG_REPORT_MUTATIONS_CDB_SA,
+		ZBC_SG_REPORT_MUTATIONS_CDB_LENGTH,
+		SG_DXFER_FROM_DEV
+	},
+
+	[ZBC_SG_MUTATE] =
+	{
+		"MUTATE",
+		ZBC_SG_MUTATE_CDB_OPCODE,
+		ZBC_SG_MUTATE_CDB_SA,
+		ZBC_SG_MUTATE_CDB_LENGTH,
 		SG_DXFER_NONE
 	},
 
@@ -185,7 +293,7 @@ static inline size_t sysconf_pagesize(void)
 /**
  * Get a command name from its operation code in a CDB.
  */
-static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
+static char const *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 {
 
 	if (cmd->code >= 0 &&
@@ -202,6 +310,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
 	unsigned int sense_buf_len = 0;
 	uint8_t *sense_buf = NULL;
+	dev->zbd_errno = (struct zbc_err_ext){ };
 
 	if (cmd) {
 		sense_buf = cmd->sense_buf;
@@ -210,39 +319,63 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 	if (sense_buf == NULL ||
 	    sense_buf_len < 4) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
 	}
 
+	/* Descriptor Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x72 ||
 	    (sense_buf[0] & 0x7F) == 0x73) {
 		/* store sense key, ASC/ASCQ */
 		dev->zbd_errno.sk = sense_buf[1] & 0x0F;
 		dev->zbd_errno.asc_ascq =
 			((int)sense_buf[2] << 8) | (int)sense_buf[3];
+
+		if (zbc_test_mode(dev)) {
+			/* Walk the descriptors looking for anything of interest */
+			int nbytes = (int)sense_buf[7];
+			uint8_t *desc = &sense_buf[8];
+			while (nbytes > 0) {
+				if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
+					/* Sense Data Information */
+					dev->zbd_errno.err_info = zbc_sg_get_int64(&desc[4]);
+				} else if (desc[0] == 1 && nbytes >= 12) {
+					/* Sense Data Command-Specific Info */
+					dev->zbd_errno.err_csinfo = zbc_sg_get_int64(&desc[4]);
+				}
+				nbytes -= 2 + desc[1];
+				desc += 2 + desc[1];
+			}
+		}
+
 		return;
 	}
 
 	if (sense_buf_len < 14) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
 		return;
 	}
 
+	/* Fixed Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x70 ||
 	    (sense_buf[0] & 0x7F) == 0x71) {
 		/* store sense key, ASC/ASCQ */
 		dev->zbd_errno.sk = sense_buf[2] & 0x0F;
 		dev->zbd_errno.asc_ascq =
 			((int)sense_buf[12] << 8) | (int)sense_buf[13];
+
+		if (zbc_test_mode(dev)) {
+			/* Sense Data Information Field */
+			dev->zbd_errno.err_info = zbc_sg_get_int32(&sense_buf[3]);
+
+			/* Sense Data Command-Specific Information Field */
+			dev->zbd_errno.err_csinfo = zbc_sg_get_int32(&sense_buf[8]);
+		}
 	}
 }
 
 #ifdef SG_FLAG_DIRECT_IO
-#define ZBC_SG_FLAG_DIRECT_IO	SG_FLAG_DIRECT_IO
+#define ZBC_SG_FLAG_DIRECT_IO  SG_FLAG_DIRECT_IO
 #else
-#define ZBC_SG_FLAG_DIRECT_IO	0x01
+#define ZBC_SG_FLAG_DIRECT_IO  0x01
 #endif
 #define ZBC_SG_FLAG_Q_AT_TAIL	0x10
 
@@ -251,7 +384,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
  */
 int zbc_sg_cmd_init(struct zbc_device *dev,
 		    struct zbc_sg_cmd *cmd, int cmd_code,
-		    uint8_t *out_buf, size_t out_bufsz)
+		    uint8_t const *out_buf, size_t out_bufsz)
 {
 	zbc_assert(cmd_code >= 0 && cmd_code < ZBC_SG_CMD_NUM);
 
@@ -266,14 +399,15 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 	if (!out_buf && out_bufsz > 0) {
 
 		/* Allocate a buffer */
-		if (posix_memalign((void **) &cmd->out_buf,
-				   sysconf_pagesize(), out_bufsz) != 0) {
+		void *buf;
+		if (posix_memalign(&buf, sysconf_pagesize(), out_bufsz) != 0) {
 			zbc_error("No memory for command output buffer (%zu B)\n",
 				  out_bufsz);
 			return -ENOMEM;
 		}
 
-		memset(cmd->out_buf, 0, out_bufsz);
+		memset(buf, 0, out_bufsz);
+		cmd->out_buf = buf;
 		cmd->out_buf_needfree = 1;
 
 	} else {
@@ -299,7 +433,7 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
 	cmd->io_hdr.dxfer_len = cmd->out_bufsz;
 	if (cmd->out_bufsz)
-		cmd->io_hdr.dxferp = cmd->out_buf;
+		cmd->io_hdr.dxferp = (uint8_t *)cmd->out_buf;
 
 	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
 	cmd->io_hdr.sbp = cmd->sense_buf;
@@ -314,9 +448,10 @@ void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd)
 {
 	/* Free the command buffer */
         if (cmd->out_buf && cmd->out_buf_needfree) {
-		free(cmd->out_buf);
+		free((void *)cmd->out_buf);
 		cmd->out_buf = NULL;
 		cmd->out_bufsz = 0;
+		cmd->out_buf_needfree = 0;
         }
 }
 
@@ -646,9 +781,9 @@ void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes)
 /**
  * Get bytes from a command output buffer.
  */
-void zbc_sg_get_bytes(uint8_t *val, union converter *conv, int bytes)
+void zbc_sg_get_bytes(uint8_t const *val, union converter *conv, int bytes)
 {
-	uint8_t *v = (uint8_t *) val;
+	uint8_t const *v = val;
 	int i;
 
 	memset(conv, 0, sizeof(union converter));
@@ -665,7 +800,7 @@ void zbc_sg_get_bytes(uint8_t *val, union converter *conv, int bytes)
 /**
  * Print an array of bytes.
  */
-void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf, unsigned int len)
+void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t const *buf, unsigned int len)
 {
 	char msg[512];
 	unsigned i = 0, j;

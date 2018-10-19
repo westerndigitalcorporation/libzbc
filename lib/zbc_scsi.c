@@ -36,12 +36,80 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /**
+ * REPORT ZONE DOMAINS ouput header size.
+ */
+#define ZBC_RPT_DOMAINS_HEADER_SIZE	64
+
+/**
+ * REPORT ZONE DOMAINS output descriptor size.
+ */
+#define ZBC_RPT_DOMAINS_RECORD_SIZE	96
+
+/**
+ * REPORT REALMS ouput header size.
+ */
+#define ZBC_RPT_REALMS_HEADER_SIZE	64
+
+/**
+ * REPORT REALMS output zone realm descriptor definitions.
+ */
+#define ZBC_RPT_REALMS_RECORD_SIZE	128
+#define ZBC_RPT_REALMS_DESC_OFFSET	16
+#ifdef ZBC_NEW_RPT_REALMS
+ #define ZBC_RPT_REALMS_SE_DESC_SIZE	32
+#endif
+#define ZBC_RPT_REALMS_ITEM_SIZE	20
+
+/**
  * SCSI commands reply length.
  */
 #define ZBC_SCSI_INQUIRY_BUF_LEN	96
 #define ZBC_SCSI_VPD_PAGE_B1_LEN	64
 #define ZBC_SCSI_VPD_PAGE_B6_LEN	64
 #define ZBC_SCSI_READ_CAPACITY_BUF_LEN	32
+
+/**
+ * Zone activation results header size.
+ */
+#define ZBC_ACTV_RES_HEADER_SIZE	64
+
+/**
+ * Zone activation results record size.
+ */
+#define ZBC_ACTV_RES_RECORD_SIZE	24
+
+/**
+ * ZONE DOMAINS mode page size
+ */
+#define ZBC_SCSI_MODE_PG_SIZE		256
+
+/**
+ * ZONE DOMAINS mode page minimum size
+ */
+#define ZBC_SCSI_MIN_MODE_PG_SIZE	8
+
+/**
+ * Data offset from the beginning of MODE SENSE/SELSECT data buffer
+ * to the first byte of the actual page.
+ */
+#define ZBC_MODE_PAGE_OFFSET		12
+
+/**
+ * ZONE DOMAINS mode page and subpage numbers.
+ * FIXME The values below are in vendor-specific range and will change
+ */
+#define ZBC_ZONE_DOM_MODE_PG		0x3d
+#define ZBC_ZONE_DOM_MODE_SUBPG		0x08
+
+/**
+ * REPORT MUTATIONS output header size
+ */
+#define ZBC_MUTATE_RPT_HEADER_SIZE	32
+
+/**
+ * REPORT MUTATIONS output record size
+ */
+#define ZBC_MUTATE_RPT_RECORD_SIZE	8
 
 /**
  * Fill the buffer with the result of INQUIRY command.
@@ -133,7 +201,7 @@ static int zbc_scsi_test_sat(struct zbc_device *dev)
 	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
 	zbc_sg_set_int64(&cmd.cdb[2], 0);
 	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
-	cmd.cdb[14] = ZBC_RO_PARTIAL;
+	cmd.cdb[14] = ZBC_RZ_RO_PARTIAL;
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
@@ -265,6 +333,10 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return -EIO;
 	}
 
+	/* FIXME MUTATE support bit is not standard, testing only */
+	if (buf[9] & 0x01)
+		dev->zbd_info.zbd_flags |= ZBC_MUTATE_SUPPORT;
+
 	zoned = (buf[8] & 0x30) >> 4;
 	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 		if (zbc_test_mode(dev) && zoned != 0) {
@@ -279,12 +351,23 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	}
 
 	switch (zoned) {
-
 	case 0x00:
-		zbc_debug("%s: Standard SCSI block device detected\n",
-			  dev->zbd_filename);
-		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
-		return -ENXIO;
+		if (buf[8] & 0x40) {
+			/* Zone Domains host-managed device */
+			zbc_debug("%s: Zone Domains SCSI block device detected\n",
+				  dev->zbd_filename);
+			dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+			dev->zbd_info.zbd_flags |= ZBC_ZONE_DOMAINS_SUPPORT;
+		} else {
+			zbc_debug("%s: Standard SCSI block device detected\n",
+				dev->zbd_filename);
+			dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
+			if (dev->zbd_info.zbd_flags & ZBC_MUTATE_SUPPORT)
+				return 0;
+			else
+				return -ENXIO;
+		}
+		break;
 
 	case 0x01:
 		/* Host aware device */
@@ -314,7 +397,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
-				    enum zbc_reporting_options ro,
+				    enum zbc_zone_reporting_options ro,
 				    uint64_t *max_lba,
 				    struct zbc_zone *zones,
 				    unsigned int *nr_zones)
@@ -323,18 +406,13 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	struct zbc_sg_cmd cmd;
-	size_t max_bufsz;
-	uint8_t *buf;
+	uint8_t const *buf;
 	int ret;
 
 	if (*nr_zones)
 		bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
 
-	/* For in kernel ATA translation: align to 512 B */
-	bufsz = (bufsz + 511) & ~511;
-	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
-	if (bufsz > max_bufsz)
-		bufsz = max_bufsz;
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
 
 	/* Allocate and intialize report zones command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
@@ -423,7 +501,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	 */
 
 	/* Get number of zones in result */
-	buf = (uint8_t *) cmd.out_buf;
+	buf = cmd.out_buf;
 	nz = zbc_sg_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	if (max_lba)
 		*max_lba = zbc_sg_get_int64(&buf[8]);
@@ -482,7 +560,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[8]));
 		zones[i].zbz_start =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
-		if (zbc_zone_sequential(&zones[i]))
+		if (zbc_zone_sequential(&zones[i]) || zbc_zone_sobr(&zones[i]))
 			zones[i].zbz_write_pointer =
 				zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
 		else
@@ -506,7 +584,7 @@ out:
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
-				 enum zbc_reporting_options ro,
+				 enum zbc_zone_reporting_options ro,
 				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	return zbc_scsi_do_report_zones(dev, sector, ro,
@@ -517,7 +595,8 @@ static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
  * Zone(s) operation.
  */
 int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
-		     enum zbc_zone_op op, unsigned int flags)
+		     unsigned int count, enum zbc_zone_op op,
+		     unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int cmdid;
@@ -562,22 +641,26 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	 * +=============================================================================+
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
+	 * |=====+=======================================================================|
 	 * | 0   |                           Operation Code                              |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |               Service Action               |
+	 * | 1   |        Reserved          |               Service Action               |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                        Zone ID                                  ---|
+	 * |- - -+---                           Zone ID                               ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  | (MSB)                                                                 |
-	 * |- - -+---                        Reserved                                 ---|
+	 * |- - -+---                           Reserved                              ---|
+	 * | 11  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 12  | (MSB)                                                                 |
+	 * |- - -+---                          Zone count                             ---|
 	 * | 13  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |               Reserved                                       |  All   |
+	 * | 14  |                           Reserved                           |  All   |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
+	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
 	cmd.cdb[0] = cmdcode;
@@ -589,10 +672,1034 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 		/* Operate on the zone at lba */
 		zbc_sg_set_int64(&cmd.cdb[2], lba);
 
+	if (zbc_test_mode(dev))
+		zbc_sg_set_int64(&cmd.cdb[2], lba);
+
+	zbc_sg_set_int16(&cmd.cdb[12], count);
+
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 
 	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Report device zone domain configuration.
+ */
+static int zbc_scsi_report_domains(struct zbc_device *dev, uint64_t sector,
+				   enum zbc_domain_report_options ro,
+				   struct zbc_zone_domain *domains,
+				   unsigned int nr_domains)
+{
+	uint64_t lba = zbc_dev_sect2lba(dev, sector);
+	size_t bufsz = ZBC_RPT_DOMAINS_HEADER_SIZE;
+	unsigned int i, nd = 0, sz;
+	struct zbc_sg_cmd cmd;
+	uint8_t const *buf;
+	int ret;
+
+	bufsz += (size_t)nr_domains * ZBC_RPT_DOMAINS_RECORD_SIZE;
+
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
+
+	/* Allocate and intialize REPORT ZONE DOMAINS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONE_DOMAINS, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |           Service Action (07h)             |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---                         Realm Start LBA                         ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                        Allocation Length                        ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |     Reserved    |                 Reporting Options                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                              Control                                  |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA;
+	zbc_sg_set_int64(&cmd.cdb[2], lba);
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
+	cmd.cdb[14] = ro & 0x3f;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_RPT_DOMAINS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT ZONE DOMAINS data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_RPT_DOMAINS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get the number of domain descriptors in result */
+	buf = cmd.out_buf;
+	nd = buf[9];
+
+	if (!domains || !nd)
+		goto out;
+
+	/* Get the number of domain descriptors to fill */
+	if (nd < nr_domains)
+		nr_domains = nd;
+
+	sz = zbc_sg_get_int32(&buf[4]);
+	bufsz = sz < cmd.out_bufsz ? sz : cmd.out_bufsz;
+	bufsz -= ZBC_RPT_DOMAINS_HEADER_SIZE;
+	bufsz /= ZBC_RPT_DOMAINS_RECORD_SIZE;
+	if (nr_domains > bufsz)
+		nr_domains = bufsz;
+
+	/* Get zone domain descriptors */
+	buf += ZBC_RPT_DOMAINS_HEADER_SIZE;
+	for (i = 0; i < nr_domains; i++) {
+		domains[i].zbm_id = buf[0];
+
+		domains[i].zbm_nr_zones = zbc_sg_get_int64(&buf[16]);
+		domains[i].zbm_start_lba =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
+		domains[i].zbm_end_lba =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
+
+		if (!(buf[41] & 0x02)) { /*  VALID DOMAIN ZONE TYPE */
+			zbc_error("%s: Zone type not valid for domain %u, flags=0x%x\n",
+				  dev->zbd_filename, buf[0], buf[41]);
+			/*
+			 * We could have done REPORT ZONES on domain start LBA to
+			 * get the type, but if the bit is not set, then the type
+			 * is likely to be variable across the domain and we don't
+			 * support this functionality.
+			 */
+			ret = -EIO;
+			goto out;
+		}
+		domains[i].zbm_type = buf[40];
+
+		buf += ZBC_RPT_DOMAINS_RECORD_SIZE;
+	}
+
+	/* Return the number of domain descriptors */
+	ret = nd;
+out:
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Report device zone realm configuration.
+ */
+static int zbc_scsi_report_realms(struct zbc_device *dev, uint64_t sector,
+				  enum zbc_realm_report_options ro,
+				  struct zbc_zone_realm *realms,
+				  unsigned int *nr_realms)
+{
+	struct zbc_zone_domain *domains = NULL, *d;
+	struct zbc_realm_item *ri;
+	uint8_t const *buf, *ptr;
+	uint64_t zone_size, lba = zbc_dev_sect2lba(dev, sector);
+#ifdef ZBC_NEW_RPT_REALMS
+	uint64_t next;
+#endif
+	size_t bufsz = ZBC_RPT_REALMS_HEADER_SIZE;
+	unsigned int i, nr = 0, desc_len;
+	struct zbc_sg_cmd cmd;
+	int ret, j, nr_domains;
+
+	/*
+	 * Always get zone domains first. Allocate the buffer for
+	 * ZBC_NR_ZONE_TYPES domains since we will be only able to
+	 * process as many.
+	 */
+	nr_domains = ZBC_NR_ZONE_TYPES;
+	domains = calloc(nr_domains, sizeof(struct zbc_zone_domain));
+	if (!domains)
+		return -ENOMEM;
+
+	nr_domains = zbc_scsi_report_domains(dev, 0LL, ZBC_RZD_RO_ALL, domains,
+					     nr_domains);
+	if (nr_domains > ZBC_NR_ZONE_TYPES) {
+		zbc_warning("%s: Device has %i domains, only %u are supported\n",
+			    dev->zbd_filename, nr_domains, ZBC_NR_ZONE_TYPES);
+
+		nr_domains = ZBC_NR_ZONE_TYPES;
+	}
+	if (nr_domains < 0) {
+		free(domains);
+		return nr_domains;
+	}
+
+	if (*nr_realms)
+		bufsz += (size_t)*nr_realms * ZBC_RPT_REALMS_RECORD_SIZE;
+
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
+
+	/* Allocate and intialize REPORT REALMS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_REALMS, NULL, bufsz);
+	if (ret != 0) {
+		free(domains);
+		return ret;
+	}
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |           Service Action (06h)             |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   | (MSB)                                                                 |
+	 * |- - -+---                         Realm Start LBA                         ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                        Allocation Length                        ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |     Reserved    |                 Reporting Options                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                               Control                                 |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_REALMS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_REALMS_CDB_SA;
+	zbc_sg_set_int64(&cmd.cdb[2], lba);
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int)bufsz);
+	cmd.cdb[14] = ro & 0x3f;
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_RPT_REALMS_HEADER_SIZE) {
+		zbc_error("%s: Not enough REPORT REALMS data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_RPT_REALMS_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get number of realm descriptors from the header */
+	buf = cmd.out_buf;
+	nr = zbc_sg_get_int32(&buf[0]);
+
+	if (!realms || !nr)
+		goto out;
+
+	/* Get the number of realm descriptors to fill */
+	if (nr > *nr_realms)
+		nr = *nr_realms;
+
+#ifdef ZBC_NEW_RPT_REALMS
+	desc_len = zbc_sg_get_int32(&buf[4]);
+	if (!desc_len)
+		goto oldrealms; /* The field is reserved pre ZDr4, so it has to be 0 */
+	next = zbc_sg_get_int64(&buf[8]);
+	if (next) {
+		zbc_error("%s: NEXT REALM LOCATOR is not yet supported",
+			  dev->zbd_filename);
+		ret = -ENXIO; /* FIXME handle */
+		goto out;
+	}
+
+	bufsz = (cmd.out_bufsz - ZBC_RPT_REALMS_HEADER_SIZE) / desc_len;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get zone realm descriptors */
+	buf += ZBC_RPT_REALMS_HEADER_SIZE;
+	for (i = 0; i < nr; i++, realms++) {
+		realms->zbr_number = zbc_sg_get_int32(buf);
+		realms->zbr_restr = zbc_sg_get_int16(&buf[4]);
+		realms->zbr_dom_id = buf[7];
+		if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
+			realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
+		realms->zbr_nr_domains = nr_domains;
+		ptr = buf + ZBC_RPT_REALMS_DESC_OFFSET;
+		/* FIXME don't use nr_domains, use desc_len to limit iteration */
+		for (j = 0; j < nr_domains; j++) {
+			ri = &realms->zbr_ri[j];
+			ri->zbi_end_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
+			if (ri->zbi_end_lba) {
+				realms->zbr_actv_flags |= (1 << j);
+				d = &domains[j];
+				ri->zbi_dom_id = j;
+				ri->zbi_type = d->zbm_type;
+				ri->zbi_start_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
+				if (d->zbm_nr_zones) {
+					zone_size = (d->zbm_end_lba + 1 - d->zbm_start_lba) /
+						    d->zbm_nr_zones;
+				} else {
+					zone_size = 0;
+				}
+				if (zone_size) {
+					ri->zbi_length = (ri->zbi_end_lba + 1 - ri->zbi_start_lba) /
+							 zone_size;
+				}
+			}
+			ptr += ZBC_RPT_REALMS_SE_DESC_SIZE;
+		}
+
+		buf += desc_len;
+	}
+	goto out;
+
+oldrealms:
+	desc_len = ZBC_RPT_REALMS_RECORD_SIZE;
+#else
+
+	bufsz = (cmd.out_bufsz - ZBC_RPT_REALMS_HEADER_SIZE) / desc_len;
+	if (nr > bufsz)
+		nr = bufsz;
+#endif
+
+	/* Get zone realm descriptors */
+	buf += ZBC_RPT_REALMS_HEADER_SIZE;
+	for (i = 0; i < nr; i++, realms++) {
+		realms->zbr_dom_id = buf[0];
+		if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
+			realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
+		realms->zbr_actv_flags = buf[1];
+		realms->zbr_number = zbc_sg_get_int16(&buf[2]);
+		realms->zbr_nr_domains = nr_domains;
+		ptr = buf + ZBC_RPT_REALMS_DESC_OFFSET;
+		for (j = 0; j < nr_domains; j++) {
+			if (realms->zbr_actv_flags & (1 << j)) {
+				d = &domains[j];
+				ri = &realms->zbr_ri[j];
+				ri->zbi_dom_id = j;
+				ri->zbi_type = d->zbm_type;
+				ri->zbi_start_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
+				ri->zbi_end_lba =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
+				if (d->zbm_nr_zones) {
+					zone_size = (d->zbm_end_lba + 1 - d->zbm_start_lba) /
+						    d->zbm_nr_zones;
+				} else {
+					zone_size = 0;
+				}
+				if (zone_size) {
+					ri->zbi_length = (ri->zbi_end_lba + 1 - ri->zbi_start_lba) /
+							 zone_size;
+				}
+			}
+			ptr += ZBC_RPT_REALMS_ITEM_SIZE;
+		}
+
+		buf += desc_len;
+	}
+
+out:
+	if (domains)
+		free(domains);
+
+	/* Return the number of realm descriptors */
+	*nr_realms = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ *  Perform Zone Query / Activate operation using the 16-byte CDB.
+ */
+static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc, bool all,
+				    uint64_t zone_start_id, bool query,
+				    uint32_t nr_zones, unsigned int domain_id,
+				    struct zbc_actv_res *actv_recs,
+				    unsigned int *nr_actv_recs)
+{
+	size_t bufsz = ZBC_ACTV_RES_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	struct zbc_sg_cmd cmd;
+	uint16_t stat;
+	uint8_t const *buf;
+	int ret;
+
+	if (*nr_actv_recs)
+		bufsz += (size_t)*nr_actv_recs * ZBC_ACTV_RES_RECORD_SIZE;
+	if (*nr_actv_recs > (uint16_t)(-1)) {
+		zbc_error("%s: # of activation result records %u is too high\n",
+			dev->zbd_filename, *nr_actv_recs);
+		return -EINVAL;
+	}
+	if (zone_start_id > 0xffffffffffffLL) {
+		zbc_error("%s: # Zone start ID %"PRIu64" is too high\n",
+			dev->zbd_filename, zone_start_id);
+		return -EINVAL;
+	}
+
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
+
+	/* Allocate and intialize ZONE QUERY/ACTIVATE(16) command */
+	ret = zbc_sg_cmd_init(dev, &cmd,
+			      query ? ZBC_SG_ZONE_QUERY_16 :
+				      ZBC_SG_ZONE_ACTIVATE_16, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                        Operation Code (95h)                           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |         Reserved         |          Service Action (08h/09h)          |
+	 * |-----+--------+--------------------------------------------------------------|
+	 * | 2   |  All   |  ZSRC  |                    Domain ID                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   | (MSB)                                                                 |
+	 * |- - -+---                        Zone Start ID                            ---|
+	 * | 8   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 9   | (MSB)                                                                 |
+	 * |- - -+---                      Allocated Length                           ---|
+	 * | 12  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 13  | (MSB)                                                                 |
+	 * |- - -+---                       Number Of Zones                           ---|
+	 * | 14  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                              Control                                  |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE;
+	if (query)
+		cmd.cdb[1] = ZBC_SG_ZONE_QUERY_16_CDB_SA;
+	else
+		cmd.cdb[1] = ZBC_SG_ZONE_ACTIVATE_16_CDB_SA;
+	cmd.cdb[2] = domain_id & 0x3f; /* Domain ID to activate */
+	if (all)
+		cmd.cdb[2] |= 0x80; /* All */
+	if (zsrc) {
+		cmd.cdb[2] |= 0x40; /* ZSRC */
+		zbc_sg_set_int16(&cmd.cdb[13], (uint16_t)nr_zones);
+	}
+	zbc_sg_set_int48(&cmd.cdb[3], zone_start_id);
+	zbc_sg_set_int32(&cmd.cdb[9], (uint32_t)bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_ACTV_RES_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_ACTV_RES_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	buf = cmd.out_buf;
+
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		if (sz > cmd.out_bufsz)
+			sz = cmd.out_bufsz;
+		zbc_debug("%s: %s REPLY (%zd/%zd B):\n",
+				(query ? "QUERY" : "ACTIVATE"),
+				dev->zbd_filename,
+				sz, cmd.out_bufsz);
+		if (sz > 64)
+			sz = 64;	/* limit the amount printed */
+		zbc_sg_print_bytes(dev, buf, sz);
+	}
+
+	/*
+	 * Collect the status bits and the Zone ID With Unmet
+	 * Prerequisites if ACTIVATED bit is not set.
+	 */
+	stat = buf[9];
+	if (buf[8] & 0x01) /* ACTIVATED */
+		stat |= 0x8000;
+	if (buf[8] & 0x40) /* ZIWUP valid */
+		stat |= 0x4000;
+
+	if (((stat & 0x8000) == 0 && !query) ||
+	    (stat & 0x4000) != 0) {
+		dev->zbd_errno.err_za = stat;
+		if (stat & 0x4000) /* ZIWUP valid */
+			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[24]);
+		zbc_warning("%s: Zones %s activated {ERR=0x%04x CBF=%"PRIu64" (%svalid)}\n",
+			    dev->zbd_filename, query ? "will not be" : "not",
+			    stat, dev->zbd_errno.err_cbf,
+			    ((stat & 0x4000) ? "" : "in"));
+		ret = -EIO;
+
+		/* There still might be descriptors returned, try to read them */
+	}
+
+	/* Get number of activation records in result */
+	if (!actv_recs) {
+		nr = zbc_sg_get_int32(buf) / ZBC_ACTV_RES_RECORD_SIZE;
+		goto out;
+	}
+	nr = zbc_sg_get_int32(&buf[4]) / ZBC_ACTV_RES_RECORD_SIZE;
+	if (!nr)
+		goto out;
+
+	/*
+	 * Only get as many activation results records
+	 * as the allocated buffer allows.
+	 */
+	if (nr > *nr_actv_recs)
+		nr = *nr_actv_recs;
+
+	bufsz = (cmd.out_bufsz - ZBC_ACTV_RES_HEADER_SIZE) /
+		ZBC_ACTV_RES_RECORD_SIZE;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get the activation results records */
+	buf += ZBC_ACTV_RES_HEADER_SIZE;
+	for (i = 0; i < nr; i++) {
+		actv_recs[i].zbe_type = buf[0] & 0x0f;
+		actv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
+		actv_recs[i].zbe_domain = buf[2];
+		actv_recs[i].zbe_nr_zones = zbc_sg_get_int64(&buf[8]);
+		actv_recs[i].zbe_start_zone =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
+
+		buf += ZBC_ACTV_RES_RECORD_SIZE;
+	}
+
+out:
+	/* Return the number of descriptors */
+	*nr_actv_recs = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ *  Perform Zone Query / Activate operation using the 32-byte CDB.
+ */
+static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc, bool all,
+				    uint64_t zone_start_id, bool query,
+				    uint32_t nr_zones, uint32_t domain_id,
+				    struct zbc_actv_res *actv_recs,
+				    uint32_t *nr_actv_recs)
+{
+	size_t bufsz = ZBC_ACTV_RES_HEADER_SIZE;
+	unsigned int i, nr = 0;
+	struct zbc_sg_cmd cmd;
+	uint8_t const *buf;
+	uint16_t stat;
+	int ret;
+
+	if (*nr_actv_recs)
+		bufsz += (size_t)*nr_actv_recs * ZBC_ACTV_RES_RECORD_SIZE;
+
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
+
+	/* Allocate and intialize ZONE QUERY/ACTIVATE(32) command */
+	ret = zbc_sg_cmd_init(dev, &cmd,
+			      query ? ZBC_SG_ZONE_QUERY_32 :
+				      ZBC_SG_ZONE_ACTIVATE_32, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                  Operation Code (7Fh FIXME TBD)                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |                              Control                                  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                                                                       |
+	 * |- - -+                             Reserved                                  |
+	 * | 6   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 7   |                    Additional CDB Length (18h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 8   | (MSB)                                                                 |
+	 * |-----+---     Service Action (F800h for Activate, F810h for Query)        ---|
+	 * | 9   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  |  All   |  ZSRC  |                      Reserved                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 11  |                               Domain ID                               |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 12  | (MSB)                                                                 |
+	 * |-----+---                         Starting Zone ID                        ---|
+	 * | 19  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 20  |                                                                       |
+	 * |-----+---                        Number Of Zones                          ---|
+	 * | 23  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 24  |                                                                       |
+	 * |-----+---                           Reserved                              ---|
+	 * | 27  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 28  | (MSB)                                                                 |
+	 * |- - -+---                       Allocated Length                          ---|
+	 * | 31  |                                                                 (LSB) |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE;
+	cmd.cdb[7] = 0x18;
+	zbc_sg_set_int16(&cmd.cdb[8], query ? ZBC_SG_ZONE_QUERY_32_CDB_SA :
+					      ZBC_SG_ZONE_ACTIVATE_32_CDB_SA);
+
+	if (zsrc) {
+		cmd.cdb[10] |= 0x40; /* ZSRC */
+		zbc_sg_set_int32(&cmd.cdb[20], nr_zones);
+	}
+
+	if (all)
+		cmd.cdb[10] |= 0x80; /* All */
+
+	cmd.cdb[11] = domain_id; /* Domain ID to activate */
+
+	zbc_sg_set_int64(&cmd.cdb[12], zone_start_id);
+	zbc_sg_set_int32(&cmd.cdb[28], bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_ACTV_RES_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received"
+			  " (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_ACTV_RES_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	buf = cmd.out_buf;
+
+	if (zbc_log_level >= ZBC_LOG_DEBUG) {
+		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+		if (sz > cmd.out_bufsz)
+			sz = cmd.out_bufsz;
+		zbc_debug("%s: %s REPLY (%zd/%zd B):\n",
+				(query ? "QUERY" : "ACTIVATE"),
+				dev->zbd_filename,
+				sz, cmd.out_bufsz);
+		if (sz > 64)
+			sz = 64;	/* limit the amount printed */
+		zbc_sg_print_bytes(dev, buf, sz);
+	}
+
+	/*
+	 * Collect the status bits and the Zone ID With Unmet
+	 * Prerequisites if ACTIVATED bit is not set.
+	 */
+	stat = buf[9];
+	if (buf[8] & 0x01) /* ACTIVATED */
+		stat |= 0x8000;
+	if (buf[8] & 0x40) /* ZIWUP valid */
+		stat |= 0x4000;
+
+	if (((stat & 0x8000) == 0 && !query) ||
+	    (stat & 0x4000) != 0) {
+		dev->zbd_errno.err_za = stat;
+		if (stat & 0x4000) /* ZIWUP valid */
+			dev->zbd_errno.err_cbf = zbc_sg_get_int48(&buf[24]);
+		zbc_warning("%s: Zones %s activated {ERR=0x%04x CBF=%"PRIu64" (%svalid)}\n",
+			    dev->zbd_filename,
+			    query ? "will not be" : "not",
+			    dev->zbd_errno.err_za, dev->zbd_errno.err_cbf,
+			    ((dev->zbd_errno.err_za & 0x4000) ? "" : "in"));
+		ret = -EIO;
+
+		/* There still might be descriptors returned, try to read them */
+	}
+
+	/* Get number of activation records in result */
+	if (!actv_recs) {
+		nr = zbc_sg_get_int32(buf) / ZBC_ACTV_RES_RECORD_SIZE;
+		goto out;
+	}
+	nr = zbc_sg_get_int32(&buf[4]) / ZBC_ACTV_RES_RECORD_SIZE;
+	if (!nr)
+		goto out;
+
+	/*
+	 * Only get as many activation results records
+	 * as the allocated buffer allows.
+	 */
+	if (nr > *nr_actv_recs)
+		nr = *nr_actv_recs;
+
+	bufsz = (cmd.out_bufsz - ZBC_ACTV_RES_HEADER_SIZE) /
+		ZBC_ACTV_RES_RECORD_SIZE;
+	if (nr > bufsz)
+		nr = bufsz;
+
+	/* Get the activation results records */
+	buf += ZBC_ACTV_RES_HEADER_SIZE;
+	for (i = 0; i < nr; i++) {
+		actv_recs[i].zbe_type = buf[0] & 0x0f;
+		actv_recs[i].zbe_condition = (buf[1] >> 4) & 0x0f;
+		actv_recs[i].zbe_domain = buf[2];
+		actv_recs[i].zbe_nr_zones = zbc_sg_get_int64(&buf[8]);
+		actv_recs[i].zbe_start_zone =
+			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[16]));
+
+		buf += ZBC_ACTV_RES_RECORD_SIZE;
+	}
+
+out:
+	/* Return the number of recordrs */
+	*nr_actv_recs = nr;
+
+	/* Cleanup */
+	zbc_sg_cmd_destroy(&cmd);
+
+
+	return ret;
+}
+
+static int zbc_scsi_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
+					bool use_32_byte_cdb, bool query,
+					uint64_t lba, uint32_t nr_zones,
+					unsigned int domain_id,
+					struct zbc_actv_res *actv_recs,
+					unsigned int *nr_actv_recs)
+{
+	if (all)
+		zsrc = false;
+
+	return use_32_byte_cdb ?
+	       zbc_scsi_zone_activate32(dev, zsrc, all, lba, query, nr_zones,
+					domain_id, actv_recs, nr_actv_recs) :
+	       zbc_scsi_zone_activate16(dev, zsrc, all, lba, query, nr_zones,
+					domain_id, actv_recs, nr_actv_recs);
+}
+
+/**
+ * Read or set values in one of device mode pages.
+ */
+static int zbc_scsi_get_set_mode(struct zbc_device *dev, uint32_t pg,
+				 uint32_t subpg, uint8_t *buf,
+				 uint32_t buf_len, bool set, uint32_t *pg_len)
+{
+	struct zbc_sg_cmd cmd;
+	uint8_t *data = NULL;
+	uint32_t len, max_bufsz, bufsz = buf_len + ZBC_MODE_PAGE_OFFSET;
+	int ret;
+
+	if (pg_len)
+		*pg_len = 0;
+
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+
+	data = calloc(1, bufsz);
+	if (!data)
+		return -ENOMEM;
+
+	if (!set) {
+		memset(data, 0, bufsz);
+
+		/* MODE SENSE 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SENSE,
+				      data, bufsz);
+	} else {
+		memset(data, 0, ZBC_MODE_PAGE_OFFSET);
+		memcpy(&data[ZBC_MODE_PAGE_OFFSET], buf, buf_len);
+
+		/* MODE SELECT 10 */
+		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MODE_SELECT,
+				      data, bufsz);
+	}
+	if (ret != 0)
+		goto err;
+
+	/* Fill command CDB */
+	cmd.cdb[1] = 0x10; /* PF */
+	if (!set) {
+		cmd.cdb[0] = MODE_SENSE_10;
+		cmd.cdb[2] = pg & 0x3f;
+		cmd.cdb[3] = subpg;
+	} else {
+		cmd.cdb[0] = MODE_SELECT_10;
+		data[8] = pg & 0x3f;
+		data[8] |= 0x40;
+		data[9] = subpg;
+		zbc_sg_set_int16(&data[10], buf_len);
+	}
+	zbc_sg_set_int16(&cmd.cdb[7], bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (!set) {
+		len = zbc_sg_get_int16(&data[0]);
+		if (len > buf_len)
+			len = buf_len;
+		memcpy(buf, &data[ZBC_MODE_PAGE_OFFSET], len);
+		if (pg_len)
+			*pg_len = len;
+	}
+out:
+	zbc_sg_cmd_destroy(&cmd);
+
+err:
+	if (data)
+		free(data);
+
+	return ret;
+}
+
+/**
+ * Read or set Zone Domains configuration parameters.
+ */
+static int zbc_scsi_dev_control(struct zbc_device *dev,
+				struct zbc_zd_dev_control *ctl, bool set)
+{
+	int ret;
+	unsigned int pg_len;
+	bool update = false;
+	uint8_t mode_page[ZBC_SCSI_MODE_PG_SIZE];
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_DOM_MODE_PG,
+				    ZBC_ZONE_DOM_MODE_SUBPG, mode_page,
+				    ZBC_SCSI_MODE_PG_SIZE, false, &pg_len);
+	if (ret) {
+		zbc_error("%s: Can't read Zone Domains mode page\n",
+			  dev->zbd_filename);
+		return ret;
+	}
+	if (pg_len < ZBC_SCSI_MIN_MODE_PG_SIZE) {
+		zbc_error("%s: Zone Domains mode page too short, %iB\n",
+			  dev->zbd_filename, pg_len);
+		return -EIO;
+	}
+
+	if (!set) {
+		memset(ctl, 0, sizeof(*ctl));
+		ctl->zbt_nr_zones = zbc_sg_get_int32(&mode_page[0]);
+		ctl->zbt_urswrz = mode_page[6];
+		ctl->zbt_max_activate = zbc_sg_get_int16(&mode_page[12]);
+		return ret;
+	}
+
+	if (ctl->zbt_nr_zones != 0xffffffff) {
+		zbc_sg_set_int32(&mode_page[0], ctl->zbt_nr_zones);
+		update = true;
+	}
+	if (ctl->zbt_urswrz != 0xff) {
+		mode_page[6] = ctl->zbt_urswrz;
+		update = true;
+	}
+	if (ctl->zbt_max_activate != 0xffff) {
+		zbc_sg_set_int16(&mode_page[12], ctl->zbt_max_activate);
+		update = true;
+	}
+
+	if (!update)
+		return ret;
+
+	ret = zbc_scsi_get_set_mode(dev,
+				    ZBC_ZONE_DOM_MODE_PG,
+				    ZBC_ZONE_DOM_MODE_SUBPG,
+				    mode_page, pg_len,
+				    true, NULL);
+	if (ret)
+		zbc_error("%s: Can't update Zone Domains mode page\n",
+			  dev->zbd_filename);
+	else
+		zbc_debug("%s: MODE SELECT fsnoz=%u urswrz=%u max_activate=%u\n",
+				dev->zbd_filename, ctl->zbt_nr_zones,
+				ctl->zbt_urswrz, ctl->zbt_max_activate);
+
+	return ret;
+}
+
+/**
+ * Get supported device mutations.
+ */
+static int zbc_scsi_report_mutations(struct zbc_device *dev,
+				     struct zbc_supported_mutation *sm,
+				     unsigned int *nr_sm_recs)
+{
+	size_t bufsz = ZBC_MUTATE_RPT_HEADER_SIZE;
+	unsigned int i, nrecs = 0, buf_nrecs;
+	struct zbc_sg_cmd cmd;
+	uint8_t const *buf;
+	int ret;
+
+	if (*nr_sm_recs)
+		bufsz += ((size_t)*nr_sm_recs) * ZBC_MUTATE_RPT_RECORD_SIZE;
+
+	bufsz = zbc_sg_align_bufsz(dev, bufsz);
+
+	/* Allocate and intialize report mutations command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_MUTATIONS, NULL, bufsz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (95h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |      Reserved            |       Service Action (04h)                 |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                                                                       |
+	 * |- - -+---                             Reserved                            ---|
+	 * | 9   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 10  | (MSB)                                                                 |
+	 * |- - -+---                        Allocation Length                        ---|
+	 * | 13  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 14  |                                Reserved                               |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                                 Control                               |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_REPORT_MUTATIONS_CDB_SA;
+	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	if (cmd.out_bufsz < ZBC_MUTATE_RPT_HEADER_SIZE) {
+		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+			  dev->zbd_filename,
+			  ZBC_MUTATE_RPT_HEADER_SIZE,
+			  cmd.out_bufsz);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Get number of records in result */
+	buf = cmd.out_buf;
+	nrecs = zbc_sg_get_int32(buf);
+
+	if (!*nr_sm_recs)
+		goto done;
+	if (!sm || !nrecs)
+		goto out;
+
+	/* Calculate the number of records to output */
+	if (nrecs > *nr_sm_recs)
+		nrecs = *nr_sm_recs;
+
+	buf_nrecs = (cmd.out_bufsz - ZBC_MUTATE_RPT_HEADER_SIZE)
+		/ ZBC_MUTATE_RPT_RECORD_SIZE;
+	if (nrecs > buf_nrecs)
+		nrecs = buf_nrecs;
+
+	/* Output the supported mutation records */
+	buf += ZBC_MUTATE_RPT_HEADER_SIZE;
+	for (i = 0; i < nrecs; i++) {
+		sm[i].zbs_mt = buf[0] & 0x0f;
+		sm[i].zbs_opt.nz = zbc_sg_get_int32(&buf[4]);
+
+		buf += ZBC_MUTATE_RPT_RECORD_SIZE;
+	}
+
+out:
+	/* Return number of supported mutations */
+	*nr_sm_recs = nrecs;
+done:
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+/**
+ * Mutate a device to a different type, PMR <-> SMR <-> DH-SMR.
+ */
+static int zbc_scsi_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+			   union zbc_mutation_opt opt)
+{
+	struct zbc_sg_cmd cmd;
+	int ret;
+
+	/* Allocate and intialize MUTATE command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_MUTATE, NULL, 0);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                           Operation Code (94h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |         Reserved         |             Service Action (05h)           |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                          Mutation target type                         |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                                Reserved                               |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 4   | (MSB)                                                                 |
+	 * |- - -+---                     Mutation option (model)                     ---|
+	 * | 7   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 8   |                                                                       |
+	 * |- - -+---                             Reserved                            ---|
+	 * | 14  |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 15  |                                Control                                |
+	 * +=============================================================================+
+	 */
+	cmd.cdb[0] = ZBC_SG_MUTATE_CDB_OPCODE;
+	cmd.cdb[1] = ZBC_SG_MUTATE_CDB_SA;
+	cmd.cdb[2] = mt;
+	zbc_sg_set_int32(&cmd.cdb[4], (unsigned int)opt.nz);
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
@@ -604,7 +1711,6 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
-	struct zbc_zone *zones = NULL;
 	int logical_per_physical;
 	unsigned int nr_zones = 0;
 	uint64_t max_lba;
@@ -653,7 +1759,8 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			 * To get the entire device capacity, we need to get
 			 * the last LBA of the last zone of the device.
 			 */
-			ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL|ZBC_RO_PARTIAL,
+			ret = zbc_scsi_do_report_zones(dev, 0,
+						       ZBC_RZ_RO_ALL | ZBC_RZ_RO_PARTIAL,
 						       &max_lba,
 						       NULL, &nr_zones);
 			if (ret != 0)
@@ -666,7 +1773,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			break;
 
 		default:
-			zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+			zbc_error("%s: invalid RC_BASIS field in READ CAPACITY result\n",
 				  dev->zbd_filename);
 			ret = -EIO;
 			goto out;
@@ -695,9 +1802,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 out:
 	zbc_sg_cmd_destroy(&cmd);
 
-	if (zones)
-		free(zones);
-
 	return ret;
 }
 
@@ -707,6 +1811,7 @@ out:
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
+	struct zbc_device_info *di = &dev->zbd_info;
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	uint32_t val;
 	int ret;
@@ -721,11 +1826,30 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 		return ret;
 	}
 
-	/* URSWRZ (unrestricted read in sequential write required zone) flag */
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
+	/* URSWRZ, Zone Domains support */
+	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
+	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_DOMAINS_SUPPORT : 0;
+	if (di->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) {
+
+		di->zbd_model = ZBC_DM_HOST_MANAGED;
+
+		/* Check what Zone Domains features are supported */
+		di->zbd_flags |= (buf[4] & 0x04) ? ZBC_MAXACT_SET_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x08) ? ZBC_NOZSRC_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_REPORT_REALMS_SUPPORT : 0;
+		di->zbd_flags |= (buf[4] & 0x80) ? ZBC_ZA_CONTROL_SUPPORT : 0;
+
+		/* Check what zone types are supported. FIXME layout TBD for SCSI */
+		di->zbd_flags |= (buf[10] & 0x01) ? ZBC_CONV_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x02) ? ZBC_SEQ_PREF_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x04) ? ZBC_SEQ_REQ_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x08) ? ZBC_SOBR_ZONE_SUPPORT : 0;
+		di->zbd_flags |= (buf[10] & 0x10) ? ZBC_GAP_ZONE_SUPPORT : 0;
+	}
 
 	/* Maximum number of zones for resource management */
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE) {
+	if (di->zbd_model == ZBC_DM_HOST_AWARE) {
 
 		val = zbc_sg_get_int32(&buf[8]);
 		if (!val) {
@@ -735,24 +1859,24 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = val;
+		di->zbd_opt_nr_open_seq_pref = val;
 
 		val = zbc_sg_get_int32(&buf[12]);
 		if (!val) {
 			/* Handle this case as "not reported" */
 			zbc_warning("%s: invalid optimal number of randomly "
-				    "writen sequential write preferred zones\n",
+				    "written sequential write preferred zones\n",
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = val;
+		di->zbd_opt_nr_non_seq_write_seq_pref = val;
 
-		dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+		di->zbd_max_nr_open_seq_req = 0;
 
 	} else {
 
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+		di->zbd_opt_nr_open_seq_pref = 0;
+		di->zbd_opt_nr_non_seq_write_seq_pref = 0;
 
 		val = zbc_sg_get_int32(&buf[16]);
 		if (!val) {
@@ -762,9 +1886,11 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NO_LIMIT;
 		}
-		dev->zbd_info.zbd_max_nr_open_seq_req = val;
+		di->zbd_max_nr_open_seq_req = val;
 
 	}
+
+	di->zbd_max_activation = zbc_sg_get_int16(&buf[20]);
 
 	return 0;
 }
@@ -940,7 +2066,7 @@ ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 	ssize_t ret;
 
 	/* WRITE 16 */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, buf, sz);
 	if (ret != 0)
 		return ret;
 
@@ -955,6 +2081,135 @@ ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 	if (ret == 0)
 		ret = (sz - cmd.io_hdr.resid) >> 9;
 
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Receive ZBD statistic counters from the device.
+ */
+static int zbc_scsi_get_stats(struct zbc_device * dev,
+			      struct zbc_zoned_blk_dev_stats *stats)
+{
+	uint8_t *bufptr;
+	struct zbc_sg_cmd cmd;
+	unsigned long long val;
+	int ret, i;
+	uint16_t size, pc;
+	uint8_t buf[4096];
+
+	memset(stats, 0, sizeof(*stats));
+
+	/* Allocate and intialize RECEIVE DIAGNOSTIC RESULTS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_RECEIVE_DIAG_RESULTS,
+			      buf, sizeof(buf));
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                         Operation Code (1Ch)                          |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |                          Reserved                            |  PCV   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                              Page Code                                |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                                                                       |
+	 * |- - -+                         Allocation Length                             |
+	 * | 4   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5   |                              Control                                  |
+	 * +-----+-----------------------------------------------------------------------+
+	 */
+	cmd.cdb[0] = ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE;
+	cmd.cdb[1] = 0x01; /* PCV=1 : page code valid */
+	cmd.cdb[2] = ZBC_SG_ZBD_LOG_STATS;
+	zbc_sg_set_int16(&cmd.cdb[3], sizeof(buf));
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	ret = buf[0] & ~0x40;
+	if (ret != ZBC_SG_ZBD_LOG_STATS) {
+		zbc_error("%s: unsupported diagnostic page 0x%02x\n",
+			  dev->zbd_filename, ret);
+		ret = -EIO;
+		goto out;
+	}
+	ret = 0;
+	if (!(buf[0] & 0x40) || buf[1] != 0x01) {
+		zbc_error("%s: invalid diagnostic subpage 0x%02x (SPF=0x%02x)\n",
+			  dev->zbd_filename, buf[1], buf[0] & 0x40);
+		ret = -EIO;
+		goto out;
+	}
+	size = zbc_sg_get_int16(&buf[2]);
+	bufptr = &buf[4];
+
+	/*
+	 * Navigate through the list of parameters
+	 * and populate the supplied stats structure.
+	 */
+	for (i = 0; i < ZBC_NR_STAT_PARAMS; i++) {
+		if (size < ZBC_LOG_PARAM_RECORD_SIZE) {
+			zbc_error("%s: not enough (%i/%i) log parameters returned\n",
+				  dev->zbd_filename, i, ZBC_NR_STAT_PARAMS);
+			ret = -EIO;
+			goto out;
+		}
+
+		pc = zbc_sg_get_int16(bufptr);
+		if (bufptr[3] != 8) {
+			zbc_error("%s: bad ZBC log parameter length %i, 8 expected\n",
+				  dev->zbd_filename, bufptr[3]);
+			ret = -EIO;
+			goto out;
+		}
+
+		val = zbc_sg_get_int64(&bufptr[4]);
+		switch (pc) {
+		case 0x00:
+			stats->max_open_zones = val; break;
+		case 0x01:
+			stats->max_exp_open_seq_zones = val; break;
+		case 0x02:
+			stats->max_imp_open_seq_zones = val; break;
+		case 0x03:
+			stats->min_empty_zones = val; break;
+		case 0x04:
+			stats->max_non_seq_zones = val; break;
+		case 0x05:
+			stats->zones_emptied = val; break;
+		case 0x06:
+			stats->subopt_write_cmds = val; break;
+		case 0x07:
+			stats->cmds_above_opt_lim = val; break;
+		case 0x08:
+			stats->failed_exp_opens = val; break;
+		case 0x09:
+			stats->read_rule_fails = val; break;
+		case 0x0a:
+			stats->write_rule_fails = val; break;
+		case 0x0b:
+			stats->max_imp_open_sobr_zones = val; break;
+		default:
+			zbc_error("%s: Bad ZBD log parameter code 0x%02x\n",
+				  dev->zbd_filename, pc);
+			ret = -EIO;
+			goto out;
+		}
+
+		bufptr += ZBC_LOG_PARAM_RECORD_SIZE;
+		size -= ZBC_LOG_PARAM_RECORD_SIZE;
+	}
+
+out:
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
@@ -990,15 +2245,21 @@ int zbc_scsi_flush(struct zbc_device *dev)
 /**
  * ZBC SCSI device driver definition.
  */
-struct zbc_drv zbc_scsi_drv =
-{
+struct zbc_drv zbc_scsi_drv = {
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,
+	.zbd_dev_control	= zbc_scsi_dev_control,
 	.zbd_pread		= zbc_scsi_pread,
 	.zbd_pwrite		= zbc_scsi_pwrite,
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
+	.zbd_report_domains	= zbc_scsi_report_domains,
+	.zbd_report_realms	= zbc_scsi_report_realms,
+	.zbd_zone_query_actv	= zbc_scsi_zone_query_activate,
+	.zbd_get_stats		= zbc_scsi_get_stats,
+	.zbd_report_mutations	= zbc_scsi_report_mutations,
+	.zbd_mutate		= zbc_scsi_mutate,
 };
 

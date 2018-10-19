@@ -30,6 +30,8 @@ enum {
 	ZBC_SG_TEST_UNIT_READY = 0,
 	ZBC_SG_INQUIRY,
 	ZBC_SG_READ_CAPACITY,
+	ZBC_SG_MODE_SENSE,
+	ZBC_SG_MODE_SELECT,
 	ZBC_SG_READ,
 	ZBC_SG_WRITE,
 	ZBC_SG_SYNC_CACHE,
@@ -38,8 +40,18 @@ enum {
 	ZBC_SG_OPEN_ZONE,
 	ZBC_SG_CLOSE_ZONE,
 	ZBC_SG_FINISH_ZONE,
+	ZBC_SG_SEQUENTIALIZE_ZONE,
 	ZBC_SG_SET_ZONES,
 	ZBC_SG_SET_WRITE_POINTER,
+	ZBC_SG_REPORT_REALMS,
+	ZBC_SG_REPORT_ZONE_DOMAINS,
+	ZBC_SG_ZONE_ACTIVATE_16,
+	ZBC_SG_ZONE_QUERY_16,
+	ZBC_SG_ZONE_ACTIVATE_32,
+	ZBC_SG_ZONE_QUERY_32,
+	ZBC_SG_RECEIVE_DIAG_RESULTS,
+	ZBC_SG_REPORT_MUTATIONS,
+	ZBC_SG_MUTATE,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -63,6 +75,18 @@ enum {
 #define ZBC_SG_READ_CAPACITY_CDB_OPCODE		0x9E
 #define ZBC_SG_READ_CAPACITY_CDB_SA		0x10
 #define ZBC_SG_READ_CAPACITY_CDB_LENGTH		16
+
+/**
+ * Mode sense command definition.
+ */
+#define ZBC_SG_MODE_SENSE_CDB_OPCODE		MODE_SENSE_10
+#define ZBC_SG_MODE_SENSE_CDB_LENGTH		10
+
+/**
+ * Mode select command definition.
+ */
+#define ZBC_SG_MODE_SELECT_CDB_OPCODE		MODE_SELECT_10
+#define ZBC_SG_MODE_SELECT_CDB_LENGTH		10
 
 /**
  * Read command definition.
@@ -118,6 +142,13 @@ enum {
 #define ZBC_SG_FINISH_ZONE_CDB_LENGTH		16
 
 /**
+ * Sequentialize command definition.
+ */
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_OPCODE	0x94
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_SA	0x05
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_LENGTH	16
+
+/**
  * Set zones command definition.
  */
 #define ZBC_SG_SET_ZONES_CDB_OPCODE		0x9F
@@ -130,6 +161,66 @@ enum {
 #define ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE	0x9F
 #define ZBC_SG_SET_WRITE_POINTER_CDB_SA		0x16
 #define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
+
+/**
+ * Report zone domains command definition.
+ */
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE	0x95 /* FIXME opcode TBD */
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA	0x07
+#define ZBC_SG_REPORT_ZONE_DOMAINS_CDB_LENGTH	16
+
+/**
+ * Report realms command definition.
+ */
+#define ZBC_SG_REPORT_REALMS_CDB_OPCODE		0x95 /* FIXME opcode TBD */
+#define ZBC_SG_REPORT_REALMS_CDB_SA		0x06
+#define ZBC_SG_REPORT_REALMS_CDB_LENGTH		16
+
+/**
+ * Zone Query / Activate command definitions.
+ */
+#define ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE	0x95 /* FIXME value TBD */
+#define ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE	0x7F /* FIXME value TBD */
+
+#define ZBC_SG_ZONE_QUERY_ACTV_16_CDB_LENGTH	16
+#define ZBC_SG_ZONE_QUERY_ACTV_32_CDB_LENGTH	32
+
+#define ZBC_SG_ZONE_ACTIVATE_16_CDB_SA		0x08
+#define ZBC_SG_ZONE_ACTIVATE_32_CDB_SA		0xF800 /* FIXME value TBD */
+
+#define ZBC_SG_ZONE_QUERY_16_CDB_SA		0x09
+#define ZBC_SG_ZONE_QUERY_32_CDB_SA		0XF801 /*FIXME value TBD */
+
+/*
+ * Zoned Block Device stats definitions.
+ */
+
+/** RECEIVE DIAGNOSTIC RESULTS opcode */
+#define ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE	0x1C
+#define ZBC_SG_RECEIVE_DIAG_RES_CDB_LENGTH	6
+
+/** Zoned Block Device Stats Page */
+#define ZBC_SG_ZBD_LOG_STATS			0x14
+
+/** ZBC Log parameter size in bytes */
+#define ZBC_LOG_PARAM_RECORD_SIZE		12
+
+/** The total number of log parameters in ZBD Stats page */
+#define ZBC_NR_STAT_PARAMS			11
+
+/**
+ * Report mutations command definition.
+ */
+#define ZBC_SG_REPORT_MUTATIONS_CDB_OPCODE	0x95 /* FIXME opcode/SA TBD */
+#define ZBC_SG_REPORT_MUTATIONS_CDB_SA		0x05
+#define ZBC_SG_REPORT_MUTATIONS_CDB_LENGTH	16
+
+/**
+ * Mutate command definition.
+ */
+#define ZBC_SG_MUTATE_CDB_OPCODE		0x94 /* FIXME opcode/SA TBD */
+#define ZBC_SG_MUTATE_CDB_SA			0x06
+#define ZBC_SG_MUTATE_CDB_LENGTH		16
 
 /**
  * ATA pass through 16.
@@ -145,7 +236,7 @@ enum {
 /**
  * Maximum command CDB length.
  */
-#define ZBC_SG_CDB_MAX_LENGTH			16
+#define ZBC_SG_CDB_MAX_LENGTH			32
 
 /**
  * Status codes.
@@ -208,7 +299,7 @@ struct zbc_sg_cmd {
 
 	int		out_buf_needfree;
 	size_t		out_bufsz;
-	uint8_t		*out_buf;
+	uint8_t const	*out_buf;
 
 	sg_io_hdr_t	io_hdr;
 
@@ -224,7 +315,7 @@ struct zbc_sg_cmd {
  */
 extern int zbc_sg_cmd_init(struct zbc_device *dev,
 			   struct zbc_sg_cmd *cmd, int cmd_code,
-			   uint8_t *out_buf, size_t out_bufsz);
+			   uint8_t const *out_buf, size_t out_bufsz);
 
 /**
  * Free a command.
@@ -261,6 +352,15 @@ static inline void zbc_sg_set_int64(uint8_t *buf, uint64_t val)
 }
 
 /**
+ * Set a 48 bits integer in a command cdb.
+ */
+static inline void zbc_sg_set_int48(uint8_t *buf, uint64_t val)
+{
+	val &= 0xffffffffffffLL;
+	zbc_sg_set_bytes(buf, &val, 6);
+}
+
+/**
  * Set a 32 bits integer in a command cdb.
  */
 static inline void zbc_sg_set_int32(uint8_t *buf, uint32_t val)
@@ -289,13 +389,13 @@ union converter {
 /**
  * Get bytes from a command output buffer.
  */
-extern void zbc_sg_get_bytes(uint8_t *val, union converter *conv,
+extern void zbc_sg_get_bytes(uint8_t const *val, union converter *conv,
 			     int bytes);
 
 /**
  * Get a 64 bits integer from a command output buffer.
  */
-static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
+static inline uint64_t zbc_sg_get_int64(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -305,9 +405,21 @@ static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
 }
 
 /**
+ * Get a 48 bits integer from a command output buffer.
+ */
+static inline uint64_t zbc_sg_get_int48(uint8_t const *buf)
+{
+	union converter conv;
+
+	zbc_sg_get_bytes(buf, &conv, 6);
+
+	return conv.val64 & 0xffffffffffffLL;
+}
+
+/**
  * Get a 32 bits integer from a command output buffer.
  */
-static inline uint32_t zbc_sg_get_int32(uint8_t *buf)
+static inline uint32_t zbc_sg_get_int32(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -319,7 +431,7 @@ static inline uint32_t zbc_sg_get_int32(uint8_t *buf)
 /**
  * Get a 16 bits integer from a command output buffer.
  */
-static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
+static inline uint16_t zbc_sg_get_int16(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -329,9 +441,26 @@ static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
 }
 
 /**
+ * Round up the input buffer size to be a multiple of 512 bytes.
+ * This can be important for in kernel ATA translation. Also, limit
+ * the buffer size by the maximum value supported by the device.
+ */
+static inline size_t zbc_sg_align_bufsz(struct zbc_device *dev, size_t bufsz)
+{
+	size_t max_bufsz;
+	bufsz = (bufsz + 511) & ~511;
+	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+	if (!max_bufsz) /* Can happen if called before READ CAPACITY */
+		max_bufsz = 512;
+	if (bufsz > max_bufsz)
+		bufsz = max_bufsz;
+	return bufsz;
+}
+
+/**
  * Print an array of bytes.
  */
-extern void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf,
+extern void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t const *buf,
 			       unsigned int len);
 
 #endif /* __LIBZBC_SG_H__ */

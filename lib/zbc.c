@@ -15,6 +15,7 @@
  */
 
 #include "zbc.h"
+#include <include/config.h>
 
 #include <string.h>
 
@@ -43,7 +44,9 @@ static struct zbc_sg_sk_s {
 } zbc_sg_sk_list[] = {
 	{ ZBC_SK_ILLEGAL_REQUEST,	"Illegal-request"	},
 	{ ZBC_SK_DATA_PROTECT,		"Data-protect"		},
+	{ ZBC_SK_HARDWARE_ERROR,	"Hardware-error"	},
 	{ ZBC_SK_ABORTED_COMMAND,	"Aborted-command"	},
+	{ ZBC_SK_MEDIUM_ERROR,		"Medium-error"		},
 	{ 0,				NULL }
 };
 
@@ -84,8 +87,53 @@ static struct zbc_sg_asc_ascq_s {
 		"Zone-is-read-only"
 	},
 	{
+		ZBC_ASC_ZONE_IS_OFFLINE,
+		"Zone-is-offline"
+	},
+	{
 		ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
 		"Insufficient-zone-resources"
+	},
+	{
+		ZBC_ASC_ZONE_IS_INACTIVE,
+		"Zone-is-inactive"
+	},
+	{
+		ZBC_ASC_ATTEMPT_TO_ACCESS_GAP_ZONE,
+		"Attempt-to-access-GAP-zone"
+	},
+	{
+		ZBC_ASC_READ_ERROR,
+		"Read-error"
+	},
+	{
+		ZBC_ASC_WRITE_ERROR,
+		"Write-error"
+	},
+	{
+		ZBC_ASC_FORMAT_IN_PROGRESS,
+		"Format-in-progress"
+	},
+
+	{
+		ZBC_ASC_INTERNAL_TARGET_FAILURE,
+		"Internal-target-failure"
+	},
+	{
+		ZBC_ASC_INVALID_COMMAND_OPERATION_CODE,
+		"Invalid-command-operation-code"
+	},
+	{
+		ZBC_ASC_INVALID_FIELD_IN_PARAMETER_LIST,
+		"Invalid-field-in-parameter-list"
+	},
+	{
+		ZBC_ASC_PARAMETER_LIST_LENGTH_ERROR,
+		"Parameter-list-length-error"
+	},
+	{
+		ZBC_ASC_ZONE_RESET_WP_RECOMMENDED,
+		"Zone-reset-wp-recommended"
 	},
 	{
 		0,
@@ -94,6 +142,14 @@ static struct zbc_sg_asc_ascq_s {
 };
 
 /***** Definition of public functions *****/
+
+char const *zbc_version(void)
+{
+	static char ver[8];
+
+	printf("%s", PACKAGE_VERSION);
+	return (char const*)ver;
+}
 
 /**
  * zbc_set_log_level - Set the library log level
@@ -174,6 +230,10 @@ const char *zbc_zone_type_str(enum zbc_zone_type type)
 		return "Sequential-write-required";
 	case ZBC_ZT_SEQUENTIAL_PREF:
 		return "Sequential-write-preferred";
+	case ZBC_ZT_SEQ_OR_BEF_REQ:
+		return "Sequential-or-before-required";
+	case ZBC_ZT_GAP:
+		return "Gap";
 	case ZBC_ZT_UNKNOWN:
 	default:
 		return "Unknown-zone-type";
@@ -196,6 +256,8 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 		return "Explicit-open";
 	case ZBC_ZC_CLOSED:
 		return "Closed";
+	case ZBC_ZC_INACTIVE:
+		return "Inactive";
 	case ZBC_ZC_RDONLY:
 		return "Read-only";
 	case ZBC_ZC_FULL:
@@ -207,12 +269,26 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
 	}
 }
 
+/* zbc_errno_ext - Get detailed error code of last operation
+ *
+ * If size >= sizeof(struct zbc_err) then return the entire zbc_err structure;
+ * otherwise return the first size bytes of the structure.
+ */
+
+void zbc_errno_ext(struct zbc_device *dev, struct zbc_err_ext *err, size_t size)
+{
+	if (size > sizeof(struct zbc_err_ext))
+		size = sizeof(struct zbc_err_ext);
+
+	memcpy(err, &dev->zbd_errno, size);
+}
+
 /**
  * zbc_errno - Get detailed error code of last operation
  */
 void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
 {
-        memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
+	zbc_errno_ext(dev, (struct zbc_err_ext *)err, sizeof(struct zbc_errno));
 }
 
 /**
@@ -427,6 +503,40 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 
 	}
 
+	if (info->zbd_model != ZBC_DM_STANDARD)
+		fprintf(out, "    Zone Domains command set is %ssupported\n",
+			(info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) ? "" : "NOT ");
+	if (info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) {
+		fprintf(out, "    Zone Realms command set is %ssupported\n",
+			(info->zbd_flags & ZBC_REPORT_REALMS_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    Unrestricted read control is %ssupported\n",
+			(info->zbd_flags & ZBC_URSWRZ_SET_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    Zone Activation control is %ssupported\n",
+			(info->zbd_flags & ZBC_ZA_CONTROL_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    NOZSRC bit is %ssupported\n",
+			(info->zbd_flags & ZBC_NOZSRC_SUPPORT) ? "" : "NOT ");
+		if (info->zbd_flags & ZBC_MAXACT_SET_SUPPORT) {
+			fprintf(out,
+				"    Setting maximum number of zones "
+				"to activate is supported\n");
+		}
+		if (info->zbd_max_activation != 0)
+			fprintf(out, "    Maximum number of zones to activate: %u\n",
+				info->zbd_max_activation);
+		else
+			fprintf(out, "    Maximum number of zones"
+				     " to activate is unlimited\n");
+		fprintf(out, "    Supported zone types: %s%s%s%s%s\n",
+			(info->zbd_flags & ZBC_CONV_ZONE_SUPPORT) ? "Conv " : "",
+			(info->zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT) ? "SWR " : "",
+			(info->zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT) ? "SWP " : "",
+			(info->zbd_flags & ZBC_SOBR_ZONE_SUPPORT) ? "SOBR " : "",
+			(info->zbd_flags & ZBC_GAP_ZONE_SUPPORT) ? "GAP " : "");
+	}
+
+	fprintf(out, "    MUTATE command set is %ssupported\n",
+		(info->zbd_flags & ZBC_MUTATE_SUPPORT) ? "" : "NOT ");
+
 	fflush(out);
 }
 
@@ -434,10 +544,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
  * zbc_report_zones - Get zone information
  */
 int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
-		     enum zbc_reporting_options ro,
+		     enum zbc_zone_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
-        unsigned int n, nz = 0;
+	unsigned int n, nz = 0;
 	uint64_t last_sector;
 	int ret;
 
@@ -449,12 +559,12 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 							NULL, nr_zones);
 	}
 
-        /* Get zones information */
-        while (nz < *nr_zones) {
+	/* Get zones information */
+	while (nz < *nr_zones) {
 
 		n = *nr_zones - nz;
 		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
-					zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
+					zbc_ro_mask(ro) | ZBC_RZ_RO_PARTIAL,
 					&zones[nz], &n);
 		if (ret != 0) {
 			zbc_error("%s: Get zones from sector %llu failed %d (%s)\n",
@@ -476,7 +586,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		sector = last_sector;
 
-        }
+	}
 
 	*nr_zones = nz;
 
@@ -487,7 +597,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
  * zbc_list_zones - Get zone information
  */
 int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
-		   enum zbc_reporting_options ro,
+		   enum zbc_zone_reporting_options ro,
 		   struct zbc_zone **pzones, unsigned int *pnr_zones)
 {
 	struct zbc_zone *zones = NULL;
@@ -524,23 +634,392 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_zone_operation - Execute an operation on a zone
+ * zbc_zone_group_op - Execute an operation on a group of zones
  */
-int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
-		       enum zbc_zone_op op, unsigned int flags)
+int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
+		      unsigned int count, enum zbc_zone_op op,
+		      unsigned int flags)
 {
-
 	if (!zbc_test_mode(dev) &&
 	    (!(flags & ZBC_OP_ALL_ZONES)) &&
 	    !zbc_dev_sect_laligned(dev, sector))
 		return -EINVAL;
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_op)(dev, sector, op, flags);
+	return (dev->zbd_drv->zbd_zone_op)(dev, sector, count, op, flags);
 }
 
 /**
- * zbc_pread - Read sectors form a device
+ * zbc_zone_operation - Execute an operation on a zone
+ */
+int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
+		       enum zbc_zone_op op, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, 0, op, flags);
+}
+
+/**
+ * zbc_report_domains - Get zone domain information
+ */
+int zbc_report_domains(struct zbc_device *dev, uint64_t sector,
+		       enum zbc_domain_report_options ro,
+		       struct zbc_zone_domain *domains,
+		       unsigned int nr_domains)
+{
+	int ret;
+
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_report_domains) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: REPORT DOMAINS not implemented by driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	ret = (dev->zbd_drv->zbd_report_domains)(dev, sector, ro, domains, nr_domains);
+	if (ret < 0) {
+		zbc_error("%s: REPORT DOMAINS failed %d (%s)\n",
+			  dev->zbd_filename,
+			  ret, strerror(-ret));
+	}
+
+	return ret;
+}
+
+#define ZBC_EST_ALLOC_DOMAINS	6
+
+/**
+ * zbc_list_domains - Allocate a buffer and fill it with zone
+ * 		      domain information
+ */
+int zbc_list_domains(struct zbc_device *dev, uint64_t sector,
+		     enum zbc_domain_report_options ro,
+		     struct zbc_zone_domain **pdomains,
+		     unsigned int *pnr_domains)
+{
+	struct zbc_zone_domain *domains = NULL;
+	unsigned int nr_domains;
+	int ret;
+
+	if (!pdomains) {
+		zbc_error("%s: NULL domain array pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*pdomains = NULL;
+	if (!pnr_domains) {
+		zbc_error("%s: NULL domain count pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*pnr_domains = 0;
+
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/*
+	 * The number of zone domains is usually small, try allocating
+	 * the buffer to hold a few domains and see if it will be enough.
+	 * This will likely save us a SCSI call.
+	 */
+	domains = (struct zbc_zone_domain *)calloc(ZBC_EST_ALLOC_DOMAINS,
+					 sizeof(struct zbc_zone_domain));
+	if (!domains)
+		return -ENOMEM;
+
+	/* Get zone domain information */
+	ret = zbc_report_domains(dev, sector, ro, domains,
+				 ZBC_EST_ALLOC_DOMAINS);
+	if (ret < 0) {
+		zbc_error("%s: zbc_report_domains failed %d\n",
+			  dev->zbd_filename, ret);
+		free(domains);
+		return ret;
+	}
+	nr_domains = ret;
+
+	if (nr_domains > ZBC_EST_ALLOC_DOMAINS) {
+		/* Reallocate zone domain descriptor array */
+		free(domains);
+		domains = (struct zbc_zone_domain *)calloc(nr_domains,
+					 sizeof(struct zbc_zone_domain));
+		if (!domains)
+			return -ENOMEM;
+
+		/* Get zone domain information again */
+		ret = zbc_report_domains(dev, sector, ro, domains, nr_domains);
+		if (ret < 0) {
+			zbc_error("%s: zbc_report_domains failed %d\n",
+				  dev->zbd_filename, ret);
+			free(domains);
+			return ret;
+		}
+		nr_domains = ret;
+	}
+
+	*pdomains = domains;
+	*pnr_domains = nr_domains;
+
+	return 0;
+}
+
+/**
+ * zbc_report_realms - Get zone realm information
+ */
+int zbc_report_realms(struct zbc_device *dev, uint64_t sector,
+		      enum zbc_realm_report_options ro,
+		      struct zbc_zone_realm *realms, unsigned int *nr_realms)
+{
+	struct zbc_device_info *di = &dev->zbd_info;
+	int ret;
+
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* If realm array is not provided, just get the number of realms */
+	if (!realms)
+		*nr_realms = 0;
+
+	/* Get zone realm information */
+	if (di->zbd_flags & ZBC_REPORT_REALMS_SUPPORT) {
+		ret = (dev->zbd_drv->zbd_report_realms)(dev, sector, ro,
+							realms, nr_realms);
+		if (ret != 0) {
+			zbc_error("%s: REPORT REALMS failed %d (%s)\n",
+				  dev->zbd_filename,
+				  ret, strerror(-ret));
+		}
+	} else {
+		zbc_error("%s: REPORT REALMS is not supported by device\n",
+			  dev->zbd_filename);
+		ret = -ENXIO;
+	}
+
+	return ret;
+}
+
+/**
+ * zbc_list_zone_realms - List zone realm information
+ */
+int zbc_list_zone_realms(struct zbc_device *dev, uint64_t sector,
+			 enum zbc_realm_report_options ro,
+			 struct zbc_zone_realm **prealms,
+			 unsigned int *pnr_realms)
+{
+	struct zbc_zone_realm *realms = NULL;
+	unsigned int nr_realms;
+	int ret;
+
+	if (!prealms) {
+		zbc_error("%s: NULL realm array pointer\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+	*prealms = NULL;
+
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* Get the total number of realm descriptors */
+	ret = zbc_report_nr_realms(dev, &nr_realms);
+	if (ret < 0)
+		return ret;
+
+	zbc_debug("%s: %d zone realms\n",
+		  dev->zbd_filename, nr_realms);
+
+	/* Allocate zone realm descriptor array */
+	realms = (struct zbc_zone_realm *)calloc(nr_realms,
+						 sizeof(struct zbc_zone_realm));
+	if (!realms)
+		return -ENOMEM;
+
+	/* Get zone realm information */
+	ret = zbc_report_realms(dev, sector, ro, realms, &nr_realms);
+	if (ret != 0) {
+		zbc_error("%s: zbc_report_realms failed %d\n",
+			  dev->zbd_filename, ret);
+		free(realms);
+		return ret;
+	}
+
+	*prealms = realms;
+	*pnr_realms = nr_realms;
+
+	return 0;
+}
+
+/**
+ * zbc_zone_activate - Activate all zones in a specified range to a new type
+ */
+int zbc_zone_activate(struct zbc_device *dev, bool zsrc,
+		      bool all, bool use_32_byte_cdb,
+		      uint64_t lba, unsigned int nr_zones,
+		      unsigned int domain_id, struct zbc_actv_res *actv_recs,
+		      unsigned int *nr_actv_recs)
+{
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Zone activate/query is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* Execute the operation */
+	return (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						   all, use_32_byte_cdb,
+						   false, lba, nr_zones,
+						   domain_id, actv_recs,
+						   nr_actv_recs);
+}
+
+/**
+ * zbc_zone_query - Receive information about activating all zones in a
+ *                  specific range to a new domain without actually performing
+ *                  the activation process
+ */
+int zbc_zone_query(struct zbc_device *dev, bool zsrc,
+		   bool all, bool use_32_byte_cdb,
+		   uint64_t lba, unsigned int nr_zones, unsigned int domain_id,
+		   struct zbc_actv_res *actv_recs, unsigned int *nr_actv_recs)
+{
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Zone activation/query is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	/* Execute the operation */
+	return (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						   all, use_32_byte_cdb,
+						   true, lba, nr_zones,
+						   domain_id, actv_recs,
+						   nr_actv_recs);
+}
+
+/**
+ * zbc_get_nr_actv_records - Get the expected number of activation records
+ * 			     for a ZONE ACTIVATE or ZONE QUERY operation
+ */
+int zbc_get_nr_actv_records(struct zbc_device *dev, bool zsrc, bool all,
+			    bool use_32_byte_cdb, uint64_t lba,
+			    unsigned int nr_zones, unsigned int domain_id)
+{
+	uint32_t nr_actv_recs = 0;
+	int ret;
+
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+	if (!dev->zbd_drv->zbd_zone_query_actv) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: Zone activation/query is not implemented\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	ret = (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						  all, use_32_byte_cdb,
+						  true, lba, nr_zones,
+						  domain_id, NULL,
+						  &nr_actv_recs);
+	return ret ? ret : (int)nr_actv_recs;
+}
+
+/**
+ * zbc_zone_query_list - Receive information about activating all zones in a
+ *                       specific range in a new domain without actually
+ *                       performing the activation process. This function is
+ *                       similar to \a zbc_zone_query, but it will allocate
+ *                       the buffer space for the output list of activation
+ *                       results. It is responsibility of the caller to free
+ *                       this buffer
+ */
+int zbc_zone_query_list(struct zbc_device *dev, bool zsrc, bool all, bool use_32_byte_cdb,
+			uint64_t lba, unsigned int nr_zones,
+			unsigned int domain_id,
+			struct zbc_actv_res **pactv_recs,
+			unsigned int *pnr_actv_recs)
+{
+	struct zbc_actv_res *actv_recs = NULL;
+	uint32_t nr_actv_recs;
+	int ret;
+
+	ret = zbc_get_nr_actv_records(dev, zsrc, all, use_32_byte_cdb,
+				      lba, nr_zones, domain_id);
+	if (ret < 0)
+		return ret;
+	nr_actv_recs = (uint32_t)ret;
+
+	/* Allocate activation results record array */
+	actv_recs = (struct zbc_actv_res *)
+		    calloc(nr_actv_recs, sizeof(struct zbc_actv_res));
+	if (!actv_recs)
+		return -ENOMEM;
+
+	/* Now get the entire list */
+	ret = (dev->zbd_drv->zbd_zone_query_actv)(dev, zsrc,
+						  all, use_32_byte_cdb,
+						  true, lba, nr_zones,
+						  domain_id, actv_recs,
+						  &nr_actv_recs);
+	*pactv_recs = actv_recs;
+	*pnr_actv_recs = nr_actv_recs;
+
+	return ret;
+}
+
+/**
+ * zbc_zone_activation_ctl - Get or set device DH-SMR configuration parameters
+ */
+int zbc_zone_activation_ctl(struct zbc_device *dev,
+			    struct zbc_zd_dev_control *ctl, bool set)
+{
+	if (!zbc_dev_is_zone_dom(dev)) {
+		zbc_error("%s: Not a Zone Domains device\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_dev_control) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: DH-SMR dev_ctl not implemented by driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	return (dev->zbd_drv->zbd_dev_control)(dev, ctl, set);
+}
+
+/**
+ * zbc_pread - Read sectors from a device
  */
 ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		  size_t count, uint64_t offset)
@@ -549,19 +1028,12 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	size_t sz, rd_count = 0;
 	ssize_t ret;
 
-	if (zbc_test_mode(dev)) {
-		if (!count) {
-			zbc_error("%s: zero-length read at sector %llu\n",
-				  dev->zbd_filename,
-				  (unsigned long long) offset);
-			return -EINVAL;
-		}
-	} else {
+	if (!zbc_test_mode(dev)) {
 		if (!zbc_dev_sect_laligned(dev, count) ||
 		    !zbc_dev_sect_laligned(dev, offset)) {
 			zbc_error("%s: Unaligned read %zu sectors at sector %llu\n",
 				  dev->zbd_filename,
-				  count, (unsigned long long) offset);
+				  count, (unsigned long long)offset);
 			return -EINVAL;
 		}
 
@@ -578,7 +1050,7 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	if (zbc_test_mode(dev) && count == 0) {
 		ret = (dev->zbd_drv->zbd_pread)(dev, buf, count, offset);
 		if (ret < 0) {
-			zbc_error("%s: read of zero sectors at sector %llu failed %ld (%s)\n",
+			zbc_error("%s: Read of zero sectors at sector %llu failed %zd (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) offset,
 				  -ret, strerror(-ret));
@@ -622,14 +1094,7 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	size_t sz, wr_count = 0;
 	ssize_t ret;
 
-	if (zbc_test_mode(dev)) {
-		if (!count) {
-			zbc_error("%s: zero-length write at sector %llu\n",
-				  dev->zbd_filename,
-				  (unsigned long long) offset);
-			return -EINVAL;
-		}
-	} else {
+	if (!zbc_test_mode(dev)) {
 		if (!zbc_dev_sect_paligned(dev, count) ||
 		    !zbc_dev_sect_paligned(dev, offset)) {
 			zbc_error("%s: Unaligned write %zu sectors at sector %llu\n",
@@ -651,9 +1116,9 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	if (zbc_test_mode(dev) && count == 0) {
 		ret = (dev->zbd_drv->zbd_pwrite)(dev, buf, count, offset);
 		if (ret < 0) {
-			zbc_error("%s: Write of zero sectors at sector %llu failed %ld (%s)\n",
+			zbc_error("%s: Write of zero sectors at sector %"PRIu64" failed %zu (%s)\n",
 				  dev->zbd_filename,
-				  (unsigned long long) offset,
+				  offset,
 				  -ret, strerror(-ret));
 		}
 		return ret;
@@ -683,6 +1148,64 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	return wr_count;
+}
+
+/**
+ * zbc_report_mutations - Get all the mutation types and options
+ * 			  supported by the device.
+ */
+int zbc_report_mutations(struct zbc_device *dev,
+			struct zbc_supported_mutation *sm,
+			unsigned int *nr_sm_recs)
+{
+	int ret;
+
+	if (!zbc_supp_mutate(dev)) {
+		zbc_error("%s: Device doesn't support MUTATE\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_report_mutations) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: REPORT MUTATIONS is not implemented in driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!sm)
+		/* Just get the number of supported options */
+		return (dev->zbd_drv->zbd_report_mutations)(dev, NULL, nr_sm_recs);
+
+	/* Get the mutation types/options */
+	ret = (dev->zbd_drv->zbd_report_mutations)(dev, sm, nr_sm_recs);
+	if (ret != 0) {
+		zbc_error("%s: REPORT MUTATIONS failed %d (%s)\n",
+			  dev->zbd_filename,
+			  ret, strerror(-ret));
+		return ret;
+	}
+
+	return 0;
+}
+
+int zbc_mutate(struct zbc_device *dev, enum zbc_mutation_target mt,
+	       union zbc_mutation_opt opt)
+{
+	if (!zbc_supp_mutate(dev)) {
+		zbc_error("%s: Device doesn't support MUTATE\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (!dev->zbd_drv->zbd_mutate) {
+		/* FIXME need to implement! */
+		zbc_warning("%s: MUTATE is not implemented in driver\n",
+			    dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	return (dev->zbd_drv->zbd_mutate)(dev, mt, opt);
 }
 
 /**
@@ -727,5 +1250,17 @@ int zbc_set_write_pointer(struct zbc_device *dev,
 		return -EINVAL;
 
 	return (dev->zbd_drv->zbd_set_wp)(dev, sector, wp_sector);
+}
+
+/**
+ * zbc_get_zbd_stats - Receive Zoned Block Device statistics
+ */
+int zbc_get_zbd_stats(struct zbc_device *dev,
+		      struct zbc_zoned_blk_dev_stats *stats)
+{
+	if (!dev->zbd_drv->zbd_get_stats)
+		return -ENXIO;
+
+	return (dev->zbd_drv->zbd_get_stats)(dev, stats);
 }
 

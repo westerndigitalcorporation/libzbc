@@ -263,6 +263,13 @@ static int zbc_block_device_classify(struct zbc_device *dev)
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	} else if (strcmp(str, "host-managed") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	} else if (strcmp(str, "zone-domains") == 0) {
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+		/*
+		 * FIXME do not pick up any ZD devices yet,
+		 * additional OS support might be needed.
+		 */
+		return -ENXIO;
 	} else if (strcmp(str, "none") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		return -ENXIO;
@@ -593,36 +600,41 @@ static int zbc_block_close(struct zbc_device *dev)
  * on the specified reporting options.
  */
 static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
-				  enum zbc_reporting_options ro)
+				  enum zbc_zone_reporting_options ro)
 {
-	enum zbc_reporting_options options = zbc_ro_mask(ro);
+	enum zbc_zone_reporting_options options = zbc_ro_mask(ro);
 
 	if (zone->zbz_start + zone->zbz_length < start_sector)
 		return false;
 
 	switch (options) {
-	case ZBC_RO_ALL:
+	case ZBC_RZ_RO_ALL:
 		return true;
-	case ZBC_RO_EMPTY:
+	case ZBC_RZ_RO_EMPTY:
 		return zbc_zone_empty(zone);
-	case ZBC_RO_IMP_OPEN:
+	case ZBC_RZ_RO_IMP_OPEN:
 		return zbc_zone_imp_open(zone);
-	case ZBC_RO_EXP_OPEN:
+	case ZBC_RZ_RO_EXP_OPEN:
 		return zbc_zone_exp_open(zone);
-	case ZBC_RO_CLOSED:
+	case ZBC_RZ_RO_CLOSED:
 		return zbc_zone_closed(zone);
-	case ZBC_RO_FULL:
+	case ZBC_RZ_RO_INACTIVE:
+		return zbc_zone_inactive(zone);
+	case ZBC_RZ_RO_FULL:
 		return zbc_zone_full(zone);
-	case ZBC_RO_RDONLY:
+	case ZBC_RZ_RO_RDONLY:
 		return zbc_zone_rdonly(zone);
-	case ZBC_RO_OFFLINE:
+	case ZBC_RZ_RO_OFFLINE:
 		return zbc_zone_offline(zone);
-	case ZBC_RO_RWP_RECOMMENDED:
+	case ZBC_RZ_RO_RWP_RECMND:
 		return zbc_zone_rwp_recommended(zone);
-	case ZBC_RO_NON_SEQ:
+	case ZBC_RZ_RO_NON_SEQ:
 		return zbc_zone_non_seq(zone);
-	case ZBC_RO_NOT_WP:
+	case ZBC_RZ_RO_NOT_WP:
 		return zbc_zone_not_wp(zone);
+	case ZBC_RZ_RO_GAP:
+		return zbc_zone_gap(zone);
+	case ZBC_RZ_RO_PARTIAL:
 	default:
 		return false;
     }
@@ -634,7 +646,7 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
  * Get the block device zone information.
  */
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
-				  enum zbc_reporting_options ro,
+				  enum zbc_zone_reporting_options ro,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
 {
@@ -728,7 +740,7 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 	int ret;
 
 	/* Get zone info */
-	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
+	ret = zbc_block_report_zones(dev, sector, ZBC_RZ_RO_ALL,
 				     &zone, &nr_zones);
 	if (ret)
 		return ret;
@@ -784,7 +796,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 
 		/* Get zone info */
 		nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
-		ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
+		ret = zbc_block_report_zones(dev, sector, ZBC_RZ_RO_ALL,
 					     zones, &nr_zones);
 		if (ret || !nr_zones)
 			break;
@@ -844,10 +856,15 @@ static int zbc_block_reset_all(struct zbc_device *dev)
  * Execute an operation on a zone
  */
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
-			     enum zbc_zone_op op, unsigned int flags)
+			     unsigned int count, enum zbc_zone_op op,
+			     unsigned int flags)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	uint64_t sect = sector;
+	unsigned int i, ret;
+
+	if (!count)
+		count++;
 
 	switch (op) {
 
@@ -857,8 +874,13 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			/* All zones */
 			return zbc_block_reset_all(dev);
 
-		/* One zone */
-		return zbc_block_reset_one(dev, sector);
+		/* Group of zones FIXME patch ioctl to support multiple */
+		for (i = 0; i < count; i++) {
+			ret = zbc_block_reset_one(dev, sector);
+			if (ret)
+				return ret;
+		}
+		return 0;
 
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
@@ -873,13 +895,40 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 		if (zbd->is_part)
 			sect += zbd->part_offset;
 		/* Use SG_IO */
-		return zbc_scsi_zone_op(dev, sect, op, flags);
+		return zbc_scsi_zone_op(dev, sect, count, op, flags);
 
 	default:
 		zbc_error("%s: Invalid operation code 0x%x\n",
 			  dev->zbd_filename, op);
 		return -EINVAL;
 	}
+}
+
+/**
+ * Report device zone realm configuration.
+ */
+static int zbc_block_report_realms(struct zbc_device *dev, uint64_t sector,
+				   enum zbc_realm_report_options ro,
+				   struct zbc_zone_realm *realms,
+				   unsigned int *nr_realms)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
+}
+
+/**
+ * Activate zones of a certain type or query
+ * about the outcome of such activation.
+ */
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t lba, unsigned int nr_zones,
+					 unsigned int domain_id,
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
+{
+	/* FIXME N/I */
+	return -EOPNOTSUPP;
 }
 
 /**
@@ -927,7 +976,7 @@ static int zbc_block_flush(struct zbc_device *dev)
 #else /* HAVE_LINUX_BLKZONED_H */
 
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
-				  enum zbc_reporting_options ro,
+				  enum zbc_zone_reporting_options ro,
 				  struct zbc_zone *zones,
 				  unsigned int *nr_zones)
 {
@@ -936,6 +985,23 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			     enum zbc_zone_op op, unsigned int flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static int zbc_block_report_realms(struct zbc_device *dev,
+				   struct zbc_zone_realm *realms,
+				   unsigned int nr_realms)
+{
+	return -EOPNOTSUPP;
+}
+
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t lba, unsigned int nr_zones,
+					 unsigned int domain_id,
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
 {
 	return -EOPNOTSUPP;
 }
@@ -972,4 +1038,6 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
+	.zbd_report_realms	= zbc_block_report_realms,
+	.zbd_zone_query_actv	= zbc_block_zone_query_activate,
 };

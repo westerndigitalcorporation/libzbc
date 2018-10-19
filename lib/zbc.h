@@ -21,6 +21,7 @@
 #include "libzbc/zbc.h"
 #include "zbc_private.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -48,26 +49,72 @@ struct zbc_drv {
 	int		(*zbd_close)(struct zbc_device *);
 
 	/**
+	 * Get or set DH-SMR device configuration parameters.
+	 */
+	int		(*zbd_dev_control)(struct zbc_device *,
+					   struct zbc_zd_dev_control *, bool);
+
+	/**
 	 * Report a device zone information.
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
-					    enum zbc_reporting_options,
+					    enum zbc_zone_reporting_options,
 					    struct zbc_zone *, unsigned int *);
 
 	/**
 	 * Execute a zone operation.
 	 */
 	int		(*zbd_zone_op)(struct zbc_device *, uint64_t,
-				       enum zbc_zone_op, unsigned int);
+				       unsigned int, enum zbc_zone_op,
+				       unsigned int);
 
 	/**
-	 * Read from a ZBC device
+	 * Report zone domain information.
+	 */
+	int		(*zbd_report_domains)(struct zbc_device *, uint64_t,
+					      enum zbc_domain_report_options,
+					      struct zbc_zone_domain *,
+					      unsigned int);
+	/**
+	 * Report zone realm configuration.
+	 */
+	int		(*zbd_report_realms)(struct zbc_device *, uint64_t,
+					     enum zbc_realm_report_options,
+					     struct zbc_zone_realm *,
+					     unsigned int *);
+
+	/**
+	 * Activate zones as a CMR or SMR type or query
+	 * about the possible results of such activation.
+	 */
+	int		(*zbd_zone_query_actv)(struct zbc_device *, bool, bool,
+					       bool, bool, uint64_t,
+					       unsigned int, unsigned int,
+					       struct zbc_actv_res *,
+					       uint32_t *);
+
+	/**
+	 * Receive a list of supported mutation types and options.
+	 */
+	int		(*zbd_report_mutations)(struct zbc_device *,
+						struct zbc_supported_mutation *,
+						unsigned int *);
+
+	/**
+	 * Mutate the device to a different type/model.
+	 */
+	int		(*zbd_mutate)(struct zbc_device *,
+				      enum zbc_mutation_target,
+				      union zbc_mutation_opt);
+
+	/**
+	 * Read from a ZBC device.
 	 */
 	ssize_t		(*zbd_pread)(struct zbc_device *, void *,
 				     size_t, uint64_t);
 
 	/**
-	 * Write to a ZBC device
+	 * Write to a ZBC device.
 	 */
 	ssize_t		(*zbd_pwrite)(struct zbc_device *, const void *,
 				      size_t, uint64_t);
@@ -91,6 +138,11 @@ struct zbc_drv {
 	int		(*zbd_set_wp)(struct zbc_device *,
 				      uint64_t, uint64_t);
 
+	/**
+	 * Zoned Block Device statistics (optional).
+	 */
+	int		(*zbd_get_stats)(struct zbc_device *,
+					 struct zbc_zoned_blk_dev_stats *);
 };
 
 /**
@@ -137,16 +189,38 @@ struct zbc_device {
 	/**
 	 * Command execution error info.
 	 */
-	struct zbc_errno	zbd_errno;
+	struct zbc_err_ext	zbd_errno;
 
 };
 
 /**
  * Test if a device is zoned.
  */
-#define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
-#define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
-				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+#define zbc_dev_model(dev)		((dev)->zbd_info.zbd_model)
+#define zbc_dev_is_zoned(dev)		(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
+					 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+/*
+ * Zone Domains device property checks.
+ */
+#define zbc_dev_is_zone_dom(dev)	(zbc_dev_is_zoned(dev) && \
+					  (dev)->zbd_info.zbd_flags & \
+					  ZBC_ZONE_DOMAINS_SUPPORT)
+#define zbc_supp_mutate(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_MUTATE_SUPPORT)
+#define zbc_supp_report_realms(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_REPORT_REALMS_SUPPORT)
+#define zbc_supp_za_control(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZA_CONTROL_SUPPORT)
+#define zbc_supp_nozsrc(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZA_NOZSRC_SUPPORT)
+#define zbc_supp_conv_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_CONV_ZONE_SUPPORT)
+#define zbc_supp_seq_req_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_REQ_ZONE_SUPPORT)
+#define zbc_supp_seq_pref_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_PREF_ZONE_SUPPORT)
+#define zbc_supp_sobr_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_SOBR_ZONE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.
@@ -196,8 +270,8 @@ struct zbc_drv zbc_fake_drv;
 /**
  * Logical block to sector conversion.
  */
-#define zbc_dev_sect2lba(dev, sect)	zbc_sect2lba(&(dev)->zbd_info, sect)
-#define zbc_dev_lba2sect(dev, lba)	zbc_lba2sect(&(dev)->zbd_info, lba)
+#define zbc_dev_sect2lba(dev, sect)	(sect ? zbc_sect2lba(&(dev)->zbd_info, sect) : sect)
+#define zbc_dev_lba2sect(dev, lba)	(lba ? zbc_lba2sect(&(dev)->zbd_info, lba) : lba)
 
 /**
  * Check sector alignment to logical block.
@@ -217,7 +291,8 @@ struct zbc_drv zbc_fake_drv;
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
 int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_sector,
-		     enum zbc_zone_op op, unsigned int flags);
+		     unsigned int count, enum zbc_zone_op op,
+		     unsigned int flags);
 
 /**
  * The ATA backend driver may use the SCSI backend I/O functions.

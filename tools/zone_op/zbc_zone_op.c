@@ -47,7 +47,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	long long start = -1LL;
 	unsigned long long start_sector = -1ULL;
 	unsigned int flags = 0;
-	int i, ret = 1;
+	int i, ret = 1, zone_count = 0;
 	unsigned int nr_zones, tgt_idx;
 	bool sector_unit = false;
 	bool lba_unit = false;
@@ -56,13 +56,16 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	/* Check command line */
 	if (!argc) {
 usage:
-		printf("Usage: %s [options] <dev> [<zone>]\n"
+		printf("Usage: %s [options] <dev> [<zone>[ <count>]]\n"
 		       "  By default <zone> is interpreted as a zone number.\n"
 		       "  If the -lba option is used, <zone> is interpreted\n"
 		       "  as the start LBA of the target zone. If the\n"
 		       "  -sector option is used, <zone> is interpreted as\n"
 		       "  the start 512B sector of the target zone. If the\n"
 		       "  -all option is used, <zone> is ignored\n"
+		       "  If a <zone> is specified, an optional <count> may be\n"
+		       "  added to the command to perform the operation\n"
+		       "  on a range of zones\n"
 		       "Options:\n"
 		       "  -v      : Verbose mode\n"
 		       "  -sector : Interpret <zone> as a zone start sector\n"
@@ -135,13 +138,31 @@ usage:
 			return 1;
 		}
 	} else {
-		if (argc < 2 || i < argc - 2) {
+		if (argc < 2) {
 			fprintf(stderr, "No zone specified\n");
 			return 1;
 		}
-		if (i > argc - 2) {
+		if (i > argc - 3) {
 			fprintf(stderr, "Too many arguments\n");
 			return 1;
+		}
+
+		/* Get target zone */
+		start = strtoll(argv[i + 1], NULL, 10);
+		if (start < 0) {
+			fprintf(stderr, "Invalid zone\n");
+			ret = 1;
+			goto out;
+		}
+		i++;
+
+		if (i < argc - 1) {
+			zone_count = strtol(argv[i + 1], NULL, 10);
+			if (zone_count < 0) {
+				fprintf(stderr, "Invalid zone count\n");
+				ret = 1;
+				goto out;
+			}
 		}
 	}
 
@@ -157,13 +178,6 @@ usage:
 
 	} else {
 
-		/* Get target zone */
-		start = strtoll(argv[i + 1], NULL, 10);
-		if (start < 0) {
-			fprintf(stderr, "Invalid zone\n");
-			ret = 1;
-			goto out;
-		}
 		if (lba_unit)
 			start_sector = zbc_lba2sect(&info, start);
 		else if (sector_unit)
@@ -172,7 +186,7 @@ usage:
 			start_sector = 0;
 
 		/* Get zone list */
-		ret = zbc_list_zones(dev, start, ZBC_RO_ALL, &zones, &nr_zones);
+		ret = zbc_list_zones(dev, start_sector, ZBC_RZ_RO_ALL, &zones, &nr_zones);
 		if ( ret != 0 ) {
 			fprintf(stderr, "zbc_list_zones failed\n");
 			ret = 1;
@@ -219,7 +233,8 @@ usage:
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
-		ret = zbc_zone_operation(dev, start_sector, op, flags);
+		ret = zbc_zone_group_op(dev, start_sector, zone_count,
+					op, flags);
 		if (ret != 0) {
 			fprintf(stderr, "zbc_%s_zone failed\n",
 				zbc_zone_op_name(op));

@@ -26,14 +26,14 @@
 /**
  * Get last zone information (start LBA and size)
  */
-static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z)
+static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z, unsigned int *nz)
 {
 	unsigned int nr_zones;
 	struct zbc_zone *zones;
 	int ret;
 
 	/* Get zone list */
-	ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
+	ret = zbc_list_zones(dev, 0, ZBC_RZ_RO_ALL, &zones, &nr_zones);
 	if (ret != 0) {
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_list_zones failed %d\n",
@@ -42,6 +42,8 @@ static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z)
 	}
 
 	memcpy(z, &zones[nr_zones - 1], sizeof(struct zbc_zone));
+	if (nz)
+		*nz = nr_zones;
 
 	free(zones);
 
@@ -55,12 +57,34 @@ int main(int argc, char **argv)
 	struct zbc_zone last_zone;
 	unsigned int oflags;
 	int ret;
+	int i;
+	unsigned int nzone;
 
-	/* Check command line */
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <dev>\n", argv[0]);
-		return 1;
-	}
+        /* Check command line */
+        if (argc < 2) {
+usage:
+                fprintf(stderr,
+                        "Usage: %s [-v] <dev>\n"
+                        "Options:\n"
+                        "    -v         : Verbose mode\n",
+                        argv[0]);
+                return 1;
+        }
+
+        /* Parse options */
+        for (i = 1; i < (argc - 1); i++) {
+                if (strcmp(argv[i], "-v") == 0) {
+                        zbc_set_log_level("debug");
+                } else if (argv[i][0] == '-') {
+                        printf("Unknown option \"%s\"\n", argv[i]);
+                        goto usage;
+                } else {
+                        break;
+                }
+        }
+
+        if (i != argc - 1)
+                goto usage;
 
 	/* Open device */
 	oflags = ZBC_O_DEVTEST;
@@ -68,10 +92,10 @@ int main(int argc, char **argv)
 	if (!getenv("ZBC_TEST_FORCE_ATA"))
 		oflags |= ZBC_O_DRV_SCSI;
 
-	ret = zbc_open(argv[1], oflags | O_RDONLY, &dev);
+	ret = zbc_open(argv[i], oflags | O_RDONLY, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
+			ret, strerror(-ret), argv[1]);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
@@ -79,15 +103,23 @@ int main(int argc, char **argv)
 
 	zbc_get_device_info(dev, &info);
 
-	ret = zbc_get_last_zone(dev, &last_zone);
+	ret = zbc_get_last_zone(dev, &last_zone, &nzone);
 	if (ret != 0) {
 		ret = 1;
 		goto out;
 	}
 
 	fprintf(stdout,
+		"[TEST][INFO][VENDOR_ID],%s\n",
+		info.zbd_vendor_id);
+
+	fprintf(stdout,
 		"[TEST][INFO][DEVICE_MODEL],%s\n",
 		zbc_device_model_str(info.zbd_model));
+
+	fprintf(stdout,
+		"[TEST][INFO][ZONE_DOMAINS_DEVICE],%x\n",
+		(bool)(info.zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT));
 
 	fprintf(stdout,
 		"[TEST][INFO][MAX_NUM_OF_OPEN_SWRZ],%d\n",
@@ -106,8 +138,63 @@ int main(int argc, char **argv)
 		(unsigned long long)info.zbd_pblock_size);
 
 	fprintf(stdout,
+		"[TEST][INFO][MAX_RW_SECTORS],%llu\n",
+		(unsigned long long)info.zbd_max_rw_sectors);
+
+	fprintf(stdout,
 		"[TEST][INFO][URSWRZ],%x\n",
-		info.zbd_flags);
+		(bool)(info.zbd_flags & ZBC_UNRESTRICTED_READ));
+
+	fprintf(stdout,
+		"[TEST][INFO][NOZSRC],%x\n",
+		(bool)(info.zbd_flags & ZBC_NOZSRC_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][MUTATE],%x\n",
+		(bool)(info.zbd_flags & ZBC_MUTATE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][UR_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_URSWRZ_SET_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][REPORT_REALMS],%x\n",
+		(bool)(info.zbd_flags & ZBC_REPORT_REALMS_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][ZA_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_ZA_CONTROL_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][MAXACT_CONTROL],%x\n",
+		(bool)(info.zbd_flags & ZBC_MAXACT_SET_SUPPORT));
+
+	if (info.zbd_max_activation != 0)
+		fprintf(stdout,
+			"[TEST][INFO][MAX_ACTIVATION],%u\n",
+			info.zbd_max_activation);
+	else
+		fprintf(stdout,
+			"[TEST][INFO][MAX_ACTIVATION],unlimited\n");
+
+	fprintf(stdout,
+		"[TEST][INFO][CONV_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_CONV_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][SEQ_REQ_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SEQ_REQ_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][SEQ_PREF_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SEQ_PREF_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][SOBR_ZONE],%x\n",
+		(bool)(info.zbd_flags & ZBC_SOBR_ZONE_SUPPORT));
+
+	fprintf(stdout,
+		"[TEST][INFO][NR_ZONES],%u\n", nzone);
 
 	fprintf(stdout,
 		"[TEST][INFO][LAST_ZONE_LBA],%llu\n",

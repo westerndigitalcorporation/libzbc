@@ -208,6 +208,7 @@ zbc_get_device_info()  | Get device information
 zbc_report_nr_zones()  | Get the number of zones
 zbc_report_zones()<br>zbc_list_zones() | Get zone information
 zbc_zone_operation()   | Execute a zone operation
+zbc_zone_group_op()    | Execute a zone operation on a group of zones
 zbc_open_zone()        | Explicitely open a zone
 zbc_close_zone()       | Close an open zone
 zbc_finish_zone()      | Finish a zone
