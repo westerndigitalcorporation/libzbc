@@ -54,7 +54,7 @@
  * "debug"   : Verbose output decribing internally executed commands
  * The default level is "warning".
  */
-extern void zbc_set_log_level(char *log_level);
+extern void zbc_set_log_level(char const *log_level);
 
 /**
  * @brief Zone type definitions
