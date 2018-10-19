@@ -17,6 +17,8 @@
 #   01.002 - xxxx
 #...
 
+export LC_ALL=C		# do sort(1) correctly
+
 function zbc_print_usage()
 {
 
@@ -34,6 +36,7 @@ function zbc_print_usage()
 	echo "                             This option may be repeated multiple times"
 	echo "                             to skip the execution of multiple tests."
 	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
+	echo "  -n | --nosechdr          : Don't display section headers"
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -99,8 +102,6 @@ if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
     exit
 fi
 
-ZBC_TEST_LOG_PATH=log
-
 # Handle arguments
 argv=("$@")
 argc=$#
@@ -111,6 +112,7 @@ skip_list=()
 print_list=0
 batch_mode=1
 force_ata=0
+no_sec_hdr=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -140,6 +142,9 @@ for (( i=0; i<${argc}; i++ )); do
 	-a | --ata )
 		force_ata=1
 		;;
+	-n | --no_sec_hdr )
+		no_sec_hdr=1
+		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
 		zbc_print_usage
@@ -166,6 +171,8 @@ if [ ${print_list} -eq 1 ]; then
 	device=""
 fi
 
+. scripts/zbc_test_lib.sh
+
 # Check device path if one was specified
 if [ ! -z ${device} ]; then
 	# Resolve symbolic links
@@ -174,20 +181,34 @@ if [ ! -z ${device} ]; then
 		echo "Device \"${device}\" not found"
 		exit 1
 	fi
+	dev_name=`basename ${device}`
+	if [[ "${dev_name}" =~ "sd" ]]; then
+		sg_dev=$(ls /sys/block/${dev_name}/device/scsi_generic)
+		if [ ! -z "$sg_dev" ]; then
+			echo "Using sg device /dev/${sg_dev} to perform tests for ${device}"
+			dev_name=${sg_dev}
+			device="/dev/${sg_dev}"
+		fi
+	fi
+fi
 
-	dev_name=`basename "${device}"`
-	if ! is_scsi_device "$dev_name"; then
-                echo "Device \"${device}\" is not a SCSI/ATA device"
-                exit 1
-        fi
+dev_name=`basename "${device}"`
+if ! is_scsi_device "$dev_name"; then
+	echo "Device \"${device}\" is not a SCSI/ATA device"
+	exit 1
+fi
+
+if [ -z ${ZBC_TEST_LOG_PATH} ] ; then
+	ZBC_TEST_LOG_PATH=log/${dev_name}
 fi
 
 # Build run list
 function get_exec_list()
 {
+	local secnum casenum file
 	for secnum in 00 01 02; do
 		for file in ${ZBC_TEST_SCR_PATH}/${secnum}*/*.sh; do
-			_IFS="${IFS}"
+			local _IFS="${IFS}"
 			IFS='.'
 			set -- ${file}
 			casenum=`basename ${1}`
@@ -199,8 +220,8 @@ function get_exec_list()
 
 function get_section_num()
 {
-    	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${1}"
@@ -209,8 +230,8 @@ function get_section_num()
 
 function get_case_num()
 {
-    	testnum=$1
-	_IFS="${IFS}"
+	local testnum=$1
+	local _IFS="${IFS}"
 	IFS='.'
 	set -- ${testnum}
 	echo "${2}"
@@ -232,13 +253,13 @@ if [ ${#skip_list[@]} -gt 0 ]; then
 fi
 IFS="$_IFS"
 
-# Substract skip list from exec list. At the same time,
+# Subtract skip list from exec list. At the same time,
 # extract the section list.
 run_list=()
 section_list=()
 for e in ${exec_list[@]}; do
 
-    	run=1
+	run=1
 
 	for s in ${skip_list[@]}; do
 		if [ "${e}" == "${s}" ]; then
@@ -266,13 +287,13 @@ function zbc_run_section()
 	local section_num="$1"
 	local section_name="$2"
 
-	section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
+	local section_path=`find ${ZBC_TEST_SCR_PATH} -type d -name "${section_num}*" -print`
 	if [ -z "${section_path}" ]; then
 		echo "Test script directory ${section_path} does not exist"
 		exit
 	fi
 
-	log_path=${ZBC_TEST_LOG_PATH}/${dev_name}/${section_num}
+	local log_path=${ZBC_TEST_LOG_PATH}/${section_num}
 	mkdir -p ${log_path}
 
 	if [ ${print_list} -eq 1 ]; then
@@ -282,11 +303,14 @@ function zbc_run_section()
 		# Init: Close and reset all zones
 		${ZBC_TEST_BIN_PATH}/zbc_test_close_zone ${device} -1
 		${ZBC_TEST_BIN_PATH}/zbc_test_reset_zone ${device} -1
-		echo "Executing section ${section} - ${section_name} tests..."
+		if [ $no_sec_hdr -ne 1 ]; then
+			echo "Executing section ${section} - ${section_name} tests..."
+		fi
 	fi
 
-    	# Execute test cases for this section
-    	for t in ${run_list[@]}; do
+	# Execute test cases for this section
+	local t s c res
+	for t in ${run_list[@]}; do
 
 		s=`get_section_num ${t}`
 		if [ "${s}" != "${section_num}" ]; then
@@ -294,10 +318,20 @@ function zbc_run_section()
 		fi
 
 		c=`get_case_num ${t}`
-        	./${section_path}/${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${section_num} ${device}
+
+		# ZT_SOBR, ZT_CONV, and ZT_SWP are used by some scripts before zbc_test_lib.sh is sourced
+		zbc_test_lib_init
+		export ZT_SOBR
+		export ZT_CONV
+		export ZT_SWP
+		export ZT_SWR
+		export ZT_SEQ
+		export ZT_NON_SEQ
+
+		./${section_path}/${c}.sh ${ZBC_TEST_BIN_PATH} ${log_path} ${section_num} ${device}
 		ret=$?
 
-        	if [ ${batch_mode} -eq 1 ]; then
+		if [ ${batch_mode} -eq 1 ]; then
 			continue
 		fi
 
@@ -305,8 +339,8 @@ function zbc_run_section()
 			res="`cat ${log_path}/${c}.log | grep TESTRESULT`"
 			if [ ${ret} -ne 0 -o "${res}" = "TESTRESULT==Failed" ]; then
 				ret=1
-        			break
-        		fi
+				break
+			fi
 		fi
 
 	done
@@ -334,7 +368,7 @@ for section in ${section_list[@]}; do
 	esac
 
 	zbc_run_section "${section}" "${section_name}"
-	if [ $? -ne 0 ]; then
+	if [ $? -ne 0 -a ${batch_mode} -eq 0 ]; then
 		exit 1
 	fi
 

@@ -12,44 +12,28 @@
 
 zbc_test_init $0 "CLOSE_ZONE empty to explicit open to empty (ALL bit set)" $*
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
-expected_cond="0x1"
+expected_cond="${ZC_EMPTY}"
 
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} = "Host-aware" ]; then
-    zone_type="0x3"
-else
-    zone_type="0x2"
-fi
-
-# Get zone information
-zbc_test_get_zone_info
-
-# Search target LBA
-zbc_test_get_target_zone_from_type_and_cond ${zone_type} "0x1"
+zbc_test_search_seq_zone_cond_or_NA ${ZC_EMPTY}
 target_lba=${target_slba}
+
+# Specify post process
+zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
 
 # Start testing
 zbc_test_run ${bin_path}/zbc_test_open_zone -v ${device} ${target_lba}
+zbc_test_fail_exit_if_sk_ascq "Zone OPEN failed, zone_type=${target_type}"
+
 zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} -1
 
 # Get SenseKey, ASC/ASCQ
 zbc_test_get_sk_ascq
-
-# Get zone information
-zbc_test_get_zone_info "1"
 
 # Get target zone condition
 zbc_test_get_target_zone_from_slba ${target_lba}
 
 # Check result
 zbc_test_check_zone_cond
-
-# Post process
-zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} ${target_lba}
-rm -f ${zone_info_file}
-

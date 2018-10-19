@@ -46,6 +46,6 @@ else
     zbc_test_check_sk_ascq
 fi
 
-# Post process
-rm -f ${zone_info_file}
+test_zone_type="${ZT_CONV}"
 
+. scripts/01_sk_ascq_check/074.sh "$@"

@@ -12,26 +12,19 @@
 
 zbc_test_init $0 "REPORT_ZONES (reporting option 0x11) command completion" $*
 
-# Set expected error code
-expected_sk=""
-expected_asc=""
-
 # Get drive information
 zbc_test_get_device_info
 
 # Set target LBA
-target_lba="0"
+target_lba=0
 
 # Set reporting option
 reporting_option="17"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${reporting_option} -lba ${target_lba} ${device}
+zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${reporting_option} -lba \
+			${target_lba} ${device}
 
 # Check result
 zbc_test_get_sk_ascq
 zbc_test_check_no_sk_ascq
-
-# Check failed
-zbc_test_check_failed
-

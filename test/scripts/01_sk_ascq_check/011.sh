@@ -20,8 +20,8 @@ expected_asc="Invalid-field-in-cdb"
 zbc_test_get_device_info
 
 # Start testing
-report_option=10
-zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${report_option} ${device}
+reporting_option=10
+zbc_test_run ${bin_path}/zbc_test_report_zones -v -ro ${reporting_option} ${device}
 
 # Check result
 zbc_test_get_sk_ascq

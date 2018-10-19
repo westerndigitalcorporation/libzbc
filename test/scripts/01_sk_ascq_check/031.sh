@@ -10,36 +10,20 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "CLOSE_ZONE conventional zone" $*
+zbc_test_init $0 "CLOSE_ZONE disallowed zone type" $*
 
-# Set expected error code
 expected_sk="Illegal-request"
 expected_asc="Invalid-field-in-cdb"
 
 # Get drive information
 zbc_test_get_device_info
 
-# Get zone information
-zbc_test_get_zone_info
-
 # Search target LBA
-zbc_test_get_target_zone_from_type "0x1"
-func_ret=$?
-
-if [ ${func_ret} -gt 0 ]; then
-    zbc_test_print_not_applicable
-fi
-
-target_lba=$(( ${target_slba} ))
+zbc_test_search_non_seq_zone_cond_or_NA "${ZC_NON_FULL}"
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_lba}
+zbc_test_run ${bin_path}/zbc_test_close_zone -v ${device} ${target_slba}
 
 # Check result
 zbc_test_get_sk_ascq
-zbc_test_check_sk_ascq
-
-
-# Post process
-rm -f ${zone_info_file}
-
+zbc_test_check_sk_ascq "zone_type=${target_type}"
