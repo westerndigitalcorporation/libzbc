@@ -1,3 +1,8 @@
+This is the current release for Zone Domains project.
+
+TODO Add more release notes here. Move them to the appropriate section
+below when ready to merge with master.
+
 Copyright (C) 2009-2014, HGST, Inc. <br>
 Copyright (C) 2016, Western Digital.
 
