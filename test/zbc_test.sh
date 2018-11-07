@@ -30,7 +30,9 @@ function zbc_print_usage()
 	echo "Options"
 	echo "  -h | --help              : Print this usage"
 	echo "  -l | --list              : List all test cases"
-	echo "  -b | --batch             : Use batch mode (do not stop on failed tests)"
+	echo "  -B | --nobatch           : Bail out of test suite immediately on test failure"
+	echo "  -b | --batch             : Batch mode: do not stop on failed tests"
+	echo "                             Deprecated option, batch mode is the default behavior"
 	echo "  -e | --exec <test number>: Execute only the specified test."
 	echo "                             This option may be repeated multiple times"
 	echo "                             to execute multiple tests in one run."
@@ -102,7 +104,7 @@ argimax=$((argc-1))
 exec_list=()
 skip_list=()
 print_list=0
-batch_mode=0
+batch_mode=1
 force_ata=0
 
 # Store argument
@@ -115,6 +117,9 @@ for (( i=0; i<${argc}; i++ )); do
 	-l | --list )
 		print_list=1
 		break
+		;;
+	-B | --nobatch)
+		batch_mode=0
 		;;
 	-b | --batch)
 		batch_mode=1
