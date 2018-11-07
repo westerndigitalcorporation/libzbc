@@ -156,13 +156,28 @@ if [ ${print_list} -eq 1 ]; then
 	device=""
 fi
 
-# Check device path
+# Check device path if one was specified
 if [ ! -z ${device} ]; then
+
+	# Resolve symbolic links
+	device="`readlink -e -n ${device}`"
 	if [ ! -e ${device} ]; then
 		echo "Device \"${device}\" not found"
 		exit 1
 	fi
-	dev_name=`basename ${device}`
+
+	# Only SG nodes (character device files of SCSI or ATA disks) are
+	# allowed
+	if [ ! -c ${device} ]; then
+                echo "Device \"${device}\" is not an SG node"
+                exit 1
+        fi
+
+	dev_name=`basename "${device}"`
+	if [ ! -e /sys/class/scsi_generic/${dev_name} ]; then
+                echo "Device \"${device}\" is not a SCSI/ATA device"
+                exit 1
+        fi
 fi
 
 # Build run list
