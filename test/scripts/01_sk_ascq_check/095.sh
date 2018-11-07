@@ -23,8 +23,17 @@ zbc_test_get_device_info
 # Get a pair of zones
 zbc_test_get_wp_zone_tuple_cond_or_NA ${zone_cond_1} ${zone_cond_2}
 
-expected_sk="Illegal-request"
-expected_asc="Unaligned-write-command"		# Write starting above WP
+if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_XZONE}) ]]; then
+    expected_sk="Illegal-request"
+    expected_asc="Write-boundary-violation"   		# write cross-zone
+    if [[ ${target_type} == @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
+	alt_expected_sk="Illegal-request"
+	alt_expected_asc="Unaligned-write-command"	# write starting above WP
+    fi
+elif [[ ${target_type} == @(${ZT_DISALLOW_WRITE_GT_WP}) ]]; then
+    expected_sk="Illegal-request"
+    expected_asc="Unaligned-write-command"		# write starting above WP
+fi
 
 # Compute the last LBA of the first zone
 target_lba=$(( ${target_slba} + ${target_size} - ${lblk_per_pblk} ))
