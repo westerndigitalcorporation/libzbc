@@ -19,6 +19,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <linux/limits.h>
+#include <linux/fs.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -543,7 +544,8 @@ static unsigned long zbc_sg_get_max_bytes(struct zbc_device *dev)
  */
 void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 {
-	unsigned long max_bytes = 0, max_segs = ZBC_SG_MAX_SEGMENTS;
+	unsigned int max_bytes = 0, max_segs = ZBC_SG_MAX_SEGMENTS;
+	size_t pagesize = sysconf_pagesize();
 	struct stat st;
 	int ret;
 
@@ -564,15 +566,26 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 				  strerror(errno));
 			max_segs = ZBC_SG_MAX_SEGMENTS;
 		}
-		max_bytes = 0;
+
+		ret = ioctl(dev->zbd_sg_fd, BLKSECTGET, &max_bytes);
+		if (ret != 0) {
+			zbc_debug("%s: BLKSECTGET ioctl failed %d (%s)\n",
+				  dev->zbd_filename,
+				  errno,
+				  strerror(errno));
+			max_bytes = 0;
+		}
 	} else if (S_ISBLK(st.st_mode)) {
 		max_segs = zbc_sg_get_max_segments(dev);
 		max_bytes = zbc_sg_get_max_bytes(dev);
+	} else {
+		/* Use default */
+		max_segs = ZBC_SG_MAX_SEGMENTS;
 	}
 
 out:
-	if (!max_bytes || max_segs * sysconf_pagesize() < max_bytes)
-		max_bytes = max_segs * sysconf_pagesize();
+	if (!max_bytes || max_bytes > max_segs * pagesize)
+		max_bytes = max_segs * pagesize;
 	dev->zbd_info.zbd_max_rw_sectors = max_bytes >> 9;
 
 	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
