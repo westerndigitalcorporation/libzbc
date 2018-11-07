@@ -23,7 +23,7 @@ expected_asc="Insufficient-zone-resources"
 # Get drive information
 zbc_test_get_device_info
 
-if [ ${device_model} != "Host-managed" ]; then
+if [ ${device_model} = "Host-aware" ]; then
     zbc_test_print_not_applicable
 fi
 

@@ -27,7 +27,7 @@ zbc_test_get_zone_info
 # Search last non-sequential zone info
 zbc_test_search_last_zone_vals_from_zone_type "${ZT_NON_SEQ}"
 
-if [ $? -ne 0 -o $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]; then
+if [[ $? -ne 0 || $(( ${target_slba} + ${target_size} )) -gt ${max_lba} ]]; then
     # non-sequential nonexistent or at top of LBA space -- try for last sequential instead
     zbc_test_search_last_zone_vals_from_zone_type "${ZT_SEQ}"
 fi
