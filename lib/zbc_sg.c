@@ -211,32 +211,28 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 	if (sense_buf == NULL ||
 	    sense_buf_len < 4) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
+		zbc_clear_errno();
 		return;
 	}
 
 	if ((sense_buf[0] & 0x7F) == 0x72 ||
 	    (sense_buf[0] & 0x7F) == 0x73) {
 		/* store sense key, ASC/ASCQ */
-		dev->zbd_errno.sk = sense_buf[1] & 0x0F;
-		dev->zbd_errno.asc_ascq =
-			((int)sense_buf[2] << 8) | (int)sense_buf[3];
+		zbc_set_errno(sense_buf[1] & 0x0F,
+			      ((int)sense_buf[2] << 8) | (int)sense_buf[3]);
 		return;
 	}
 
 	if (sense_buf_len < 14) {
-		dev->zbd_errno.sk = 0x00;
-		dev->zbd_errno.asc_ascq = 0x0000;
+		zbc_clear_errno();
 		return;
 	}
 
 	if ((sense_buf[0] & 0x7F) == 0x70 ||
 	    (sense_buf[0] & 0x7F) == 0x71) {
 		/* store sense key, ASC/ASCQ */
-		dev->zbd_errno.sk = sense_buf[2] & 0x0F;
-		dev->zbd_errno.asc_ascq =
-			((int)sense_buf[12] << 8) | (int)sense_buf[13];
+		zbc_set_errno(sense_buf[2] & 0x0F,
+			      ((int)sense_buf[12] << 8) | (int)sense_buf[13]);
 	}
 }
 

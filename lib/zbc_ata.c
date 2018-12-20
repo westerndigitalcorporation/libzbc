@@ -353,9 +353,8 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	zbc_debug("%s: Additional sense code qualifier is 0x%02x\n",
 		  dev->zbd_filename, cmd.sense_buf[15]);
 
-	dev->zbd_errno.sk = cmd.sense_buf[19] & 0xF;
-	dev->zbd_errno.asc_ascq =
-			((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15];
+	zbc_set_errno(cmd.sense_buf[19] & 0xF,
+		      ((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15]);
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
@@ -855,8 +854,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		/* Get sense data if enabled */
 		if (ret == -EIO &&
 		    zbc_ata_sense_data_enabled(&cmd) &&
-		    ((dev->zbd_errno.sk != ZBC_SK_ILLEGAL_REQUEST) ||
-		     (dev->zbd_errno.asc_ascq !=
+		    ((zerrno.sk != ZBC_SK_ILLEGAL_REQUEST) ||
+		     (zerrno.asc_ascq !=
 		      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)))
 			zbc_ata_request_sense_data_ext(dev);
 		goto out;

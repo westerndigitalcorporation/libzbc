@@ -134,12 +134,19 @@ struct zbc_device {
 	 */
 	unsigned int		zbd_drv_flags;
 
-	/**
-	 * Command execution error info.
-	 */
-	struct zbc_errno	zbd_errno;
-
 };
+
+/**
+ * Per-thread local zbc_errno handling.
+ */
+extern __thread struct zbc_errno zerrno;
+
+static inline void zbc_set_errno(enum zbc_sk sk, enum zbc_asc_ascq asc_ascq)
+{
+	zerrno.sk = sk;
+	zerrno.asc_ascq = asc_ascq;
+}
+#define zbc_clear_errno()	zbc_set_errno(0, 0)
 
 /**
  * Test if a device is zoned.

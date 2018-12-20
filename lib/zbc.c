@@ -93,13 +93,15 @@ static struct zbc_sg_asc_ascq_s {
 	}
 };
 
-/***** Definition of public functions *****/
+/**
+ * Per-thread local zbc_errno handling.
+ */
+__thread struct zbc_errno zerrno;
 
 /**
  * zbc_set_log_level - Set the library log level
  */
-void
-zbc_set_log_level(char const *log_level)
+void zbc_set_log_level(char const *log_level)
 {
 	if (!log_level) {
 		/* Set default */
@@ -212,7 +214,7 @@ const char *zbc_zone_condition_str(enum zbc_zone_condition cond)
  */
 void zbc_errno(struct zbc_device *dev, struct zbc_errno *err)
 {
-        memcpy(err, &dev->zbd_errno, sizeof(struct zbc_errno));
+	memcpy(err, &zerrno, sizeof(struct zbc_errno));
 }
 
 /**
