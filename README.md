@@ -71,7 +71,7 @@ TO DRIVES THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
 
 ## II. Compilation and installation
 
-### II.1. Requiremensts
+### II.1. Requirements
 
 libzbc requires  that the  autoconf, automake and  libtool development
 packages be installed on the host used for compilation.
@@ -200,7 +200,7 @@ block size.
 
 The main functions provided are as follows.
 
-Function               | Description 
+Function               | Description
 -----------------------|----------------------------
 zbc_open()             | Open a zoned device
 zbc_close()            | Close a zoned device
@@ -224,7 +224,7 @@ the application.
 Additionally, the following functions  are also provided to facilitate
 application development and tests.
 
-Function                 | Description 
+Function                 | Description
 -------------------------|----------------------------
 zbc_set_log_level()      | Set log level of the library functions
 zbc_device_is_zoned()    | Test if a device is a zoned block device
@@ -350,4 +350,3 @@ device supporting either ZBC or  ZAC. This excludes the emulation mode
 implemented  by  libzbc on  top  of  regular  files or  regular  block
 devices.  If the  device is identified as SMR,  some information about
 the device are displayed (device type, capacity, sector size, etc).
-
