@@ -227,6 +227,13 @@ extern int zbc_sg_cmd_init(struct zbc_device *dev,
 			   uint8_t *out_buf, size_t out_bufsz);
 
 /**
+ * Allocate and initialize a new iov command.
+ */
+extern int zbc_sg_cmd_initv(struct zbc_device *dev,
+				struct zbc_sg_cmd *cmd, int cmd_code,
+				struct iovec *iov, int iovcnt);
+
+/**
  * Free a command.
  */
 extern void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd);

@@ -1030,30 +1030,21 @@ zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_fake_pread - Read from the emulated device/file.
+ * fake_read_prepare - Prepare read to emulated device/file.
  */
-static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
-			      size_t count, uint64_t offset)
+static ssize_t fake_read_prepare(struct zbc_device *dev,
+					size_t count, uint64_t offset)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
 	size_t nr_sectors;
-	ssize_t ret = -EIO;
-
-	if (!fdev->zbd_meta) {
-		zbc_set_errno(ZBC_SK_NOT_READY,
-			      ZBC_ASC_FORMAT_IN_PROGRESS);
-		return -ENXIO;
-	}
-
-	zbc_fake_lock(fdev);
 
 	/* Find the zone containing offset */
 	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (!zone) {
 		zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 			      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE);
-		goto out;
+		return -EIO;
 	}
 
 	/*
@@ -1078,13 +1069,13 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 			if (!zone) {
 				zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				    ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE);
-				goto out;
+				return -EIO;
 			}
 
 			if (!zbc_zone_conventional(zone)) {
 				zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 					ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA);
-				goto out;
+				return -EIO;
 			}
 
 		}
@@ -1098,16 +1089,40 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 		if (nr_sectors > zbc_zone_length(zone)) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				      ZBC_ASC_READ_BOUNDARY_VIOLATION);
-			goto out;
+			return -EIO;
 		}
 
 		if (nr_sectors > zbc_zone_wp(zone) - zbc_zone_start(zone)) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				      ZBC_ASC_ATTEMPT_TO_READ_INVALID_DATA);
-			goto out;
+			return -EIO;
 		}
 
 	}
+
+	return 0;
+}
+
+/**
+ * zbc_fake_pread - Read from the emulated device/file.
+ */
+static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
+			      size_t count, uint64_t offset)
+{
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
+	ssize_t ret = -EIO;
+
+	if (!fdev->zbd_meta) {
+		zbc_set_errno(ZBC_SK_NOT_READY,
+			      ZBC_ASC_FORMAT_IN_PROGRESS);
+		return -ENXIO;
+	}
+
+	zbc_fake_lock(fdev);
+
+	ret = fake_read_prepare(dev, count, offset);
+	if (ret != 0)
+		goto out;
 
 	/* Do read */
 	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
@@ -1125,36 +1140,71 @@ out:
 }
 
 /**
- * zbc_fake_pwrite - Write to the emulated device/file.
+ * zbc_fake_preadv - Read from the emulated device/file.
  */
-static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
-			       size_t count, uint64_t offset)
+static ssize_t zbc_fake_preadv(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
-	struct zbc_zone *zone, *next_zone;
-	uint64_t next_sector;
+	struct iovec iov_xfr[iovcnt];
+	uint64_t count;
 	ssize_t ret = -EIO;
 
 	if (!fdev->zbd_meta) {
 		zbc_set_errno(ZBC_SK_NOT_READY,
-			      ZBC_ASC_FORMAT_IN_PROGRESS);
+				ZBC_ASC_FORMAT_IN_PROGRESS);
 		return -ENXIO;
 	}
 
+	count = iov_count(iov, iovcnt);
+
 	zbc_fake_lock(fdev);
+
+	ret = fake_read_prepare(dev, count, offset);
+	if (ret != 0)
+		goto out;
+
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* Do read */
+	ret = preadv(dev->zbd_fd, iov_xfr, iovcnt, offset << 9);
+	if (ret < 0) {
+		zbc_set_errno(ZBC_SK_MEDIUM_ERROR,
+				ZBC_ASC_READ_ERROR);
+		ret = -errno;
+	} else
+		ret >>= 9;
+
+out:
+	zbc_fake_unlock(fdev);
+
+	return ret;
+}
+
+/**
+ * fake_write_prepare - Prepare write to the emulated device/file
+ */
+static ssize_t fake_write_prepare(struct zbc_device *dev, 
+					size_t count, uint64_t offset)
+{
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_zone *zone;
+	uint64_t next_sector;
 
 	/* Find the target zone */
 	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (!zone) {
 		zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
-			      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE);
-		goto out;
+				ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE);
+		return -EIO;
 	}
 
 	/* Write cannot span zones */
 	next_sector = zbc_zone_start(zone) + zbc_zone_length(zone);
-	next_zone = zbc_fake_find_zone(fdev, next_sector, true);
 	if (offset + count > next_sector) {
+		struct zbc_zone *next_zone = zbc_fake_find_zone(fdev, next_sector, true);
 		if (next_zone) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				      ZBC_ASC_WRITE_BOUNDARY_VIOLATION);
@@ -1162,7 +1212,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE);
 		}
-		goto out;
+		return -EIO;
 	}
 
 	if (zbc_zone_sequential_req(zone)) {
@@ -1171,22 +1221,22 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 		if (zbc_zone_full(zone)) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 				      ZBC_ASC_INVALID_FIELD_IN_CDB);
-			goto out;
+			return -EIO;
 		}
 
 		/* Can only write at the write pointer */
 		if (offset != zbc_zone_wp(zone)) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
-				      ZBC_ASC_UNALIGNED_WRITE_COMMAND);
-			goto out;
+					ZBC_ASC_UNALIGNED_WRITE_COMMAND);
+			return -EIO;
 		}
 
 		/* Writes must be aligned on the physical block size */
 		if (!zbc_dev_sect_paligned(dev, count) ||
 		    !zbc_dev_sect_paligned(dev, offset)) {
 			zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
-				      ZBC_ASC_UNALIGNED_WRITE_COMMAND);
-			goto out;
+					ZBC_ASC_UNALIGNED_WRITE_COMMAND);
+			return -EIO;
 		}
 
 		/* Can only write an open zone */
@@ -1197,7 +1247,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 				/* Too many explicit open on-going */
 				zbc_set_errno(ZBC_SK_DATA_PROTECT,
 					ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES);
-				goto out;
+				return -EIO;
 			}
 
 			/* Implicitly open the zone */
@@ -1218,8 +1268,33 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 			fdev->zbd_meta->zbd_nr_imp_open_zones++;
 
 		}
-
 	}
+
+	return 0;
+}
+
+/**
+ * zbc_fake_pwrite - Write to the emulated device/file.
+ */
+static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
+			       size_t count, uint64_t offset)
+{
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_zone *zone;
+	uint64_t next_sector;
+	ssize_t ret = -EIO;
+
+	if (!fdev->zbd_meta) {
+		zbc_set_errno(ZBC_SK_NOT_READY,
+			      ZBC_ASC_FORMAT_IN_PROGRESS);
+		return -ENXIO;
+	}
+
+	zbc_fake_lock(fdev);
+
+	ret = fake_write_prepare(dev, count, offset);
+	if (ret != 0)
+		goto out;
 
 	/* Do write */
 	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
@@ -1231,7 +1306,10 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, const void *buf,
 
 	ret >>= 9;
 
+	zone = zbc_fake_find_zone(fdev, offset, false);
 	if (zbc_zone_sequential_req(zone)) {
+		next_sector = zbc_zone_start(zone) + zbc_zone_length(zone);
+
 		/* Advance write pointer */
 		zone->zbz_write_pointer += ret;
 		if (zone->zbz_write_pointer >= next_sector) {
@@ -1248,6 +1326,68 @@ out:
 
 	return ret;
 }
+
+/**
+ * zbc_fake_pwritev - Write to the emulated device/file.
+ */
+static ssize_t zbc_fake_pwritev(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
+{
+	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
+	struct zbc_zone *zone;
+	struct iovec iov_xfr[iovcnt];
+	uint64_t count, next_sector;
+	ssize_t ret = -EIO;
+
+	if (!fdev->zbd_meta) {
+		zbc_set_errno(ZBC_SK_NOT_READY,
+			      ZBC_ASC_FORMAT_IN_PROGRESS);
+		return -ENXIO;
+	}
+
+	count = iov_count(iov, iovcnt);
+
+	zbc_fake_lock(fdev);
+
+	ret = fake_write_prepare(dev, count, offset);
+	if (ret != 0)
+		goto out;
+	
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* Do write */
+	ret = pwritev(dev->zbd_fd, iov_xfr, iovcnt, offset << 9);
+	if (ret < 0) {
+		zbc_set_errno(ZBC_SK_MEDIUM_ERROR, ZBC_ASC_WRITE_ERROR);
+		ret = -errno;
+		goto out;
+	}
+
+	ret >>= 9;
+
+	zone = zbc_fake_find_zone(fdev, offset, false);
+	if (zbc_zone_sequential_req(zone)) {
+		next_sector = zbc_zone_start(zone) + zbc_zone_length(zone);
+
+		/* Advance write pointer */
+		zone->zbz_write_pointer += ret;
+		if (zone->zbz_write_pointer >= next_sector) {
+			if (zbc_zone_imp_open(zone))
+				fdev->zbd_meta->zbd_nr_imp_open_zones--;
+			else
+				fdev->zbd_meta->zbd_nr_exp_open_zones--;
+			zone->zbz_condition = ZBC_ZC_FULL;
+		}
+	}
+
+out:
+	zbc_fake_unlock(fdev);
+
+	return ret;
+}
+
 
 /**
  * zbc_fake_flush - Flush the emulated device data and metadata.
@@ -1471,6 +1611,8 @@ struct zbc_drv zbc_fake_drv = {
 	.zbd_close		= zbc_fake_close,
 	.zbd_pread		= zbc_fake_pread,
 	.zbd_pwrite		= zbc_fake_pwrite,
+	.zbd_preadv		= zbc_fake_preadv,
+	.zbd_pwritev	= zbc_fake_pwritev,
 	.zbd_flush		= zbc_fake_flush,
 	.zbd_report_zones	= zbc_fake_report_zones,
 	.zbd_zone_op		= zbc_fake_zone_op,

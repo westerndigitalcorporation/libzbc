@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/uio.h>
 
 /**
  * @mainpage
@@ -1051,7 +1052,7 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  * @param[in] count	Number of 512B sectors to read
  * @param[in] offset	Offset where to start reading (512B sector unit)
  *
- * This an the equivalent of the standard system call pread(2) that
+ * This is the equivalent of the standard system call pread(2) that
  * operates on a ZBC device handle and uses 512B sector unit addressing
  * for the amount of data and the position on the device of the data to read.
  * Attempting to read data across zone boundaries or after the write pointer
@@ -1094,6 +1095,40 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  */
 extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			  size_t count, uint64_t offset);
+
+/**
+ * @brief Read sectors from a device using mutliple buffers
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] iov	Caller supplied read buffers to read into.
+ * 					Read buffer length is specified in 512B sectors
+ * @param[in] iovcnt	Number of \a iov buffers
+ * @param[in] offset	Offset where to start reading (512B sector unit)
+ * 
+ * This is the equivalent of the standard system call preadv(2) and
+ * behaves otherwise as described in \a zbc_pread. The call reads
+ * \a iovcnt buffers from the file associated with \a zbc_open into
+ * the buffers described by \a iov ("scatter input")
+ */
+extern ssize_t zbc_preadv(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset);
+
+/**
+ * @brief Write sectors to a device
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] iov	Caller supplied write buffers to write from.
+ * 					Write buffer length is specified in 512B sectors
+ * @param[in] iovcnt	Number of \a iov buffers
+ * @param[in] offset	Offset where to start writing (512B sector unit)
+ * 
+ * This is the equivalent of the standard system call pwritev(2) and
+ * behaves otherwise as described in \a zbc_pwrite. The call writes
+ * \a iovcnt buffers from the file associated with \a zbc_open from
+ * the buffers described by \a iov ("gather output")
+ */
+extern ssize_t zbc_pwritev(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset);
 
 /**
  * @brief Flush a device write cache

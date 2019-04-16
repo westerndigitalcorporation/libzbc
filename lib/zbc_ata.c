@@ -504,32 +504,18 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 }
 
 /**
- * Read from a ZAC device using READ DMA EXT packed
- * in an ATA PASSTHROUGH command.
+ * Transfer to a ZAC device using DMA_EXT packed
  */
-static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
-				    size_t count, uint64_t offset)
+static ssize_t zbc_ata_native_xfr_exec(struct zbc_device *dev,
+					struct zbc_sg_cmd *cmd, int dma_ext_op,
+					size_t count, uint64_t offset)
 {
+	size_t sz = count << 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
-	size_t sz = count << 9;
-	struct zbc_sg_cmd cmd;
 	ssize_t ret;
-
-	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pread(dev, buf, count, offset);
-
-	/* Check */
-	if (count > 65536) {
-		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
-			  dev->zbd_filename);
-		return -EINVAL;
-	}
-
-	/* Initialize the command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, sz);
-	if (ret != 0)
-		return ret;
+	int dxfer_dir = (dma_ext_op == ZBC_ATA_READ_DMA_EXT) ? 
+						SG_DXFER_FROM_DEV : SG_DXFER_TO_DEV;
 
 	/* Fill command CDB:
 	 * +=============================================================================+
@@ -569,32 +555,101 @@ static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
 	 * | 15  |                           Control                                     |
 	 * +=============================================================================+
 	 */
-	cmd.io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
-	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
+	cmd->io_hdr.dxfer_direction = dxfer_dir;
+	cmd->cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
 	/* DMA protocol, ext=1 */
-	cmd.cdb[1] = (0x6 << 1) | 0x01;
+	cmd->cdb[1] = (0x6 << 1) | 0x01;
 	/* off_line=0, ck_cond=0, t_type=0, t_dir=1, byt_blk=1, t_length=10 */
-	cmd.cdb[2] = 0x0e;
-	cmd.cdb[5] = (lba_count >> 8) & 0xff;
-	cmd.cdb[6] = lba_count & 0xff;
-	cmd.cdb[7] = (lba_offset >> 24) & 0xff;
-	cmd.cdb[8] = lba_offset & 0xff;
-	cmd.cdb[9] = (lba_offset >> 32) & 0xff;
-	cmd.cdb[10] = (lba_offset >> 8) & 0xff;
-	cmd.cdb[11] = (lba_offset >> 40) & 0xff;
-	cmd.cdb[12] = (lba_offset >> 16) & 0xff;
-	cmd.cdb[13] = 1 << 6;
-	cmd.cdb[14] = ZBC_ATA_READ_DMA_EXT;
+	cmd->cdb[2] = 0x0e;
+	cmd->cdb[5] = (lba_count >> 8) & 0xff;
+	cmd->cdb[6] = lba_count & 0xff;
+	cmd->cdb[7] = (lba_offset >> 24) & 0xff;
+	cmd->cdb[8] = lba_offset & 0xff;
+	cmd->cdb[9] = (lba_offset >> 32) & 0xff;
+	cmd->cdb[10] = (lba_offset >> 8) & 0xff;
+	cmd->cdb[11] = (lba_offset >> 40) & 0xff;
+	cmd->cdb[12] = (lba_offset >> 16) & 0xff;
+	cmd->cdb[13] = 1 << 6;
+	cmd->cdb[14] = dma_ext_op;
 
 	/* Execute the command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
+	ret = zbc_sg_cmd_exec(dev, cmd);
 	if (ret != 0) {
 		/* Request sense data */
-		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd) )
+		if (ret == -EIO && zbc_ata_sense_data_enabled(cmd) )
 			zbc_ata_request_sense_data_ext(dev);
 	} else {
-		ret = (sz - cmd.io_hdr.resid) >> 9;
+		ret = (sz - cmd->io_hdr.resid) >> 9;
 	}
+
+	return ret;
+}
+
+/**
+ * Read from a ZAC device using READ DMA EXT packed
+ * in an ATA PASSTHROUGH command.
+ */
+static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
+				    size_t count, uint64_t offset)
+{
+	size_t sz = count << 9;
+	struct zbc_sg_cmd cmd;
+	ssize_t ret;
+
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_pread(dev, buf, count, offset);
+
+	/* Check */
+	if (count > 65536) {
+		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	/* Initialize the command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, sz);
+	if (ret != 0)
+		return ret;
+
+	/* Execute the command */
+	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_READ_DMA_EXT, count, offset);
+
+	/* Done */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Read from a ZAC device using READ DMA EXT packed
+ * in an ATA PASSTHROUGH command.
+ */
+static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
+{
+	uint64_t count = iov_count(iov, iovcnt);
+	struct zbc_sg_cmd cmd;
+	struct iovec iov_xfr[iovcnt];
+	ssize_t ret;
+
+	/* Check */
+	if (count > 65536) {
+		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* Initialize the command */
+	ret = zbc_sg_cmd_initv(dev, &cmd, ZBC_SG_ATA16, iov_xfr, iovcnt);
+	if (ret != 0)
+		return ret;
+
+	/* Execute the command */
+	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_READ_DMA_EXT, count, offset);
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
@@ -615,6 +670,19 @@ static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
 }
 
 /**
+ * Read from a ZAC device.
+ */
+static ssize_t zbc_ata_preadv(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
+{
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_preadv(dev, iov, iovcnt, offset);
+	
+	return zbc_ata_native_preadv(dev, iov, iovcnt, offset);
+}
+
+/**
  * Write to a ZAC device using WRITE DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
@@ -622,10 +690,8 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 				     size_t count, uint64_t offset)
 {
 	size_t sz = count << 9;
-	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
-	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
 	struct zbc_sg_cmd cmd;
-	int ret;
+	ssize_t ret;
 
 	/* Check */
 	if (count > 65536) {
@@ -639,75 +705,50 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 	if (ret != 0)
 		return ret;
 
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
-	 * | 0   |                           Operation Code (85h)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Multiple count      |              Protocol             |  ext   |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |    off_line     |ck_cond | t_type | t_dir  |byt_blk |    t_length     |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   |                          features (15:8)                              |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 4   |                          features (7:0)                               |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 5   |                           count (15:8)                                |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 6   |                           count (7:0)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 7   |                           LBA (31:24)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 8   |                            LBA (7:0)                                  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 9   |                           LBA (39:32)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  |                           LBA (15:8)                                  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 11  |                           LBA (47:40)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 12  |                           LBA (23:16)                                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 13  |                             Device                                    |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |                             Command                                   |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                             Control                                   |
-	 * +=============================================================================+
-	 */
-	cmd.io_hdr.dxfer_direction = SG_DXFER_TO_DEV;
-	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
-	/* DMA protocol, ext=1 */
-	cmd.cdb[1] = (0x6 << 1) | 0x01;
-	/* off_line=0, ck_cond=0, t_type=1, t_dir=0, byt_blk=1, t_length=10 */
-	cmd.cdb[2] = 0x06;
-	cmd.cdb[5] = (lba_count >> 8) & 0xff;
-	cmd.cdb[6] = lba_count & 0xff;
-	cmd.cdb[7] = (lba_offset >> 24) & 0xff;
-	cmd.cdb[8] = lba_offset & 0xff;
-	cmd.cdb[9] = (lba_offset >> 32) & 0xff;
-	cmd.cdb[10] = (lba_offset >> 8) & 0xff;
-	cmd.cdb[11] = (lba_offset >> 40) & 0xff;
-	cmd.cdb[12] = (lba_offset >> 16) & 0xff;
-	cmd.cdb[13] = 1 << 6;
-	cmd.cdb[14] = ZBC_ATA_WRITE_DMA_EXT;
-
 	/* Execute the command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0) {
-		/* Request sense data */
-		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
-			zbc_ata_request_sense_data_ext(dev);
-        } else {
-		ret = (sz - cmd.io_hdr.resid) >> 9;
-	}
+	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_WRITE_DMA_EXT, count, offset);
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
 
 	return ret;
+}
+
+/**
+ * Write to a ZAC device using WRITE DMA EXT packed
+ * in an ATA PASSTHROUGH command.
+ */
+static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
+{
+	uint64_t count = iov_count(iov, iovcnt);
+	struct zbc_sg_cmd cmd;
+	struct iovec iov_xfr[iovcnt];
+	ssize_t ret;
+
+	/* Check */
+	if (count > 65536) {
+	zbc_error("%s: Write operation too large (limited to 65536 x 512 B sectors)\n",
+			  dev->zbd_filename);
+		return -EINVAL;
+	}
+
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* Initialize the command */
+	ret = zbc_sg_cmd_initv(dev, &cmd, ZBC_SG_ATA16, iov_xfr, iovcnt);
+	if (ret != 0)
+		return ret;
+
+	/* Execute the command */
+	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_WRITE_DMA_EXT, count, offset);
+
+	/* Done */
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;	
 }
 
 /**
@@ -720,6 +761,19 @@ static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
 		return zbc_scsi_pwrite(dev, buf, count, offset);
 
 	return zbc_ata_native_pwrite(dev, buf, count, offset);
+}
+
+/**
+ * Write to a ZAC device.
+ */
+static ssize_t zbc_ata_pwritev(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset)
+{
+	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
+		return zbc_scsi_pwritev(dev, iov, iovcnt, offset);
+	
+	return zbc_ata_native_pwritev(dev, iov, iovcnt, offset);
 }
 
 /**
@@ -1451,6 +1505,8 @@ struct zbc_drv zbc_ata_drv =
 	.zbd_close		= zbc_ata_close,
 	.zbd_pread		= zbc_ata_pread,
 	.zbd_pwrite		= zbc_ata_pwrite,
+	.zbd_preadv		= zbc_ata_preadv,
+	.zbd_pwritev	= zbc_ata_pwritev,
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,

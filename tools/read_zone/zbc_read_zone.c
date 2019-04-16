@@ -78,6 +78,7 @@ int main(int argc, char **argv)
 	long long sector_ofst = 0;
 	long long sector_max = 0;
 	int flags = O_RDONLY;
+	bool fvio = false;
 
 	/* Check command line */
 	if (argc < 4) {
@@ -87,6 +88,7 @@ usage:
 		       "  or the number of I/O specified is executed\n"
 		       "Options:\n"
 		       "    -v         : Verbose mode\n"
+			   "    -vio       : Use vector I/O interface\n"
 		       "    -dio       : Use direct I/Os\n"
 		       "    -nio <num> : Limit the number of I/Os to <num>\n"
 		       "    -f <file>  : Write the content of the zone to <file>\n"
@@ -108,6 +110,10 @@ usage:
 		} else if (strcmp(argv[i], "-dio") == 0) {
 
 			flags |= O_DIRECT;
+
+		} else if (strcmp(argv[i], "-vio") == 0) {
+
+			fvio = true;
 
 		} else if (strcmp(argv[i], "-nio") == 0) {
 
@@ -303,13 +309,25 @@ usage:
 	while (!zbc_read_zone_abort &&
 	       sector_ofst < sector_max) {
 
-		/* Read zone */
 		sector_count = iosize >> 9;
 		if (sector_ofst + sector_count > sector_max)
 			sector_count = sector_max - sector_ofst;
 
-		ret = zbc_pread(dev, iobuf, sector_count,
-				zbc_zone_start(iozone) + sector_ofst);
+		/* Read zone */
+		if (fvio &&
+			sector_count >= 2 * (info.zbd_lblock_size >> 9)) {
+
+			struct iovec iov[2];
+			iov[0].iov_base = iobuf;
+			iov[0].iov_len = sector_count / 2;
+			iov[1].iov_base = (uint8_t *) iobuf + (iov[0].iov_len << 9);
+			iov[1].iov_len = sector_count - sector_count / 2;
+
+			ret = zbc_preadv(dev, iov, 2, 
+					zbc_zone_start(iozone) + sector_ofst);
+		} else
+			ret = zbc_pread(dev, iobuf, sector_count,
+					zbc_zone_start(iozone) + sector_ofst);
 		if (ret <= 0) {
 			fprintf(stderr, "zbc_pread failed %zd (%s)\n",
 				-ret, strerror(-ret));
