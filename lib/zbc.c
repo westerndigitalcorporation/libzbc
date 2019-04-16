@@ -615,6 +615,76 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 }
 
 /**
+ * zbc_preadv - Read sectors from a device
+ */
+ssize_t zbc_preadv(struct zbc_device *dev,
+			const struct iovec *iov, int iovcnt,
+			uint64_t offset)
+{
+	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
+	uint64_t count = iov_count(iov, iovcnt);
+	ssize_t ret;
+	int i;
+
+	if (zbc_test_mode(dev)) {
+		if (!count) {
+			zbc_error("%s: zero-length read at sector %llu\n",
+				  dev->zbd_filename,
+				  (unsigned long long) offset);
+			return -EINVAL;
+		}
+	} else {
+		if (!zbc_dev_sect_laligned(dev, offset)) {
+			zbc_error("%s: Unaligned read at sector %llu\n",
+					dev->zbd_filename,
+					(unsigned long long) offset);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < iovcnt; i++) {
+			if (!zbc_dev_sect_laligned(dev, iov[i].iov_len)) {
+				zbc_error("%s: Unalinged read of %zu sectors at vector %d\n",
+						dev->zbd_filename,
+						iov[i].iov_len, i);
+				return -EINVAL;
+			}
+		}
+
+		if (count > max_count) {
+			zbc_error("%s: Read of %zu sectors too large for device\n",
+					dev->zbd_filename,
+					count);
+			return -EINVAL;
+		}
+
+		if (!count || offset >= dev->zbd_info.zbd_sectors)
+			return 0;
+
+		if ((offset + count) > dev->zbd_info.zbd_sectors) {
+			zbc_error("%s: Read of %zu sectors exceeds device capacity\n",
+					dev->zbd_filename,
+					count);
+			return -EINVAL;
+		}
+	}
+
+	zbc_debug("%s: Read %zu sectors at sector %llu\n",
+			dev->zbd_filename,
+			count, (unsigned long long) offset);
+
+	ret = (dev->zbd_drv->zbd_preadv)(dev, iov, iovcnt, offset);
+	if (ret <= 0) {
+		zbc_error("%s: Read %zu sectors at sector %llu failed %zd (%s)\n",
+				dev->zbd_filename,
+				count, (unsigned long long) offset,
+				-ret, strerror(-ret));
+		return ret ? ret : -EIO;
+	}
+
+	return ret;
+}
+
+/**
  * zbc_pwrite - Write sectors to a device
  */
 ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
@@ -685,6 +755,76 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	return wr_count;
+}
+
+/**
+ * zbc_pwritev - Write sectors to a device
+ */
+ssize_t zbc_pwritev(struct zbc_device *dev,
+			const struct iovec *iov, int iovcnt,
+			uint64_t offset)
+{
+	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
+	uint64_t count = iov_count(iov, iovcnt);
+	ssize_t ret;
+	int i;
+
+	if (zbc_test_mode(dev)) {
+		if (!count) {
+			zbc_error("%s: zero-length write at sector %llu\n",
+					dev->zbd_filename,
+					(unsigned long long) offset);
+			return -EINVAL;
+		}
+	} else {
+		if (!zbc_dev_sect_paligned(dev, offset)) {
+			zbc_error("%s: Unaligned write at sector %llu\n",
+					dev->zbd_filename,
+					(unsigned long long) offset);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < iovcnt; i++) {
+			if (!zbc_dev_sect_paligned(dev, iov[i].iov_len)) {
+				zbc_error("%s: Unaligned write of %zu sectors at vector %d\n",
+						dev->zbd_filename,
+						iov[i].iov_len, i);
+				return -EINVAL;
+			}
+		}
+
+		if (count > max_count) {
+			zbc_error("%s: Write of %zu sectors too large for device\n",
+					dev->zbd_filename,
+					count);
+			return -EINVAL;
+		}
+
+		if (!count || offset >= dev->zbd_info.zbd_sectors)
+			return 0;
+
+		if ((offset + count) > dev->zbd_info.zbd_sectors) {
+			zbc_error("%s: Write of %zu sectors exceeds device capacity\n",
+					dev->zbd_filename,
+					count);
+			return -EINVAL;
+		}
+	}
+
+	zbc_debug("%s: Write %zu sectors at sector %llu\n",
+			dev->zbd_filename,
+			count, (unsigned long long) offset);
+
+	ret = (dev->zbd_drv->zbd_pwritev)(dev, iov, iovcnt, offset);
+	if (ret <= 0) {
+		zbc_error("%s: Write %zu sectors at sector %llu failed %zd (%s)\n",
+				dev->zbd_filename,
+				count, (unsigned long long) offset,
+				-ret, strerror(-ret));
+		return ret ? ret : -EIO;
+	}
+
+	return ret;
 }
 
 /**

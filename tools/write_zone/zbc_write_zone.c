@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 	char *path, *file = NULL;
 	long long sector_ofst = 0;
 	long long sector_max_ofst;
-	bool flush = false, floop = false;
+	bool flush = false, floop = false, fvio = false;
 	int flags = O_WRONLY;
 
 	/* Check command line */
@@ -91,6 +91,7 @@ usage:
 		       "Options:\n"
 		       "    -v         : Verbose mode\n"
 		       "    -s         : (sync) Run zbc_flush after writing\n"
+			   "    -vio       : Use vector I/O interface\n"
 		       "    -dio       : Use direct I/Os\n"
 		       "    -nio <num> : Limit the number of I/O executed to <num>\n"
 		       "    -f <file>  : Write the content of <file>\n"
@@ -115,6 +116,10 @@ usage:
 		} else if (strcmp(argv[i], "-s") == 0) {
 
 			flush = true;
+
+		} else if (strcmp(argv[i], "-vio") == 0) {
+
+			fvio = true;
 
 		} else if (strcmp(argv[i], "-nio") == 0) {
 
@@ -387,7 +392,18 @@ usage:
 			break;
 
 		/* Write to zone */
-		ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
+		if (fvio &&
+			sector_count >= 2 * (info.zbd_pblock_size >> 9)) {
+
+			struct iovec iov[2];
+			iov[0].iov_base = iobuf;
+			iov[0].iov_len = sector_count / 2;
+			iov[1].iov_base = (uint8_t *) iobuf + (iov[0].iov_len << 9);
+			iov[1].iov_len = sector_count - sector_count / 2;
+			
+			ret = zbc_pwritev(dev, iov, 2, sector_ofst);
+		} else
+			ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
 		if ( ret > 0 ) {
 			sector_ofst += ret;
 		} else {

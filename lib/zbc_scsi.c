@@ -930,6 +930,43 @@ ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 }
 
 /**
+ * Read from a ZBC device
+ */
+ssize_t zbc_scsi_preadv(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset)
+{
+	size_t count = iov_count(iov, iovcnt);
+	size_t sz =  count << 9;
+	struct zbc_sg_cmd cmd;
+	struct iovec iov_xfr[iovcnt];
+	ssize_t ret;
+
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* READ 16 */
+	ret = zbc_sg_cmd_initv(dev, &cmd, ZBC_SG_READ, iov_xfr, iovcnt);
+	if (ret != 0)
+		return ret;
+	
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
+	cmd.cdb[1] = 0x10;
+	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret == 0)
+		ret = (sz - cmd.io_hdr.resid) >> 9;
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
  * Write to a ZBC device
  */
 ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
@@ -941,6 +978,43 @@ ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 
 	/* WRITE 16 */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
+	cmd.cdb[1] = 0x10;
+	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
+	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret == 0)
+		ret = (sz - cmd.io_hdr.resid) >> 9;
+
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
+ * Write to a ZBC device
+ */
+ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
+					const struct iovec *iov, int iovcnt,
+					uint64_t offset)
+{
+	size_t count = iov_count(iov, iovcnt);
+	size_t sz = count << 9;
+	struct zbc_sg_cmd cmd;
+	struct iovec iov_xfr[iovcnt];
+	ssize_t ret;
+
+	/* Convert */
+	iov_convert(iov_xfr, iov, iovcnt);
+
+	/* WRITE 16 */
+	ret = zbc_sg_cmd_initv(dev, &cmd, ZBC_SG_WRITE, iov_xfr, iovcnt);
 	if (ret != 0)
 		return ret;
 
@@ -997,6 +1071,8 @@ struct zbc_drv zbc_scsi_drv =
 	.zbd_close		= zbc_scsi_close,
 	.zbd_pread		= zbc_scsi_pread,
 	.zbd_pwrite		= zbc_scsi_pwrite,
+	.zbd_preadv		= zbc_scsi_preadv,
+	.zbd_pwritev	= zbc_scsi_pwritev,
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,

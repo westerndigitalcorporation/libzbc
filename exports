@@ -24,6 +24,8 @@ global:
 	zbc_zone_operation;
 	zbc_pread;
 	zbc_pwrite;
+	zbc_preadv;
+	zbc_pwritev;
 	zbc_flush;
 
 local:

@@ -305,6 +305,70 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 }
 
 /**
+ * Initialize a command
+ */
+int zbc_sg_cmd_initv(struct zbc_device *dev,
+			struct zbc_sg_cmd *cmd, int cmd_code,
+			struct iovec *iov, int iovcnt)
+{
+	size_t sz = iov_count(iov, iovcnt);
+
+	if (iovcnt == 1)
+		return zbc_sg_cmd_init(dev, cmd, cmd_code, iov[0].iov_base, iov[0].iov_len);
+
+	zbc_assert(cmd_code >= 0 && cmd_code < ZBC_SG_CMD_NUM);
+
+	/* Set command */
+	memset(cmd, 0, sizeof(struct zbc_sg_cmd));
+	cmd->code = cmd_code;
+	cmd->cdb_sz = zbc_sg_cmd_list[cmd_code].cdb_length;
+	zbc_assert(cmd->cdb_sz <= ZBC_SG_CDB_MAX_LENGTH);
+	cmd->cdb_opcode = zbc_sg_cmd_list[cmd_code].cdb_opcode;
+	cmd->cdb_sa = zbc_sg_cmd_list[cmd_code].cdb_sa;
+
+	if (!iov[0].iov_base && sz > 0) {
+
+		/* Allocate a buffer */
+		if (posix_memalign((void **) &cmd->out_buf,
+					sysconf_pagesize(), sz) != 0) {
+			zbc_error("No memory for command output buffer (%zu B)\n",
+					sz);
+			return -ENOMEM;
+		}
+
+		memset(cmd->out_buf, 0, sz);
+		cmd->out_buf_needfree = 1;
+
+		int i;
+		size_t offset = 0;
+		for (i = 0; i < iovcnt; i++) {
+			iov[i].iov_base = cmd->out_buf + offset;
+			offset += iov[i].iov_len;
+		}
+	}
+
+	cmd->out_bufsz = sz;
+
+	/* Setup SGIO header */
+	cmd->io_hdr.interface_id = 'S';
+	cmd->io_hdr.timeout = 20000;
+	cmd->io_hdr.flags = ZBC_SG_FLAG_Q_AT_TAIL;
+
+	cmd->io_hdr.cmd_len = cmd->cdb_sz;
+	cmd->io_hdr.cmdp = &cmd->cdb[0];
+
+	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
+	cmd->io_hdr.dxfer_len = cmd->out_bufsz;
+	cmd->io_hdr.iovec_count = iovcnt;
+	cmd->io_hdr.dxferp = (void *) iov;
+
+	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
+	cmd->io_hdr.sbp = cmd->sense_buf;
+
+	return 0;
+}
+
+/**
  * Free resources of a command.
  */
 void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd)

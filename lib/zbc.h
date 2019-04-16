@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
 
@@ -71,6 +72,17 @@ struct zbc_drv {
 	 */
 	ssize_t		(*zbd_pwrite)(struct zbc_device *, const void *,
 				      size_t, uint64_t);
+
+	/**
+	 * Read from a ZBC device using iov ("scatter input")
+	 */
+	ssize_t		(*zbd_preadv)(struct zbc_device *, const struct iovec *,
+						int, uint64_t);
+	/**
+	 * Write to a ZBC device using iov ("gather output")
+	 */
+	ssize_t		(*zbd_pwritev)(struct zbc_device *, const struct iovec *,
+						int, uint64_t);
 
 	/**
 	 * Flush to a ZBC device cache.
@@ -219,6 +231,31 @@ struct zbc_drv zbc_fake_drv;
 	((((sect) << 9) & ((dev)->zbd_info.zbd_pblock_size - 1)) == 0)
 
 /**
+ * Count total size of vector buffers
+ */
+static inline uint64_t iov_count(const struct iovec *iov, int iovcnt)
+{
+	uint64_t count = 0;
+	int i;
+	for (i = 0; i < iovcnt; i++)
+		count += iov[i].iov_len;
+	return count;
+}
+
+/**
+ * Convert sector size vector to byte size vector
+ */
+static inline void iov_convert(struct iovec *out,
+						const struct iovec *in, int count)
+{
+	int i;
+	for (i = 0; i < count; i++) {
+		out[i].iov_base = in[i].iov_base;
+		out[i].iov_len = in[i].iov_len << 9;
+	}
+}
+
+/**
  * The block backend driver uses the SCSI backend information and
  * some zone operation.
  */
@@ -233,6 +270,12 @@ ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 		       size_t count, uint64_t offset);
 ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
 			size_t count, uint64_t offset);
+ssize_t zbc_scsi_preadv(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset);
+ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset);
 int zbc_scsi_flush(struct zbc_device *dev);
 
 /**
