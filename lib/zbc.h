@@ -26,6 +26,7 @@
 #include <sys/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
+#include <sys/uio.h>
 
 /**
  * Backend driver descriptor.
@@ -217,6 +218,23 @@ struct zbc_drv zbc_fake_drv;
  */
 #define zbc_dev_sect_paligned(dev, sect)	\
 	((((sect) << 9) & ((dev)->zbd_info.zbd_pblock_size - 1)) == 0)
+
+/**
+ * Count total size of vector buffers.
+ */
+static inline size_t zbc_iov_count(const struct iovec *iov, int iovcnt)
+{
+	size_t count = 0;
+	int i;
+
+	if (!iov || !iovcnt)
+		return 0;
+
+	for (i = 0; i < iovcnt; i++)
+		count += iov[i].iov_len;
+
+	return count;
+}
 
 /**
  * The block backend driver uses the SCSI backend information and

@@ -246,10 +246,13 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 /**
  * Initialize a command.
  */
-int zbc_sg_cmd_init(struct zbc_device *dev,
-		    struct zbc_sg_cmd *cmd, int cmd_code,
-		    uint8_t *out_buf, size_t out_bufsz)
+int zbc_sg_vcmd_init(struct zbc_device *dev,
+		     struct zbc_sg_cmd *cmd, int cmd_code,
+		     const struct iovec *iov, int iovcnt)
 {
+	size_t bufsz = zbc_iov_count(iov, iovcnt);
+	uint8_t *buf = iov[0].iov_base;
+
 	zbc_assert(cmd_code >= 0 && cmd_code < ZBC_SG_CMD_NUM);
 
 	/* Set command */
@@ -260,43 +263,44 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 	cmd->cdb_opcode = zbc_sg_cmd_list[cmd_code].cdb_opcode;
 	cmd->cdb_sa = zbc_sg_cmd_list[cmd_code].cdb_sa;
 
-	if (!out_buf && out_bufsz > 0) {
-
+	if (!buf && bufsz) {
+		if (iovcnt != 1) {
+			zbc_error("No buffer for vector command\n");
+			return -EINVAL;
+		}
 		/* Allocate a buffer */
-		if (posix_memalign((void **) &cmd->out_buf,
-				   sysconf_pagesize(), out_bufsz) != 0) {
-			zbc_error("No memory for command output buffer (%zu B)\n",
-				  out_bufsz);
+		if (posix_memalign((void **) &buf,
+				   sysconf_pagesize(), bufsz) != 0) {
+			zbc_error("No memory for command buffer (%zu B)\n",
+				  bufsz);
 			return -ENOMEM;
 		}
-
-		memset(cmd->out_buf, 0, out_bufsz);
-		cmd->out_buf_needfree = 1;
-
-	} else {
-
-		/* Use specified buffer */
-		cmd->out_buf = out_buf;
-
+		cmd->buf_needfree = true;
 	}
 
-	cmd->out_bufsz = out_bufsz;
+	cmd->bufsz = bufsz;
 
 	/* Setup SGIO header */
 	cmd->io_hdr.interface_id = 'S';
 	cmd->io_hdr.timeout = 20000;
 
 	cmd->io_hdr.flags = ZBC_SG_FLAG_Q_AT_TAIL;
-	if (dev->zbd_o_flags & ZBC_O_DIRECT && cmd->out_bufsz)
+	if (dev->zbd_o_flags & ZBC_O_DIRECT && bufsz && iovcnt == 1)
 		cmd->io_hdr.flags |= ZBC_SG_FLAG_DIRECT_IO;
 
 	cmd->io_hdr.cmd_len = cmd->cdb_sz;
 	cmd->io_hdr.cmdp = &cmd->cdb[0];
 
 	cmd->io_hdr.dxfer_direction = zbc_sg_cmd_list[cmd_code].dir;
-	cmd->io_hdr.dxfer_len = cmd->out_bufsz;
-	if (cmd->out_bufsz)
-		cmd->io_hdr.dxferp = cmd->out_buf;
+
+	if (iovcnt > 1) {
+		cmd->io_hdr.dxferp = (void *) iov;
+		cmd->io_hdr.iovec_count = iovcnt;
+	} else {
+		cmd->buf = buf;
+		cmd->io_hdr.dxferp = cmd->buf;
+		cmd->io_hdr.dxfer_len = cmd->bufsz;
+	}
 
 	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
 	cmd->io_hdr.sbp = cmd->sense_buf;
@@ -305,15 +309,15 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 }
 
 /**
- * Free resources of a command.
+ * Free resources of a vector command.
  */
 void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd)
 {
 	/* Free the command buffer */
-        if (cmd->out_buf && cmd->out_buf_needfree) {
-		free(cmd->out_buf);
-		cmd->out_buf = NULL;
-		cmd->out_bufsz = 0;
+        if (cmd->buf && cmd->buf_needfree) {
+		free(cmd->buf);
+		cmd->buf = NULL;
+		cmd->bufsz = 0;
         }
 }
 
@@ -336,7 +340,7 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	zbc_debug("%s: Execute %s command with buffer of %zu B\n",
 		  dev->zbd_filename,
 		  (cmd->io_hdr.flags & ZBC_SG_FLAG_DIRECT_IO) ? "direct" : "normal",
-		  cmd->out_bufsz);
+		  cmd->bufsz);
 
 	/* Send the SG_IO command */
 	ret = ioctl(dev->zbd_sg_fd, SG_IO, &cmd->io_hdr);
@@ -423,14 +427,14 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		zbc_debug("%s: Transfer missing %d B of data\n",
 			  dev->zbd_filename,
 			  cmd->io_hdr.resid);
-		cmd->out_bufsz -= cmd->io_hdr.resid;
+		cmd->bufsz -= cmd->io_hdr.resid;
 	}
 
 	zbc_debug("%s: Command %s executed in %u ms, %zu B transfered\n",
 		  dev->zbd_filename,
 		  zbc_sg_cmd_name(cmd),
 		  cmd->io_hdr.duration,
-		  cmd->out_bufsz);
+		  cmd->bufsz);
 
 	return 0;
 }

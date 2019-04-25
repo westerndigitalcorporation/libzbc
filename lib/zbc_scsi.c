@@ -374,11 +374,12 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	if (ret != 0)
 		goto out;
 
-	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
-		zbc_error("%s: Not enough report data received (need at least %d B, got %zu B)\n",
+	if (cmd.bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
+		zbc_error("%s: Not enough data received "
+			  "(need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
-			  cmd.out_bufsz);
+			  cmd.bufsz);
 		ret = -EIO;
 		goto out;
 	}
@@ -423,7 +424,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	 */
 
 	/* Get number of zones in result */
-	buf = (uint8_t *) cmd.out_buf;
+	buf = (uint8_t *) cmd.buf;
 	nz = zbc_sg_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	if (max_lba)
 		*max_lba = zbc_sg_get_int64(&buf[8]);
@@ -435,7 +436,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	if (nz > *nr_zones)
 		nz = *nr_zones;
 
-	buf_nz = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
+	buf_nz = (cmd.bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
 		/ ZBC_ZONE_DESCRIPTOR_LENGTH;
 	if (nz > buf_nz)
 		nz = buf_nz;
@@ -627,7 +628,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 		goto out;
 
 	/* Logical block size */
-	dev->zbd_info.zbd_lblock_size = zbc_sg_get_int32(&cmd.out_buf[8]);
+	dev->zbd_info.zbd_lblock_size = zbc_sg_get_int32(&cmd.buf[8]);
 	if (dev->zbd_info.zbd_lblock_size == 0) {
 		zbc_error("%s: invalid logical sector size\n",
 			  dev->zbd_filename);
@@ -635,8 +636,8 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 		goto out;
 	}
 
-	logical_per_physical = 1 << cmd.out_buf[13] & 0x0f;
-	max_lba = zbc_sg_get_int64(&cmd.out_buf[0]);
+	logical_per_physical = 1 << cmd.buf[13] & 0x0f;
+	max_lba = zbc_sg_get_int64(&cmd.buf[0]);
 
 	/* Get maximum command size */
 	zbc_sg_get_max_cmd_blocks(dev);
@@ -644,7 +645,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	if (zbc_dev_is_zoned(dev)) {
 
 		/* Check RC_BASIS field */
-		switch ((cmd.out_buf[12] & 0x30) >> 4) {
+		switch ((cmd.buf[12] & 0x30) >> 4) {
 
 		case 0x00:
 			/*

@@ -206,9 +206,9 @@ struct zbc_sg_cmd {
 
 	uint8_t		sense_buf[ZBC_SG_SENSE_MAX_LENGTH];
 
-	int		out_buf_needfree;
-	size_t		out_bufsz;
-	uint8_t		*out_buf;
+	bool		buf_needfree;
+	size_t		bufsz;
+	uint8_t		*buf;
 
 	sg_io_hdr_t	io_hdr;
 
@@ -220,11 +220,23 @@ struct zbc_sg_cmd {
 					 ZBC_SG_DRIVER_FLAGS_MASK)
 
 /**
- * Allocate and initialize a new command.
+ * Initialize a new vector command.
  */
-extern int zbc_sg_cmd_init(struct zbc_device *dev,
-			   struct zbc_sg_cmd *cmd, int cmd_code,
-			   uint8_t *out_buf, size_t out_bufsz);
+extern int zbc_sg_vcmd_init(struct zbc_device *dev,
+			    struct zbc_sg_cmd *cmd, int cmd_code,
+			    const struct iovec *iov, int iovcnt);
+
+/**
+ * Initialize a new command.
+ */
+static inline int zbc_sg_cmd_init(struct zbc_device *dev,
+				  struct zbc_sg_cmd *cmd, int cmd_code,
+				  uint8_t *buf, size_t bufsz)
+{
+	const struct iovec iov = { buf, bufsz };
+
+	return zbc_sg_vcmd_init(dev, cmd, cmd_code, &iov, 1);
+}
 
 /**
  * Free a command.

@@ -861,17 +861,18 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		goto out;
 	}
 
-	if (cmd.out_bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET ) {
-		zbc_error("%s: Not enough data received (need at least %d B, got %zu B)\n",
+	if (cmd.bufsz < ZBC_ZONE_DESCRIPTOR_OFFSET) {
+		zbc_error("%s: Not enough data received "
+			  "(need at least %d B, got %zu B)\n",
 			  dev->zbd_filename,
 			  ZBC_ZONE_DESCRIPTOR_OFFSET,
-			  cmd.out_bufsz);
+			  cmd.bufsz);
 		ret = -EIO;
 		goto out;
 	}
 
 	/* Get number of zones in result */
-	buf = (uint8_t *) cmd.out_buf;
+	buf = (uint8_t *) cmd.buf;
 	nz = zbc_ata_get_dword(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	/* max_lba = zbc_ata_get_qword(&buf[8]); */
 
@@ -882,7 +883,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
         if (nz > *nr_zones)
 		nz = *nr_zones;
 
-	buf_nz = (cmd.out_bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
+	buf_nz = (cmd.bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
 		/ ZBC_ZONE_DESCRIPTOR_LENGTH;
         if (nz > buf_nz)
 		nz = buf_nz;
