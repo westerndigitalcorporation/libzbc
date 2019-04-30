@@ -1051,7 +1051,7 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
  * @param[in] count	Number of 512B sectors to read
  * @param[in] offset	Offset where to start reading (512B sector unit)
  *
- * This an the equivalent of the standard system call pread(2) that
+ * This is the equivalent of the standard system call pread(2) that
  * operates on a ZBC device handle and uses 512B sector unit addressing
  * for the amount of data and the position on the device of the data to read.
  * Attempting to read data across zone boundaries or after the write pointer
@@ -1076,7 +1076,7 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  * @param[in] count	Number of 512B sectors to write
  * @param[in] offset	Offset where to start writing (512B sector unit)
  *
- * This an the equivalent of the standard system call pwrite(2) that
+ * This is the equivalent of the standard system call pwrite(2) that
  * operates on a ZBC device handle, and uses 512B sector unit addressing
  * for the amount of data and the position on the device of the data to
  * write. On a host-aware device, any range of 512B sector is acceptable.
