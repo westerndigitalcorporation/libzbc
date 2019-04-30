@@ -1100,7 +1100,7 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  * @brief Read sectors from a device using mutliple buffers
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied read buffers to read into.
- * 					Read buffer length is specified in 512B sectors
+ * 			Read buffer length is specified in 512B sectors
  * @param[in] iovcnt	Number of \a iov buffers
  * @param[in] offset	Offset where to start reading (512B sector unit)
  * 
@@ -1110,14 +1110,14 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  * the buffers described by \a iov ("scatter input")
  */
 extern ssize_t zbc_preadv(struct zbc_device *dev,
-				const struct iovec *iov, int iovcnt,
-				uint64_t offset);
+			  const struct iovec *iov, int iovcnt,
+			  uint64_t offset);
 
 /**
  * @brief Write sectors to a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied write buffers to write from.
- * 					Write buffer length is specified in 512B sectors
+ * 			Write buffer length is specified in 512B sectors
  * @param[in] iovcnt	Number of \a iov buffers
  * @param[in] offset	Offset where to start writing (512B sector unit)
  * 
@@ -1127,8 +1127,8 @@ extern ssize_t zbc_preadv(struct zbc_device *dev,
  * the buffers described by \a iov ("gather output")
  */
 extern ssize_t zbc_pwritev(struct zbc_device *dev,
-				const struct iovec *iov, int iovcnt,
-				uint64_t offset);
+			   const struct iovec *iov, int iovcnt,
+			   uint64_t offset);
 
 /**
  * @brief Flush a device write cache
