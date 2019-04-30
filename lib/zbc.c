@@ -687,7 +687,7 @@ ssize_t zbc_preadv(struct zbc_device *dev,
 /**
  * zbc_pwrite - Write sectors to a device
  */
-ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
+ssize_t zbc_pwrite(struct zbc_device *dev, void *buf,
 		   size_t count, uint64_t offset)
 {
 	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
@@ -761,8 +761,8 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
  * zbc_pwritev - Write sectors to a device
  */
 ssize_t zbc_pwritev(struct zbc_device *dev,
-			const struct iovec *iov, int iovcnt,
-			uint64_t offset)
+		    const struct iovec *iov, int iovcnt,
+		    uint64_t offset)
 {
 	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
 	uint64_t count = iov_count(iov, iovcnt);

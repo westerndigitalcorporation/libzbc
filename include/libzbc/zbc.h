@@ -1117,7 +1117,7 @@ extern ssize_t zbc_preadv(struct zbc_device *dev,
  * @brief Write sectors to a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied write buffers to write from.
- * 					Write buffer length is specified in 512B sectors
+ * 			Write buffer length is specified in 512B sectors
  * @param[in] iovcnt	Number of \a iov buffers
  * @param[in] offset	Offset where to start writing (512B sector unit)
  * 

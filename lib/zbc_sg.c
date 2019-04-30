@@ -341,7 +341,6 @@ int zbc_sg_cmd_initv(struct zbc_device *dev,
 
 		int i;
 		size_t offset = 0;
-
 		for (i = 0; i < iovcnt; i++) {
 			iov[i].iov_base = cmd->out_buf + offset;
 			offset += iov[i].iov_len;

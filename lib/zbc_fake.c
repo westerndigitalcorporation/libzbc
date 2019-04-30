@@ -1051,7 +1051,7 @@ static ssize_t zbc_fake_pread(struct zbc_device *dev, void *buf,
 	iov.iov_base = buf;
 	iov.iov_len = count;
 
-	return zbc_fake_pwritev(dev, &iov, 1, offset);
+	return zbc_fake_preadv(dev, &iov, 1, offset);
 }
 
 /**
@@ -1066,6 +1066,7 @@ static ssize_t zbc_fake_preadv(struct zbc_device *dev,
 	struct iovec iov_xfr[iovcnt];
 	uint64_t count = iov_count(iov, iovcnt);
 	size_t nr_sectors;
+	
 	ssize_t ret = -EIO;
 
 	if (!fdev->zbd_meta) {
@@ -1141,7 +1142,7 @@ static ssize_t zbc_fake_preadv(struct zbc_device *dev,
 	iov_convert(iov_xfr, iov, iovcnt);
 
 	/* Do read */
-	ret = preadv(dev->zbd_fd, iov_xfr, iovcnt, offset << 9);
+	ret = pread(dev->zbd_fd, iov_xfr, iovcnt, offset << 9);
 	if (ret < 0) {
 		zbc_set_errno(ZBC_SK_MEDIUM_ERROR,
 			      ZBC_ASC_READ_ERROR);
@@ -1170,7 +1171,7 @@ static ssize_t zbc_fake_pwrite(struct zbc_device *dev, void *buf,
 }
 
 /**
- * zbc_fake_pwritev - Write to the emulated device/file
+ * zbc_fake_pwrite - Write to the emulated device/file.
  */
 static ssize_t zbc_fake_pwritev(struct zbc_device *dev,
 				const struct iovec *iov, int iovcnt,
