@@ -888,31 +888,28 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 			       size_t count, uint64_t offset)
 {
-	ssize_t ret;
+	struct iovec iov;
+
+	iov.iov_base = buf;
+	iov.iov_len = count;
 
 	/* Read */
-	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
-	if (ret < 0)
-		return -errno;
-
-	return ret >> 9;
+	return zbc_block_preadv(dev, &iov, 1, offset);
 }
 
 /**
  * Read from the block device.
  */
 static ssize_t zbc_block_preadv(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt, uint64_t offset)
+				const struct iovec *iov,
+				int iovcnt,
+				uint64_t offset)
 {
 	struct iovec iov_xfr[iovcnt];
 	ssize_t ret;
 
 	/* Convert */
-	int i;
-	for (i = 0; i < iovcnt; i++) {
-		iov_xfr[i].iov_base = iov[i].iov_base;
-		iov_xfr[i].iov_len = iov[i].iov_len << 9;
-	}
+	iov_convert(iov_xfr, iov, iovcnt);
 
 	/* Read */
 	ret = preadv(dev->zbd_fd, iov_xfr, iovcnt, offset);
@@ -930,34 +927,31 @@ static ssize_t zbc_block_pwrite(struct zbc_device *dev,
 				size_t count,
 				uint64_t offset)
 {
-	ssize_t ret;
+	struct iovec iov;
+
+	iov.iov_base = buf;
+	iov.iov_len = count;
 
 	/* Write */
-	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
-	if (ret < 0)
-		return -errno;
-
-	return ret >> 9;
+	return zbc_block_pwritev(dev, &iov, 1, offset);
 }
 
 /**
  * Write to the block device.
  */
 static ssize_t zbc_block_pwritev(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt, uint64_t offset)
+				 const struct iovec *iov,
+				 int iovcnt,
+				 uint64_t offset)
 {
 	struct iovec iov_xfr[iovcnt];
 	ssize_t ret;
 
 	/* Convert */
-	int i;
-	for (i = 0; i < iovcnt; i++) {
-		iov_xfr[i].iov_base = iov[i].iov_base;
-		iov_xfr[i].iov_len = iov[i].iov_len << 9;
-	}
+	iov_convert(iov_xfr, iov, iovcnt);
 
 	/* Write */
-	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
+	ret = pwritev(dev->zbd_fd, iov_xfr, iovcnt, offset << 9);
 	if (ret < 0)
 		return -errno;
 
@@ -995,8 +989,8 @@ static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 }
 
 static ssize_t zbc_block_preadv(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt,
-					uint64_t offset)
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset)
 {
 	return -EOPNOTSUPP;
 }
@@ -1008,8 +1002,8 @@ static ssize_t zbc_block_pwrite(struct zbc_device *dev, const void *buf,
 }
 
 static ssize_t zbc_block_pwritev(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt,
-					uint64_t offset)
+				 const struct iovec *iov, int iovcnt,
+				 uint64_t offset)
 {
 	return -EOPNOTSUPP;
 }
@@ -1032,7 +1026,7 @@ struct zbc_drv zbc_block_drv =
 	.zbd_pread		= zbc_block_pread,
 	.zbd_pwrite		= zbc_block_pwrite,
 	.zbd_preadv		= zbc_block_preadv,
-	.zbd_pwritev	= zbc_block_pwritev,
+	.zbd_pwritev		= zbc_block_pwritev,
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,

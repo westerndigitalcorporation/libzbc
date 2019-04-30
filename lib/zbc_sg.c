@@ -305,11 +305,11 @@ int zbc_sg_cmd_init(struct zbc_device *dev,
 }
 
 /**
- * Initialize a command
+ * Initialize a command for vector I/O.
  */
 int zbc_sg_cmd_initv(struct zbc_device *dev,
-			struct zbc_sg_cmd *cmd, int cmd_code,
-			struct iovec *iov, int iovcnt)
+		     struct zbc_sg_cmd *cmd, int cmd_code,
+		     struct iovec *iov, int iovcnt)
 {
 	size_t sz = iov_count(iov, iovcnt);
 
@@ -330,9 +330,9 @@ int zbc_sg_cmd_initv(struct zbc_device *dev,
 
 		/* Allocate a buffer */
 		if (posix_memalign((void **) &cmd->out_buf,
-					sysconf_pagesize(), sz) != 0) {
+				   sysconf_pagesize(), sz) != 0) {
 			zbc_error("No memory for command output buffer (%zu B)\n",
-					sz);
+				  sz);
 			return -ENOMEM;
 		}
 
@@ -341,6 +341,7 @@ int zbc_sg_cmd_initv(struct zbc_device *dev,
 
 		int i;
 		size_t offset = 0;
+
 		for (i = 0; i < iovcnt; i++) {
 			iov[i].iov_base = cmd->out_buf + offset;
 			offset += iov[i].iov_len;

@@ -904,40 +904,23 @@ static int zbc_scsi_close(struct zbc_device *dev)
 ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 		       size_t count, uint64_t offset)
 {
-	size_t sz = count << 9;
-	struct zbc_sg_cmd cmd;
-	ssize_t ret;
+	struct iovec iov;
 
-	/* READ 16 */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_READ, buf, sz);
-	if (ret != 0)
-		return ret;
+	iov.iov_base = buf;
+	iov.iov_len = count;
 
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_READ_CDB_OPCODE;
-	cmd.cdb[1] = 0x10;
-	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
-	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) >> 9;
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
+	return zbc_scsi_preadv(dev, &iov, 1, offset);
 }
 
 /**
  * Read from a ZBC device
  */
 ssize_t zbc_scsi_preadv(struct zbc_device *dev,
-				const struct iovec *iov, int iovcnt,
-				uint64_t offset)
+			const struct iovec *iov, int iovcnt,
+			uint64_t offset)
 {
 	size_t count = iov_count(iov, iovcnt);
-	size_t sz =  count << 9;
+	size_t sz = count << 9;
 	struct zbc_sg_cmd cmd;
 	struct iovec iov_xfr[iovcnt];
 	ssize_t ret;
@@ -969,40 +952,23 @@ ssize_t zbc_scsi_preadv(struct zbc_device *dev,
 /**
  * Write to a ZBC device
  */
-ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
+ssize_t zbc_scsi_pwrite(struct zbc_device *dev, void *buf,
 			size_t count, uint64_t offset)
 {
-	size_t sz = count << 9;
-	struct zbc_sg_cmd cmd;
-	ssize_t ret;
+	struct iovec iov;
 
-	/* WRITE 16 */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
-	if (ret != 0)
-		return ret;
+	iov.iov_base = buf;
+	iov.iov_len = count;
 
-	/* Fill command CDB */
-	cmd.cdb[0] = ZBC_SG_WRITE_CDB_OPCODE;
-	cmd.cdb[1] = 0x10;
-	zbc_sg_set_int64(&cmd.cdb[2], zbc_dev_sect2lba(dev, offset));
-	zbc_sg_set_int32(&cmd.cdb[10], zbc_dev_sect2lba(dev, count));
-
-	/* Send the SG_IO command */
-	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret == 0)
-		ret = (sz - cmd.io_hdr.resid) >> 9;
-
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
+	return zbc_scsi_pwritev(dev, &iov, 1, offset);
 }
 
 /**
  * Write to a ZBC device
  */
 ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt,
-					uint64_t offset)
+			 const struct iovec *iov, int iovcnt,
+			 uint64_t offset)
 {
 	size_t count = iov_count(iov, iovcnt);
 	size_t sz = count << 9;
@@ -1072,7 +1038,7 @@ struct zbc_drv zbc_scsi_drv =
 	.zbd_pread		= zbc_scsi_pread,
 	.zbd_pwrite		= zbc_scsi_pwrite,
 	.zbd_preadv		= zbc_scsi_preadv,
-	.zbd_pwritev	= zbc_scsi_pwritev,
+	.zbd_pwritev		= zbc_scsi_pwritev,
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,

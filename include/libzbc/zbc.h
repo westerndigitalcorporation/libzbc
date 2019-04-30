@@ -1077,7 +1077,7 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  * @param[in] count	Number of 512B sectors to write
  * @param[in] offset	Offset where to start writing (512B sector unit)
  *
- * This an the equivalent of the standard system call pwrite(2) that
+ * This is the equivalent of the standard system call pwrite(2) that
  * operates on a ZBC device handle, and uses 512B sector unit addressing
  * for the amount of data and the position on the device of the data to
  * write. On a host-aware device, any range of 512B sector is acceptable.
@@ -1093,7 +1093,7 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  * @return Any error returned by write(2) can be returned. On success,
  * the number of logical blocks written is returned.
  */
-extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
+extern ssize_t zbc_pwrite(struct zbc_device *dev, void *buf,
 			  size_t count, uint64_t offset);
 
 /**
@@ -1117,7 +1117,7 @@ extern ssize_t zbc_preadv(struct zbc_device *dev,
  * @brief Write sectors to a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied write buffers to write from.
- * 			Write buffer length is specified in 512B sectors
+ * 					Write buffer length is specified in 512B sectors
  * @param[in] iovcnt	Number of \a iov buffers
  * @param[in] offset	Offset where to start writing (512B sector unit)
  * 

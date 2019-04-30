@@ -25,6 +25,17 @@
 #include <fcntl.h>
 
 /**
+ * Prototypes
+ */
+static ssize_t zbc_ata_preadv(struct zbc_device *dev,
+			      const struct iovec *iov, int iovcnt,
+			      uint64_t offset);
+
+static ssize_t zbc_ata_pwritev(struct zbc_device *dev,
+			       const struct iovec *iov, int iovcnt,
+			       uint64_t offset);
+
+/**
  * Number of bytes in a Zone Descriptor.
  */
 #define ZBC_ZONE_DESCRIPTOR_LENGTH		64
@@ -589,41 +600,6 @@ static ssize_t zbc_ata_native_xfr_exec(struct zbc_device *dev,
  * Read from a ZAC device using READ DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
-				    size_t count, uint64_t offset)
-{
-	size_t sz = count << 9;
-	struct zbc_sg_cmd cmd;
-	ssize_t ret;
-
-	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pread(dev, buf, count, offset);
-
-	/* Check */
-	if (count > 65536) {
-		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
-			  dev->zbd_filename);
-		return -EINVAL;
-	}
-
-	/* Initialize the command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, sz);
-	if (ret != 0)
-		return ret;
-
-	/* Execute the command */
-	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_READ_DMA_EXT, count, offset);
-
-	/* Done */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Read from a ZAC device using READ DMA EXT packed
- * in an ATA PASSTHROUGH command.
- */
 static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
 					const struct iovec *iov, int iovcnt,
 					uint64_t offset)
@@ -663,18 +639,20 @@ static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
 static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
 			     size_t count, uint64_t offset)
 {
-	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pread(dev, buf, count, offset);
+	struct iovec iov;
 
-	return zbc_ata_native_pread(dev, buf, count, offset);
+	iov.iov_base = buf;
+	iov.iov_len = count;
+
+	return zbc_ata_preadv(dev, &iov, 1, offset);
 }
 
 /**
  * Read from a ZAC device.
  */
 static ssize_t zbc_ata_preadv(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt,
-					uint64_t offset)
+			      const struct iovec *iov, int iovcnt,
+			      uint64_t offset)
 {
 	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
 		return zbc_scsi_preadv(dev, iov, iovcnt, offset);
@@ -686,41 +664,9 @@ static ssize_t zbc_ata_preadv(struct zbc_device *dev,
  * Write to a ZAC device using WRITE DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
-				     size_t count, uint64_t offset)
-{
-	size_t sz = count << 9;
-	struct zbc_sg_cmd cmd;
-	ssize_t ret;
-
-	/* Check */
-	if (count > 65536) {
-		zbc_error("%s: Write operation too large (limited to 65536 x 512 B sectors)\n",
-			  dev->zbd_filename);
-		return -EINVAL;
-	}
-
-	/* Initialize the command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, (uint8_t *)buf, sz);
-	if (ret != 0)
-		return ret;
-
-	/* Execute the command */
-	ret = zbc_ata_native_xfr_exec(dev, &cmd, ZBC_ATA_WRITE_DMA_EXT, count, offset);
-
-	/* Done */
-	zbc_sg_cmd_destroy(&cmd);
-
-	return ret;
-}
-
-/**
- * Write to a ZAC device using WRITE DMA EXT packed
- * in an ATA PASSTHROUGH command.
- */
 static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
-					const struct iovec *iov, int iovcnt,
-					uint64_t offset)
+				      const struct iovec *iov, int iovcnt,
+				      uint64_t offset)
 {
 	uint64_t count = iov_count(iov, iovcnt);
 	struct zbc_sg_cmd cmd;
@@ -729,7 +675,7 @@ static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
 
 	/* Check */
 	if (count > 65536) {
-	zbc_error("%s: Write operation too large (limited to 65536 x 512 B sectors)\n",
+		zbc_error("%s: Write operation too large (limited to 65536 x 512 B sectors)\n",
 			  dev->zbd_filename);
 		return -EINVAL;
 	}
@@ -757,18 +703,20 @@ static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
 static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
 			      size_t count, uint64_t offset)
 {
-	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pwrite(dev, buf, count, offset);
+	struct iovec iov;
 
-	return zbc_ata_native_pwrite(dev, buf, count, offset);
+	iov.iov_base = buf;
+	iov.iov_len = count;
+
+	return zbc_ata_pwritev(dev, &iov, 1, offset);
 }
 
 /**
  * Write to a ZAC device.
  */
 static ssize_t zbc_ata_pwritev(struct zbc_device *dev,
-				const struct iovec *iov, int iovcnt,
-				uint64_t offset)
+			       const struct iovec *iov, int iovcnt,
+			       uint64_t offset)
 {
 	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
 		return zbc_scsi_pwritev(dev, iov, iovcnt, offset);
@@ -1506,7 +1454,7 @@ struct zbc_drv zbc_ata_drv =
 	.zbd_pread		= zbc_ata_pread,
 	.zbd_pwrite		= zbc_ata_pwrite,
 	.zbd_preadv		= zbc_ata_preadv,
-	.zbd_pwritev	= zbc_ata_pwritev,
+	.zbd_pwritev		= zbc_ata_pwritev,
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
