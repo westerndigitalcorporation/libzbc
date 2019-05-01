@@ -507,27 +507,27 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
  * Read from a ZAC device using READ DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
-				    size_t count, uint64_t offset)
+static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
+				     const struct iovec *iov, int iovcnt,
+				     uint64_t offset)
 {
+	size_t sz = zbc_iov_count(iov, iovcnt);
+	size_t count = sz >> 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
-	size_t sz = count << 9;
 	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
-	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pread(dev, buf, count, offset);
-
 	/* Check */
 	if (count > 65536) {
-		zbc_error("%s: Read operation too large (limited to 65536 x 512 B sectors)\n",
+		zbc_error("%s: Read operation too large "
+			  "(limited to 65536 x 512 B sectors)\n",
 			  dev->zbd_filename);
 		return -EINVAL;
 	}
 
 	/* Initialize the command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, sz);
+	ret = zbc_sg_vcmd_init(dev, &cmd, ZBC_SG_ATA16, iov, iovcnt);
 	if (ret != 0)
 		return ret;
 
@@ -603,25 +603,28 @@ static ssize_t zbc_ata_native_pread(struct zbc_device *dev, void *buf,
 }
 
 /**
- * Read from a ZAC device.
+ * Vector read from a ZAC device.
  */
-static ssize_t zbc_ata_pread(struct zbc_device *dev, void *buf,
-			     size_t count, uint64_t offset)
+static ssize_t zbc_ata_preadv(struct zbc_device *dev,
+			      const struct iovec *iov, int iovcnt,
+			      uint64_t offset)
 {
 	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pread(dev, buf, count, offset);
+		return zbc_scsi_preadv(dev, iov, iovcnt, offset);
 
-	return zbc_ata_native_pread(dev, buf, count, offset);
+	return zbc_ata_native_preadv(dev, iov, iovcnt, offset);
 }
 
 /**
  * Write to a ZAC device using WRITE DMA EXT packed
  * in an ATA PASSTHROUGH command.
  */
-static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
-				     size_t count, uint64_t offset)
+static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
+				      const struct iovec *iov, int iovcnt,
+				      uint64_t offset)
 {
-	size_t sz = count << 9;
+	size_t sz = zbc_iov_count(iov, iovcnt);
+	size_t count = sz >> 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
 	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
 	struct zbc_sg_cmd cmd;
@@ -635,7 +638,7 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 	}
 
 	/* Initialize the command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, (uint8_t *)buf, sz);
+	ret = zbc_sg_vcmd_init(dev, &cmd, ZBC_SG_ATA16, iov, iovcnt);
 	if (ret != 0)
 		return ret;
 
@@ -711,15 +714,16 @@ static ssize_t zbc_ata_native_pwrite(struct zbc_device *dev, const void *buf,
 }
 
 /**
- * Write to a ZAC device.
+ * Vector write to a ZAC device.
  */
-static ssize_t zbc_ata_pwrite(struct zbc_device *dev, const void *buf,
-			      size_t count, uint64_t offset)
+static ssize_t zbc_ata_pwritev(struct zbc_device *dev,
+			       const struct iovec *iov, int iovcnt,
+			       uint64_t offset)
 {
 	if (dev->zbd_drv_flags & ZBC_ATA_USE_SBC)
-		return zbc_scsi_pwrite(dev, buf, count, offset);
+		return zbc_scsi_pwritev(dev, iov, iovcnt, offset);
 
-	return zbc_ata_native_pwrite(dev, buf, count, offset);
+	return zbc_ata_native_pwritev(dev, iov, iovcnt, offset);
 }
 
 /**
@@ -1290,12 +1294,13 @@ static int zbc_ata_get_capacity(struct zbc_device *dev)
 static void zbc_ata_test_sbc_sat(struct zbc_device *dev)
 {
 	char buf[4096];
+	struct iovec iov = { buf, sizeof(buf) >> 9 };
 	int ret;
 
-	ret = zbc_scsi_pread(dev, buf, 8, 0);
+	ret = zbc_scsi_preadv(dev, &iov, 1, 0);
 	if (ret == 8) {
 		dev->zbd_drv_flags |= ZBC_ATA_USE_SBC;
-		zbc_error("%s: Using SCSI commands for read/write/flush operations\n",
+		zbc_debug("%s: Using SCSI commands for read/write/flush\n",
 			  dev->zbd_filename);
 	}
 }
@@ -1450,8 +1455,8 @@ struct zbc_drv zbc_ata_drv =
 	.flag			= ZBC_O_DRV_ATA,
 	.zbd_open		= zbc_ata_open,
 	.zbd_close		= zbc_ata_close,
-	.zbd_pread		= zbc_ata_pread,
-	.zbd_pwrite		= zbc_ata_pwrite,
+	.zbd_preadv		= zbc_ata_preadv,
+	.zbd_pwritev		= zbc_ata_pwritev,
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,

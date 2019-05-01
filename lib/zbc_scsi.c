@@ -900,17 +900,18 @@ static int zbc_scsi_close(struct zbc_device *dev)
 }
 
 /**
- * Read from a ZBC device
+ * Vector read from a ZBC device
  */
-ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
-		       size_t count, uint64_t offset)
+ssize_t zbc_scsi_preadv(struct zbc_device *dev,
+		        const struct iovec *iov, int iovcnt, uint64_t offset)
 {
-	size_t sz = count << 9;
+	size_t sz = zbc_iov_count(iov, iovcnt);
+	size_t count = sz >> 9;
 	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
 	/* READ 16 */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_READ, buf, sz);
+	ret = zbc_sg_vcmd_init(dev, &cmd, ZBC_SG_READ, iov, iovcnt);
 	if (ret != 0)
 		return ret;
 
@@ -933,15 +934,16 @@ ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
 /**
  * Write to a ZBC device
  */
-ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
-			size_t count, uint64_t offset)
+ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
+		         const struct iovec *iov, int iovcnt, uint64_t offset)
 {
-	size_t sz = count << 9;
+	size_t sz = zbc_iov_count(iov, iovcnt);
+	size_t count = sz >> 9;
 	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
 	/* WRITE 16 */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_WRITE, (uint8_t *)buf, sz);
+	ret = zbc_sg_vcmd_init(dev, &cmd, ZBC_SG_WRITE, iov, iovcnt);
 	if (ret != 0)
 		return ret;
 
@@ -996,8 +998,8 @@ struct zbc_drv zbc_scsi_drv =
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,
-	.zbd_pread		= zbc_scsi_pread,
-	.zbd_pwrite		= zbc_scsi_pwrite,
+	.zbd_preadv		= zbc_scsi_preadv,
+	.zbd_pwritev		= zbc_scsi_pwritev,
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,

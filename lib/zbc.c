@@ -17,6 +17,8 @@
 #include "zbc.h"
 
 #include <string.h>
+#include <limits.h>
+#include <assert.h>
 
 /*
  * Log level.
@@ -592,14 +594,56 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
- * zbc_pread - Read sectors form a device
+ * Convert vector buffer sizes to bytes for the vector
+ * range between @offset and @offset +@size.
  */
-ssize_t zbc_pread(struct zbc_device *dev, void *buf,
-		  size_t count, uint64_t offset)
+static int zbc_iov_convert(struct iovec *_iov, const struct iovec *iov,
+			   int iovcnt, size_t sector_offset, size_t sectors)
+{
+	size_t size = sectors << 9;
+	size_t offset = sector_offset << 9;
+	size_t length, count = 0;
+        int i, j = 0;
+
+	for (i = 0; i < iovcnt && count < size; i++) {
+
+		length = iov[i].iov_len << 9;
+		if (offset >= length) {
+			offset -= length;
+			continue;
+		}
+
+		_iov[j].iov_base = iov[i].iov_base + offset;
+		length -= offset;
+		offset = 0;
+
+		if (count + length > size)
+			length = size - count;
+		_iov[j].iov_len = length;
+		count += length;
+		j++;
+
+	}
+
+	return j;
+}
+
+/**
+ * zbc_do_preadv - Execute a vector read
+ */
+static ssize_t zbc_do_preadv(struct zbc_device *dev,
+			     const struct iovec *iov, int iovcnt,
+			     uint64_t offset)
 {
 	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
-	size_t sz, rd_count = 0;
+	size_t count = zbc_iov_count(iov, iovcnt);
+	struct iovec rd_iov[iovcnt];
+	size_t rd_iov_count = 0, rd_iov_offset = 0;
+	int rd_iovcnt;
 	ssize_t ret;
+
+	if (count << 9 > SSIZE_MAX)
+		return -EINVAL;
 
 	if (zbc_test_mode(dev)) {
 		if (!count) {
@@ -611,7 +655,8 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 	} else {
 		if (!zbc_dev_sect_laligned(dev, count) ||
 		    !zbc_dev_sect_laligned(dev, offset)) {
-			zbc_error("%s: Unaligned read %zu sectors at sector %llu\n",
+			zbc_error("%s: Unaligned read %zu sectors at "
+				  "sector %llu\n",
 				  dev->zbd_filename,
 				  count, (unsigned long long) offset);
 			return -EINVAL;
@@ -623,14 +668,16 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 			return 0;
 	}
 
-	zbc_debug("%s: Read %zu sectors at sector %llu\n",
+	zbc_debug("%s: Read %zu sectors at sector %llu, %d vectors\n",
 		  dev->zbd_filename,
-		  count, (unsigned long long) offset);
+		  count, (unsigned long long) offset, iovcnt);
 
 	if (zbc_test_mode(dev) && count == 0) {
-		ret = (dev->zbd_drv->zbd_pread)(dev, buf, count, offset);
+		zbc_iov_convert(rd_iov, iov, iovcnt, 0, count);
+		ret = (dev->zbd_drv->zbd_preadv)(dev, rd_iov, iovcnt, offset);
 		if (ret < 0) {
-			zbc_error("%s: read of zero sectors at sector %llu failed %ld (%s)\n",
+			zbc_error("%s: read of zero sectors at sector %llu "
+				  "failed %ld (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) offset,
 				  -ret, strerror(-ret));
@@ -638,41 +685,73 @@ ssize_t zbc_pread(struct zbc_device *dev, void *buf,
 		return ret;
 	}
 
-	while (count) {
+	while (rd_iov_offset < count) {
 
-		if (count > max_count)
-			sz = max_count;
-		else
-			sz = count;
+		rd_iov_count = count - rd_iov_offset;
+		if (rd_iov_count > max_count)
+			rd_iov_count = max_count;
 
-		ret = (dev->zbd_drv->zbd_pread)(dev, buf, sz, offset);
+		rd_iovcnt = zbc_iov_convert(rd_iov, iov, iovcnt,
+					    rd_iov_offset, rd_iov_count);
+
+		ret = (dev->zbd_drv->zbd_preadv)(dev, rd_iov, rd_iovcnt,
+						 offset);
 		if (ret <= 0) {
-			zbc_error("%s: Read %zu sectors at sector %llu failed %zd (%s)\n",
+			zbc_error("%s: Read %zu sectors at sector %llu "
+				  "failed %zd (%s)\n",
 				  dev->zbd_filename,
-				  sz, (unsigned long long) offset,
+				  rd_iov_count, (unsigned long long) offset,
 				  -ret, strerror(-ret));
 			return ret ? ret : -EIO;
 		}
 
-		buf += ret << 9;
 		offset += ret;
-		count -= ret;
-		rd_count += ret;
+		rd_iov_offset += ret;
 
 	}
 
-	return rd_count;
+	return count;
 }
 
 /**
- * zbc_pwrite - Write sectors to a device
+ * zbc_pread - Read sectors from a device
  */
-ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
-		   size_t count, uint64_t offset)
+ssize_t zbc_pread(struct zbc_device *dev, void *buf, size_t count,
+		  uint64_t offset)
+{
+	const struct iovec iov = { buf, count };
+
+	return zbc_do_preadv(dev, &iov, 1, offset);
+}
+
+/**
+ * zbc_preadv - Vector read sectors from a device
+ */
+ssize_t zbc_preadv(struct zbc_device *dev,
+		   const struct iovec *iov, int iovcnt, uint64_t offset)
+{
+	if (!iov || iovcnt <= 0)
+		return -EINVAL;
+
+	return zbc_do_preadv(dev, iov, iovcnt, offset);
+}
+
+/**
+ * zbc_do_pwritev - Execute a vector write
+ */
+static ssize_t zbc_do_pwritev(struct zbc_device *dev,
+			      const struct iovec *iov, int iovcnt,
+			      uint64_t offset)
 {
 	size_t max_count = dev->zbd_info.zbd_max_rw_sectors;
-	size_t sz, wr_count = 0;
+	size_t count = zbc_iov_count(iov, iovcnt);
+	struct iovec wr_iov[iovcnt];
+	size_t wr_iov_count = 0, wr_iov_offset = 0;
+	int wr_iovcnt;
 	ssize_t ret;
+
+	if (count << 9 > SSIZE_MAX)
+		return -EINVAL;
 
 	if (zbc_test_mode(dev)) {
 		if (!count) {
@@ -684,7 +763,8 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 	} else {
 		if (!zbc_dev_sect_paligned(dev, count) ||
 		    !zbc_dev_sect_paligned(dev, offset)) {
-			zbc_error("%s: Unaligned write %zu sectors at sector %llu\n",
+			zbc_error("%s: Unaligned write %zu sectors at "
+				  "sector %llu\n",
 				  dev->zbd_filename,
 				  count, (unsigned long long) offset);
 			return -EINVAL;
@@ -696,14 +776,16 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			return 0;
 	}
 
-	zbc_debug("%s: Write %zu sectors at sector %llu\n",
+	zbc_debug("%s: Write %zu sectors at sector %llu, %d vectors\n",
 		  dev->zbd_filename,
-		  count, (unsigned long long) offset);
+		  count, (unsigned long long) offset, iovcnt);
 
 	if (zbc_test_mode(dev) && count == 0) {
-		ret = (dev->zbd_drv->zbd_pwrite)(dev, buf, count, offset);
+		zbc_iov_convert(wr_iov, iov, iovcnt, 0, count);
+		ret = (dev->zbd_drv->zbd_pwritev)(dev, wr_iov, iovcnt, offset);
 		if (ret < 0) {
-			zbc_error("%s: Write of zero sectors at sector %llu failed %ld (%s)\n",
+			zbc_error("%s: Write of zero sectors at sector %llu "
+				  "failed %ld (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) offset,
 				  -ret, strerror(-ret));
@@ -711,30 +793,86 @@ ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 		return ret;
 	}
 
-	while (count) {
+	while (wr_iov_offset < count) {
 
-		if (count > max_count)
-			sz = max_count;
-		else
-			sz = count;
+		wr_iov_count = count - wr_iov_offset;
+		if (wr_iov_count > max_count)
+			wr_iov_count = max_count;
 
-		ret = (dev->zbd_drv->zbd_pwrite)(dev, buf, sz, offset);
+		wr_iovcnt = zbc_iov_convert(wr_iov, iov, iovcnt,
+					    wr_iov_offset, wr_iov_count);
+
+		ret = (dev->zbd_drv->zbd_pwritev)(dev, wr_iov, wr_iovcnt,
+						  offset);
 		if (ret <= 0) {
-			zbc_error("%s: Write %zu sectors at sector %llu failed %zd (%s)\n",
+			zbc_error("%s: Write %zu sectors at sector %llu failed "
+				  "%zd (%s)\n",
 				  dev->zbd_filename,
-				  sz, (unsigned long long) offset,
+				  wr_iov_count, (unsigned long long) offset,
 				  -ret, strerror(-ret));
 			return ret ? ret : -EIO;
 		}
 
-		buf += ret << 9;
 		offset += ret;
-		count -= ret;
-		wr_count += ret;
+		wr_iov_offset += ret;
 
 	}
 
-	return wr_count;
+	return count;
+}
+
+/**
+ * zbc_pwrite - Write sectors form a device
+ */
+ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf, size_t count,
+		   uint64_t offset)
+{
+	const struct iovec iov = { (void *)buf, count };
+
+	return zbc_do_pwritev(dev, &iov, 1, offset);
+}
+
+/**
+ * zbc_pwritev - Vector write sectors form a device
+ */
+ssize_t zbc_pwritev(struct zbc_device *dev, const struct iovec *iov, int iovcnt,
+		    uint64_t offset)
+{
+	if (!iov || iovcnt <= 0)
+		return -EINVAL;
+
+	return zbc_do_pwritev(dev, iov, iovcnt, offset);
+}
+
+/**
+ * zbc_map_iov - Map a buffer to an IOV
+ */
+int zbc_map_iov(const void *buf, size_t sectors,
+		struct iovec *iov, int iovcnt, size_t iovlen)
+{
+	size_t len;
+	int i = 0;
+
+	if (!buf || !sectors || !iov || iovcnt <= 0 ||
+	    sectors > iovcnt * iovlen)
+		return -EINVAL;
+
+	while (sectors) {
+
+		if (sectors > iovlen)
+			len = iovlen;
+		else
+			len = sectors;
+
+		iov[i].iov_base = (void*)buf;
+		iov[i].iov_len = len;
+
+		buf += len << 9;
+		sectors -= len;
+		i++;
+	}
+
+	return i;
 }
 
 /**
@@ -764,7 +902,7 @@ int zbc_set_zones(struct zbc_device *dev,
 }
 
 /**
- * zbc_set_write_pointer - Change the value of a zone write pointer
+ * zbc_set_write_pointer - Change an emulated device zone write pointers
  */
 int zbc_set_write_pointer(struct zbc_device *dev,
 			  uint64_t sector, uint64_t wp_sector)

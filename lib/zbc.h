@@ -26,7 +26,6 @@
 #include <sys/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
-#include <sys/uio.h>
 
 /**
  * Backend driver descriptor.
@@ -62,16 +61,16 @@ struct zbc_drv {
 				       enum zbc_zone_op, unsigned int);
 
 	/**
-	 * Read from a ZBC device
+	 * Vector read from a ZBC device.
 	 */
-	ssize_t		(*zbd_pread)(struct zbc_device *, void *,
-				     size_t, uint64_t);
+	ssize_t		(*zbd_preadv)(struct zbc_device *,
+				      const struct iovec *, int, uint64_t);
 
 	/**
-	 * Write to a ZBC device
+	 * Vector write to a ZBC device.
 	 */
-	ssize_t		(*zbd_pwrite)(struct zbc_device *, const void *,
-				      size_t, uint64_t);
+	ssize_t		(*zbd_pwritev)(struct zbc_device *,
+				       const struct iovec *, int, uint64_t);
 
 	/**
 	 * Flush to a ZBC device cache.
@@ -227,9 +226,6 @@ static inline size_t zbc_iov_count(const struct iovec *iov, int iovcnt)
 	size_t count = 0;
 	int i;
 
-	if (!iov || !iovcnt)
-		return 0;
-
 	for (i = 0; i < iovcnt; i++)
 		count += iov[i].iov_len;
 
@@ -247,10 +243,10 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_sector,
 /**
  * The ATA backend driver may use the SCSI backend I/O functions.
  */
-ssize_t zbc_scsi_pread(struct zbc_device *dev, void *buf,
-		       size_t count, uint64_t offset);
-ssize_t zbc_scsi_pwrite(struct zbc_device *dev, const void *buf,
-			size_t count, uint64_t offset);
+ssize_t zbc_scsi_preadv(struct zbc_device *dev,
+			const struct iovec *iov, int iovcnt, uint64_t offset);
+ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
+			 const struct iovec *iov, int iovcnt, uint64_t offset);
 int zbc_scsi_flush(struct zbc_device *dev);
 
 /**

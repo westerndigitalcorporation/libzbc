@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/uio.h>
 
 /**
  * @mainpage
@@ -1094,6 +1095,59 @@ extern ssize_t zbc_pread(struct zbc_device *dev, void *buf,
  */
 extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			  size_t count, uint64_t offset);
+
+/**
+ * @brief Read sectors from a device using mutliple buffers
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] iov	Caller supplied read buffers to read into.
+ *			Read buffer length is specified in 512B sectors
+ * @param[in] iovcnt	Number of \a iov buffers
+ * @param[in] offset	Offset where to start reading (512B sector unit)
+ *
+ * This is the equivalent of the standard system call preadv(2) and
+ * behaves otherwise as described in \a zbc_pread. The call reads
+ * \a iovcnt buffers from the file associated with \a zbc_open into
+ * the buffers described by \a iov ("scatter input").
+ */
+extern ssize_t zbc_preadv(struct zbc_device *dev,
+			  const struct iovec *iov, int iovcnt,
+			  uint64_t offset);
+
+/**
+ * @brief Write sectors to a device unsig multiple buffers
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] iov	Caller supplied write buffers to write from.
+ *			Write buffer length is specified in 512B sectors
+ * @param[in] iovcnt	Number of \a iov buffers
+ * @param[in] offset	Offset where to start writing (512B sector unit)
+ *
+ * This is the equivalent of the standard system call pwritev(2) and
+ * behaves otherwise as described in \a zbc_pwrite. The call writes
+ * \a iovcnt buffers from the file associated with \a zbc_open from
+ * the buffers described by \a iov ("gather output").
+ */
+extern ssize_t zbc_pwritev(struct zbc_device *dev,
+			   const struct iovec *iov, int iovcnt,
+			   uint64_t offset);
+
+/**
+ * @brief Map a buffer to an I/O vector
+ * @param[in] buf	Data buffer to map
+ * @param[in] sectors	Size of \a buf in 512B sectors unit
+ * @param[in] iov	Array of I/O vectors to which \a buf will be mapped
+ * @param[in] iovcnt	The maximum number of entries in the \a iov array
+ * @param[in] iovlen	The maximum size of a single I/O vector entry in 512B
+ * 			sectors.
+ *
+ * Map the buffer \a buf to a set of I/O vectors of size \a iovlen.
+ * This is a utility function that is called by libzbc tools and test
+ * programs. It can be handy to library users as well.
+ *
+ * @return the number of I/O vectors mapped or a negative error code
+ * in case of error
+ */
+extern int zbc_map_iov(const void *buf, size_t sectors,
+		       struct iovec *iov, int iovcnt, size_t iovlen);
 
 /**
  * @brief Flush a device write cache

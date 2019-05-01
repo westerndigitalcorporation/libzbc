@@ -886,13 +886,13 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 /**
  * Read from the block device.
  */
-static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
-			       size_t count, uint64_t offset)
+static ssize_t zbc_block_preadv(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+			        uint64_t offset)
 {
 	ssize_t ret;
 
-	/* Read */
-	ret = pread(dev->zbd_fd, buf, count << 9, offset << 9);
+	ret = preadv(dev->zbd_fd, iov, iovcnt, offset << 9);
 	if (ret < 0)
 		return -errno;
 
@@ -902,15 +902,13 @@ static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
 /**
  * Write to the block device.
  */
-static ssize_t zbc_block_pwrite(struct zbc_device *dev,
-				const void *buf,
-				size_t count,
-				uint64_t offset)
+static ssize_t zbc_block_pwritev(struct zbc_device *dev,
+				 const struct iovec *iov, int iovcnt,
+			         uint64_t offset)
 {
 	ssize_t ret;
 
-	/* Read */
-	ret = pwrite(dev->zbd_fd, buf, count << 9, offset << 9);
+	ret = pwritev(dev->zbd_fd, iov, iovcnt, offset << 9);
 	if (ret < 0)
 		return -errno;
 
@@ -941,14 +939,16 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
-static ssize_t zbc_block_pread(struct zbc_device *dev, void *buf,
-			       size_t count, uint64_t offset)
+static ssize_t zbc_block_preadv(struct zbc_device *dev,
+				const struct iovec *iov, int iovcnt,
+				uint64_t offset)
 {
 	return -EOPNOTSUPP;
 }
 
-static ssize_t zbc_block_pwrite(struct zbc_device *dev, const void *buf,
-			       size_t count, uint64_t offset)
+static ssize_t zbc_block_pwritev(struct zbc_device *dev,
+				 const struct iovec *iov, int iovcnt,
+				 uint64_t offset)
 {
 	return -EOPNOTSUPP;
 }
@@ -968,8 +968,8 @@ struct zbc_drv zbc_block_drv =
 	.flag			= ZBC_O_DRV_BLOCK,
 	.zbd_open		= zbc_block_open,
 	.zbd_close		= zbc_block_close,
-	.zbd_pread		= zbc_block_pread,
-	.zbd_pwrite		= zbc_block_pwrite,
+	.zbd_preadv		= zbc_block_preadv,
+	.zbd_pwritev		= zbc_block_pwritev,
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
