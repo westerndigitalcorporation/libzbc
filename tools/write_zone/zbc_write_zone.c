@@ -65,10 +65,9 @@ int main(int argc, char **argv)
 	unsigned long long bcount = 0;
 	unsigned long long fsize, brate;
 	struct stat st;
-	int zidx;
-	int fd = -1, i;
+	int zidx, fd = -1, i;
 	ssize_t ret = 1;
-	size_t iosize, ioalign;
+	size_t bufsize, iosize, ioalign;
 	void *iobuf = NULL;
 	ssize_t sector_count = 0;
 	unsigned long long iocount = 0, ionum = 0;
@@ -77,12 +76,15 @@ int main(int argc, char **argv)
 	unsigned int nr_zones;
 	char *path, *file = NULL;
 	long long sector_ofst = 0;
-	long long sector_max_ofst;
-	bool flush = false, floop = false;
+	long long sector_max = 0;
+	long long zone_ofst = 0;
+	bool flush = false, floop = false, vio = false;
 	int flags = O_WRONLY;
+	struct iovec *iov = NULL;
+	int iovcnt = 1, n;
 
 	/* Check command line */
-	if ( argc < 4 ) {
+	if (argc < 4) {
 usage:
 		printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
 		       "  Write into a zone from the current zone write pointer\n"
@@ -92,6 +94,9 @@ usage:
 		       "    -v         : Verbose mode\n"
 		       "    -s         : (sync) Run zbc_flush after writing\n"
 		       "    -dio       : Use direct I/Os\n"
+		       "    -vio <num> : Use vectored I/Os with <num> buffers\n"
+		       "                 of <I/O size> bytes, resulting in effective\n"
+		       "                 I/O size of <num> x <I/O size> B\n"
 		       "    -nio <num> : Limit the number of I/O executed to <num>\n"
 		       "    -f <file>  : Write the content of <file>\n"
 		       "    -loop      : If a file is specified, repeatedly write the\n"
@@ -115,6 +120,20 @@ usage:
 		} else if (strcmp(argv[i], "-s") == 0) {
 
 			flush = true;
+
+		} else if (strcmp(argv[i], "-vio") == 0) {
+
+			if (i >= (argc - 1))
+				goto usage;
+			i++;
+
+			iovcnt = atoi(argv[i]);
+			if (iovcnt <= 0) {
+				fprintf(stderr,
+					"Invalid number of VIO buffers\n");
+				return 1;
+			}
+			vio = true;
 
 		} else if (strcmp(argv[i], "-nio") == 0) {
 
@@ -146,9 +165,9 @@ usage:
 				goto usage;
 			i++;
 
-			sector_ofst = atoll(argv[i]);
-			if (sector_ofst < 0) {
-				fprintf(stderr, "Invalid sector offset\n");
+			zone_ofst = atoll(argv[i]);
+			if (zone_ofst < 0) {
+				fprintf(stderr, "Invalid zone sector offset\n");
 				return 1;
 			}
 
@@ -173,17 +192,14 @@ usage:
 
 	zidx = atoi(argv[i + 1]);
 	if (zidx < 0) {
-		fprintf(stderr,
-			"Invalid zone number %s\n",
+		fprintf(stderr, "Invalid zone number %s\n",
 			argv[i + 1]);
 		return 1;
 	}
 
-	iosize = atol(argv[i + 2]);
-	if (!iosize) {
-		fprintf(stderr,
-			"Invalid I/O size %s\n",
-			argv[i + 2]);
+	bufsize = atol(argv[i + 2]);
+	if (!bufsize) {
+		fprintf(stderr, "Invalid I/O size %s\n", argv[i + 2]);
 		return 1;
 	}
 
@@ -250,18 +266,28 @@ usage:
 		       zbc_zone_wp(iozone));
 
 	/* Check I/O alignment and get an I/O buffer */
-	if ( zbc_zone_sequential_req(iozone) )
+	if (zbc_zone_sequential_req(iozone))
 		ioalign = info.zbd_pblock_size;
 	else
 		ioalign = info.zbd_lblock_size;
-	if (iosize % ioalign) {
+	if (bufsize % ioalign) {
 		fprintf(stderr,
 			"Invalid I/O size %zu (must be aligned on %zu)\n",
-			iosize, ioalign);
+			bufsize, ioalign);
 		ret = 1;
 		goto out;
 	}
 
+	if (vio) {
+		iov = calloc(iovcnt, sizeof(struct iovec));
+		if (!iov) {
+			fprintf(stderr, "No memory for I/O vector\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
+	iosize = bufsize * iovcnt;
 	ret = posix_memalign((void **) &iobuf, sysconf(_SC_PAGESIZE), iosize);
 	if (ret != 0) {
 		fprintf(stderr, "No memory for I/O buffer (%zu B)\n", iosize);
@@ -308,7 +334,7 @@ usage:
 			goto out;
 		}
 
-		printf("Writting file \"%s\" (%llu B) to target zone %d, %zu B I/Os\n",
+		printf("Writing file \"%s\" (%llu B) to target zone %d, %zu B I/Os\n",
 		       file, fsize, zidx, iosize);
 
 	} else if (!ionum) {
@@ -318,15 +344,15 @@ usage:
 
 	} else {
 
-		printf("Writting to target zone %d, %llu I/Os of %zu B\n",
+		printf("Writing to target zone %d, %llu I/Os of %zu B\n",
 		       zidx, ionum, iosize);
 
 	}
 
-	sector_max_ofst = zbc_zone_start(iozone) + zbc_zone_length(iozone);
+	sector_max = zbc_zone_start(iozone) + zbc_zone_length(iozone);
 	if (zbc_zone_sequential(iozone)) {
 		if (zbc_zone_full(iozone))
-			sector_ofst = sector_max_ofst;
+			sector_ofst = sector_max;
 		else
 			sector_ofst = zbc_zone_wp(iozone);
 	}
@@ -341,7 +367,7 @@ usage:
 
 			/* Read file */
 			ret = read(fd, iobuf, iosize);
-			if ( ret < 0 ) {
+			if (ret < 0) {
 				fprintf(stderr, "Read file \"%s\" failed %d (%s)\n",
 					file,
 					errno,
@@ -381,29 +407,42 @@ usage:
 			sector_count = 0;
 		else
 			sector_count = iosize >> 9;
-		if (sector_ofst + sector_count > sector_max_ofst)
-			sector_count = sector_max_ofst - sector_ofst;
+		if (zone_ofst + sector_count > sector_max)
+			sector_count = sector_max - zone_ofst;
+		sector_ofst = zbc_zone_start(iozone) + zone_ofst;
 		if (!sector_count)
 			break;
 
 		/* Write to zone */
-		ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
-		if ( ret > 0 ) {
+		if (vio) {
+			n = zbc_map_iov(iobuf, sector_count,
+					iov, iovcnt, bufsize >> 9);
+			if (n < 0) {
+				fprintf(stderr, "iov map failed %d (%s)\n",
+					-n, strerror(-n));
+				ret = 1;
+				goto out;
+			}
+			ret = zbc_pwritev(dev, iov, n, sector_ofst);
+		} else {
+			ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
+		}
+		if (ret > 0) {
 			sector_ofst += ret;
 		} else {
-			fprintf(stderr, "zbc_pwrite failed %zd (%s)\n",
-				-ret,
-				strerror(-ret));
+			fprintf(stderr, "%s failed %zd (%s)\n",
+				vio ? "zbc_pwritev" : "zbc_pwrite",
+				-ret, strerror(-ret));
 			ret = 1;
-			break;
+			goto out;
 		}
 
+		zone_ofst += sector_count;
 		bcount += ret << 9;
 		iocount++;
 
 		if (ionum > 0 && iocount >= ionum)
 			break;
-
 	}
 
 	if (flush) {
@@ -440,10 +479,9 @@ out:
 	if (fd > 0)
 		close(fd);
 	zbc_close(dev);
-	if (iobuf)
-		free(iobuf);
-	if (zones)
-		free(zones);
+	free(iobuf);
+	free(zones);
+	free(iov);
 
 	return ret;
 }
