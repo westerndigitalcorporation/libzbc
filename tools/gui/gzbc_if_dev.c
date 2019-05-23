@@ -260,7 +260,7 @@ dz_dev_t *dz_if_dev_open(char *path)
 	gtk_widget_show(hbox);
 	gtk_container_add(GTK_CONTAINER(button), hbox);
 
-	image = gtk_image_new_from_icon_name("gtk-refresh", GTK_ICON_SIZE_BUTTON);
+	image = gtk_image_new_from_icon_name("view-refresh", GTK_ICON_SIZE_BUTTON);
 	gtk_widget_show(image);
 	gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
@@ -533,7 +533,7 @@ dz_dev_t *dz_if_dev_open(char *path)
 	gtk_widget_show(hbox);
 	gtk_container_add(GTK_CONTAINER(button), hbox);
 
-	image = gtk_image_new_from_icon_name("gtk-close", GTK_ICON_SIZE_BUTTON);
+	image = gtk_image_new_from_icon_name("window-close", GTK_ICON_SIZE_BUTTON);
 	gtk_widget_show(image);
 	gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
@@ -555,7 +555,7 @@ dz_dev_t *dz_if_dev_open(char *path)
 	gtk_widget_show(hbox);
 	gtk_container_add(GTK_CONTAINER(button), hbox);
 
-	image = gtk_image_new_from_icon_name("gtk-goto-last", GTK_ICON_SIZE_BUTTON);
+	image = gtk_image_new_from_icon_name("go-last", GTK_ICON_SIZE_BUTTON);
 	gtk_widget_show(image);
 	gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 
@@ -577,7 +577,7 @@ dz_dev_t *dz_if_dev_open(char *path)
 	gtk_widget_show(hbox);
 	gtk_container_add(GTK_CONTAINER(button), hbox);
 
-	image = gtk_image_new_from_icon_name("gtk-clear", GTK_ICON_SIZE_BUTTON);
+	image = gtk_image_new_from_icon_name("go-first", GTK_ICON_SIZE_BUTTON);
 	gtk_widget_show(image);
 	gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 

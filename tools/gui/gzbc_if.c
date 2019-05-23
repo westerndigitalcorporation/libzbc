@@ -68,7 +68,7 @@ void dz_if_create(void)
 	gtk_box_pack_start(GTK_BOX(dz.vbox), toolbar, FALSE, FALSE, 0);
 
 	/* Toolbar open button */
-	ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-open",
+	ti = gtk_tool_button_new(gtk_image_new_from_icon_name("document-open",
 					GTK_ICON_SIZE_LARGE_TOOLBAR), "Open");
 	gtk_tool_item_set_tooltip_text(ti, "Open a device");
 	gtk_tool_item_set_is_important(ti, TRUE);
@@ -77,7 +77,7 @@ void dz_if_create(void)
 			 G_CALLBACK(dz_if_open_cb), NULL);
 
 	/* Toolbar close button */
-	ti = gtk_tool_button_new(gtk_image_new_from_icon_name("gtk-close",
+	ti = gtk_tool_button_new(gtk_image_new_from_icon_name("window-close",
 					GTK_ICON_SIZE_LARGE_TOOLBAR), "Close");
 	gtk_tool_item_set_tooltip_text(ti, "Close current device");
 	gtk_tool_item_set_is_important(ti, TRUE);
@@ -166,7 +166,7 @@ void dz_if_add_device(char *dev_path)
 	gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-	button = gtk_button_new_from_icon_name("gtk-close", GTK_ICON_SIZE_BUTTON);
+	button = gtk_button_new_from_icon_name("window-close", GTK_ICON_SIZE_BUTTON);
 	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
 	g_signal_connect((gpointer) button, "clicked",
 			 G_CALLBACK(dz_if_close_page_cb), dzd);
