@@ -103,6 +103,7 @@ static int zbc_block_is_scsi_dev(const char *zbd_filename)
 			break;
 		}
 		res = dir_has(path, zbd_filename + 5);
+		free(path);
 		if (res > 0)
 			break;
 	}
