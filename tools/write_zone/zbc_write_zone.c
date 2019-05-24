@@ -74,11 +74,12 @@ int main(int argc, char **argv)
 	struct zbc_zone *zones = NULL;
 	struct zbc_zone *iozone = NULL;
 	unsigned int nr_zones;
-	char *path, *file = NULL;
+	char *path, *file = NULL, *end;
 	long long sector_ofst = 0;
 	long long sector_max = 0;
 	long long zone_ofst = 0;
 	bool flush = false, floop = false, vio = false;
+	unsigned long pattern = 0;
 	int flags = O_WRONLY;
 	struct iovec *iov = NULL;
 	int iovcnt = 1, n;
@@ -97,6 +98,8 @@ usage:
 		       "    -vio <num> : Use vectored I/Os with <num> buffers\n"
 		       "                 of <I/O size> bytes, resulting in effective\n"
 		       "                 I/O size of <num> x <I/O size> B\n"
+		       "    -p <num>   : Set the byte pattern to write. If this option\n"
+		       "                 is omitted, write data buffer is zeroed out\n"
 		       "    -nio <num> : Limit the number of I/O executed to <num>\n"
 		       "    -f <file>  : Write the content of <file>\n"
 		       "    -loop      : If a file is specified, repeatedly write the\n"
@@ -120,6 +123,26 @@ usage:
 		} else if (strcmp(argv[i], "-s") == 0) {
 
 			flush = true;
+
+		} else if (strcmp(argv[i], "-p") == 0) {
+
+			if (i >= (argc - 1))
+				goto usage;
+			i++;
+
+			pattern = strtol(argv[i], &end, 0);
+			if (*end != '\0' || errno != 0) {
+				fprintf(stderr,
+					"Invalid data pattern value \"%s\"\n",
+					argv[i]);
+				goto usage;
+			}
+			if (pattern > 0xff) {
+				fprintf(stderr,
+					"Not a single-byte pattern:\"%s\"\n",
+					argv[i]);
+				goto usage;
+			}
 
 		} else if (strcmp(argv[i], "-vio") == 0) {
 
@@ -295,6 +318,8 @@ usage:
 		goto out;
 	}
 
+	memset(iobuf, pattern, iosize);
+
 	/* Open the file to read, if any */
 	if (file) {
 
@@ -349,13 +374,10 @@ usage:
 
 	}
 
-	sector_max = zbc_zone_start(iozone) + zbc_zone_length(iozone);
-	if (zbc_zone_sequential(iozone)) {
-		if (zbc_zone_full(iozone))
-			sector_ofst = sector_max;
-		else
-			sector_ofst = zbc_zone_wp(iozone);
-	}
+	if (zbc_zone_sequential_req(iozone) && !zbc_zone_full(iozone))
+		sector_max = zbc_zone_wp(iozone) - zbc_zone_start(iozone);
+	else
+		sector_max = zbc_zone_length(iozone);
 
 	elapsed = zbc_write_zone_usec();
 
@@ -409,9 +431,9 @@ usage:
 			sector_count = iosize >> 9;
 		if (zone_ofst + sector_count > sector_max)
 			sector_count = sector_max - zone_ofst;
-		sector_ofst = zbc_zone_start(iozone) + zone_ofst;
 		if (!sector_count)
 			break;
+		sector_ofst = zbc_zone_start(iozone) + zone_ofst;
 
 		/* Write to zone */
 		if (vio) {
@@ -427,9 +449,7 @@ usage:
 		} else {
 			ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
 		}
-		if (ret > 0) {
-			sector_ofst += ret;
-		} else {
+		if (ret <= 0) {
 			fprintf(stderr, "%s failed %zd (%s)\n",
 				vio ? "zbc_pwritev" : "zbc_pwrite",
 				-ret, strerror(-ret));
@@ -437,7 +457,7 @@ usage:
 			goto out;
 		}
 
-		zone_ofst += sector_count;
+		zone_ofst += ret;
 		bcount += ret << 9;
 		iocount++;
 

@@ -68,17 +68,19 @@ int main(int argc, char **argv)
 	ssize_t ret = 1;
 	size_t bufsize, iosize;
 	void *iobuf = NULL;
-	ssize_t sector_count;
+	ssize_t sector_count, byte_count;
 	unsigned long long ionum = 0, iocount = 0;
 	struct zbc_zone *zones = NULL;
 	struct zbc_zone *iozone = NULL;
 	unsigned int nr_zones;
-	char *path, *file = NULL;
+	char *path, *file = NULL, *end;
+	unsigned char *b;
 	long long sector_ofst = 0;
 	long long sector_max = 0;
 	long long zone_ofst = 0;
 	int flags = O_RDONLY;
-	bool vio = false;
+	bool vio = false, ptrn_set = false;
+	unsigned long pattern = 0;
 	struct iovec *iov = NULL;
 	int iovcnt = 1, n;
 
@@ -95,6 +97,9 @@ usage:
 		       "                 of <I/O size> bytes, resulting in effective\n"
 		       "                 I/O size of <num> x <I/O size> B\n"
 		       "    -nio <num> : Limit the number of I/Os to <num>\n"
+		       "    -p <num>   : Expect all bytes that are read to have\n"
+		       "                 the value <num>. If there is a mismatch,\n"
+		       "                 the program will output it's data offset\n"
 		       "    -f <file>  : Write the content of the zone to <file>\n"
 		       "                 If <file> is \"-\", the zone content is\n"
 		       "                 written to the standard output\n"
@@ -110,6 +115,27 @@ usage:
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-p") == 0) {
+
+			if (i >= (argc - 1))
+				goto usage;
+			i++;
+
+			pattern = strtol(argv[i], &end, 0);
+			if (*end != '\0' || errno != 0) {
+				fprintf(stderr,
+					"Invalid data pattern value \"%s\"\n",
+					argv[i]);
+				goto usage;
+			}
+			if (pattern > 0xff) {
+				fprintf(stderr,
+					"Not a single-byte pattern:\"%s\"\n",
+					argv[i]);
+				goto usage;
+			}
+			ptrn_set = true;
 
 		} else if (strcmp(argv[i], "-dio") == 0) {
 
@@ -329,14 +355,18 @@ usage:
 
 	elapsed = zbc_read_zone_usec();
 
-	while (!zbc_read_zone_abort && zone_ofst < sector_max) {
+	while (!zbc_read_zone_abort) {
 
-		/* Read zone */
+		/* Do not exceed the end of the zone */
 		sector_count = iosize >> 9;
 		if (zone_ofst + sector_count > sector_max)
 			sector_count = sector_max - zone_ofst;
+		if (!sector_count)
+			break;
+
 		sector_ofst = zbc_zone_start(iozone) + zone_ofst;
 
+		/* Read zone */
 		if (vio) {
 			n = zbc_map_iov(iobuf, sector_count,
 					iov, iovcnt, bufsize >> 9);
@@ -357,11 +387,25 @@ usage:
 			ret = 1;
 			goto out;
 		}
+
 		sector_count = ret;
+		byte_count = sector_count << 9;
+
+		if (ptrn_set) {
+			for (i = 0, b = iobuf; i < byte_count; i++, b++) {
+				if (*b != (unsigned char)pattern) {
+					fprintf(stderr,
+						"Data mismatch @%llu: read %#x, exp %#lx\n",
+						sector_ofst + i, *b, pattern);
+					ret = ERANGE;
+					break;
+				}
+			}
+		}
 
 		if (file) {
 			/* Write zone data to output file */
-			ret = write(fd, iobuf, sector_count << 9);
+			ret = write(fd, iobuf, byte_count);
 			if (ret < 0) {
 				fprintf(stderr, "Write file \"%s\" failed %d (%s)\n",
 					file,
@@ -372,7 +416,7 @@ usage:
 		}
 
 		zone_ofst += sector_count;
-		bcount += sector_count << 9;
+		bcount += byte_count;
 		iocount++;
 		ret = 0;
 
