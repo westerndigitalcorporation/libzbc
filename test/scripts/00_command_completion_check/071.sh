@@ -3,7 +3,7 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 2016, Western Digital. All rights reserved.
+# Copyright (C) 2019, Western Digital. All rights reserved.
 #
 # This software is distributed under the terms of the BSD 2-clause license,
 # "as is," without technical support, and WITHOUT ANY WARRANTY, without
@@ -14,7 +14,7 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "READ command completion" $*
+zbc_test_init $0 "READ command completion (vector I/O)" $*
 
 # Set expected error code
 expected_sk=""
@@ -37,8 +37,8 @@ zbc_test_get_target_zone_from_type_and_ignored_cond ${zone_type} "0xe"
 target_lba=$(( ${target_ptr} ))
 
 # Start testing
-zbc_test_run ${bin_path}/zbc_test_write_zone -v ${device} ${target_lba} ${lblk_per_pblk}
-zbc_test_run ${bin_path}/zbc_test_read_zone -v ${device} ${target_lba} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_write_zone -v -vio 3 ${device} ${target_lba} ${lblk_per_pblk}
+zbc_test_run ${bin_path}/zbc_test_read_zone -v -vio 3 ${device} ${target_lba} ${lblk_per_pblk}
 
 # Check result
 zbc_test_get_sk_ascq
