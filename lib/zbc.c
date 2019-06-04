@@ -395,6 +395,10 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(info->zbd_flags & ZBC_UNRESTRICTED_READ) ?
 			"unrestricted" : "restricted");
 
+	fprintf(out,
+		"    %llu KiB max R/W size\n",
+		(unsigned long long)(info->zbd_max_rw_sectors << 9) / 1024);
+
 	if (info->zbd_model == ZBC_DM_HOST_MANAGED) {
 
 		if (info->zbd_max_nr_open_seq_req == ZBC_NO_LIMIT)
