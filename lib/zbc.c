@@ -504,13 +504,16 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 		   struct zbc_zone **pzones, unsigned int *pnr_zones)
 {
 	struct zbc_zone *zones = NULL;
-	unsigned int nr_zones;
+	unsigned int nr_zones = 0;
 	int ret;
 
 	/* Get total number of zones */
 	ret = zbc_report_nr_zones(dev, sector, zbc_ro_mask(ro), &nr_zones);
 	if (ret < 0)
 		return ret;
+
+	if (!nr_zones)
+		goto out;
 
 	zbc_debug("%s: %d zones\n",
 		  dev->zbd_filename,
@@ -530,6 +533,7 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 		return ret;
 	}
 
+out:
 	*pzones = zones;
 	*pnr_zones = nr_zones;
 
