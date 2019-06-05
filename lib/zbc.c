@@ -447,6 +447,13 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 	uint64_t last_sector;
 	int ret;
 
+	if (!zbc_test_mode(dev) &&
+	    sector >= dev->zbd_info.zbd_sectors) {
+		/* No zones to report beyond drive capacity */
+		*nr_zones = 0;
+		return 0;
+	}
+
 	if (!zones) {
 		/* Get the number of zones */
 		*nr_zones = 0;
