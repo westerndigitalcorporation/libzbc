@@ -247,22 +247,26 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 }
 
 /**
- * Sense data is enabled.
+ * Test if sense data is needed and can be obtained.
  */
-static inline int zbc_ata_sense_data_enabled(struct zbc_sg_cmd *cmd)
+static inline bool zbc_ata_need_sense_data(struct zbc_sg_cmd *cmd)
 {
-	/* Descriptor code and status including sense data flag */
+	/* The HBA may already have got sense codes */
+	if (zerrno.asc_ascq)
+		return false;
+
 	return cmd->io_hdr.sb_len_wr > 8 &&
-		cmd->sense_buf[8] == 0x09 &&
-		cmd->sense_buf[21] & 0x02;
+		cmd->sense_buf[8] == 0x09 && /* ATA descriptor header present */
+		cmd->sense_buf[21] & 0x02;   /* ATA status error bit set */
 }
 
 /**
- * Request sense data.
+ * Request sense data from drive.
  */
 static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
+	int sk, asc, ascq;
 	int ret;
 
 	/* Intialize command */
@@ -346,20 +350,36 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 		goto out;
 	}
 
-	zbc_debug("%s: Sense key is 0x%x\n",
-		  dev->zbd_filename, cmd.sense_buf[19] & 0xF);
-	zbc_debug("%s: Additional sense code is 0x%02x\n",
-		  dev->zbd_filename, cmd.sense_buf[17]);
-	zbc_debug("%s: Additional sense code qualifier is 0x%02x\n",
-		  dev->zbd_filename, cmd.sense_buf[15]);
+	sk = cmd.sense_buf[19] & 0xF;
+	asc = cmd.sense_buf[17];
+	ascq = cmd.sense_buf[15];
 
-	zbc_set_errno(cmd.sense_buf[19] & 0xF,
-		      ((int)cmd.sense_buf[17] << 8) | (int)cmd.sense_buf[15]);
+	zbc_debug("%s: Sense key is 0x%x\n",
+		  dev->zbd_filename, sk);
+	zbc_debug("%s: Additional sense code is 0x%02x\n",
+		  dev->zbd_filename, asc);
+	zbc_debug("%s: Additional sense code qualifier is 0x%02x\n",
+		  dev->zbd_filename, ascq);
+
+	zbc_set_errno(sk, (asc << 8) | ascq);
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
 
 	return;
+}
+
+/**
+ * Request sense data.
+ */
+static void zbc_ata_get_sense_data(struct zbc_device *dev,
+				   struct zbc_sg_cmd *cmd, int ret)
+{
+
+	if (ret != -EIO || !zbc_ata_need_sense_data(cmd))
+		return;
+
+	zbc_ata_request_sense_data_ext(dev);
 }
 
 /**
@@ -588,13 +608,10 @@ static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
 
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0) {
-		/* Request sense data */
-		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd) )
-			zbc_ata_request_sense_data_ext(dev);
-	} else {
+	if (ret)
+		zbc_ata_get_sense_data(dev, &cmd, ret);
+	else
 		ret = (sz - cmd.io_hdr.resid) >> 9;
-	}
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
@@ -699,13 +716,10 @@ static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
 
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0) {
-		/* Request sense data */
-		if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
-			zbc_ata_request_sense_data_ext(dev);
-        } else {
+	if (ret)
+		zbc_ata_get_sense_data(dev, &cmd, ret);
+	else
 		ret = (sz - cmd.io_hdr.resid) >> 9;
-	}
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
@@ -854,14 +868,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-	if (ret != 0) {
-		/* Get sense data if enabled */
-		if (ret == -EIO &&
-		    zbc_ata_sense_data_enabled(&cmd) &&
-		    ((zerrno.sk != ZBC_SK_ILLEGAL_REQUEST) ||
-		     (zerrno.asc_ascq !=
-		      ZBC_ASC_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE)))
-			zbc_ata_request_sense_data_ext(dev);
+	if (ret) {
+		zbc_ata_get_sense_data(dev, &cmd, ret);
 		goto out;
 	}
 
@@ -1020,10 +1028,8 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 
 	/* Execute the command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
-
-	/* Request sense data */
-	if (ret == -EIO && zbc_ata_sense_data_enabled(&cmd))
-		zbc_ata_request_sense_data_ext(dev);
+	if (ret)
+		zbc_ata_get_sense_data(dev, &cmd, ret);
 
 	/* Done */
 	zbc_sg_cmd_destroy(&cmd);
