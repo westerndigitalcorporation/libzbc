@@ -257,6 +257,25 @@ const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq)
 	return asc_buf;
 }
 
+static int zbc_realpath(const char *filename, char **path)
+{
+	char *p;
+	int ret = 0;
+
+	/* Follow symlinks (required for device mapped devices) */
+	p = realpath(filename, NULL);
+	if (p) {
+		*path = p;
+	} else {
+		ret = -errno;
+		zbc_error("%s: Failed to get real path %d (%s)\n",
+			  filename,
+			  errno, strerror(errno));
+	}
+	
+	return ret;
+}
+
 /**
  * zbc_device_is_zoned - Test if a physical device is zoned.
  */
@@ -265,7 +284,12 @@ int zbc_device_is_zoned(const char *filename,
 			struct zbc_device_info *info)
 {
 	struct zbc_device *dev = NULL;
-	int ret = -ENODEV, i;
+	char *path = NULL;
+	int ret, i;
+
+	ret = zbc_realpath(filename, &path);
+	if (ret)
+		return ret;
 
 	/* Test all backends until one accepts the drive. */
 	for (i = 0; zbc_drv[i]; i++) {
@@ -276,7 +300,7 @@ int zbc_device_is_zoned(const char *filename,
 			break;
 		}
 		if (ret != -ENXIO)
-			return ret;
+			goto out;
 	}
 
 	if (dev && dev->zbd_drv) {
@@ -294,6 +318,9 @@ int zbc_device_is_zoned(const char *filename,
 			ret = 0;
 	}
 
+out:
+	free(path);
+
 	return ret;
 }
 
@@ -304,7 +331,12 @@ int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 {
 	struct zbc_device *dev = NULL;
 	unsigned int allowed_drv;
+	char *path = NULL;
 	int ret, i;
+
+	ret = zbc_realpath(filename, &path);
+	if (ret)
+		return ret;
 
 	allowed_drv = flags & ZBC_O_DRV_MASK;
 	if (!allowed_drv)
@@ -314,27 +346,30 @@ int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 #endif
 
 	/* Test all backends until one accepts the drive */
+	ret = -ENODEV;
 	for (i = 0; zbc_drv[i] != NULL; i++) {
 
 		if (!(zbc_drv[i]->flag & allowed_drv))
 			continue;
 
-		ret = zbc_drv[i]->zbd_open(filename, flags, &dev);
+		ret = zbc_drv[i]->zbd_open(path, flags, &dev);
 		switch (ret) {
 		case 0:
 			/* This backend accepted the drive */
 			dev->zbd_drv = zbc_drv[i];
 			*pdev = dev;
-			return 0;
+			goto out;
 		case -ENXIO:
 			continue;
 		default:
-			return ret;
+			goto out;
 		}
 
 	}
 
-	return -ENODEV;
+out:
+	free(path);
+	return ret;
 }
 
 /**

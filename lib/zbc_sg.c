@@ -436,40 +436,6 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 }
 
 /**
- * Get the absolute device path from the device filename.
- */
-static void zbc_sg_get_device_path(struct zbc_device *dev, char *path)
-{
-	struct stat lst;
-	char target[PATH_MAX];
-	ssize_t len;
-
-	strncpy(path, dev->zbd_filename, PATH_MAX - 1);
-
-	while (1) {
-		if (lstat(path, &lst) != 0) {
-			zbc_error("%s: lstat %s failed %d (%s)\n",
-				  dev->zbd_filename, path,
-				  errno, strerror(errno));
-			return;
-		}
-
-		if (!S_ISLNK(lst.st_mode))
-			return;
-
-		len = readlink(path, target, PATH_MAX - 1);
-		if (len < 0) {
-			zbc_error("%s: readlink failed %d (%s)\n",
-				  dev->zbd_filename,
-				  errno, strerror(errno));
-			return;
-		}
-		target[len] = '\0';
-		strncpy(path, target, PATH_MAX);
-	}
-}
-
-/**
  * Get a sysfs file integer value.
  */
 static int zbc_sg_get_sysfs_val(char *sysfs_path, unsigned long *val)
@@ -501,14 +467,11 @@ static int zbc_sg_get_sysfs_val(char *sysfs_path, unsigned long *val)
 static unsigned long zbc_sg_get_max_segments(struct zbc_device *dev)
 {
 	unsigned long max_segs;
-	char path[PATH_MAX];
 	char str[128];
-
-	zbc_sg_get_device_path(dev, path);
 
 	snprintf(str, sizeof(str),
 		 "/sys/block/%s/queue/max_segments",
-		 basename(path));
+		 basename(dev->zbd_filename));
 	if (zbc_sg_get_sysfs_val(str, &max_segs) < 0)
 		max_segs = ZBC_SG_MAX_SEGMENTS;
 
@@ -521,14 +484,11 @@ static unsigned long zbc_sg_get_max_segments(struct zbc_device *dev)
 static unsigned long zbc_sg_get_max_bytes(struct zbc_device *dev)
 {
 	unsigned long max_bytes;
-	char path[PATH_MAX];
 	char str[128];
-
-	zbc_sg_get_device_path(dev, path);
 
 	snprintf(str, sizeof(str),
 		 "/sys/block/%s/queue/max_sectors_kb",
-		 basename(path));
+		 basename(dev->zbd_filename));
 	if (zbc_sg_get_sysfs_val(str, &max_bytes) < 0)
 		max_bytes = 0;
 
