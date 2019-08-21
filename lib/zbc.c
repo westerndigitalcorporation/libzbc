@@ -659,7 +659,7 @@ static ssize_t zbc_do_preadv(struct zbc_device *dev,
 				  "sector %llu\n",
 				  dev->zbd_filename,
 				  count, (unsigned long long) offset);
-			return -EINVAL;
+			return -EIO;
 		}
 
 		if ((offset + count) > dev->zbd_info.zbd_sectors)
@@ -767,7 +767,7 @@ static ssize_t zbc_do_pwritev(struct zbc_device *dev,
 				  "sector %llu\n",
 				  dev->zbd_filename,
 				  count, (unsigned long long) offset);
-			return -EINVAL;
+			return -EIO;
 		}
 
 		if ((offset + count) > dev->zbd_info.zbd_sectors)
