@@ -40,7 +40,7 @@ include tools/set_write_ptr/Makemodule.am
 include tools/set_zones/Makemodule.am
 
 if BUILD_GZBC
-include tools/gui/Makemodule.am
+include tools/gzbc/Makemodule.am
 endif
 
 if BUILD_TEST
