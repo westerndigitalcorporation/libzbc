@@ -299,9 +299,8 @@ int zbc_sg_vcmd_init(struct zbc_device *dev,
 	} else {
 		cmd->buf = buf;
 		cmd->io_hdr.dxferp = cmd->buf;
-		cmd->io_hdr.dxfer_len = cmd->bufsz;
 	}
-
+        cmd->io_hdr.dxfer_len = cmd->bufsz;
 	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
 	cmd->io_hdr.sbp = cmd->sense_buf;
 
