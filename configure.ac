@@ -1,4 +1,4 @@
-AC_INIT([libzbc], [5.8.1],
+AC_INIT([libzbc], [5.8.2],
 	[damien.lemoal@wdc.com, dmitry.fomichev@wdc.com],
 	[libzbc], [https://github.com/hgst/libzbc])
 AC_CONFIG_AUX_DIR([build-aux])
