@@ -306,3 +306,6 @@ examples. These appliations are as follows.
   unwritten space). Some operations on zones can also be executed directly from
   the interface (reset zone write pointer, open zone, close zone, etc).
 
+* **gzviewer** provides a simple graphical user interface showing the write
+  pointer position and zone state of zones of a zoned device. Similar color
+  coding as *gzbc* is used.

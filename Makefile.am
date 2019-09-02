@@ -41,6 +41,7 @@ include tools/set_zones/Makemodule.am
 
 if BUILD_GUI
 include tools/gzbc/Makemodule.am
+include tools/gzviewer/Makemodule.am
 endif
 
 if BUILD_TEST
