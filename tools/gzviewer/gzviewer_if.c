@@ -130,18 +130,16 @@ static gboolean gzv_if_zone_draw_cb(GtkWidget *widget, cairo_t *cr,
 	cairo_fill(cr);
 
 	if (!zbc_zone_conventional(z) &&
-	    (zbc_zone_imp_open(z) ||
-	     zbc_zone_exp_open(z) ||
-	     zbc_zone_closed(z))) {
-
+	    zbc_zone_wp(z) > zbc_zone_start(z)) {
 		/* Written space in zone */
-		w = ((long long)allocation.width * zbc_zone_length(z)) /
-		     (zbc_zone_wp(z) - zbc_zone_start(z));
-		if (w) {
-			gdk_cairo_set_source_rgba(cr, &gzv.seqw_color);
-			cairo_rectangle(cr, 0, 0, w, allocation.height);
-			cairo_fill(cr);
-		}
+		w = (long long)allocation.width *
+		     (zbc_zone_wp(z) - zbc_zone_start(z)) / zbc_zone_length(z);
+		if (w > allocation.width)
+			w = allocation.width;
+
+		gdk_cairo_set_source_rgba(cr, &gzv.seqw_color);
+		cairo_rectangle(cr, 0, 0, w, allocation.height);
+		cairo_fill(cr);
 	}
 
 	/* Draw zone number */
