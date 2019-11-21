@@ -23,12 +23,14 @@
 
 #include "gzviewer.h"
 
-static void gzv_set_zone_info(struct gzv_zone *zone)
+static void gzv_set_zone_tooltip(struct gzv_zone *zone)
 {
+	struct zbc_zone *zbcz = zone->zbc_zone;
 	char info[512];
 
-	if (!zone->zbc_zone) {
-		gtk_widget_set_tooltip_markup(zone->da, NULL);
+	if (!zbcz) {
+		gtk_widget_set_has_tooltip(GTK_WIDGET(zone->da), false);
+		gtk_widget_set_tooltip_markup(GTK_WIDGET(zone->da), NULL);
 		return;
 	}
 
@@ -38,12 +40,11 @@ static void gzv_set_zone_info(struct gzv_zone *zone)
 		 "  - Condition: %s\n"
 		 "  - Start sector: %llu\n"
 		 "  - Length: %llu 512-B sectors",
-		 zone->zno,
-		 zbc_zone_type_str(zone->zbc_zone->zbz_type),
-		 zbc_zone_condition_str(zone->zbc_zone->zbz_condition),
-		 zbc_zone_start(zone->zbc_zone),
-		 zbc_zone_length(zone->zbc_zone));
-	gtk_widget_set_tooltip_markup(zone->da, info);
+		 zone->zno, zbc_zone_type_str(zbcz->zbz_type),
+		 zbc_zone_condition_str(zbcz->zbz_condition),
+		 zbc_zone_start(zbcz), zbc_zone_length(zbcz));
+	gtk_widget_set_tooltip_markup(GTK_WIDGET(zone->da), info);
+	gtk_widget_set_has_tooltip(GTK_WIDGET(zone->da), true);
 }
 
 static void gzv_if_update(void)
@@ -55,25 +56,27 @@ static void gzv_if_update(void)
 		gzv.grid_zno_first = gzv.nr_zones / gzv.nr_col;
 
 	if (gzv_report_zones(gzv.grid_zno_first, gzv.nr_grid_zones))
-		return;
+		goto out;
 
 	z = gzv.grid_zno_first;
 	for (i = 0; i < gzv.nr_grid_zones; i++) {
 		gzv.grid_zones[i].zno = z;
+		zbcz = gzv.grid_zones[i].zbc_zone;
 		if (z >= gzv.nr_zones) {
+			if (zbcz)
+				gtk_widget_hide(gzv.grid_zones[i].da);
 			gzv.grid_zones[i].zbc_zone = NULL;
-			gtk_widget_hide(gzv.grid_zones[i].da);
 		} else {
-			zbcz = gzv.grid_zones[i].zbc_zone;
 			gzv.grid_zones[i].zbc_zone = &gzv.zbc_zones[z];
 			if (!zbcz)
 				gtk_widget_show(gzv.grid_zones[i].da);
 		}
-		gzv_set_zone_info(&gzv.grid_zones[i]);
+		gzv_set_zone_tooltip(&gzv.grid_zones[i]);
 		gtk_widget_queue_draw(gzv.grid_zones[i].da);
 		z++;
 	}
 
+out:
 	gzv.last_refresh = gzv_msec();
 }
 
@@ -259,7 +262,7 @@ void gzv_if_create(void)
 	gtk_widget_show(grid);
 
 	for (r = 0; r < gzv.nr_row; r++) {
-		for (c = 0; c < gzv.nr_col && z < gzv.nr_zones; c++) {
+		for (c = 0; c < gzv.nr_col; c++) {
 			zone = &gzv.grid_zones[z];
 
 			da = gtk_drawing_area_new();
@@ -270,7 +273,6 @@ void gzv_if_create(void)
 			gtk_grid_attach(GTK_GRID(grid), da, c, r, 1, 1);
 			g_signal_connect(da, "draw",
 					 G_CALLBACK(gzv_if_zone_draw_cb), zone);
-
 			z++;
 		}
 	}
