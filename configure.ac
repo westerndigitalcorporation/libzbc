@@ -38,6 +38,7 @@ AC_ARG_ENABLE([gui],
 AS_IF([test "x$enable_gui" != "xno"],
 [
 	# Build gzbc only if GTK3 is installed.
+	PKG_PROG_PKG_CONFIG
 	PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])
 	AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])
 	AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])
