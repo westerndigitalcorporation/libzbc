@@ -82,13 +82,25 @@ directory, execute the following command.
 ```
 
 The library file is by default installed under /usr/lib (or /usr/lib64). The
-library header files are installed in /usr/include/libzbc. The executable files
+library header file is installed in /usr/include/libzbc. The executable files
 for the example applications are installed under /usr/bin. These defaults can be
 changed using the configure script. Executing the following command displays the
 options used to control the installation paths.
 
 ```
 # ./configure --help
+```
+
+## Compilation with GUI tools
+
+The *gzbc* and *gzviewer* tools implement a graphical user interface (GUI) using
+the GTK3 toolkit. The configure script will automatically detect the presence of
+GTK3 development headers and compile these tools if the header files are found.
+This behavior can be manually changed and the compilation of *gzbc* and
+*gzviewer* disabled using the `--disable-gui` configuration option.
+
+```
+# ./configure --disable-gui
 ```
 
 ## Compilation for device tests

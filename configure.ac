@@ -37,10 +37,10 @@ AC_ARG_ENABLE([gui],
 	AS_HELP_STRING([--disable-gui], [Disable build of GUI tools (gzbc and gzviewer) [default=no]]))
 AS_IF([test "x$enable_gui" != "xno"],
 [
-	# Build gzbc only if GTK3 is installed.
-	PKG_PROG_PKG_CONFIG
-	PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])
-	AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])
+	# Build gzbc only if GTK3 is installed and can be detected with pkg-config.
+	m4_ifdef([PKG_CHECK_MODULES],
+		 [PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])],
+		 [HAVE_GTK3=0])
 	AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])
 ],
 [
