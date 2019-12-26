@@ -37,7 +37,9 @@ zbc_read_zone
 zbc_set_zones
 zbc_set_write_ptr
 gzbc
+!tools/gzbc
 gzviewer
+!tools/gzviewer
 
 test/programs/zbc_test_print_devinfo
 test/programs/zbc_test_report_zones
