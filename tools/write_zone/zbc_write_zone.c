@@ -374,10 +374,14 @@ usage:
 
 	}
 
-	if (zbc_zone_sequential_req(iozone) && !zbc_zone_full(iozone))
-		sector_max = zbc_zone_wp(iozone) - zbc_zone_start(iozone);
-	else
-		sector_max = zbc_zone_length(iozone);
+	sector_max = zbc_zone_length(iozone);
+	if (zbc_zone_sequential_req(iozone)) {
+		if (zbc_zone_full(iozone))
+			sector_max = 0;
+		else if (zbc_zone_wp(iozone) > zbc_zone_start(iozone))
+			sector_max =
+				zbc_zone_wp(iozone) - zbc_zone_start(iozone);
+	}
 
 	elapsed = zbc_write_zone_usec();
 
