@@ -61,6 +61,7 @@
 #define ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR	0x30
 #define ZBC_ATA_CAPACITY_PAGE			0x02
 #define ZBC_ATA_SUPPORTED_CAPABILITIES_PAGE	0x03
+#define ZBC_ATA_CURRENT_SETTINGS_PAGE		0x04
 #define ZBC_ATA_STRINGS_PAGE			0x05
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
@@ -1349,6 +1350,53 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 }
 
 /**
+ * Check sense data reporting is enabled. ZAC mandates it then it is expected
+ * already enabled. In case it is disabled, call set feature command to enable.
+ */
+static void zbc_ata_enable_sense_data_reporting(struct zbc_device *dev)
+{
+	uint8_t buf[512];
+	int ret;
+
+	/* Get current settings page */
+	ret = zbc_ata_read_log(dev,
+			       ZBC_ATA_IDENTIFY_DEVICE_DATA_LOG_ADDR,
+			       ZBC_ATA_CURRENT_SETTINGS_PAGE,
+			       buf,
+			       sizeof(buf));
+	if (ret != 0) {
+		zbc_debug("%s: Get current settings log page failed %d\n",
+			  dev->zbd_filename, ret);
+		return;
+	}
+
+	/*
+	 * Sense data reporting should be enabled as mandated by ACS. If it is,
+	 * nothing needs to be done. Otherwise, warn about it and try to enable
+	 * it.
+	 */
+	if (zbc_ata_get_qword(&buf[8]) & (1ULL << 10))
+		return;
+
+	zbc_warning("%s: Sense data reporting is disabled\n",
+		    dev->zbd_filename);
+	zbc_warning("%s: ACS mandates sense data reporting being enabled\n",
+		    dev->zbd_filename);
+	zbc_warning("%s: Trying to enable sense data reporting\n",
+		    dev->zbd_filename);
+	ret = zbc_ata_set_features(dev,
+			ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 0x01);
+	if (ret != 0) {
+		zbc_warning("%s: Enable sense data reporting failed %d\n",
+			    dev->zbd_filename, ret);
+		zbc_warning("%s: Detailed error reporting may not work\n",
+			    dev->zbd_filename);
+	}
+
+	return;
+}
+
+/**
  * Open a device.
  */
 static int zbc_ata_open(const char *filename,
@@ -1409,14 +1457,7 @@ static int zbc_ata_open(const char *filename,
 	if (ret != 0)
 		goto out_free_filename;
 
-	/* Set sense data reporting */
-	ret = zbc_ata_set_features(dev,
-			ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 0x01);
-	if (ret != 0) {
-		zbc_error("%s: Enable sense data reporting failed\n",
-			  filename);
-		goto out_free_filename;
-	}
+	zbc_ata_enable_sense_data_reporting(dev);
 
 	*pdev = dev;
 
