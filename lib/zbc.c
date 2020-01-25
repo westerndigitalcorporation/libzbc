@@ -295,7 +295,7 @@ int zbc_device_is_zoned(const char *filename,
 
 	/* Test all backends until one accepts the drive. */
 	for (i = 0; zbc_drv[i]; i++) {
-		ret = zbc_drv[i]->zbd_open(filename, O_RDONLY, &dev);
+		ret = zbc_drv[i]->zbd_open(path, O_RDONLY, &dev);
 		if (ret == 0) {
 			/* This backend accepted the device */
 			dev->zbd_drv = zbc_drv[i];
