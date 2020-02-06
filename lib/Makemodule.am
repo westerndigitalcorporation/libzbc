@@ -15,7 +15,7 @@ HFILES = \
 
 libzbc_la_DEPENDENCIES = exports
 libzbc_la_SOURCES = $(CFILES) $(HFILES)
-libzbc_la_CFLAGS = $(AM_CFLAGS)
+libzbc_la_CFLAGS = $(AM_CFLAGS) -fPIC
 libzbc_la_LDFLAGS = \
         -Wl,--version-script,$(top_srcdir)/exports \
 	-release '$(PACKAGE_VERSION)'
