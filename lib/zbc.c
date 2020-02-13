@@ -595,17 +595,26 @@ int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 
 /**
  * Convert vector buffer sizes to bytes for the vector
- * range between @offset and @offset +@size.
+ * range between @sector_offset and @sector_offset + @sectors.
+ * Limit the total size of the converted vector to the maximum allowed
+ * number of pages to ensure that it can be mapped in the kernel for the
+ * execution of the IO using it.
+ * Return the number of buffers in the converted buffers. Set the size of
+ * the converted vector buffer to @sectors.
  */
 static int zbc_iov_convert(struct iovec *_iov, const struct iovec *iov,
-			   int iovcnt, size_t sector_offset, size_t sectors)
+			   int iovcnt, size_t sector_offset, size_t *sectors,
+			   size_t max_sectors)
 {
-	size_t size = sectors << 9;
+	unsigned int max_pages = (max_sectors << 9) / PAGE_SIZE;
+	unsigned int np, nr_pages = 0;
+	unsigned long base_offset;
+	size_t sz, size = *sectors << 9;
 	size_t offset = sector_offset << 9;
 	size_t length, count = 0;
         int i, j = 0;
 
-	for (i = 0; i < iovcnt && count < size; i++) {
+	for (i = 0; i < iovcnt && count < size && nr_pages < max_pages; i++) {
 
 		length = iov[i].iov_len << 9;
 		if (offset >= length) {
@@ -619,11 +628,38 @@ static int zbc_iov_convert(struct iovec *_iov, const struct iovec *iov,
 
 		if (count + length > size)
 			length = size - count;
+
+		/*
+		 * Check page alignment of buffer start and end to get required
+		 * number of pages.
+		 */
+		np = (length + PAGE_MASK) / PAGE_SIZE;
+		base_offset = (unsigned long)_iov[j].iov_base & PAGE_MASK;
+		if (base_offset)
+			np++;
+
+		/*
+		 * If the number of pages exceeds the maximum, reduce
+		 * the vector length.
+		 */
+		if (nr_pages + np > max_pages) {
+			np = max_pages - nr_pages;
+			if (base_offset)
+				sz = (np - 1) * PAGE_SIZE;
+			else
+				sz = np * PAGE_SIZE;
+			if (length > sz)
+				length = sz;
+		}
+
 		_iov[j].iov_len = length;
 		count += length;
+		nr_pages += np;
 		j++;
 
 	}
+
+	*sectors = count >> 9;
 
 	return j;
 }
@@ -673,7 +709,7 @@ static ssize_t zbc_do_preadv(struct zbc_device *dev,
 		  count, (unsigned long long) offset, iovcnt);
 
 	if (zbc_test_mode(dev) && count == 0) {
-		zbc_iov_convert(rd_iov, iov, iovcnt, 0, count);
+		zbc_iov_convert(rd_iov, iov, iovcnt, 0, &count, max_count);
 		ret = (dev->zbd_drv->zbd_preadv)(dev, rd_iov, iovcnt, offset);
 		if (ret < 0) {
 			zbc_error("%s: read of zero sectors at sector %llu "
@@ -688,11 +724,9 @@ static ssize_t zbc_do_preadv(struct zbc_device *dev,
 	while (rd_iov_offset < count) {
 
 		rd_iov_count = count - rd_iov_offset;
-		if (rd_iov_count > max_count)
-			rd_iov_count = max_count;
-
 		rd_iovcnt = zbc_iov_convert(rd_iov, iov, iovcnt,
-					    rd_iov_offset, rd_iov_count);
+					    rd_iov_offset, &rd_iov_count,
+					    max_count);
 
 		ret = (dev->zbd_drv->zbd_preadv)(dev, rd_iov, rd_iovcnt,
 						 offset);
@@ -781,7 +815,7 @@ static ssize_t zbc_do_pwritev(struct zbc_device *dev,
 		  count, (unsigned long long) offset, iovcnt);
 
 	if (zbc_test_mode(dev) && count == 0) {
-		zbc_iov_convert(wr_iov, iov, iovcnt, 0, count);
+		zbc_iov_convert(wr_iov, iov, iovcnt, 0, &count, max_count);
 		ret = (dev->zbd_drv->zbd_pwritev)(dev, wr_iov, iovcnt, offset);
 		if (ret < 0) {
 			zbc_error("%s: Write of zero sectors at sector %llu "
@@ -796,11 +830,9 @@ static ssize_t zbc_do_pwritev(struct zbc_device *dev,
 	while (wr_iov_offset < count) {
 
 		wr_iov_count = count - wr_iov_offset;
-		if (wr_iov_count > max_count)
-			wr_iov_count = max_count;
-
 		wr_iovcnt = zbc_iov_convert(wr_iov, iov, iovcnt,
-					    wr_iov_offset, wr_iov_count);
+					    wr_iov_offset, &wr_iov_count,
+					    max_count);
 
 		ret = (dev->zbd_drv->zbd_pwritev)(dev, wr_iov, wr_iovcnt,
 						  offset);
