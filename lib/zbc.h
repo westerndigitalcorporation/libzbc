@@ -23,9 +23,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
+
+/*
+ * Memory page size information.
+ */
+#define PAGE_SIZE	(sysconf(_SC_PAGESIZE))
+#define PAGE_MASK	(PAGE_SIZE - 1)
 
 /**
  * Backend driver descriptor.

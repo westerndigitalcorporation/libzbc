@@ -172,18 +172,6 @@ static struct zbc_sg_cmd_s
 };
 
 /**
- * Get the system pagesize
- */
-static size_t pagesize;	/* use accessor */
-static inline size_t sysconf_pagesize(void)
-{
-    if (!pagesize) {
-	pagesize = sysconf(_SC_PAGESIZE);
-    }
-    return pagesize;
-}
-
-/**
  * Get a command name from its operation code in a CDB.
  */
 static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
@@ -269,8 +257,7 @@ int zbc_sg_vcmd_init(struct zbc_device *dev,
 			return -EINVAL;
 		}
 		/* Allocate a buffer */
-		if (posix_memalign((void **) &buf,
-				   sysconf_pagesize(), bufsz) != 0) {
+		if (posix_memalign((void **) &buf, PAGE_SIZE, bufsz) != 0) {
 			zbc_error("No memory for command buffer (%zu B)\n",
 				  bufsz);
 			return -ENOMEM;
@@ -504,7 +491,6 @@ static unsigned long zbc_sg_get_max_bytes(struct zbc_device *dev)
 void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 {
 	unsigned int max_bytes = 0, max_segs = ZBC_SG_MAX_SEGMENTS;
-	size_t pagesize = sysconf_pagesize();
 	struct stat st;
 	int ret;
 
@@ -543,8 +529,8 @@ void zbc_sg_get_max_cmd_blocks(struct zbc_device *dev)
 	}
 
 out:
-	if (!max_bytes || max_bytes > max_segs * pagesize)
-		max_bytes = max_segs * pagesize;
+	if (!max_bytes || max_bytes > max_segs * PAGE_SIZE)
+		max_bytes = max_segs * PAGE_SIZE;
 	dev->zbd_info.zbd_max_rw_sectors = max_bytes >> 9;
 
 	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",

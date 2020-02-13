@@ -274,7 +274,7 @@ static int zbc_realpath(const char *filename, char **path)
 			  filename,
 			  errno, strerror(errno));
 	}
-	
+
 	return ret;
 }
 
