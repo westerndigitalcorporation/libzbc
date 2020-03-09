@@ -31,8 +31,8 @@
 #include <linux/fs.h>
 
 #ifdef HAVE_LINUX_BLKZONED_H
+
 #include <linux/blkzoned.h>
-#endif
 
 /**
  * Block device descriptor data.
@@ -493,11 +493,6 @@ static int zbc_block_open(const char *filename, int flags,
 	zbc_debug("%s: ########## Trying BLOCK driver ##########\n",
 		  filename);
 
-#ifndef HAVE_LINUX_BLKZONED_H
-	zbc_debug("libzbc compiled without zoned block device driver support\n");
-	return -ENXIO;
-#endif
-
 	/* Check device */
 	if (stat(filename, &st) != 0) {
 		ret = -errno;
@@ -586,8 +581,6 @@ static int zbc_block_close(struct zbc_device *dev)
 
 	return ret;
 }
-
-#ifdef HAVE_LINUX_BLKZONED_H
 
 /**
  * Test if a zone should be reported depending
@@ -950,6 +943,19 @@ static int zbc_block_flush(struct zbc_device *dev)
 }
 
 #else /* HAVE_LINUX_BLKZONED_H */
+
+static int zbc_block_open(const char *filename, int flags,
+			  struct zbc_device **pdev)
+{
+	zbc_debug("libzbc compiled without zoned block device driver support\n");
+
+	return -ENXIO;
+}
+
+static int zbc_block_close(struct zbc_device *dev)
+{
+	return -EOPNOTSUPP;
+}
 
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 				  enum zbc_reporting_options ro,

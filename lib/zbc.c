@@ -343,9 +343,6 @@ int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 	allowed_drv = flags & ZBC_O_DRV_MASK;
 	if (!allowed_drv)
 		allowed_drv = ZBC_O_DRV_MASK;
-#ifndef HAVE_LINUX_BLKZONED_H
-	allowed_drv &= ~ZBC_O_DRV_BLOCK;
-#endif
 
 	/* Test all backends until one accepts the drive */
 	ret = -ENODEV;
