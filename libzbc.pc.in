@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (c) 2020 Western Digital Corporation or its affiliates.
+
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@

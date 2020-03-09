@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
+# Copyright (c) 2020 Western Digital Corporation or its affiliates.
+
 noinst_PROGRAMS += $(top_builddir)/test/programs/zbc_test_open_zone
 __top_builddir__test_programs_zbc_test_open_zone_SOURCES = test/programs/open_zone/zbc_test_open_zone.c
 __top_builddir__test_programs_zbc_test_open_zone_LDADD = $(libzbc_ldadd)

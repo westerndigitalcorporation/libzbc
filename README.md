@@ -1,5 +1,9 @@
-Copyright (C) 2009-2014, HGST, Inc. <br>
-Copyright (C) 2016, Western Digital.
+SPDX-License-Identifier: BSD-2-Clause
+SPDX-License-Identifier: LGPL-3.0-or-later
+
+SPDX-FileCopyrightText: 2009-2014, HGST, Inc.
+SPDX-FileCopyrightText: 2016, Western Digital.
+SPDX-FileCopyrightText: 2020 Western Digital Corporation or its affiliates.
 
 
 # libzbc
@@ -33,19 +37,22 @@ pre-releases](https://github.com/hgst/libzbc/releases).
 
 ### License
 
-*libzbc* is distributed under the terms of the of the BSD 2-clause license
-("Simplified BSD License" or "FreeBSD License"). A copy of this license with the
-library copyright can be found in the COPYING.BSD file.
+*libzbc* is dual licensed and distributed under the terms of the BSD 2-clause
+license ("Simplified BSD License" or "FreeBSD License", SPDX: *BSD-2-Clause*)
+and under the terms of the GNU Lesser General Public License version 3, or any
+later version (SPDX: *LGPL-3.0-or-later*).
 
 All example applications under the tools directory are distributed under the
-terms of the GNU Lesser General Public License version 3, or any later version.
-A copy of version 3 of this license can be found in the COPYING.LESSER file.
+terms of the GNU Lesser General Public License version 3, or any later version
+(SPDX: *LGPL-3.0-or-later*).
 
 *libzbc* and all its example applications are distributed "as is," without
 technical support, and WITHOUT ANY WARRANTY, without even the implied warranty
-of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Along with *libzbc*, you
-should have received a copy of the BSD 2-clause license and of the GNU Lesser
-General Public License. If not, please see 
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Along with *libzbc*, you should have received a copy of the BSD 2-clause
+license in the file [COPYING.BSD] and of the GNU Lesser General Public License
+version 3 in the file [COPYING.LESSER]. If not, please see
 http://opensource.org/licenses/BSD-2-Clause and http://www.gnu.org/licenses/.
 
 ### Contributions and Bug Reports

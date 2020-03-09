@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: CC0-1.0
+#
+# Copyright (c) 2020 Western Digital Corporation or its affiliates.
+
 # Object files
 *.o
 *.lo
