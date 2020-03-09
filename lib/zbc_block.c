@@ -762,6 +762,23 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 }
 
 /**
+ * Reset all zones write pointer using kernel path.
+ */
+static int zbc_block_reset_all_fast(struct zbc_device *dev)
+{
+	struct blk_zone_range range;
+	int ret;
+
+	range.sector = 0;
+	range.nr_sectors = dev->zbd_info.zbd_sectors;
+	ret = ioctl(dev->zbd_fd, BLKRESETZONE, &range);
+	if (ret)
+		return -errno;
+
+	return 0;
+}
+
+/**
  * Reset all zones write pointer.
  */
 static int zbc_block_reset_all(struct zbc_device *dev)
@@ -772,6 +789,15 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 	uint64_t sector = 0, seq_sector;
 	uint64_t nr_seq_sectors;
 	int ret;
+
+	/*
+	 * Kernel 5.4 added support for reset all execution as a single command.
+	 * Try it here and if this fails, falls back to the slow path
+	 * inspecting all zones one by one.
+	 */
+	ret = zbc_block_reset_all_fast(dev);
+	if (!ret)
+		return 0;
 
 	zones = calloc(ZBC_BLOCK_ZONE_REPORT_NR_ZONES,
 		       sizeof(struct zbc_zone));
