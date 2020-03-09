@@ -49,6 +49,7 @@ struct zbc_block_device {
 	char			*part_name;
 	unsigned long long	part_offset;
 
+	unsigned long long	zone_sectors;
 };
 
 /*
@@ -356,6 +357,38 @@ static int zbc_block_get_vendor_id(struct zbc_device *dev)
 }
 
 /**
+ * Get the zone size reported by the kernel.
+ */
+static int zbc_block_get_zone_sectors(struct zbc_device *dev)
+{
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
+	char str[128];
+	FILE *file;
+
+	/* Open the chunk_sectors file */
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/queue/chunk_sectors",
+		 zbd->holder_name);
+	file = fopen(str, "r");
+	if (!file) {
+		int ret = -errno;
+
+		zbc_error("%s: open %s failed %d (%s)\n",
+			  zbd->part_name, str,
+			  errno, strerror(errno));
+		return ret;
+	}
+
+	fscanf(file, "%llu", &zbd->zone_sectors);
+	fclose(file);
+
+	zbc_debug("%s: Zones of %llu sectors\n",
+		  zbd->part_name, zbd->zone_sectors);
+
+	return 0;
+}
+
+/**
  * Test if the device can be handled and get the block device info.
  */
 static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
@@ -438,6 +471,9 @@ static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 			  dev->zbd_filename);
 		return -EINVAL;
 	}
+
+	if (zbc_block_get_zone_sectors(dev))
+		return -EINVAL;
 
 	/* Finish setting */
 	dev->zbd_info.zbd_type = ZBC_DT_BLOCK;
@@ -861,13 +897,80 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 }
 
 /**
+ * Execute a zone management operation using the scsi backend.
+ */
+static int zbc_block_zone_op_scsi(struct zbc_device *dev, uint64_t sector,
+				  enum zbc_zone_op op, unsigned int flags)
+{
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
+
+	if (!zbd->is_scsi_dev) {
+		zbc_error("%s: Not a SCSI device (operation not supported)\n",
+			  dev->zbd_filename);
+		return -ENOTSUP;
+	}
+
+	if (zbd->is_part)
+		sector += zbd->part_offset;
+
+	/* Use SG_IO */
+	return zbc_scsi_zone_op(dev, sector, op, flags);
+}
+
+/**
+ * Execute a zone management operation using the kernel ioctl commands
+ * introduced in kernel 5.5.
+ */
+static int zbc_block_zone_op_ioctl(struct zbc_device *dev, uint64_t sector,
+				   enum zbc_zone_op op, unsigned int flags)
+{
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
+	struct blk_zone_range range;
+	int ret, cmd;
+
+	if (flags & ZBC_OP_ALL_ZONES)
+		return -EOPNOTSUPP;
+
+	switch (op) {
+#ifdef BLKOPENZONE
+	case ZBC_OP_OPEN_ZONE:
+		cmd = BLKOPENZONE;
+		break;
+#endif
+#ifdef BLKCLOSEZONE
+	case ZBC_OP_CLOSE_ZONE:
+		cmd = BLKCLOSEZONE;
+		break;
+#endif
+#ifdef BLKFINISHZONE
+	case ZBC_OP_FINISH_ZONE:
+		cmd = BLKFINISHZONE;
+		break;
+#endif
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	range.sector = sector;
+	range.nr_sectors = zbd->zone_sectors;
+	ret = ioctl(dev->zbd_fd, cmd, &range);
+	if (ret) {
+		ret = -errno;
+		zbc_error("%s: ioctl 0x%x failed %d (%s)\n",
+			  dev->zbd_filename, cmd, errno, strerror(errno));
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
  * Execute an operation on a zone
  */
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			     enum zbc_zone_op op, unsigned int flags)
 {
-	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	uint64_t sect = sector;
+	int ret;
 
 	switch (op) {
 
@@ -884,16 +987,15 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
 
-		if (!zbd->is_scsi_dev) {
-			zbc_error("%s: Not a SCSI device (operation not supported)\n",
-				  dev->zbd_filename);
-			return -ENOTSUP;
-		}
+		/*
+		 * Try kernel ioctl first. If that fails, fallback to scsi
+		 * operation.
+		 */
+		ret = zbc_block_zone_op_ioctl(dev, sector, op, flags);
+		if (ret != -EOPNOTSUPP)
+			return ret;
 
-		if (zbd->is_part)
-			sect += zbd->part_offset;
-		/* Use SG_IO */
-		return zbc_scsi_zone_op(dev, sect, op, flags);
+		return zbc_block_zone_op_scsi(dev, sector, op, flags);
 
 	default:
 		zbc_error("%s: Invalid operation code 0x%x\n",
