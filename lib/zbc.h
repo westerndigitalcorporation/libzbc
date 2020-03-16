@@ -177,22 +177,22 @@ static inline void zbc_set_errno(enum zbc_sk sk, enum zbc_asc_ascq asc_ascq)
 /**
  * Block device driver (requires kernel support).
  */
-struct zbc_drv zbc_block_drv;
+extern struct zbc_drv zbc_block_drv;
 
 /**
  * ZAC (ATA) device driver (uses SG_IO).
  */
-struct zbc_drv zbc_ata_drv;
+extern struct zbc_drv zbc_ata_drv;
 
 /**
  * ZBC (SCSI) device driver (uses SG_IO).
  */
-struct zbc_drv zbc_scsi_drv;
+extern struct zbc_drv zbc_scsi_drv;
 
 /**
  * ZBC emulation driver (file or block device).
  */
-struct zbc_drv zbc_fake_drv;
+extern struct zbc_drv zbc_fake_drv;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
@@ -266,7 +266,7 @@ enum {
 /**
  * Library log level.
  */
-int zbc_log_level;
+extern int zbc_log_level;
 
 #define zbc_print(stream,format,args...)		\
 	do {						\
