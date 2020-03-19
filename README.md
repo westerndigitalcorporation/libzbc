@@ -1,8 +1,11 @@
 SPDX-License-Identifier: BSD-2-Clause
+
 SPDX-License-Identifier: LGPL-3.0-or-later
 
 SPDX-FileCopyrightText: 2009-2014, HGST, Inc.
+
 SPDX-FileCopyrightText: 2016, Western Digital.
+
 SPDX-FileCopyrightText: 2020 Western Digital Corporation or its affiliates.
 
 
@@ -25,7 +28,7 @@ directory.
 ### Library version
 
 *libzbc* current major version is 5. Due to interface changes, this version is
-not compatible with previous *libzbc+ versions (version 4.x). Overall, the
+not compatible with previous *libzbc* versions (version 4.x). Overall, the
 library operation does not change, but applications written for previous
 *libzbc* versions must be updated to use the new API.
 
@@ -59,6 +62,7 @@ http://opensource.org/licenses/BSD-2-Clause and http://www.gnu.org/licenses/.
 
 Contributions are accepted as github pull requests. Any problem may also be
 reported through github issue page or by contacting:
+
 * Damien Le Moal (damien.lemoal@wdc.com)
 * Dmitry Fomichev (dmitry.fomichev@wdc.com)
 
@@ -67,47 +71,54 @@ THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
 
 ## Compilation and installation
 
-*libzbc* requires that the autoconf, automake and libtool development packages
-be installed on the host used for compilation. The GTK3 and GTK3 development
-packages are necessary to compile the *gzbc* application. Installing these
-packages will automatically enable the compilation of gzbc.
+*libzbc* requires the following packages for compilation:
+
+* autoconf
+* autoconf-archive
+* automake
+* libtool
+
+The GTK3 and GTK3 development packages must be installed to automatically enable
+compiling the *gzbc* and *gzviewer* applications.
 
 To compile the library and all example applications under the tools directory,
 execute the following commands.
 
 ```
-# sh ./autogen.sh
-# ./configure
-# make
+$ sh ./autogen.sh
+$ ./configure
+$ make
 ```
 
 To install the library and all example applications compiled under the tools
 directory, execute the following command.
 
 ```
-# sudo make install
+$ sudo make install
 ```
 
-The library file is by default installed under /usr/lib (or /usr/lib64). The
-library header file is installed in /usr/include/libzbc. The executable files
-for the example applications are installed under /usr/bin. These defaults can be
-changed using the configure script. Executing the following command displays the
-options used to control the installation paths.
+The library file is by default installed under `/usr/lib` (or `/usr/lib64`).
+The library header file is installed in `/usr/include/libzbc`. The executable
+files for the example applications are installed under `/usr/bin`.
+
+These default installation locations can be changed using the configure script.
+Executing the following command displays the options used to control the
+installation paths.
 
 ```
-# ./configure --help
+$ ./configure --help
 ```
 
 ## Compilation with GUI tools
 
 The *gzbc* and *gzviewer* tools implement a graphical user interface (GUI) using
 the GTK3 toolkit. The configure script will automatically detect the presence of
-GTK3 development headers and compile these tools if the header files are found.
-This behavior can be manually changed and the compilation of *gzbc* and
-*gzviewer* disabled using the `--disable-gui` configuration option.
+GTK3 and its development header files and compile these tools if the header
+files are found. This behavior can be manually changed and the compilation of
+*gzbc* and *gzviewer* disabled using the `--disable-gui` configuration option.
 
 ```
-# ./configure --disable-gui
+$ ./configure --disable-gui
 ```
 
 ## Compilation for device tests
@@ -120,17 +131,17 @@ compilation of these test programs is disabled by default.
 To compile the test programs, *libzbc* must be configured as follows.
 
 ```
-# ./configure --with-test
+$ ./configure --with-test
 ```
 
 The test programs and scripts are not affected by the execution of "make
 install". All defined tests must be executed directly from the test directory
-using the zbc_test.sh script. To test the device /dev/<SG node>, the following
-can be executed.
+using the *zbc_test.sh* script. To test the device `/dev/<SG node>`, the
+following can be executed.
 
 ```
-# cd test
-# sudo ./zbc_test.sh /dev/<SG node>
+$ cd test
+$ sudo ./zbc_test.sh /dev/<SG node>
 ```
 
 By default, the script will run through all the test cases. Detailed control
@@ -191,41 +202,40 @@ write required zones of the device in multiple of the physical block size.
 
 The main functions provided by *libzbc* are as follows.
 
-Function               | Description
------------------------|---------------------------------------------
-zbc_open()             | Open a zoned device
-zbc_close()            | Close a zoned device
-zbc_get_device_info()  | Get device information
-zbc_report_nr_zones()  | Get the number of zones of the device
-zbc_report_zones()<br>
-zbc_list_zones()       | Get zone information
-zbc_zone_operation()   | Execute a zone operation
-zbc_open_zone()        | Explicitely open a zone
-zbc_close_zone()       | Close an open zone
-zbc_finish_zone()      | Finish a zone
-zbc_reset_zone()       | Reset a zone write pointer
-zbc_pread()            | Read data from a zone
-zbc_preadv()           | Read data from a zone using vectored buffer
-zbc_pwrite()           | Write data to a zone
-zbc_pwritev()          | Write data to a zone using vectored buffer
-zbc_flush()            | Flush data to disk
+Function                 | Description
+-------------------------|---------------------------------------------
+*zbc_open()*             | Open a zoned device
+*zbc_close()*            | Close a zoned device
+*zbc_get_device_info()*  | Get device information
+*zbc_report_nr_zones()*  | Get the number of zones of the device
+*zbc_report_zones()* <br> *zbc_list_zones()* | Get zone information
+*zbc_zone_operation()*   | Execute a zone operation
+*zbc_open_zone()*        | Explicitely open a zone
+*zbc_close_zone()*       | Close an open zone
+*zbc_finish_zone()*      | Finish a zone
+*zbc_reset_zone()*       | Reset a zone write pointer
+*zbc_pread()*            | Read data from a zone
+*zbc_preadv()*           | Read data from a zone using vectored buffer
+*zbc_pwrite()*           | Write data to a zone
+*zbc_pwritev()*          | Write data to a zone using vectored buffer
+*zbc_flush()*            | Flush data to disk
 
 Additionally, the following functions are also provided to facilitate
 application development and tests.
 
-Function                 | Description
--------------------------|----------------------------
-zbc_map_iov()            | Map a vectored buffer using a single buffer
-zbc_set_log_level()      | Set the logging level of the library functions
-zbc_device_is_zoned()    | Test if a device is a zoned block device
-zbc_print_device_info()  | Print device information to a file (stream)
-zbc_device_type_str()    | Get a string description of a device type
-zbc_device_model_str()   | Get a string description of a device model
-zbc_zone_type_str()      | Get a string description of a zone type
-zbc_zone_condition_str() | Get a string description of a zone condition
-zbc_errno()              | Get the sense key and code of the last function call
-zbc_sk_str()             | Get a string description of a sense key
-zbc_asc_ascq_str()       | Get a string description of a sense code
+Function                   | Description
+---------------------------|---------------------------------------------------
+*zbc_map_iov()*            | Map a vectored buffer using a single buffer
+*zbc_set_log_level()*      | Set the logging level of the library functions
+*zbc_device_is_zoned()*    | Test if a device is a zoned block device
+*zbc_print_device_info()*  | Print device information to a file (stream)
+*zbc_device_type_str()*    | Get a string description of a device type
+*zbc_device_model_str()*   | Get a string description of a device model
+*zbc_zone_type_str()*      | Get a string description of a zone type
+*zbc_zone_condition_str()* | Get a string description of a zone condition
+*zbc_errno()*              | Get the sense key and code of the last function call
+*zbc_sk_str()*             | Get a string description of a sense key
+*zbc_asc_ascq_str()*       | Get a string description of a sense code
 
 *libzbc* does not implement any synchronization mechanism for multiple threads
 or processes to safely operate simultaneously on the same zone. In particular,
@@ -239,9 +249,9 @@ thread safe and does not require serialized execution by the application.
 Linux kernels older than version 4.10 do not create a block device file for
 host-managed ZBC and ZAC devices. As a result, these devices can only be
 accessed through their associated SG node (/dev/sgx device file). For these
-older kernels, opening a ZBC or ZAC host managed disk with *libzbc* must thus be
-done using the device SG node. For kernel versions 4.10 and beyond compiled with
-zoned block device support, the device will be exposed also through a block
+older kernels, opening a ZBC or ZAC host managed disk with *libzbc* must thus
+be done using the device SG node. For kernel versions 4.10 and beyond compiled
+with zoned block device support, the device will be exposed also through a block
 device file which can be used with *libzbc* to identify the device.
 
 For host-aware devices, a block device file and an SG node file will exist and
@@ -269,8 +279,8 @@ formatted with the doxygen convention. HTML files documenting *libzbc* API can
 be generated using the doxygen project file documentation/libzbc.doxygen.
 
 ```
-# cd documentation
-# doxygen libzbc.doxygen
+$ cd documentation
+$ doxygen libzbc.doxygen
 ```
 
 ## Tools
