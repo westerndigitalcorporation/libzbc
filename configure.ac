@@ -15,8 +15,15 @@ AC_PREFIX_DEFAULT(/usr)
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects])
 AM_SILENT_RULES([yes])
 
+AX_CHECK_ENABLE_DEBUG([no], [_DBG_])
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_INSTALL
+
+AC_CHECK_PROGS([DOXYGEN], [doxygen])
+if test -z "$DOXYGEN"; then
+	AC_MSG_WARN([Doxygen not found - continuing without Doxygen support])
+fi
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_SYS_LARGEFILE
@@ -27,8 +34,11 @@ m4_pattern_allow([AM_PROG_AR])
 LT_INIT
 
 ACX_PTHREAD
+CFLAGS="$CFLAGS $EXTRA_CFLAGS $PTHREAD_CFLAGS"
+if test "x$enable_debug" == "xno"; then
+	CFLAGS="-O2 $CFLAGS"
+fi
 LIBS="$PTHREAD_LIBS $LIBS"
-CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CC="$PTHREAD_CC"
 
 # Checks for header files.

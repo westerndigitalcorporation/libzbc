@@ -12,7 +12,7 @@ EXTRA_DIST = \
 	exports
 
 AM_CPPFLAGS = \
-	-O2 \
+	$(CFLAGS) \
 	-Wall -Wextra -Wno-unused-parameter \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include
