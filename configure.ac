@@ -32,10 +32,31 @@ CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 CC="$PTHREAD_CC"
 
 # Checks for header files.
-AC_CHECK_HEADER(scsi/scsi.h, [], [AC_MSG_ERROR([Couldn't find scsi/scsi.h])])
-AC_CHECK_HEADER(scsi/sg.h, [], [AC_MSG_ERROR([Couldn't find scsi/sg.h])])
-AC_CHECK_HEADER(libgen.h, [], [AC_MSG_ERROR([Couldn't find libgen.h])])
-AC_CHECK_HEADERS([linux/fs.h linux/blkzoned.h])
+AC_CHECK_HEADER([scsi/scsi.h], [],
+		[AC_MSG_ERROR([Couldn't find scsi/scsi.h])],
+		[
+			#include <scsi/scsi.h>
+		])
+AC_CHECK_HEADER([scsi/sg.h], [],
+		[AC_MSG_ERROR([Couldn't find scsi/sg.h])],
+		[
+			#include <scsi/scsi.h>
+			#include <scsi/sg.h>
+		])
+AC_CHECK_HEADER([libgen.h], [],
+		[AC_MSG_ERROR([Couldn't find libgen.h])],
+		[
+			#include <libgen.h>
+		])
+AC_CHECK_HEADERS([linux/fs.h], [],
+		[AC_MSG_ERROR([Couldn't find libgen.h])],
+		[
+			#include <linux/fs.h>
+		])
+AC_CHECK_HEADERS([linux/blkzoned.h], [], [],
+		[
+			#include <linux/blkzoned.h>
+		])
 
 # Conditionals
 
