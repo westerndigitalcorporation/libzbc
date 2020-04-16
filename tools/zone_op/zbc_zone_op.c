@@ -37,9 +37,9 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	struct zbc_zone *zones = NULL, *tgt = NULL;;
-	long long start = -1LL;
-	unsigned long long start_sector = -1ULL;
+	struct zbc_zone *zones = NULL, *tgt = NULL;
+	long long start = 0;
+	unsigned long long start_sector = 0, zone_start;
 	unsigned int flags = 0;
 	int i, ret = 1;
 	unsigned int nr_zones, tgt_idx;
@@ -147,7 +147,6 @@ usage:
 	if (flags & ZBC_OP_ALL_ZONES) {
 
 		printf("Operating on all zones...\n");
-		start_sector = 0;
 
 	} else {
 
@@ -158,15 +157,9 @@ usage:
 			ret = 1;
 			goto out;
 		}
-		if (lba_unit)
-			start_sector = zbc_lba2sect(&info, start);
-		else if (sector_unit)
-			start_sector = start;
-		else
-			start_sector = 0;
 
 		/* Get zone list */
-		ret = zbc_list_zones(dev, start, ZBC_RO_ALL, &zones, &nr_zones);
+		ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
 		if ( ret != 0 ) {
 			fprintf(stderr, "zbc_list_zones failed\n");
 			ret = 1;
@@ -174,18 +167,25 @@ usage:
 		}
 
 		if (lba_unit || sector_unit) {
+			struct zbc_zone *z;
+
 			/* Search target zone */
-			for (i = 0; i < (int)nr_zones; i++) {
-				if (start_sector >= zbc_zone_start(&zones[i]) &&
-				    start_sector < zbc_zone_start(&zones[i]) + zbc_zone_length(&zones[i])) {
-					tgt = &zones[i];
-					tgt_idx = i;
+			if (lba_unit)
+				start_sector = zbc_lba2sect(&info, start);
+			else
+				start_sector = start;
+			z = &zones[0];
+			for (tgt_idx = 0; tgt_idx < nr_zones; tgt_idx++, z++) {
+				if (start_sector >= zbc_zone_start(z) &&
+				    start_sector < zbc_zone_start(z) + zbc_zone_length(z)) {
+					tgt = z;
 					break;
 				}
 			}
 		} else if (start < nr_zones) {
 			tgt = &zones[start];
 			tgt_idx = start;
+			start_sector = zbc_zone_start(tgt);
 		}
 		if (!tgt) {
 			fprintf(stderr, "Target zone not found\n");
@@ -193,19 +193,12 @@ usage:
 			goto out;
 		}
 
+		zone_start = zbc_sect2lba(&info, zbc_zone_start(tgt));
 		if (lba_unit)
-			printf("%s zone %d/%d, LBA %llu...\n",
-			       zbc_zone_op_name(op),
-			       tgt_idx, nr_zones,
-			       (unsigned long long)zbc_sect2lba(&info, zbc_zone_start(tgt)));
-		else
-			printf("%s zone %d/%d, sector %llu...\n",
-			       zbc_zone_op_name(op),
-			       tgt_idx, nr_zones,
-			       (unsigned long long)zbc_zone_start(tgt));
-
-		start_sector = zbc_zone_start(tgt);
-
+			zone_start = zbc_sect2lba(&info, zone_start);
+		printf("%s zone %d/%d, %s %llu...\n",
+		       zbc_zone_op_name(op), tgt_idx, nr_zones,
+		       lba_unit ? "LBA" : "sector", zone_start);
 	}
 
 	switch (op) {
