@@ -41,6 +41,17 @@ function zbc_print_usage()
 	exit 1
 }
 
+is_scsi_device()
+{
+	local d f
+
+	d=$(basename "$dev")
+	for f in /sys/class/scsi_device/*/device/block/"$d"; do
+		[ -e "$f" ] && return 0
+	done
+	return 1
+}
+
 if [ $# -lt 1 ]; then
     zbc_print_usage
 fi
@@ -157,7 +168,6 @@ fi
 
 # Check device path if one was specified
 if [ ! -z ${device} ]; then
-
 	# Resolve symbolic links
 	device="`readlink -e -n ${device}`"
 	if [ ! -e ${device} ]; then
@@ -165,15 +175,8 @@ if [ ! -z ${device} ]; then
 		exit 1
 	fi
 
-	# Only SG nodes (character device files of SCSI or ATA disks) are
-	# allowed
-	if [ ! -c ${device} ]; then
-                echo "Device \"${device}\" is not an SG node"
-                exit 1
-        fi
-
 	dev_name=`basename "${device}"`
-	if [ ! -e /sys/class/scsi_generic/${dev_name} ]; then
+	if ! is_scsi_device "$dev_name"; then
                 echo "Device \"${device}\" is not a SCSI/ATA device"
                 exit 1
         fi
