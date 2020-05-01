@@ -165,18 +165,24 @@ if [ ! -z ${device} ]; then
 		exit 1
 	fi
 
-	# Only SG nodes (character device files of SCSI or ATA disks) are
-	# allowed
-	if [ ! -c ${device} ]; then
-                echo "Device \"${device}\" is not an SG node"
-                exit 1
+	# Only SG/SD nodes (character device / block device files of SCSI or ATA 
+	# disks) are allowed
+	if [ -c ${device} ]; then
+		dev_name=`basename "${device}"`
+		if [ ! -e /sys/class/scsi_generic/${dev_name} ]; then
+			echo "Device \"${device}\" is not an SG node"
+			exit 1
         fi
-
-	dev_name=`basename "${device}"`
-	if [ ! -e /sys/class/scsi_generic/${dev_name} ]; then
-                echo "Device \"${device}\" is not a SCSI/ATA device"
-                exit 1
+	elif [ -b ${device} ]; then
+		dev_name=`basename "${device}"`
+		if [ ! -e /sys/block/${dev_name}/device/scsi_device ]; then
+			echo "Device \"${device}\" is not a SCSI/ATA device"
+			exit 1
         fi
+	else
+		echo "Device \"${device}\" is not a recognized device type"
+		exit 1
+	fi
 fi
 
 # Build run list
