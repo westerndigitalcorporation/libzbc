@@ -34,7 +34,7 @@ m4_pattern_allow([AM_PROG_AR])
 LT_INIT
 
 ACX_PTHREAD
-CFLAGS="$CFLAGS $EXTRA_CFLAGS $PTHREAD_CFLAGS"
+CFLAGS="$CFLAGS --std=gnu90 $EXTRA_CFLAGS $PTHREAD_CFLAGS"
 if test "x$enable_debug" == "xno"; then
 	CFLAGS="-O2 $CFLAGS"
 fi
