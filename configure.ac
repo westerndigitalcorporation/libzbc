@@ -46,31 +46,21 @@ LIBS="$PTHREAD_LIBS $LIBS"
 CC="$PTHREAD_CC"
 
 # Checks for header files.
-AC_CHECK_HEADER([scsi/scsi.h], [],
-		[AC_MSG_ERROR([Couldn't find scsi/scsi.h])],
-		[
-			#include <scsi/scsi.h>
-		])
-AC_CHECK_HEADER([scsi/sg.h], [],
-		[AC_MSG_ERROR([Couldn't find scsi/sg.h])],
-		[
-			#include <scsi/scsi.h>
-			#include <scsi/sg.h>
-		])
-AC_CHECK_HEADER([libgen.h], [],
-		[AC_MSG_ERROR([Couldn't find libgen.h])],
-		[
-			#include <libgen.h>
-		])
 AC_CHECK_HEADERS([linux/fs.h], [],
-		[AC_MSG_ERROR([Couldn't find libgen.h])],
-		[
+		[AC_MSG_ERROR([Couldn't find linux/fs.h])],
+		[[
+			#ifdef HAVE_LINUX_FS_H
 			#include <linux/fs.h>
-		])
+			int main(int argc, char **argv) { return 0; }
+			#endif
+		]])
 AC_CHECK_HEADERS([linux/blkzoned.h], [], [],
-		[
+		[[
+			#ifdef HAVE_LINUX_BLKZONED_H
 			#include <linux/blkzoned.h>
-		])
+			int main(int argc, char **argv) { return 0; }
+			#endif
+		]])
 
 # Conditionals
 
