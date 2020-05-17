@@ -18,6 +18,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include
 
 pkgconfdir = $(libdir)/pkgconfig
+rpmdir = $(abs_top_builddir)/rpmbuild
 
 pkgconf_DATA = libzbc.pc
 pkginclude_HEADERS =
@@ -60,3 +61,12 @@ include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
 endif
 
+rpm: dist
+	echo "##### topdir: $(abs_top_builddir)"
+	mv libzbc-$(PACKAGE_VERSION).tar.gz rpmbuild/SOURCES
+	rpmbuild -bb -v \
+		--target="${build_cpu}" \
+		-D "_topdir $(rpmdir)" \
+		-D "version $(PACKAGE_VERSION)" \
+		-D "archive $(rpmdir)/SOURCES/libzbc-$(PACKAGE_VERSION).tar.gz" \
+		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"

@@ -64,6 +64,10 @@ modules.order
 .depfile
 .depend
 
+# Distribution build temporary files
+*.tar.gz
+*.rpm
+
 # Windows-specific files
 Thumbs.db
 desktop.ini
