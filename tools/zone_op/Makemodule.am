@@ -4,6 +4,7 @@
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
 noinst_LTLIBRARIES = libzone_op.la   
-libzone_op_la_SOURCES = tools/zone_op/zbc_zone_op.c
+libzone_op_la_SOURCES = tools/zone_op/zbc_zone_op.c \
+                        tools/zone_op/zbc_zone_op.h
 libzone_op_la_LIBADD = $(libzbc_ldadd)
 
