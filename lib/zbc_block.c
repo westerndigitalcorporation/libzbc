@@ -116,6 +116,7 @@ static int zbc_block_get_partition_start(struct zbc_device *dev)
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
 	FILE *file;
+	int ret;
 
 	/* Open the start offset file of the partition */
 	snprintf(str, sizeof(str),
@@ -132,7 +133,12 @@ static int zbc_block_get_partition_start(struct zbc_device *dev)
 		return ret;
 	}
 
-	fscanf(file, "%llu", &zbd->part_offset);
+	ret = fscanf(file, "%llu", &zbd->part_offset);
+	if (ret <= 0) {
+		zbc_error("%s: can't read partition offset from %s\n",
+			  zbd->part_name, str);
+		return ret;
+	}
 	fclose(file);
 
 	zbc_debug("%s: Partition of %s, start sector offset %llu\n",
@@ -239,6 +245,7 @@ static int zbc_block_device_classify(struct zbc_device *dev)
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
 	FILE *file;
+	int ret;
 
 	/* Check that this is a zoned block device */
 	snprintf(str, sizeof(str),
@@ -253,7 +260,12 @@ static int zbc_block_device_classify(struct zbc_device *dev)
 		return -ENXIO;
 
 	memset(str, 0, sizeof(str));
-	fscanf(file, "%s", str);
+	ret = fscanf(file, "%s", str);
+	if (ret <= 0) {
+		zbc_error("%s: can't read zoned model from %s\n",
+			  zbd->part_name, str);
+		return ret;
+	}
 	fclose(file);
 
 	if (strcmp(str, "host-aware") == 0) {
@@ -359,6 +371,7 @@ static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
 	FILE *file;
+	int ret;
 
 	/* Open the chunk_sectors file */
 	snprintf(str, sizeof(str),
@@ -374,7 +387,12 @@ static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 		return ret;
 	}
 
-	fscanf(file, "%llu", &zbd->zone_sectors);
+	ret = fscanf(file, "%llu", &zbd->zone_sectors);
+	if (ret <= 0) {
+		zbc_error("%s: can't read zone sectors from %s\n",
+			  zbd->part_name, str);
+		return ret;
+	}
 	fclose(file);
 
 	zbc_debug("%s: Zones of %llu sectors\n",
