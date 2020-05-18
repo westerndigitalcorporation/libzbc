@@ -459,7 +459,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	int ret;
 
 	if (!zbc_dev_is_zoned(dev))
-		return 0;
+		return -ENXIO;
 
 	/* Get zoned block device information */
 	ret = zbc_ata_read_log(dev,

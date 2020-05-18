@@ -708,7 +708,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	int ret;
 
 	if (!zbc_dev_is_zoned(dev))
-		return 0;
+		return -ENXIO;
 
 	ret = zbc_scsi_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
