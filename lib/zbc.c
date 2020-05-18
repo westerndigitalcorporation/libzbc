@@ -276,8 +276,7 @@ static int zbc_realpath(const char *filename, char **path)
 /**
  * zbc_device_is_zoned - Test if a physical device is zoned.
  */
-int zbc_device_is_zoned(const char *filename,
-			bool fake,
+int zbc_device_is_zoned(const char *filename, bool allow_fake,
 			struct zbc_device_info *info)
 {
 	struct zbc_device *dev = NULL;
@@ -290,6 +289,8 @@ int zbc_device_is_zoned(const char *filename,
 
 	/* Test all backends until one accepts the drive. */
 	for (i = 0; zbc_drv[i]; i++) {
+		if (!allow_fake && zbc_drv[i] == &zbc_fake_drv)
+			continue;
 		ret = zbc_drv[i]->zbd_open(path, O_RDONLY, &dev);
 		if (ret == 0) {
 			/* This backend accepted the device */
@@ -301,14 +302,10 @@ int zbc_device_is_zoned(const char *filename,
 	}
 
 	if (dev && dev->zbd_drv) {
-		if (dev->zbd_drv == &zbc_fake_drv && !fake) {
-			ret = 0;
-		} else {
-			ret = 1;
-			if (info)
-				memcpy(info, &dev->zbd_info,
-				       sizeof(struct zbc_device_info));
-		}
+		ret = 1;
+		if (info)
+			memcpy(info, &dev->zbd_info,
+			       sizeof(struct zbc_device_info));
 		dev->zbd_drv->zbd_close(dev);
 	} else {
 		if ((ret != -EPERM) && (ret != -EACCES))
