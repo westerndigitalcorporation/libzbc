@@ -45,7 +45,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	unsigned int nr_zones, tgt_idx;
 	bool sector_unit = false;
 	bool lba_unit = false;
-	char *path;
+	char *path, *end;
 
 	/* Check command line */
 	if (!argc) {
@@ -152,8 +152,8 @@ usage:
 	} else {
 
 		/* Get target zone */
-		start = strtoll(argv[i + 1], NULL, 10);
-		if (start < 0) {
+		start = strtoll(argv[i + 1], &end, 10);
+		if (*end != '\0' || start < 0) {
 			fprintf(stderr, "Invalid zone\n");
 			ret = 1;
 			goto out;

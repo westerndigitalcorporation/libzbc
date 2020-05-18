@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	unsigned long long start = 0;
 	int i, ret = 1;
 	int num = 0;
-	char *path;
+	char *path, *end;
 
 	/* Check command line */
 	if (argc < 2) {
@@ -131,8 +131,8 @@ usage:
 				goto usage;
 			i++;
 
-			nz = strtol(argv[i], NULL, 10);
-			if (nz <= 0)
+			nz = strtol(argv[i], &end, 10);
+			if (*end != '\0' || nz == 0)
 				goto usage;
 
 		} else if (strcmp(argv[i], "-lba") == 0) {
@@ -145,7 +145,9 @@ usage:
 				goto usage;
 			i++;
 
-			start = strtoll(argv[i], NULL, 10);
+			start = strtoll(argv[i], &end, 10);
+			if (*end != '\0')
+				goto usage;
 
 		} else if (strcmp(argv[i], "-ro") == 0) {
 
