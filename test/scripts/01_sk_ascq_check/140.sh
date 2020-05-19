@@ -18,6 +18,10 @@ zbc_test_init $0 "FINISH a CLOSED zone when (max_open - ${test_ozr_reserve:-0}) 
 expected_sk="Data-protect"
 expected_asc="Insufficient-zone-resources"
 
+# Depending on internal design of the drive, FINISH at MAX OPEN may succeed.
+alt_expected_sk=""
+alt_expected_asc=""
+
 # Get drive information
 zbc_test_get_device_info
 
