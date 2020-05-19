@@ -723,8 +723,8 @@ function zbc_test_check_sk_ascq()
 		return
 	fi
 
-	if [ "${alt_expected_sk}" != "" -a "${sk}" = "${alt_expected_sk}" ] &&
-	   [ "${alt_expected_asc}" != "" -a "${asc}" = "${alt_expected_asc}" ]; then
+	if [[ -n ${alt_expected_sk+x} && "${sk}" == "${alt_expected_sk}" &&
+	      -n ${alt_expected_asc+x} && "${asc}" == "${alt_expected_asc}" ]]; then
 		zbc_test_print_passed
 		return
 	fi
