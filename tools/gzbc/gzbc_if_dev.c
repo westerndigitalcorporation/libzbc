@@ -1421,7 +1421,6 @@ static void dz_if_zone_op(dz_dev_t *dzd, enum zbc_zone_op op,
 			  char *op_name, char *msg)
 {
 	GtkWidget *dialog;
-	char str[128];
 	int ret;
 
 	dzd->zone_no = dzd->zlist_selection;
@@ -1431,17 +1430,20 @@ static void dz_if_zone_op(dz_dev_t *dzd, enum zbc_zone_op op,
 	if (ret != 0) {
 
 		if (dzd->zone_no == -1)
-			sprintf(str, "%s all zones failed\n",
-				op_name);
+			dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					GTK_MESSAGE_ERROR,
+					GTK_BUTTONS_OK,
+					"%s all zones failed\n",
+					op_name);
 		else
-			sprintf(str, "%s zone %d failed\n",
-				op_name, dzd->zone_no);
+			dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
+					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					GTK_MESSAGE_ERROR,
+					GTK_BUTTONS_OK,
+					"%s zone %d failed\n",
+					op_name, dzd->zone_no);
 
-		dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-						GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-						GTK_MESSAGE_ERROR,
-						GTK_BUTTONS_OK,
-						str);
 		gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
 							 "Error %d (%s)",
 							 ret, strerror(ret));
