@@ -1,12 +1,5 @@
-SPDX-License-Identifier: BSD-2-Clause
-
-SPDX-License-Identifier: LGPL-3.0-or-later
-
-SPDX-FileCopyrightText: 2009-2014, HGST, Inc.
-
-SPDX-FileCopyrightText: 2016, Western Digital.
-
-SPDX-FileCopyrightText: 2020 Western Digital Corporation or its affiliates.
+Copyright (C) 2016, Western Digital.<br>
+Copyright (C) 2020 Western Digital Corporation or its affiliates.
 
 
 # libzbc
@@ -40,10 +33,15 @@ pre-releases](https://github.com/hgst/libzbc/releases).
 
 ### License
 
-*libzbc* is dual licensed and distributed under the terms of the BSD 2-clause
+*libzbc* source code is distributed under the terms of the BSD 2-clause
 license ("Simplified BSD License" or "FreeBSD License", SPDX: *BSD-2-Clause*)
 and under the terms of the GNU Lesser General Public License version 3, or any
 later version (SPDX: *LGPL-3.0-or-later*).
+A copy of these licenses with *libzbc* copyright can be found in the files
+[LICENSES/BSD-2-Clause.txt] and [COPYING.BSD] for the BSD 2-clause license and
+[LICENSES/LGPL-3.0-or-later.txt] and [COPYING.LESSER] for the LGPL-v3 license.
+If not, please see
+http://opensource.org/licenses/BSD-2-Clause and http://www.gnu.org/licenses/.
 
 All example applications under the tools directory are distributed under the
 terms of the GNU Lesser General Public License version 3, or any later version
@@ -53,10 +51,23 @@ terms of the GNU Lesser General Public License version 3, or any later version
 technical support, and WITHOUT ANY WARRANTY, without even the implied warranty
 of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-Along with *libzbc*, you should have received a copy of the BSD 2-clause
-license in the file [COPYING.BSD] and of the GNU Lesser General Public License
-version 3 in the file [COPYING.LESSER]. If not, please see
-http://opensource.org/licenses/BSD-2-Clause and http://www.gnu.org/licenses/.
+All source files in *libzbc* contain the BSD 2-clause and LGPL v3 license SPDX
+short identifiers in place of the full license text.
+
+```
+SPDX-License-Identifier: BSD-2-Clause
+SPDX-License-Identifier: LGPL-3.0-or-later
+```
+
+Some files such as the `.gitignore` file are public domain specified by the
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication. These files are
+identified with the following SPDX header.
+
+```
+SPDX-License-Identifier: CC0-1.0
+```
+
+See [LICENSES/CC0-1.0.txt] for the full text of this license.
 
 ### Contributions and Bug Reports
 
@@ -155,6 +166,24 @@ for the tests is thus not allowed.
 
 Each test outputs a log file in the `test/log` directory. These files can be
 consulted in case of a failed test to identify the reason for the test failure.
+
+## Building rpm packages
+
+The following command will build redistributable rpm packages.
+
+```
+$ make rpm
+```
+
+Three rpm packages are built: a binary package providing the library and
+executable tools, a development package providing *libzbc* header files and a
+source package. The source package can be used to build the binary and
+development rpm packages outside of *libzbc* source tree using the following
+command.
+
+```
+$ rpmbuild --rebuild libzbc-devel-<version>.src.rpm
+```
 
 ## Library Overview
 
