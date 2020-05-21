@@ -32,7 +32,7 @@ mkdir -p $RPM_BUILD_ROOT
 %build
 sh autogen.sh
 %configure --libdir="%{_libdir}" --includedir="%{_includedir}"
-make
+%make_build
 
 %install
 make install PREFIX=%{_prefix} DESTDIR=$RPM_BUILD_ROOT
@@ -49,7 +49,7 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %{_includedir}/*
 
 %clean
-mv -f %{_topdir}/RPMS/%{?_isa}/*.rpm %{_topdir}/../
+mv -f %{_topdir}/RPMS/%{_arch}/*.rpm %{_topdir}/../
 rm -rf %{_topdir}/BUILDROOT
 rm -rf %{_topdir}/BUILD/*
 rm -rf %{_topdir}/RPMS/*
