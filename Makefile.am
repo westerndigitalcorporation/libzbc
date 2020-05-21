@@ -62,6 +62,11 @@ include test/programs/write_zone/Makemodule.am
 endif
 
 rpm: dist
+	@mkdir -p $(rpmdir)/BUILD
+	@mkdir -p $(rpmdir)/RPMS
+	@mkdir -p $(rpmdir)/SOURCES
+	@mkdir -p $(rpmdir)/SPECS
+	@mkdir -p $(rpmdir)/SRPMS
 	@mv libzbc-$(PACKAGE_VERSION).tar.gz $(rpmdir)/SOURCES
 	@echo "Version:        $(PACKAGE_VERSION)" > $(rpmdir)/SPECS/libzbc.spec
 	@cat $(rpmdir)/libzbc.spec.in >> $(rpmdir)/SPECS/libzbc.spec
@@ -75,7 +80,9 @@ rpm: dist
 		-D "_topdir $(rpmdir)" \
 		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"
 	@mv -f $(rpmdir)/RPMS/$(build_cpu)/*.rpm $(abs_top_builddir)
+	@rm -rf $(rpmdir)/SRPMS
+	@rm -rf $(rpmdir)/SPECS
+	@rm -rf $(rpmdir)/SOURCES
+	@rm -rf $(rpmdir)/RPMS
 	@rm -rf $(rpmdir)/BUILDROOT
-	@rm -rf $(rpmdir)/BUILD/*
-	@rm -rf $(rpmdir)/SOURCES/*
-	@rm -rf $(rpmdir)/SPECS/*
+	@rm -rf $(rpmdir)/BUILD
