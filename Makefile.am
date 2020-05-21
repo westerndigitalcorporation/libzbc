@@ -62,11 +62,20 @@ include test/programs/write_zone/Makemodule.am
 endif
 
 rpm: dist
-	echo "##### topdir: $(abs_top_builddir)"
-	mv libzbc-$(PACKAGE_VERSION).tar.gz rpmbuild/SOURCES
-	rpmbuild -bb -v \
-		--target="${build_cpu}" \
+	@mv libzbc-$(PACKAGE_VERSION).tar.gz $(rpmdir)/SOURCES
+	@echo "Version:        $(PACKAGE_VERSION)" > $(rpmdir)/SPECS/libzbc.spec
+	@cat $(rpmdir)/libzbc.spec.in >> $(rpmdir)/SPECS/libzbc.spec
+	@rpmbuild -bs -v \
+		--target="$(build_cpu)" \
 		-D "_topdir $(rpmdir)" \
-		-D "version $(PACKAGE_VERSION)" \
-		-D "archive $(rpmdir)/SOURCES/libzbc-$(PACKAGE_VERSION).tar.gz" \
 		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"
+	@mv -f $(rpmdir)/SRPMS/*.rpm $(abs_top_builddir)
+	@rpmbuild -bb -v \
+		--target="$(build_cpu)" \
+		-D "_topdir $(rpmdir)" \
+		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"
+	@mv -f $(rpmdir)/RPMS/$(build_cpu)/*.rpm $(abs_top_builddir)
+	@rm -rf $(rpmdir)/BUILDROOT
+	@rm -rf $(rpmdir)/BUILD/*
+	@rm -rf $(rpmdir)/SOURCES/*
+	@rm -rf $(rpmdir)/SPECS/*

@@ -1,9 +1,10 @@
 Name:           libzbc
-Version:        %version
 Release:        1%{?dist}
-License:        SPDX-License-Identifier: BSD-2-Clause
 Summary:        A library to control zoned SCSI/ATA devices
-Source:         %archive
+Group:		System Environment/Libraries
+License:        BSD-2-Clause
+URL:		https://github.com/hgst/libzbc
+Source:         %{name}-%{version}.tar.gz
 
 BuildRequires:  autoconf
 BuildRequires:  automake
@@ -19,6 +20,7 @@ standards defined by INCITS technical committee T10 and T13 (respectively).
 
 %package devel
 Summary: Development header files for libzbc
+Group: Development/System
 Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
@@ -48,10 +50,3 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %files devel
 %{_includedir}/*
 
-%clean
-mv -f %{_topdir}/RPMS/%{_arch}/*.rpm %{_topdir}/../
-rm -rf %{_topdir}/BUILDROOT
-rm -rf %{_topdir}/BUILD/*
-rm -rf %{_topdir}/RPMS/*
-rm -rf %{_topdir}/SOURCES/*
-rm -rf %{_topdir}/SRPMS/*
