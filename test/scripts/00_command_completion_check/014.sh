@@ -6,7 +6,7 @@
 # This file is part of libzbc.
 #
 # Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
-# Copyright (C) 20162020, Western Digital. All rights reserved.
+# Copyright (C) 2023, Western Digital. All rights reserved.
 
 . scripts/zbc_test_lib.sh
 
