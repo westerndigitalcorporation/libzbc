@@ -182,7 +182,7 @@ development rpm packages outside of *libzbc* source tree using the following
 command.
 
 ```
-$ rpmbuild --rebuild libzbc-devel-<version>.src.rpm
+$ rpmbuild --rebuild libzbc-<version>.src.rpm
 ```
 
 ## Library Overview
