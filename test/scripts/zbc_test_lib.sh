@@ -983,9 +983,7 @@ function zbc_test_search_target_zone_from_type_and_cond()
 
 		IFS="$_IFS"
 
-
 		return 0
-
 	done
 
 	return 1
@@ -1118,6 +1116,11 @@ function zbc_test_get_zones()
 {
 	local zone_type="${1}"
 	local -i nz=${2}
+	local cand_type cand_cond cand_slba cand_size cand_ptr
+	local cur_type cur_cond cur_slba cur_size cur_ptr
+	local -i candidate=0
+	local -i ret=1
+	local -i i=0
 
 	zbc_test_get_zone_info
 
@@ -1128,42 +1131,45 @@ function zbc_test_get_zones()
 		IFS=$',\n'
 		set -- ${_line}
 
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
-		target_ptr=${7}
+		cur_type=${3}
+		cur_cond=${4}
+		cur_slba=${5}
+		cur_size=${6}
+		cur_ptr=${7}
 
 		IFS="$_IFS"
 
-		local type=${target_type}
-		local slba=${target_slba}
-		local -i i
-		for (( i=0 ; i<${nz} ; i++ )) ; do
-			# Make sure each zone in the range we return is of the same type
-			if [[ ${target_type} != ${type} ]]; then
-				continue 2	# continue second loop out
+		if [[ $candidate == 0 ]]; then
+			# Candidate first zone found
+			cand_type=${cur_type}
+			cand_cond=${cur_cond}
+			cand_slba=${cur_slba}
+			cand_size=${cur_size}
+			cand_ptr=${cur_ptr}
+			candidate=1
+			i=1
+		else
+			if [[ ${cur_type} != ${cand_type} ]]; then
+				candidate=0
+				i=0
+				continue
 			fi
 
-			# Reject zones that are OFFLINE, etc
-			if [[ ${target_cond} != @(${ZC_AVAIL}) ]]; then
-				continue 2	# continue second loop out
-			fi
+			i=$(($i + 1))
+		fi
 
-			# Make sure there is another zone before looking at it
-			if [[ $(( ${target_slba} + ${target_size} )) -ge ${max_lba} ]]; then
-				continue 2	# continue second loop out
-			fi
-
-			zbc_test_get_target_zone_from_slba_or_fail_cached $(( ${target_slba} + ${target_size} ))
-		done
-
-		# Return the info for the first zone of the tuple
-		zbc_test_get_target_zone_from_slba_or_fail_cached ${slba}
-		return 0
+		if [ $i -ge $nz ]; then
+			target_type=${cand_type}
+			target_cond=${cand_cond}
+			target_slba=${cand_slba}
+			target_size=${cand_size}
+			target_ptr=${cand_ptr}
+			ret=0
+			break
+		fi
 	done
 
-	return 1
+	return $ret
 }
 
 function zbc_test_search_zone_pair()
@@ -1171,6 +1177,10 @@ function zbc_test_search_zone_pair()
 	local zone_type="${1}"
 	local zone1_cond=${2}
 	local zone2_cond=${3}
+	local cand_type cand_cond cand_slba cand_size cand_ptr
+	local cur_type cur_cond cur_slba cur_size cur_ptr
+	local -i candidate=0
+	local -i ret=1
 
 	zbc_test_get_zone_info
 
@@ -1180,44 +1190,58 @@ function zbc_test_search_zone_pair()
 		IFS=$',\n'
 		set -- ${_line}
 
-		target_type=${3}
-		target_cond=${4}
-		target_slba=${5}
-		target_size=${6}
+		cur_type=${3}
+		cur_cond=${4}
+		cur_slba=${5}
+		cur_size=${6}
+		cur_ptr=${7}
 
 		IFS="$_IFS"
 
-		if [[ ${target_cond} != @(${zone1_cond}) ]]; then
-			continue
-		fi
+		if [[ $candidate == 0 ]]; then
+			# Make sure the first zone has the needed condition
+			if [[ ${cur_cond} != @(${zone1_cond}) ]]; then
+				continue
+			fi
 
-		# Make sure there is another zone before looking at it
-		if [[ $(( ${target_slba} + ${target_size} )) -ge ${max_lba} ]]; then
+			# Candidate first zone found
+			cand_type=${cur_type}
+			cand_cond=${cur_cond}
+			cand_slba=${cur_slba}
+			cand_size=${cur_size}
+			cand_ptr=${cur_ptr}
+			candidate=1
+			continue
+		else
+			# Make sure the second zone has the needed type/condition
+			if [[ ${cur_type} != ${cand_type} ]]; then
+				candidate=0
+				continue
+			fi
+			if [[ ${cur_cond} != @(${zone2_cond}) ]]; then
+				if [[ ${cur_cond} != @(${zone1_cond}) ]]; then
+					candidate=0
+					continue
+				fi
+				# No match with the second condition, but still a candidate
+				cand_slba=${cur_slba}
+				cand_size=${cur_size}
+				cand_ptr=${cur_ptr}
+				continue
+			fi
+
+			# Full match!
+			target_type=${cand_type}
+			target_cond=${cand_cond}
+			target_slba=${cand_slba}
+			target_size=${cand_size}
+			target_ptr=${cand_ptr}
+			ret=0
 			break
 		fi
-
-		local zone1_type=${target_type}
-		local zone1_slba=${target_slba}
-
-		# Get info on the second zone
-		zbc_test_get_target_zone_from_slba_or_fail_cached $(( ${target_slba} + ${target_size} ))
-
-		# Make sure both zones are of the same type
-		if [[ ${target_type} != ${zone1_type} ]]; then
-			continue
-		fi
-
-		if [[ ${target_cond} != @(${zone2_cond}) ]]; then
-			continue
-		fi
-
-		# Return the info for the first zone of the pair
-		zbc_test_get_target_zone_from_slba_or_fail_cached ${zone1_slba}
-		return 0
-
 	done
 
-	return 1
+	return $ret
 }
 
 function zbc_test_search_zone_pair_or_NA()
