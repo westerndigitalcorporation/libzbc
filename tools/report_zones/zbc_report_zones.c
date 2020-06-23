@@ -141,13 +141,18 @@ usage:
 
 		} else if (strcmp(argv[i], "-start") == 0) {
 
-			if (i >= (argc - 1))
+			if (i >= (argc - 1)) {
+				printf("Missing -start value\n");
 				goto usage;
+			}
 			i++;
 
 			start = strtoll(argv[i], &end, 10);
-			if (*end != '\0')
+			if (*end != '\0') {
+				printf("Invalid start offset \"%s\"\n",
+				       argv[i]);
 				goto usage;
+			}
 
 		} else if (strcmp(argv[i], "-ro") == 0) {
 
