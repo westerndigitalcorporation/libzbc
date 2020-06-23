@@ -176,8 +176,10 @@ int main(int argc, char **argv)
 
 		} else if (strcmp(argv[i], "-start") == 0) {
 
-			if (i >= (argc - 1))
-				goto err;
+			if (i >= (argc - 1)) {
+				printf("Missing -start value\n");
+				return 1;
+			}
 			i++;
 
 			start = strtoll(argv[i], &end, 10);
