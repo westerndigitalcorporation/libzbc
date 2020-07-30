@@ -14,6 +14,10 @@
 #ifndef _LIBZBC_H_
 #define _LIBZBC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -1159,5 +1163,9 @@ extern int zbc_flush(struct zbc_device *dev);
 /**
  * @}
  */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _LIBZBC_H_ */
