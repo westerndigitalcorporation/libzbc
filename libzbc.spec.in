@@ -1,9 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# Copyright (c) 2020 Western Digital Corporation or its affiliates.
+
 Name:           libzbc
 Release:        1%{?dist}
 Summary:        A library to control zoned SCSI/ATA devices
 Group:		System Environment/Libraries
-License:        BSD-2-Clause
-URL:		https://github.com/hgst/libzbc
+License:        BSD and LGPLv3+
+URL:		https://github.com/westerndigitalcorporation/libzbc
 Source:         %{name}-%{version}.tar.gz
 
 BuildRequires:  autoconf
@@ -37,6 +42,8 @@ sh autogen.sh
 %make_build
 
 %install
+rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT
 make install PREFIX=%{_prefix} DESTDIR=$RPM_BUILD_ROOT
 
 find $RPM_BUILD_ROOT -name '*.la' -delete
@@ -46,7 +53,9 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %files
 %{_bindir}/*
 %{_libdir}/*
+%exclude %{_libdir}/pkgconfig
 
 %files devel
 %{_includedir}/*
+%{_libdir}/pkgconfig
 

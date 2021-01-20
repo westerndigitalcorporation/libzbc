@@ -61,28 +61,26 @@ include test/programs/read_zone/Makemodule.am
 include test/programs/write_zone/Makemodule.am
 endif
 
-rpm: dist
-	@mkdir -p $(rpmdir)/BUILD
-	@mkdir -p $(rpmdir)/RPMS
-	@mkdir -p $(rpmdir)/SOURCES
-	@mkdir -p $(rpmdir)/SPECS
-	@mkdir -p $(rpmdir)/SRPMS
-	@mv libzbc-$(PACKAGE_VERSION).tar.gz $(rpmdir)/SOURCES
-	@echo "Version:        $(PACKAGE_VERSION)" > $(rpmdir)/SPECS/libzbc.spec
-	@cat $(rpmdir)/libzbc.spec.in >> $(rpmdir)/SPECS/libzbc.spec
-	@rpmbuild -bs -v \
-		--target="$(build_cpu)" \
-		-D "_topdir $(rpmdir)" \
-		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"
+if ENABLE_RPMBUILD
+EXTRA_DIST += libzbc.spec
+RPMARCH=`$(RPM) --eval %_target_cpu`
+
+spec: libzbc.spec.in
+	@echo "Generating rpm spec file..."
+	@echo "Version:        $(PACKAGE_VERSION)" > libzbc.spec
+	@cat libzbc.spec.in | grep -v '# ' >> libzbc.spec
+
+rpm: spec dist
+	@echo "Building RPM packages..."
+	@mkdir -p $(rpmdir)
+	$(RPMBUILD) -ta --clean -D "_topdir $(rpmdir)" libzbc-$(PACKAGE_VERSION).tar.gz
+	@mv -f $(rpmdir)/RPMS/$(RPMARCH)/*.rpm $(abs_top_builddir)
 	@mv -f $(rpmdir)/SRPMS/*.rpm $(abs_top_builddir)
-	@rpmbuild -bb -v \
-		--target="$(build_cpu)" \
-		-D "_topdir $(rpmdir)" \
-		--nodebuginfo "$(rpmdir)/SPECS/libzbc.spec"
-	@mv -f $(rpmdir)/RPMS/$(build_cpu)/*.rpm $(abs_top_builddir)
-	@rm -rf $(rpmdir)/SRPMS
-	@rm -rf $(rpmdir)/SPECS
-	@rm -rf $(rpmdir)/SOURCES
-	@rm -rf $(rpmdir)/RPMS
-	@rm -rf $(rpmdir)/BUILDROOT
-	@rm -rf $(rpmdir)/BUILD
+	@rm -rf $(rpmdir)
+	@rm -f libzbc-$(PACKAGE_VERSION).tar.gz
+	@rm -f libzbc.spec
+else
+rpm:
+	@echo "To build RPM packages, install the rpm and rpm-build packages"
+	exit 1
+endif

@@ -63,7 +63,6 @@ AC_CHECK_HEADERS([linux/blkzoned.h], [], [],
 		]])
 
 # Conditionals
-
 AC_ARG_ENABLE([gui],
 	AS_HELP_STRING([--disable-gui], [Disable build of GUI tools (gzbc and gzviewer) [default=no]]))
 AS_IF([test "x$enable_gui" != "xno"],
@@ -91,6 +90,11 @@ AS_IF([test "$WITH_TEST" -eq 1],
 [
 	AM_CONDITIONAL([BUILD_TEST], false)
 ])
+
+# Checks for rpm package builds
+AC_PATH_PROG([RPMBUILD], [rpmbuild], [notfound])
+AC_PATH_PROG([RPM], [rpm], [notfound])
+AM_CONDITIONAL(ENABLE_RPMBUILD, test "x$RPMBUILD" != "xnotfound" && test "x$RPM" != "xnotfound")
 
 AC_CONFIG_FILES([
 	libzbc.pc
