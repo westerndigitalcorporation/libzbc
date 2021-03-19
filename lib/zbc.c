@@ -38,10 +38,12 @@ static struct zbc_sg_sk_s {
 	enum zbc_sk	sk;
 	const char	*sk_name;
 } zbc_sg_sk_list[] = {
+	{ ZBC_SK_NOT_READY,		"Not-ready"		},
+	{ ZBC_SK_MEDIUM_ERROR,		"Medium-error"		},
 	{ ZBC_SK_ILLEGAL_REQUEST,	"Illegal-request"	},
 	{ ZBC_SK_DATA_PROTECT,		"Data-protect"		},
 	{ ZBC_SK_ABORTED_COMMAND,	"Aborted-command"	},
-	{ 0,				NULL }
+	{ 0,				NULL			}
 };
 
 /**
@@ -83,6 +85,18 @@ static struct zbc_sg_asc_ascq_s {
 	{
 		ZBC_ASC_INSUFFICIENT_ZONE_RESOURCES,
 		"Insufficient-zone-resources"
+	},
+	{
+		ZBC_ASC_READ_ERROR,
+		"Read-error"
+	},
+	{
+		ZBC_ASC_WRITE_ERROR,
+		"Write-error"
+	},
+	{
+		ZBC_ASC_FORMAT_IN_PROGRESS,
+		"Format-in-progress"
 	},
 	{
 		0,
