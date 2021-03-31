@@ -21,15 +21,15 @@ pkgconfdir = $(libdir)/pkgconfig
 rpmdir = $(abs_top_builddir)/rpmbuild
 
 pkgconf_DATA = libzbc.pc
-pkginclude_HEADERS =
-noinst_HEADERS =
+pkginclude_HEADERS = include/libzbc/zbc.h
+
+noinst_HEADERS = include/zbc_private.h
 bin_PROGRAMS =
 lib_LTLIBRARIES =
 noinst_PROGRAMS =
 
 libzbc_ldadd = $(LDADD) libzbc.la
 
-include include/Makemodule.am
 include lib/Makemodule.am
 include tools/zone_op/Makemodule.am
 
