@@ -6,10 +6,11 @@
 AM_LDFLAGS = -lm
 
 bin_PROGRAMS += gzviewer
+
 gzviewer_SOURCES = \
-	tools/gzviewer/gzviewer.c \
-	tools/gzviewer/gzviewer_if.c \
-	tools/gzviewer/gzviewer.h
+	viewer/gzviewer.c \
+	viewer/gzviewer_if.c \
+	viewer/gzviewer.h
 
 gzviewer_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)
 gzviewer_LDADD = $(libzbc_ldadd) $(GTK_LIBS)

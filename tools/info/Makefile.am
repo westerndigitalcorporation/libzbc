@@ -3,6 +3,7 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-bin_PROGRAMS += zbc_finish_zone
-zbc_finish_zone_SOURCES = tools/finish_zone/zbc_finish_zone.c
-zbc_finish_zone_LDADD = libzone_op.la $(libzbc_ldadd)
+bin_PROGRAMS = zbc_info
+
+zbc_info_SOURCES = info/zbc_info.c
+zbc_info_LDADD = $(libzbc_ldadd)

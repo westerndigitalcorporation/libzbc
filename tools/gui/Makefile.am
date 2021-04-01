@@ -4,11 +4,12 @@
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
 bin_PROGRAMS += gzbc
+
 gzbc_SOURCES = \
-	tools/gzbc/gzbc.c \
-	tools/gzbc/gzbc_if.c \
-	tools/gzbc/gzbc_if_dev.c \
-	tools/gzbc/gzbc.h
+	gui/gzbc.c \
+	gui/gzbc_if.c \
+	gui/gzbc_if_dev.c \
+	gui/gzbc.h
 
 gzbc_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)
 gzbc_LDADD = $(libzbc_ldadd) $(GTK_LIBS)

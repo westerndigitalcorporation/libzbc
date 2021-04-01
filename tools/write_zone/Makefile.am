@@ -3,6 +3,7 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-bin_PROGRAMS += zbc_open_zone
-zbc_open_zone_SOURCES = tools/open_zone/zbc_open_zone.c
-zbc_open_zone_LDADD = libzone_op.la $(libzbc_ldadd)
+bin_PROGRAMS += zbc_write_zone
+
+zbc_write_zone_SOURCES = write_zone/zbc_write_zone.c
+zbc_write_zone_LDADD = $(libzbc_ldadd)

@@ -99,6 +99,9 @@ AM_CONDITIONAL(ENABLE_RPMBUILD, test "x$RPMBUILD" != "xnotfound" && test "x$RPM"
 AC_CONFIG_FILES([
 	libzbc.pc
 	Makefile
+	lib/Makefile
+	tools/Makefile
+	test/programs/Makefile
 ])
 
 AC_OUTPUT

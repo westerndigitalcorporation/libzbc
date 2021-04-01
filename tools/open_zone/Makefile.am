@@ -3,6 +3,7 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-bin_PROGRAMS += zbc_close_zone
-zbc_close_zone_SOURCES = tools/close_zone/zbc_close_zone.c
-zbc_close_zone_LDADD = libzone_op.la $(libzbc_ldadd)
+bin_PROGRAMS += zbc_open_zone
+
+zbc_open_zone_SOURCES = open_zone/zbc_open_zone.c
+zbc_open_zone_LDADD = libzone_op.la $(libzbc_ldadd)

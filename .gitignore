@@ -29,21 +29,19 @@
 *.x86_64
 *.hex
 
-zbc_info
-zbc_inquiry
-zbc_report_zones
-zbc_reset_zone
-zbc_close_zone
-zbc_finish_zone
-zbc_open_zone
-zbc_write_zone
-zbc_read_zone
-zbc_set_zones
-zbc_set_write_ptr
-gzbc
-!tools/gzbc
-gzviewer
-!tools/gzviewer
+tools/zbc_info
+tools/zbc_inquiry
+tools/zbc_report_zones
+tools/zbc_reset_zone
+tools/zbc_close_zone
+tools/zbc_finish_zone
+tools/zbc_open_zone
+tools/zbc_write_zone
+tools/zbc_read_zone
+tools/zbc_set_zones
+tools/zbc_set_write_ptr
+tools/gzbc
+tools/gzviewer
 
 test/programs/zbc_test_print_devinfo
 test/programs/zbc_test_report_zones

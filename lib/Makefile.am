@@ -4,25 +4,30 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-lib_LTLIBRARIES += libzbc.la
+AM_CFLAGS = \
+        $(CFLAGS) \
+        -Wall -Wextra -Wno-unused-parameter \
+        -I$(top_srcdir)/include
+
+lib_LTLIBRARIES = libzbc.la
+
+EXTRA_DIST = exports
 
 CFILES = \
-	lib/zbc.c \
-	lib/zbc_block.c \
-	lib/zbc_sg.c \
-	lib/zbc_scsi.c \
-	lib/zbc_ata.c \
-	lib/zbc_fake.c
+	zbc.c \
+	zbc_block.c \
+	zbc_sg.c \
+	zbc_scsi.c \
+	zbc_ata.c \
+	zbc_fake.c
 
 HFILES = \
-	lib/zbc.h \
-	lib/zbc_sg.h
+	zbc.h \
+	zbc_sg.h
 
 libzbc_la_DEPENDENCIES = exports
 libzbc_la_SOURCES = $(CFILES) $(HFILES)
 libzbc_la_CFLAGS = $(AM_CFLAGS) -fPIC
 libzbc_la_LDFLAGS = \
-        -Wl,--version-script,$(top_srcdir)/exports \
+        -Wl,--version-script,exports \
 	-release '$(PACKAGE_VERSION)'
-
-

@@ -3,6 +3,9 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-bin_PROGRAMS += zbc_info
-zbc_info_SOURCES = tools/info/zbc_info.c
-zbc_info_LDADD = $(libzbc_ldadd)
+noinst_LTLIBRARIES = libzone_op.la   
+
+libzone_op_la_SOURCES = zone_op/zbc_zone_op.c \
+			zone_op/zbc_zone_op.h
+libzone_op_la_LIBADD = $(libzbc_ldadd)
+
