@@ -9,6 +9,12 @@ AM_CFLAGS = \
         -Wall -Wextra -Wno-unused-parameter \
         -I$(top_srcdir)/include
 
+pkgconfdir = $(libdir)/pkgconfig
+pkgconf_DATA = libzbc.pc
+pkginclude_HEADERS = ../include/libzbc/zbc.h
+
+noinst_HEADERS = ../include/zbc_private.h
+
 lib_LTLIBRARIES = libzbc.la
 
 EXTRA_DIST = exports

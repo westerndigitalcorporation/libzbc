@@ -97,9 +97,9 @@ AC_PATH_PROG([RPM], [rpm], [notfound])
 AM_CONDITIONAL(ENABLE_RPMBUILD, test "x$RPMBUILD" != "xnotfound" && test "x$RPM" != "xnotfound")
 
 AC_CONFIG_FILES([
-	libzbc.pc
 	Makefile
 	lib/Makefile
+	lib/libzbc.pc
 	tools/Makefile
 	test/programs/Makefile
 ])
