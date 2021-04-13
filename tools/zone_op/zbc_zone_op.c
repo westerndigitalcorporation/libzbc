@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 #include "zbc_zone_op.h"
@@ -32,6 +33,26 @@ static const char *zbc_zone_op_name(enum zbc_zone_op op)
 	}
 }
 
+static int zbc_zone_op_usage(char *bin_name)
+{
+	printf("Usage: %s [options] <dev> [<zone>]\n"
+	       "  By default <zone> is interpreted as a zone number.\n"
+	       "  If the -lba option is used, <zone> is interpreted\n"
+	       "  as the start LBA of the target zone. If the\n"
+	       "  -sector option is used, <zone> is interpreted as\n"
+	       "  the start 512B sector of the target zone. If the\n"
+	       "  -all option is used, <zone> is ignored\n"
+	       "Options:\n"
+	       "  -h | --help : Display this help message and exit\n"
+	       "  -v          : Verbose mode\n"
+	       "  -sector     : Interpret <zone> as a zone start sector\n"
+	       "  -lba        : Interpret <zone> as a zone start LBA\n"
+	       "  -all        : Operate on all sequential zones\n",
+	       basename(bin_name));
+
+	return 1;
+}
+
 int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		int argc, char **argv)
 {
@@ -48,26 +69,14 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	char *path, *end;
 
 	/* Check command line */
-	if (!argc) {
-usage:
-		printf("Usage: %s [options] <dev> [<zone>]\n"
-		       "  By default <zone> is interpreted as a zone number.\n"
-		       "  If the -lba option is used, <zone> is interpreted\n"
-		       "  as the start LBA of the target zone. If the\n"
-		       "  -sector option is used, <zone> is interpreted as\n"
-		       "  the start 512B sector of the target zone. If the\n"
-		       "  -all option is used, <zone> is ignored\n"
-		       "Options:\n"
-		       "  -v      : Verbose mode\n"
-		       "  -sector : Interpret <zone> as a zone start sector\n"
-		       "  -lba    : Interpret <zone> as a zone start LBA\n"
-		       "  -all    : Operate on all sequential zones\n",
-		       bin_name);
-		return 1;
-	}
+	if (!argc)
+		return zbc_zone_op_usage(bin_name);
 
 	/* Parse options */
-	for (i = 0; i < (argc - 1); i++) {
+	for (i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_zone_op_usage(bin_name);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -89,14 +98,13 @@ usage:
 
 			printf("Unknown option \"%s\"\n",
 			       argv[i]);
-			goto usage;
+			return 1;
 
 		} else {
 
 			break;
 
 		}
-
 	}
 
 	if (i > argc - 1) {
