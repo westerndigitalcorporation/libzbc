@@ -7,3 +7,5 @@ bin_PROGRAMS += zbc_open_zone
 
 zbc_open_zone_SOURCES = open_zone/zbc_open_zone.c
 zbc_open_zone_LDADD = libzone_op.la $(libzbc_ldadd)
+
+dist_man8_MANS += open_zone/zbc_open_zone.8
