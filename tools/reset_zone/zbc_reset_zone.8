@@ -1,0 +1,70 @@
+.\"  SPDX-License-Identifier: LGPL-3.0-or-later
+.\"  SPDX-FileCopyrightText: 2020, Western Digital Corporation or its affiliates.
+.\"  Written by Damien Le Moal <damien.lemoal@wdc.com>
+.\"
+.TH ZBC 8
+.SH NAME
+zbc_reset_zone \- Reset zones of a ZBC or ZAC device
+
+.SH SYNOPSIS
+.B zbc_reset_zone
+[options]
+.IR device " [" zone "]"
+
+.SH DESCRIPTION
+.B zbc_reset_zone
+is used to reset the write pointer position of one or all zones of a ZBC or ZAC
+device.
+
+.PP
+The
+.I device
+argument must be the pathname to the target device block device file (e.g.,
+.IR /dev/sdb "),"
+or to the target device SG node file (e.g.,
+.IR /dev/sg3 ")."
+On old kernels lacking ZBC and ZAC support, only the device SG node file will
+be available.
+
+.PP
+The
+.I zone
+argument specifies the zone to be reset. This argument is ignored if the
+\fB-all\fP option is used. By default, the zone argument specifies a zone
+number, starting from 0 for the first zone of the device. If the option
+\fB-lba\fP is specified, the zone argument is interpreted as the start LBA of
+the zone to reset. If the option \fB-sector\fP is specified, then the zone
+argument is interpreted as the start sector (512B unit) of the zone to reset.
+
+.SH OPTIONS
+The following options can be specified.
+.TP
+.BR \-h , " \-\-help"
+Display a usage help message and exit.
+.TP
+.BR \-v
+Verbose mode (for debugging problems).
+.TP
+.BR \-sector
+Interpret the \fIzone\fP argument as the start sector (512B unit) of the zone
+to reset.
+.TP
+.BR \-lba
+Interpret the \fIzone\fP argument as the start LBA of the zone to reset.
+.TP
+.BR \-all
+Ignore the \fIzone\fP argument and reset all zones of the device.
+
+.SH AUTHOR
+.nf
+Damien Le Moal <damien.lemoal@wdc.com>
+.fi
+
+.SH SEE ALSO
+.BR blkzone (8)
+
+.SH AVAILABILITY
+The \fBzbc_reset_zone\fP utility is part of the \fBlibzbc\fP library available
+from
+.UR https://\:github.com\:/westerndigitalcorporation\:/libzbc
+.UE .

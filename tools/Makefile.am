@@ -13,6 +13,8 @@ AM_CFLAGS = \
 
 libzbc_ldadd = $(top_builddir)/lib/libzbc.la
 
+dist_man8_MANS =
+
 include info/Makefile.am
 include report_zones/Makefile.am
 include zone_op/Makefile.am
