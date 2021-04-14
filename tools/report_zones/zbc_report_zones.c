@@ -295,7 +295,7 @@ usage:
 
 	}
 
-	if (start == 0 && ro == ZBC_RO_ALL) {
+	if (start == 0 && ro == ZBC_RO_ALL && nz == nr_zones) {
 		/* Check */
 		if ( zbc_sect2lba(&info, nr_sectors) != info.zbd_lblocks ) {
 			printf("[WARNING] %llu logical blocks reported "
