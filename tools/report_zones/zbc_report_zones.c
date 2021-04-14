@@ -11,16 +11,23 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 
 #include <libzbc/zbc.h>
 
+static inline unsigned long long zbc_report_val(struct zbc_device_info *info,
+						unsigned long long val,
+						bool lba_unit)
+{
+	return lba_unit ? zbc_sect2lba(info, val) : val;
+}
+
 static void zbc_report_print_zone(struct zbc_device_info *info,
-				  struct zbc_zone *z,
-				  int zno,
-				  int lba_unit)
+				  struct zbc_zone *z, int zno,
+				  bool lba_unit)
 {
 	char *start, *length;
 
@@ -41,10 +48,8 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_condition(z),
 		       zbc_zone_condition_str(zbc_zone_condition(z)),
 		       start,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-		       zbc_zone_start(z),
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-		       zbc_zone_length(z),
+		       zbc_report_val(info, zbc_zone_start(z), lba_unit),
+		       zbc_report_val(info, zbc_zone_length(z), lba_unit),
 		       length);
 		return;
 	}
@@ -60,10 +65,10 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		       zbc_zone_rwp_recommended(z),
 		       zbc_zone_non_seq(z),
 		       start,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) : zbc_zone_start(z),
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) : zbc_zone_length(z),
+		       zbc_report_val(info, zbc_zone_start(z), lba_unit),
+		       zbc_report_val(info, zbc_zone_length(z), lba_unit),
 		       length,
-		       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) : zbc_zone_wp(z));
+		       zbc_report_val(info, zbc_zone_wp(z), lba_unit));
 		return;
 	}
 
@@ -71,10 +76,8 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 	       zno,
 	       zbc_zone_type(z),
 	       start,
-	       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
-	       zbc_zone_start(z),
-	       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
-	       zbc_zone_length(z),
+	       zbc_report_val(info, zbc_zone_start(z), lba_unit),
+	       zbc_report_val(info, zbc_zone_length(z), lba_unit),
 	       length);
 }
 
@@ -87,7 +90,7 @@ int main(int argc, char **argv)
 	enum zbc_reporting_options ro = ZBC_RO_ALL;
 	unsigned int nr_zones = 0, nz = 0;
 	struct zbc_zone *z, *zones = NULL;
-	unsigned int lba_unit = 0;
+	bool lba_unit = false;
 	unsigned long long start = 0;
 	int i, ret = 1;
 	int num = 0;
@@ -137,7 +140,7 @@ usage:
 
 		} else if (strcmp(argv[i], "-lba") == 0) {
 
-			lba_unit = 1;
+			lba_unit = true;
 
 		} else if (strcmp(argv[i], "-start") == 0) {
 
