@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 
@@ -82,6 +83,37 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 }
 
 
+static int zbc_report_zones_usage(char *prog)
+{
+	printf("Usage: %s [options] <dev>\n"
+	       "Options:\n"
+	       "  -h | --help   : Display this help message and exit\n"
+	       "  -v		: Verbose mode\n"
+	       "  -lba		: Use LBA size unit (default is 512B sectors)\n"
+	       "  -start <ofst> : Start offset of the report. if -lba is\n"
+	       "                  specified, <ofst> is interpreted as an LBA\n"
+	       "                  value. Otherwise, it is interpreted as a\n"
+	       "                  512B sector value. Default is 0\n"
+	       "  -n		: Get only the number of zones in the report\n"
+	       "  -nz <num>	: Report at most <num> zones\n"
+	       "  -ro <opt>	: Specify a reporting option. <opt> can be:\n"
+	       "                  - all: report all zones (default)\n"
+	       "                  - empty: report only empty zones\n"
+	       "                  - imp_open: report only implicitly open zones\n"
+	       "                  - exp_open: report only explicitly open zones\n"
+	       "                  - closed: report only closed zones\n"
+	       "                  - full: report only full zones\n"
+	       "                  - rdonly: report only read-only zones\n"
+	       "                  - offline: report only offline zones\n"
+	       "                  - rwp: report only offline zones\n"
+	       "                  - non_seq: report only offline zones\n"
+	       "                  - not_wp: report only zones that are not\n"
+	       "                    write pointer zones (e.g. conventional zones)\n",
+	       basename(prog));
+
+	return 1;
+}
+
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
@@ -97,28 +129,15 @@ int main(int argc, char **argv)
 	char *path, *end;
 
 	/* Check command line */
-	if (argc < 2) {
-usage:
-		printf("Usage: %s [options] <dev>\n"
-		       "Options:\n"
-		       "  -v		  : Verbose mode\n"
-		       "  -lba		  : Use LBA size unit (default is 512B sectors)\n"
-		       "  -start <offset> : Start offset of report. if \"-lba\" is used\n"
-		       "                    <offset> is interpreted as an LBA. Otherwise,\n"
-		       "                    it is interpreted as a 512B sector number.\n"
-		       "                    Default is 0\n"
-		       "  -n		  : Get only the number of zones\n"
-		       "  -nz <num>	  : Get at most <num> zones\n"
-		       "  -ro <opt>	  : Specify reporting option: \"all\", \"empty\",\n"
-		       "                    \"imp_open\", \"exp_open\", \"closed\", \"full\",\n"
-		       "                    \"rdonly\", \"offline\", \"rwp\", \"non_seq\" or \"not_wp\".\n"
-		       "                    Default is \"all\"\n",
-		       argv[0]);
-		return 1;
-	}
+	if (argc < 2)
+		return zbc_report_zones_usage(argv[0]);
 
 	/* Parse options */
-	for (i = 1; i < (argc - 1); i++) {
+	for (i = 1; i < argc; i++) {
+
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_report_zones_usage(argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -131,12 +150,14 @@ usage:
 		} else if (strcmp(argv[i], "-nz") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			nz = strtol(argv[i], &end, 10);
-			if (*end != '\0' || nz == 0)
-				goto usage;
+			if (*end != '\0' || nz == 0) {
+				printf("Missing -nz value\n");
+				return 1;
+			}
 
 		} else if (strcmp(argv[i], "-lba") == 0) {
 
@@ -144,23 +165,21 @@ usage:
 
 		} else if (strcmp(argv[i], "-start") == 0) {
 
-			if (i >= (argc - 1)) {
-				printf("Missing -start value\n");
-				goto usage;
-			}
+			if (i >= (argc - 1))
+				goto err;
 			i++;
 
 			start = strtoll(argv[i], &end, 10);
 			if (*end != '\0') {
 				printf("Invalid start offset \"%s\"\n",
 				       argv[i]);
-				goto usage;
+				return 1;
 			}
 
 		} else if (strcmp(argv[i], "-ro") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			if (strcmp(argv[i], "all") == 0) {
@@ -188,14 +207,14 @@ usage:
 			} else {
 				fprintf(stderr, "Unknown reporting option \"%s\"\n",
 					argv[i]);
-				goto usage;
+				return 1;
 			}
 
 		} else if (argv[i][0] == '-') {
 
 			printf("Unknown option \"%s\"\n",
 			       argv[i]);
-			goto usage;
+			return 1;
 
 		} else {
 
@@ -205,8 +224,10 @@ usage:
 
 	}
 
-	if (i != (argc - 1))
-		goto usage;
+	if (i != (argc - 1)) {
+		printf("No device specified\n");
+		return 1;
+	}
 
 	/* Open device */
 	path = argv[i];
@@ -282,9 +303,9 @@ usage:
 		if (ro == ZBC_RO_ALL) {
 			/* Check */
 			if (zbc_zone_start(z) != sector) {
-				printf("[WARNING] Zone %05d: sector %llu should be %llu\n",
-				       i,
-				       zbc_zone_start(z), sector);
+				printf("[WARNING] Zone %05d: sector %llu "
+				       "should be %llu\n",
+				       i, zbc_zone_start(z), sector);
 				sector = zbc_zone_start(z);
 			}
 			nr_sectors += zbc_zone_length(z);
@@ -306,12 +327,15 @@ usage:
 	}
 
 out:
-
 	if (zones)
 		free(zones);
 	zbc_close(dev);
 
 	return ret;
 
+err:
+	printf("Invalid command line\n");
+
+	return 1;
 }
 
