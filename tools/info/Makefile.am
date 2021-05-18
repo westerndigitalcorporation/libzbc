@@ -7,3 +7,5 @@ bin_PROGRAMS = zbc_info
 
 zbc_info_SOURCES = info/zbc_info.c
 zbc_info_LDADD = $(libzbc_ldadd)
+
+dist_man8_MANS += info/zbc_info.8
