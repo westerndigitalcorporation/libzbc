@@ -13,10 +13,21 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 
-/***** Main *****/
+static int zbc_info_usage(char *bin_name)
+{
+	printf("Usage: %s [options] <dev>\n"
+	       "Options:\n"
+	       "  -h | --help : Display this help message and exit\n"
+	       "  -v          : Verbose mode\n"
+	       "  -e          : Print information for an emulated device\n",
+	       basename(bin_name));
+	return 1;
+
+}
 
 int main(int argc, char **argv)
 {
@@ -25,18 +36,14 @@ int main(int argc, char **argv)
 	int ret, i;
 
 	/* Check command line */
-	if (argc < 2) {
-usage:
-		printf("Usage: %s [options] <dev>\n"
-		       "Options:\n"
-		       "    -v : Verbose mode\n"
-		       "    -e : Print information for an emulated device\n",
-		       argv[0]);
-		return 1;
-	}
+	if (argc < 2)
+		return zbc_info_usage(argv[0]);
 
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_info_usage(argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -50,18 +57,17 @@ usage:
 
 			printf("Unknown option \"%s\"\n",
 			       argv[i]);
-			goto usage;
+			return 1;
 
 		} else {
 
 			break;
 
 		}
-
 	}
 
 	if (i != (argc - 1))
-		goto usage;
+		return zbc_info_usage(argv[0]);
 
 	/* Open device */
 	ret = zbc_device_is_zoned(argv[i], do_fake, &info);
