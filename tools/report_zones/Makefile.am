@@ -7,3 +7,5 @@ bin_PROGRAMS += zbc_report_zones
 
 zbc_report_zones_SOURCES = report_zones/zbc_report_zones.c
 zbc_report_zones_LDADD = $(libzbc_ldadd)
+
+dist_man8_MANS += report_zones/zbc_report_zones.8
