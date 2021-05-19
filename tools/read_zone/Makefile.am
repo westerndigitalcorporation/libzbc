@@ -7,3 +7,5 @@ bin_PROGRAMS += zbc_read_zone
 
 zbc_read_zone_SOURCES = read_zone/zbc_read_zone.c
 zbc_read_zone_LDADD = $(libzbc_ldadd)
+
+dist_man8_MANS += read_zone/zbc_read_zone.8
