@@ -22,17 +22,12 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <linux/fs.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 
-/**
- * I/O abort.
- */
 static int zbc_read_zone_abort = 0;
 
-/**
- * System time in usecs.
- */
 static inline unsigned long long zbc_read_zone_usec(void)
 {
 	struct timeval tv;
@@ -43,12 +38,34 @@ static inline unsigned long long zbc_read_zone_usec(void)
 		(unsigned long long) tv.tv_usec;
 }
 
-/**
- * Signal handler.
- */
 static void zbc_read_zone_sigcatcher(int sig)
 {
 	zbc_read_zone_abort = 1;
+}
+
+static int zbc_read_zone_usage(char *prog)
+{
+	printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
+	       "  Read from a zone up to the zone write pointer position\n"
+	       "  or until specified number of I/Os are all executed.\n"
+	       "Options:\n"
+	       "  -h | --help  : Display this help message and exit\n"
+	       "  -v           : Verbose mode\n"
+	       "  -dio         : Use direct I/Os\n"
+	       "  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
+	       "                 <I/O size> bytes, resulting in an actual\n"
+	       "                 I/O size of <num> x <I/O size> B\n"
+	       "  -nio <num>   : Limit the number of I/Os to <num>\n"
+	       "  -p <num>     : Expect all bytes that are read to have the\n"
+	       "                 value <num>. In case of a mismatch, the\n"
+	       "                 offset of the mismatch is printed\n"
+	       "  -f <file>    : Write the content of the zone to <file>\n"
+	       "                 If <file> is \"-\", the zone content is\n"
+	       "                 written to the standard output\n"
+	       "  -ofst <ofst> : Read the zone starting at sector <ofst>\n"
+	       "                 instead of from the zone start sector\n",
+	       basename(prog));
+	return 1;
 }
 
 int main(int argc, char **argv)
@@ -78,32 +95,10 @@ int main(int argc, char **argv)
 	struct iovec *iov = NULL;
 	int iovcnt = 1, n;
 
-	/* Check command line */
-	if (argc < 4) {
-usage:
-		printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
-		       "  Read a zone up to the current write pointer\n"
-		       "  or the number of I/O specified is executed\n"
-		       "Options:\n"
-		       "    -v         : Verbose mode\n"
-		       "    -dio       : Use direct I/Os\n"
-		       "    -vio <num> : Use vectored I/Os with <num> buffers\n"
-		       "                 of <I/O size> bytes, resulting in effective\n"
-		       "                 I/O size of <num> x <I/O size> B\n"
-		       "    -nio <num> : Limit the number of I/Os to <num>\n"
-		       "    -p <num>   : Expect all bytes that are read to have\n"
-		       "                 the value <num>. If there is a mismatch,\n"
-		       "                 the program will output it's data offset\n"
-		       "    -f <file>  : Write the content of the zone to <file>\n"
-		       "                 If <file> is \"-\", the zone content is\n"
-		       "                 written to the standard output\n"
-		       "    -ofst      : sector offset from the start sector of\n"
-		       "                 the zone (default 0 or write pointer)\n",
-		       argv[0]);
-		return 1;
-	}
+	/* Parse command line */
+	if (argc < 4)
+		return zbc_read_zone_usage(argv[0]);
 
-	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
 
 		if (strcmp(argv[i], "-v") == 0) {
@@ -113,7 +108,7 @@ usage:
 		} else if (strcmp(argv[i], "-p") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			pattern = strtol(argv[i], &end, 0);
@@ -121,13 +116,13 @@ usage:
 				fprintf(stderr,
 					"Invalid data pattern value \"%s\"\n",
 					argv[i]);
-				goto usage;
+				return 1;
 			}
 			if (pattern > 0xff) {
 				fprintf(stderr,
 					"Not a single-byte pattern:\"%s\"\n",
 					argv[i]);
-				goto usage;
+				return 1;
 			}
 			ptrn_set = true;
 
@@ -138,13 +133,13 @@ usage:
 		} else if (strcmp(argv[i], "-vio") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			iovcnt = atoi(argv[i]);
 			if (iovcnt <= 0) {
 				fprintf(stderr,
-					"Invalid number of VIO buffers\n");
+					"Invalid number of IO buffers\n");
 				return 1;
 			}
 			vio = true;
@@ -152,7 +147,7 @@ usage:
 		} else if (strcmp(argv[i], "-nio") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			ionum = atoi(argv[i]);
@@ -164,7 +159,7 @@ usage:
 		} else if (strcmp(argv[i], "-f") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			file = argv[i];
@@ -172,7 +167,7 @@ usage:
 		} else if (strcmp(argv[i], "-ofst") == 0) {
 
 			if (i >= (argc - 1))
-				goto usage;
+				goto err;
 			i++;
 
 			zone_ofst = atoll(argv[i]);
@@ -184,7 +179,7 @@ usage:
 		} else if (argv[i][0] == '-') {
 
 			fprintf(stderr, "Unknown option \"%s\"\n", argv[i]);
-			goto usage;
+			return 1;
 
 		} else {
 
@@ -195,7 +190,7 @@ usage:
 	}
 
 	if (i != (argc - 3))
-		goto usage;
+		goto err;
 
 	/* Get parameters */
 	path = argv[i];
@@ -453,5 +448,10 @@ out:
 	zbc_close(dev);
 
 	return ret;
+
+err:
+	printf("Invalid command line\n");
+
+	return 1;
 }
 
