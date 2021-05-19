@@ -7,3 +7,5 @@ bin_PROGRAMS += zbc_write_zone
 
 zbc_write_zone_SOURCES = write_zone/zbc_write_zone.c
 zbc_write_zone_LDADD = $(libzbc_ldadd)
+
+dist_man8_MANS += write_zone/zbc_write_zone.8
