@@ -14,3 +14,5 @@ gzviewer_SOURCES = \
 
 gzviewer_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)
 gzviewer_LDADD = $(libzbc_ldadd) $(GTK_LIBS)
+
+dist_man8_MANS += viewer/gzviewer.8
