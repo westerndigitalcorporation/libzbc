@@ -13,10 +13,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 
 #include <zbc_private.h>
+
+static int zbc_set_write_ptr_usage(char *prog)
+{
+	printf("Usage: %s [options] <dev> <zone no> <sector (-1 for full)>\n"
+	       "Options:\n"
+	       "  -h | --help : Display this help message and exit\n"
+	       "  -v          : Verbose mode\n",
+	       basename(prog));
+
+	return 1;
+}
 
 int main(int argc, char **argv)
 {
@@ -29,17 +41,15 @@ int main(int argc, char **argv)
 	char *path;
 
 	/* Check command line */
-	if (argc < 4) {
-usage:
-		printf("Usage: %s [options] <dev> <zone number> <sector (-1 for full)>\n"
-		       "Options:\n"
-		       "    -v   : Verbose mode\n",
-		       argv[0]);
-		return 1;
-	}
+	if (argc < 4)
+		return zbc_set_write_ptr_usage(argv[0]);
 
 	/* Parse options */
-	for (i = 1; i < (argc - 1); i++) {
+	for (i = 1; i < argc; i++) {
+
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_set_write_ptr_usage(argv[0]);
 
 		if ( strcmp(argv[i], "-v") == 0 ) {
 
@@ -58,8 +68,10 @@ usage:
 
 	}
 
-	if (i != (argc - 3))
-		goto usage;
+	if (i != (argc - 3)) {
+		fprintf(stderr, "Invalid command line\n");
+		return 1;
+	}
 
 	/* Open device */
 	path = argv[i];
