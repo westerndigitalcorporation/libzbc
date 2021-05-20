@@ -13,10 +13,29 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include <libzbc/zbc.h>
 
 #include <zbc_private.h>
+
+static int zbc_set_zones_usage(char *prog)
+{
+	printf("Usage: %s [options] <dev> <command> <command arguments>\n"
+	       "Options:\n"
+	       "  -h | --help : Display this help message and exit\n"
+	       "  -v          : Verbose mode\n"
+	       "Commands:\n"
+	       "  set_sz <conv zone size (MB)> <zone size (MiB)> :\n"
+	       "      Specify the total size in MiB of all conventional\n"
+	       "      zones and the size in MiB of zones\n"
+	       "  set_ps <conv zone size (%%)> <zone size (MiB)> :\n"
+	       "      Specify the percentage of the capacity to use for\n"
+	       "      conventional zones and the size in MiB of zones\n",
+	       basename(prog));
+
+	return 1;
+}
 
 int main(int argc, char **argv)
 {
@@ -28,24 +47,15 @@ int main(int argc, char **argv)
 	char *path;
 
 	/* Check command line */
-	if (argc < 5) {
-usage:
-		printf("Usage: %s [options] <dev> <command> <command arguments>\n"
-		       "Options:\n"
-		       "  -v     : Verbose mode\n"
-		       "Commands:\n"
-		       "  set_sz <conv zone size (MB)> <zone size (MiB)> :\n"
-		       "      Specify the total size in MiB of all conventional\n"
-		       "      zones and the size in MiB of zones\n"
-		       "  set_ps <conv zone size (%%)> <zone size (MiB)> :\n"
-		       "      Specify the percentage of the capacity to use for\n"
-		       "      conventional zones and the size in MiB of zones\n",
-		       argv[0]);
-		return 1;
-	}
+	if (argc < 5)
+		return zbc_set_zones_usage(argv[0]);
 
 	/* Parse options */
-	for (i = 1; i < argc - 3; i++) {
+	for (i = 1; i < argc; i++) {
+
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_set_zones_usage(argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -64,8 +74,10 @@ usage:
 
 	}
 
-	if (i > argc - 3)
-		goto usage;
+	if (i > argc - 3) {
+		fprintf(stderr, "Invalid command line\n");
+		return 1;
+	}
 
 	/* Open device: only allow fake device backend driver */
 	path = argv[i];
@@ -102,8 +114,11 @@ usage:
 		/*
 		 * Set conventional zones capacity and zone size for all zones.
 		 */
-		if (i != argc - 3)
-			goto usage;
+		if (i != argc - 3) {
+			fprintf(stderr,
+				"Invalid number of arguments for set_sz\n");
+			goto out;
+		}
 
 		/* Get arguments */
 		conv_sz = (strtoll(argv[i + 1], NULL, 10) * 1024 * 1024) >> 9;
@@ -129,8 +144,11 @@ usage:
 		 * Set conventional zones capacity percentage and
 		 * zone size for all zones.
 		 */
-		if (i != argc - 3)
-			goto usage;
+		if (i != argc - 3) {
+			fprintf(stderr,
+				"Invalid number of arguments for set_ps\n");
+			goto out;
+		}
 
 		/* Get arguments */
 		conv_p = strtof(argv[i + 1], NULL);
