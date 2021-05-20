@@ -783,11 +783,6 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 		return -EINVAL;
 	}
 
-	if (zbc_zone_conventional(&zone)
-	    || zbc_zone_empty(&zone))
-		/* Nothing to do */
-		return 0;
-
 	/* Reset zone */
 	range.sector = zbc_zone_start(&zone);
 	range.nr_sectors = zbc_zone_length(&zone);
