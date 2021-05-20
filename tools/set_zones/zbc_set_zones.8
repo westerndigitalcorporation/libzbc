@@ -1,0 +1,84 @@
+.\"  SPDX-License-Identifier: LGPL-3.0-or-later
+.\"  SPDX-FileCopyrightText: 2020, Western Digital Corporation or its affiliates.
+.\"  Written by Damien Le Moal <damien.lemoal@wdc.com>
+.\"
+.TH ZBC 8
+.SH NAME
+zbc_set_zones \- Initialize a file or device for ZBC emulation
+
+.SH SYNOPSIS
+.B zbc_set_zones
+[options]
+.IR device
+.IR command
+.IR command_arguments
+.B zbc_set_zones
+[options]
+.IR file
+.IR command
+.IR command_arguments
+
+.SH DESCRIPTION
+.B zbc_set_zones
+is used to initialize a regular file or a regular block device to use it
+as an emulated ZBC device.
+
+.PP
+The
+.I device
+argument must be the pathname to a regular block device file (e.g.,
+.IR /dev/sdb "),"
+or to a regular file that is not empty. The size of the file is used
+to determine the capacity of the emulated device.
+
+.PP
+The
+.I command
+and
+.I command_arguments
+can have one of the following form.
+
+.TP
+.BR set_sz " " \fIcnv_zone_size\fP " " \fIzone_size\fP
+Initialize the emulated device by specifying the total capacity to use for
+conventional zones and the size of zones. The argument \fIcnv_zone_size\fP
+specifies the total capacity of conventional zones in MiB. The argument
+\fIzone_size\fP specifies the size of all zones in MiB.
+.TP
+.BR set_ps " " \fIcnv_zone_size_ratio\fP " " \fIzone_size\fP
+Initialize the emulated device by specifying the capacity ratio used for
+conventional zones and the size of zones. The argument \fIcnv_zone_size_ratio\fP
+specifies the percentage of the total capacity to use for conventional zones.
+The argument \fIzone_size\fP specifies the size of all zones in MiB.
+
+.RE
+If a regular file is used, the total number of zones is automatically
+determined from the size of the file. In the case of a regular block device,
+the device capacity is used to calculate the total number of zones that
+will be emulated.
+
+.SH OPTIONS
+The following options can be specified.
+.TP
+.BR \-h , " \-\-help"
+Display a usage help message and exit.
+.TP
+.BR \-v
+Verbose mode (for debugging problems).
+
+.SH AUTHOR
+.nf
+Damien Le Moal <damien.lemoal@wdc.com>
+.fi
+
+.SH SEE ALSO
+.na
+.BR zbc_set_write_ptr (8)
+.ad
+
+.SH AVAILABILITY
+The \fBzbc_set_zones\fP utility is part of the \fBlibzbc\fP library available
+from
+.br
+.UR https://\:github.com\:/westerndigitalcorporation\:/libzbc
+.UE .
