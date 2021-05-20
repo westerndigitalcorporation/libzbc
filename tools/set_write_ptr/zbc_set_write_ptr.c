@@ -115,10 +115,24 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
+	if (zbc_zone_conventional(&zones[z])) {
+		fprintf(stderr, "Zone %d is a conventional zone\n", z);
+		ret = 1;
+		goto out;
+	}
+
 	/* Get write pointer sector */
 	sector = strtoll(argv[i + 2], NULL, 10);
-	if (sector == -1)
+	if (sector == -1) {
 		sector = zones[z].zbz_start + zones[z].zbz_length;
+	} else if ((uint64_t)sector < zones[z].zbz_start ||
+		   (uint64_t)sector >= zones[z].zbz_start + zones[z].zbz_length) {
+		fprintf(stderr,
+			"Sector %lld is not contained in zone %d\n",
+			sector, z);
+		ret = 1;
+		goto out;
+	}
 
 	printf("Setting zone %d/%d write pointer sector to %llu...\n",
 	       z,
