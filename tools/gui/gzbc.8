@@ -1,0 +1,75 @@
+.\"  SPDX-License-Identifier: LGPL-3.0-or-later
+.\"  SPDX-FileCopyrightText: 2020, Western Digital Corporation or its affiliates.
+.\"  Written by Damien Le Moal <damien.lemoal@wdc.com>
+.\"
+.TH ZBC 8
+.SH NAME
+gzbc \- ZBC and ZAC device management graphical interface
+
+.SH SYNOPSIS
+.B gzbc
+[options]
+.I device
+
+.SH DESCRIPTION
+.B gzbc
+is a graphical user interface allowing to view the state of zones of a ZBC
+and ZAC device and to execute zone management commands. The zone reset, open,
+close and finish commands can be applied to zones selected from the list of
+zones displayed.
+
+The list of zones displayed can be filtered based on zone type and zone
+condition. Zones are represented graphically using colored boxes indicating
+zone type and write state.
+
+.PP
+The
+.I device
+argument must be the pathname to the target device block device file (e.g.,
+.IR /dev/sdb "),"
+or to the target device SG node file (e.g.,
+.IR /dev/sg3 ")."
+On old kernels lacking ZBC and ZAC support, only the device SG node file will
+be available. The target device may also be a regular block device set to
+emulate zones with the \fBzbc_set_zones\fP utility.
+
+.SH OPTIONS
+.TP
+.BR \-h ", "\-\-help
+Show help options and exit.
+.TP
+.BR \-\-help\-all
+Show all help options and exit.
+.TP
+.BR \-\-help\-gtk
+Show GTK+ options and exit.
+.TP
+.BR \-v ", " \-\-verbose
+Use libzbd verbose mode (for debug).
+.TP
+.BR \-i ", " \-\-interval=\fImsec\fP
+Automatically refresh the zone list every \fImsec\fP milliseconds.
+.TP
+.BR \-b ", " \-\-block=\fIsize\fP
+Use \fIsize\fP as the unit for displaying a zone position, length and write
+pointer position instead of the default 512B sector unit.
+.TP
+.BR \-\-display=i\fIDISPLAY\fP
+Specify the X display to use.
+
+.SH AUTHOR
+.nf
+Damien Le Moal <damien.lemoal@wdc.com>
+.fi
+
+.SH SEE ALSO
+.na
+.BR gzviewer (8)
+.ad
+
+.SH AVAILABILITY
+The \fBgzbc\fP utility is part of the \fBlibzbc\fP library available
+from
+.br
+.UR https://\:github.com\:/westerndigitalcorporation\:/libzbc
+.UE .

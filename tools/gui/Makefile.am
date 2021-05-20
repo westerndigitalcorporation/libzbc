@@ -13,3 +13,5 @@ gzbc_SOURCES = \
 
 gzbc_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)
 gzbc_LDADD = $(libzbc_ldadd) $(GTK_LIBS)
+
+dist_man8_MANS += gui/gzbc.8

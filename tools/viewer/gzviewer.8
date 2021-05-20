@@ -1,0 +1,73 @@
+.\"  SPDX-License-Identifier: LGPL-3.0-or-later
+.\"  SPDX-FileCopyrightText: 2020, Western Digital Corporation or its affiliates.
+.\"  Written by Damien Le Moal <damien.lemoal@wdc.com>
+.\"
+.TH ZBC 8
+.SH NAME
+gzviewer \- Graphical interface to display ZBC and ZAC devices zone state
+
+.SH SYNOPSIS
+.B gzviewer
+[options]
+.I device
+
+.SH DESCRIPTION
+.B gzviewer
+is used to dynamically display the state of zones of a ZBC or ZAC device.
+Each zone is displayed as a box representing the sector range of the zone.
+A zone box is filled with different colors based on the zone type and on
+the use of sectors within the zone.
+
+.PP
+The
+.I device
+argument must be the pathname to the target device block device file (e.g.,
+.IR /dev/sdb "),"
+or to the target device SG node file (e.g.,
+.IR /dev/sg3 ")."
+On old kernels lacking ZBC and ZAC support, only the device SG node file will
+be available. The target device may also be a regular block device set to
+emulate zones with the \fBzbc_set_zones\fP utility.
+
+.SH OPTIONS
+.TP
+.BR \-? ", "\-\-help
+Show help options and exit.
+.TP
+.BR \-\-help\-all
+Show all help options and exit.
+.TP
+.BR \-\-help\-gtk
+Show GTK+ options and exit.
+.TP
+.BR \-v ", " \-\-verbose
+Use libzbd verbose mode (for debug).
+.TP
+.BR \-i ", " \-\-interval=\fImsec\fP
+Set the zone refresh interval to \fImsec\fP milliseconds. The default is
+to refresh every 500 milliseconds.
+.TP
+.BR \-w ", " \-\-width=\fIcolumns\fP
+Display zones in a matrix of \fIcolumns\fP columns.
+.TP
+.BR \-h ", " \-\-height=\fIrows\fP
+Display zones in a matrix of \fIrows\fP rows.
+.TP
+.BR \-\-display=\fIDISPLAY\fP
+Specify the X display to \fIDISPLAY\fP.
+
+.SH AUTHOR
+.nf
+Damien Le Moal <damien.lemoal@wdc.com>
+.fi
+
+.SH SEE ALSO
+.na
+.BR gzbc (8)
+.ad
+
+.SH AVAILABILITY
+The \fBgzviewer\fP utility is part of the \fBlibzbc\fP library available
+from
+.UR https://\:github.com\:/westerndigitalcorporation\:/libzbc
+.UE .
