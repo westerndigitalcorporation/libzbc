@@ -1421,7 +1421,7 @@ static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
-	int ret = -EIO;
+	int ret = -EINVAL;
 
 	if (!fdev->zbd_meta) {
 		zbc_set_errno(ZBC_SK_NOT_READY, ZBC_ASC_FORMAT_IN_PROGRESS);
@@ -1434,24 +1434,24 @@ static int zbc_fake_set_write_pointer(struct zbc_device *dev,
 	if (!zone)
 		goto out;
 
-	/* Do nothing for conventional zones */
-	if (zbc_zone_sequential_req(zone)) {
+	if (zbc_zone_conventional(zone))
+		goto out;
 
-		if (zbc_zone_is_open(zone))
-			zbc_zone_do_close(fdev, zone);
+	if (wp_sector < zone->zbz_start ||
+	    wp_sector > zone->zbz_start + zone->zbz_length)
+		goto out;
 
-		zone->zbz_write_pointer = wp_sector;
-		if (zone->zbz_write_pointer == zone->zbz_start) {
-			zone->zbz_condition = ZBC_ZC_EMPTY;
-		} else if (zone->zbz_write_pointer > zone->zbz_start &&
-			   zone->zbz_write_pointer <
-			   zone->zbz_start + zone->zbz_length) {
-			zone->zbz_condition = ZBC_ZC_CLOSED;
-		} else {
-			zone->zbz_condition = ZBC_ZC_FULL;
-			zone->zbz_write_pointer = (uint64_t)-1;
-		}
+	if (zbc_zone_is_open(zone))
+		zbc_zone_do_close(fdev, zone);
 
+	zone->zbz_write_pointer = wp_sector;
+	if (zone->zbz_write_pointer == zone->zbz_start) {
+		zone->zbz_condition = ZBC_ZC_EMPTY;
+	} else if (zone->zbz_write_pointer == zone->zbz_start + zone->zbz_length) {
+		zone->zbz_condition = ZBC_ZC_FULL;
+		zone->zbz_write_pointer = (uint64_t)-1;
+	} else {
+		zone->zbz_condition = ZBC_ZC_CLOSED;
 	}
 
 	ret = 0;
