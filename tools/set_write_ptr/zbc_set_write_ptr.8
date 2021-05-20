@@ -1,0 +1,61 @@
+.\"  SPDX-License-Identifier: LGPL-3.0-or-later
+.\"  SPDX-FileCopyrightText: 2020, Western Digital Corporation or its affiliates.
+.\"  Written by Damien Le Moal <damien.lemoal@wdc.com>
+.\"
+.TH ZBC 8
+.SH NAME
+zbc_set_write_ptr \- Set a zone write pointer of an emulated ZBC device
+
+.SH SYNOPSIS
+.B zbc_set_write_ptr
+[options]
+.IR device
+.IR zone_number
+.IR wp_sector
+
+.SH DESCRIPTION
+.B zbc_set_write_ptr
+is used to manually change the value of a zone write pointer position
+of an emulated ZBC device.
+
+.PP
+The
+.I device
+argument must be the pathname to a regular block device file (e.g.,
+.IR /dev/sdb "),"
+or to a regular file that is not empty. The size of the file is used
+to determine the capacity of the emulated device.
+
+.PP
+The target zone of this operation is specified
+using its number \fIzone_number\fP. This zone must not be a conventional
+zone. The write pointer value to set is specified by \fIwp_sector\fP as
+an absolute 512B sector value. If this value is -1, then the zone write
+condition will be changed to full and its write pointer will be invalid
+as per the ZBC specifications.
+
+.SH OPTIONS
+The following options can be specified.
+.TP
+.BR \-h , " \-\-help"
+Display a usage help message and exit.
+.TP
+.BR \-v
+Verbose mode (for debugging problems).
+
+.SH AUTHOR
+.nf
+Damien Le Moal <damien.lemoal@wdc.com>
+.fi
+
+.SH SEE ALSO
+.na
+.BR zbc_set_zones (8)
+.ad
+
+.SH AVAILABILITY
+The \fBzbc_set_write_ptr\fP utility is part of the \fBlibzbc\fP library available
+from
+.br
+.UR https://\:github.com\:/westerndigitalcorporation\:/libzbc
+.UE .
