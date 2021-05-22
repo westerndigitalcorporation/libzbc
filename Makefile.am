@@ -11,7 +11,7 @@ if BUILD_TEST
 SUBDIRS += test/programs
 endif
 
-EXTRA_DIST = autogen.sh
+EXTRA_DIST = autogen.sh COPYING.BSD COPYING.LESSER README.md
 
 if ENABLE_RPMBUILD
 rpmdir = $(abs_top_builddir)/rpmbuild
@@ -19,20 +19,15 @@ rpmdir = $(abs_top_builddir)/rpmbuild
 EXTRA_DIST += libzbc.spec
 RPMARCH=`$(RPM) --eval %_target_cpu`
 
-spec: libzbc.spec.in
-	@echo "Generating rpm spec file..."
-	@echo "Version:        $(PACKAGE_VERSION)" > libzbc.spec
-	@cat libzbc.spec.in | grep -v '# ' >> libzbc.spec
-
-rpm: spec dist
+rpm: dist
 	@echo "Building RPM packages..."
 	@mkdir -p $(rpmdir)
-	$(RPMBUILD) -ta --clean -D "_topdir $(rpmdir)" libzbc-$(PACKAGE_VERSION).tar.gz
+	@mv libzbc-$(PACKAGE_VERSION).tar.gz v$(PACKAGE_VERSION).tar.gz
+	$(RPMBUILD) -ta --clean -D "_topdir $(rpmdir)" v$(PACKAGE_VERSION).tar.gz
 	@mv -f $(rpmdir)/RPMS/$(RPMARCH)/*.rpm $(abs_top_builddir)
 	@mv -f $(rpmdir)/SRPMS/*.rpm $(abs_top_builddir)
 	@rm -rf $(rpmdir)
-	@rm -f libzbc-$(PACKAGE_VERSION).tar.gz
-	@rm -f libzbc.spec
+	@rm -f v$(PACKAGE_VERSION).tar.gz
 else
 rpm:
 	@echo "To build RPM packages, install the rpm and rpm-build packages"

@@ -2,39 +2,34 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
+Name:		libzbc
+Version:	5.9.0
+Release:	1%{?dist}
+Summary:	A library to control SCSI/ZBC and ATA/ZAC zoned devices
 
-Name:           libzbc
-Release:        1%{?dist}
-Summary:        A library to control zoned SCSI/ATA devices
-Group:		System Environment/Libraries
-License:        BSD and LGPLv3+
-URL:		https://github.com/westerndigitalcorporation/libzbc
-Source:         %{name}-%{version}.tar.gz
+License:	BSD and LGPLv3+
+URL:		https://github.com/westerndigitalcorporation/%{name}
+Source0:	https://github.com/westerndigitalcorporation/%{name}/archive/refs/tags/v%{version}.tar.gz
 
-BuildRequires:  autoconf
-BuildRequires:  automake
-BuildRequires:  libtool
-BuildRequires:  gcc
+BuildRoot:	%{_topdir}/BUILDROOT/
+BuildRequires:	autoconf,autoconf-archive,automake,libtool
 
 %description
-libzbc is a simple library providing functions for manipulating SCSI and ATA
+libzbc is a library providing functions for manipulating SCSI and ATA
 devices supporting the Zoned Block Command (ZBC) and Zoned-device ATA command
 set (ZAC) specifications.
-libzbc implementation is compliant with the latest drafts of the ZBC and ZAC
-standards defined by INCITS technical committee T10 and T13 (respectively).
+libzbc implementation is compliant with the ZBC and ZAC v1 standards
+defined by INCITS technical committee T10 and T13 (respectively).
 
 %package devel
 Summary: Development header files for libzbc
-Group: Development/System
 Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
 This package provides development header files for libzbc.
 
 %prep
-%setup
-rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT
+%autosetup
 
 %build
 sh autogen.sh
@@ -45,17 +40,25 @@ sh autogen.sh
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT
 make install PREFIX=%{_prefix} DESTDIR=$RPM_BUILD_ROOT
+chmod -x $RPM_BUILD_ROOT%{_mandir}/man8/*.8
 
 find $RPM_BUILD_ROOT -name '*.la' -delete
 
 %ldconfig_scriptlets
 
 %files
-%{_bindir}/*
 %{_libdir}/*
+%{_bindir}/*
+%{_mandir}/man8/*
 %exclude %{_libdir}/pkgconfig
 
 %files devel
 %{_includedir}/*
 %{_libdir}/pkgconfig
 
+%license COPYING.BSD COPYING.LESSER
+%doc README.md
+
+%changelog
+* Sat May 22 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.9.0-1
+- Version 5.9.0 initial package

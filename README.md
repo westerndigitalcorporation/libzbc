@@ -167,19 +167,27 @@ for the tests is thus not allowed.
 Each test outputs a log file in the `test/log` directory. These files can be
 consulted in case of a failed test to identify the reason for the test failure.
 
-## Building rpm packages
+## Building RPM packages
 
-The following command will build redistributable rpm packages.
+The *rpm* and *rpmbuild* utilities are necessary to build *libzbc* RPM
+packages. Once these utilities are installed, the RPM packages can be built
+using the following command.
 
 ```
+$ sh ./autogen.sh
+$ ./configure
 $ make rpm
 ```
 
-Three rpm packages are built: a binary package providing the library and
-executable tools, a development package providing *libzbc* header files and a
-source package. The source package can be used to build the binary and
-development rpm packages outside of *libzbc* source tree using the following
-command.
+Five RPM packages are built:
+* A binary package providing *libzbc* library, tools, documentation and
+  license files.
+* A source RPM package
+* A *debuginfo* RPM package and a *debugsource* RPM package
+* A development package providing the library header files
+
+The source RPM package can be used to build the binary and debug RPM packages
+outside of *libzbc* source tree using the following command.
 
 ```
 $ rpmbuild --rebuild libzbc-<version>.src.rpm
