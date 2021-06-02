@@ -21,6 +21,13 @@ set (ZAC) specifications.
 libzbc implementation is compliant with the ZBC and ZAC v1 standards
 defined by INCITS technical committee T10 and T13 (respectively).
 
+%package static
+Summary: Static library for libzbc
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description static
+This package provides libzbc static library.
+
 %package devel
 Summary: Development header files for libzbc
 Requires: %{name}%{?_isa} = %{version}-%{release}
@@ -47,10 +54,13 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %ldconfig_scriptlets
 
 %files
-%{_libdir}/*
+%{_libdir}/*.so
 %{_bindir}/*
 %{_mandir}/man8/*
 %exclude %{_libdir}/pkgconfig
+
+%files static
+%{_libdir}/*.a
 
 %files devel
 %{_includedir}/*
@@ -60,5 +70,7 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %doc README.md
 
 %changelog
+* Wed Jun 2 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.10.0-1
+- Move static library to its own rpm
 * Sat May 22 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.10.0-1
 - Version 5.10.0 initial package
