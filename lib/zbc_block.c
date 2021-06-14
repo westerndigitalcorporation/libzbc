@@ -68,8 +68,12 @@ static int dir_has(const char *dir, const char *entry)
 	DIR *d;
 
 	d = opendir(dir);
-	if (!d)
+	if (!d) {
+		/* If dir does not exist, entry does not exist either */
+		if (errno == ENOENT)
+			return 0;
 		return -errno;
+	}
 	while ((e = readdir(d)) != NULL) {
 		if (strcmp(e->d_name, entry) == 0) {
 			res = 1;
