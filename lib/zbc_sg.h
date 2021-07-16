@@ -189,6 +189,8 @@ struct zbc_sg_cmd {
 	size_t		bufsz;
 	uint8_t		*buf;
 
+	unsigned int	timeout;
+
 	sg_io_hdr_t	io_hdr;
 
 };

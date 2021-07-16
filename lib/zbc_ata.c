@@ -751,6 +751,7 @@ static int zbc_ata_native_flush(struct zbc_device *dev)
 
 	/* Fill command CDB */
 	cmd.io_hdr.dxfer_direction = SG_DXFER_NONE;
+	cmd.io_hdr.timeout *= 2;
 	cmd.cdb[0] = ZBC_SG_ATA16_CDB_OPCODE;
 	/* Non-Data protocol, ext=1 */
 	cmd.cdb[1] = (0x3 << 1) | 0x01;

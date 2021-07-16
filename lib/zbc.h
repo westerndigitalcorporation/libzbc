@@ -135,7 +135,6 @@ struct zbc_device {
 	 * Device backend driver flags.
 	 */
 	unsigned int		zbd_drv_flags;
-
 };
 
 /**

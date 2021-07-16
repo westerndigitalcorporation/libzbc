@@ -24,6 +24,11 @@
 #include "zbc_sg.h"
 
 /**
+ * Default command timeout in milliseconds (30s).
+ */
+#define ZBC_SG_TIMEOUT		30000
+
+/**
  * Definition of the commands
  * Each command is defined by 3 fields.
  * It's name, it's length, and it's opcode.
@@ -35,6 +40,7 @@ static struct zbc_sg_cmd_s
 	int		cdb_sa;
 	size_t		cdb_length;
 	int		dir;
+	unsigned int	timeout;
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
@@ -44,7 +50,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
 		0,
 		ZBC_SG_TEST_UNIT_READY_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_INQUIRY] =
@@ -53,7 +60,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_INQUIRY_CDB_OPCODE,
 		0,
 		ZBC_SG_INQUIRY_CDB_LENGTH,
-		SG_DXFER_FROM_DEV
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_READ_CAPACITY] =
@@ -62,7 +70,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_READ_CAPACITY_CDB_OPCODE,
 		ZBC_SG_READ_CAPACITY_CDB_SA,
 		ZBC_SG_READ_CAPACITY_CDB_LENGTH,
-		SG_DXFER_FROM_DEV
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_READ] =
@@ -71,7 +80,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_READ_CDB_OPCODE,
 		0,
 		ZBC_SG_READ_CDB_LENGTH,
-		SG_DXFER_FROM_DEV
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_WRITE] =
@@ -80,7 +90,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_WRITE_CDB_OPCODE,
 		0,
 		ZBC_SG_WRITE_CDB_LENGTH,
-		SG_DXFER_TO_DEV
+		SG_DXFER_TO_DEV,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_SYNC_CACHE] =
@@ -89,7 +100,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_SYNC_CACHE_CDB_OPCODE,
 		0,
 		ZBC_SG_SYNC_CACHE_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT * 2,
 	},
 
 	[ZBC_SG_REPORT_ZONES] =
@@ -98,7 +110,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_REPORT_ZONES_CDB_OPCODE,
 		ZBC_SG_REPORT_ZONES_CDB_SA,
 		ZBC_SG_REPORT_ZONES_CDB_LENGTH,
-		SG_DXFER_FROM_DEV
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_RESET_ZONE] =
@@ -107,7 +120,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_RESET_ZONE_CDB_OPCODE,
 		ZBC_SG_RESET_ZONE_CDB_SA,
 		ZBC_SG_RESET_ZONE_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_OPEN_ZONE] =
@@ -116,7 +130,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_OPEN_ZONE_CDB_OPCODE,
 		ZBC_SG_OPEN_ZONE_CDB_SA,
 		ZBC_SG_OPEN_ZONE_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_CLOSE_ZONE] =
@@ -125,7 +140,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_CLOSE_ZONE_CDB_OPCODE,
 		ZBC_SG_CLOSE_ZONE_CDB_SA,
 		ZBC_SG_CLOSE_ZONE_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_FINISH_ZONE] =
@@ -134,7 +150,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_FINISH_ZONE_CDB_OPCODE,
 		ZBC_SG_FINISH_ZONE_CDB_SA,
 		ZBC_SG_FINISH_ZONE_CDB_LENGTH,
-		SG_DXFER_NONE
+		SG_DXFER_NONE,
+		ZBC_SG_TIMEOUT,
 	},
 
 	[ZBC_SG_ATA16] =
@@ -143,7 +160,8 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_ATA16_CDB_OPCODE,
 		0,
 		ZBC_SG_ATA16_CDB_LENGTH,
-		0
+		0,
+		ZBC_SG_TIMEOUT,
 	}
 
 };
@@ -246,7 +264,7 @@ int zbc_sg_vcmd_init(struct zbc_device *dev,
 
 	/* Setup SGIO header */
 	cmd->io_hdr.interface_id = 'S';
-	cmd->io_hdr.timeout = 20000;
+	cmd->io_hdr.timeout = zbc_sg_cmd_list[cmd_code].timeout;
 
 	cmd->io_hdr.flags = ZBC_SG_FLAG_Q_AT_TAIL;
 	if (dev->zbd_o_flags & ZBC_O_DIRECT && bufsz && iovcnt == 1)
