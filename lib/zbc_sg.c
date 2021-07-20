@@ -401,6 +401,9 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 
 		zbc_sg_set_sense(dev, cmd);
 
+		if (cmd->io_hdr.host_status == ZBC_SG_DID_TIME_OUT)
+			return -ETIMEDOUT;
+
 		return -EIO;
 	}
 
