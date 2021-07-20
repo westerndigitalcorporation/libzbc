@@ -34,50 +34,37 @@
  * SCSI commands reply length.
  */
 #define ZBC_SCSI_INQUIRY_BUF_LEN	96
+#define ZBC_SCSI_VPD_PAGE_00_LEN	32
 #define ZBC_SCSI_VPD_PAGE_B1_LEN	64
 #define ZBC_SCSI_VPD_PAGE_B6_LEN	64
 #define ZBC_SCSI_READ_CAPACITY_BUF_LEN	32
+
+/**
+ * Driver device flags.
+ */
+enum zbc_scsi_drv_flags {
+	/** This is an ATA drive used through a SAT */
+	ZBC_IS_ATA	= 0x00000001,
+};
 
 /**
  * Fill the buffer with the result of INQUIRY command.
  * @buf must be at least ZBC_SG_INQUIRY_REPLY_LEN bytes long.
  */
 static int zbc_scsi_inquiry(struct zbc_device *dev,
-			    uint8_t page,
-			    void *buf,
-			    uint16_t buf_len)
+			    void *buf, uint16_t buf_len)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
 
 	/* Allocate and intialize inquiry command */
+	memset(buf, 0, buf_len);
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0)
 		return ret;
 
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+=======================================================================|
-	 * | 0   |                           Operation Code (12h)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   |                           Page Code                                   |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 3   | (MSB)                                                                 |
-	 * |- - -+---                    Allocation Length                            ---|
-	 * | 4   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 5   |                           Control                                     |
-	 * +=============================================================================+
-	 */
+	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
-	if (page) {
-		cmd.cdb[1] = 0x01;
-		cmd.cdb[2] = page;
-	}
 	zbc_sg_set_int16(&cmd.cdb[3], buf_len);
 
 	/* Execute the SG_IO command */
@@ -89,60 +76,65 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 }
 
 /**
- * Test is ZBC/ZAC SAT is working.
+ * Fill the buffer with the result of a VPD page INQUIRY command.
  */
-static int zbc_scsi_test_sat(struct zbc_device *dev)
+static int zbc_scsi_vpd_inquiry(struct zbc_device *dev,
+				uint8_t page,
+				void *buf, uint16_t buf_len)
 {
-	size_t bufsz = 512;
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
+	/* Allocate and intialize inquiry command */
+	memset(buf, 0, buf_len);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0)
 		return ret;
 
-	/* Fill command CDB:
-	 * +=============================================================================+
-	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
-	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
-	 * | 0   |                           Operation Code (95h)                        |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |       Service Action (00h)                 |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                        Zone Start LBA                           ---|
-	 * | 9   |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 10  | (MSB)                                                                 |
-	 * |- - -+---                        Allocation Length                        ---|
-	 * | 13  |                                                                 (LSB) |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |Partial |Reserved|                 Reporting Options                   |
-	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
-	 * +=============================================================================+
-	 */
-	cmd.cdb[0] = ZBC_SG_REPORT_ZONES_CDB_OPCODE;
-	cmd.cdb[1] = ZBC_SG_REPORT_ZONES_CDB_SA;
-	zbc_sg_set_int64(&cmd.cdb[2], 0);
-	zbc_sg_set_int32(&cmd.cdb[10], (unsigned int) bufsz);
-	cmd.cdb[14] = ZBC_RO_PARTIAL;
+	/* Fill command CDB */
+	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
+	cmd.cdb[1] = 0x01;
+	cmd.cdb[2] = page;
+	zbc_sg_set_int16(&cmd.cdb[3], buf_len);
 
-	/* Send the SG_IO command */
+	/* Execute the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);
 
 	zbc_sg_cmd_destroy(&cmd);
 
-	if (ret != 0)
-		zbc_debug("%s: ZBC/ZAC SAT not supported\n",
-			  dev->zbd_filename);
-	else
-		zbc_debug("%s: ZBC/ZAC SAT supported: treating ATA device as SCSI\n",
-			  dev->zbd_filename);
-
 	return ret;
+}
+
+/**
+ * Test if a VPD page is supported.
+ */
+static bool zbc_scsi_vpd_page_supported(struct zbc_device *dev, uint8_t page)
+{
+	uint8_t buf[ZBC_SCSI_VPD_PAGE_00_LEN];
+	int vpd_len, i, ret;
+
+	ret = zbc_scsi_vpd_inquiry(dev, 0x00, buf, ZBC_SCSI_VPD_PAGE_00_LEN);
+	if (ret != 0) {
+		zbc_error("%s: zbc_scsi_vpd_inquiry VPD page 0x00 failed\n",
+			  dev->zbd_filename);
+		return false;
+	}
+
+	if (buf[1] != 0x00) {
+		zbc_error("%s: Invalid page code 0x%02x for VPD page 0x00\n",
+			  dev->zbd_filename, (int)buf[1]);
+		return false;
+	}
+
+	vpd_len = zbc_sg_get_int16(&buf[2]) + 4;
+	if (vpd_len > ZBC_SCSI_VPD_PAGE_00_LEN)
+		vpd_len = ZBC_SCSI_VPD_PAGE_00_LEN;
+	for (i = 4; i < vpd_len; i++) {
+		if (buf[i] == page)
+			return true;
+	}
+
+	return false;
 }
 
 /**
@@ -182,21 +174,16 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	int ret;
 
 	/* Get device info */
-	ret = zbc_scsi_inquiry(dev, 0, buf, ZBC_SCSI_INQUIRY_BUF_LEN);
+	ret = zbc_scsi_inquiry(dev, buf, ZBC_SCSI_INQUIRY_BUF_LEN);
 	if (ret != 0) {
 		zbc_error("%s: zbc_scsi_inquiry failed\n",
 			  dev->zbd_filename);
 		return ret;
 	}
 
-	/*
-	 * If this is an ATA drive, try to see if SAT is working.
-	 * If SAT is working, treat the disk as SCSI.
-	 */
 	if (strncmp((char *)&buf[8], "ATA", 3) == 0) {
-		ret = zbc_scsi_test_sat(dev);
-		if (ret != 0)
-			return -ENXIO;
+		zbc_debug("%s: ATA device\n", dev->zbd_filename);
+		dev->zbd_drv_flags |= ZBC_IS_ATA;
 	}
 
 	/* This is a SCSI device */
@@ -206,7 +193,6 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	 * Concatenate vendor identification, product identification
 	 * and product revision strings.
 	 */
-	//memset(dev->zbd_info.zbd_vendor_id, 0, ZBC_DEVICE_INFO_LENGTH);
 	memset(vid, 0, sizeof(vid));
 	memset(pid, 0, sizeof(pid));
 	memset(rev, 0, sizeof(rev));
@@ -244,10 +230,9 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	 * VPD page (B1h) to be sure. Also check that no weird value is
 	 * reported by the zoned field for host-managed devices.
 	 */
-	memset(buf, 0, sizeof(buf));
-	ret = zbc_scsi_inquiry(dev, 0xB1, buf, ZBC_SCSI_VPD_PAGE_B1_LEN);
+	ret = zbc_scsi_vpd_inquiry(dev, 0xB1, buf, ZBC_SCSI_VPD_PAGE_B1_LEN);
 	if (ret != 0) {
-		zbc_error("%s: zbc_scsi_inquiry VPD page 0xB1 failed\n",
+		zbc_error("%s: zbc_scsi_vpd_inquiry VPD page 0xB1 failed\n",
 			  dev->zbd_filename);
 		return ret;
 	}
@@ -255,7 +240,7 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 	if ((buf[1] != 0xB1) ||
 	    (buf[2] != 0x00) ||
 	    (buf[3] != 0x3C)) {
-		zbc_error("%s: Invalid zbc_scsi_inquiry VPD page 0xB1 result\n",
+		zbc_error("%s: Invalid VPD page 0xB1\n",
 			  dev->zbd_filename);
 		return -EIO;
 	}
@@ -265,12 +250,14 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		if (zbc_test_mode(dev) && zoned != 0) {
 			zbc_error("%s: Invalid host-managed device ZONED field 0x%02x\n",
 				  dev->zbd_filename, zoned);
+			if (dev->zbd_drv_flags & ZBC_IS_ATA)
+				return -ENXIO;
 			return -EIO;
 		}
 		if (zoned != 0)
 			zbc_warning("%s: Invalid host-managed device ZONED field 0x%02x\n",
 				    dev->zbd_filename, zoned);
-		return 0;
+		goto out;
 	}
 
 	switch (zoned) {
@@ -299,6 +286,20 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		zbc_debug("%s: Unknown device model 0x%02x\n",
 			  dev->zbd_filename, zoned);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
+		return -EIO;
+	}
+
+out:
+	/*
+	 * At this point, we know we have a zoned device. Check if we have the
+	 * zoned device characteristics page to check that the system SAT is
+	 * working correctly.
+	 */
+	if (!zbc_scsi_vpd_page_supported(dev, 0xB6)) {
+		zbc_error("%s: VPD page 0xb6 is not supported\n",
+			  dev->zbd_filename);
+		if (dev->zbd_drv_flags & ZBC_IS_ATA)
+			return -ENXIO;
 		return -EIO;
 	}
 
@@ -710,9 +711,9 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	if (!zbc_dev_is_zoned(dev))
 		return -ENXIO;
 
-	ret = zbc_scsi_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
+	ret = zbc_scsi_vpd_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
-		zbc_error("%s: zbc_scsi_inquiry VPD page 0xB6 failed\n",
+		zbc_error("%s: zbc_scsi_vpd_inquiry VPD page 0xB6 failed\n",
 			  dev->zbd_filename);
 		return ret;
 	}
