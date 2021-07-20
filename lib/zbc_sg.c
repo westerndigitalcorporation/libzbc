@@ -550,34 +550,25 @@ int zbc_sg_test_unit_ready(struct zbc_device *dev)
 		retries--;
 
 		/* Intialize command */
-		ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_TEST_UNIT_READY,
-				      NULL, 0);
-		if (ret != 0) {
-			zbc_error("%s: init TEST UNIT READY command failed\n",
-				  dev->zbd_filename);
-			return ret;
-		}
+		zbc_sg_cmd_init(dev, &cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
 		cmd.cdb[0] = ZBC_SG_TEST_UNIT_READY_CDB_OPCODE;
 
 		/* Execute the SG_IO command */
 		ret = zbc_sg_cmd_exec(dev, &cmd);
-		if ((ret != 0) &&
-		    ((cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR) ||
-		     (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) ) {
-			zbc_debug("%s: Unit attention required, %d / 5 retries\n",
-				  dev->zbd_filename,
-				  retries);
-			ret = -EAGAIN;
+		if (ret) {
+			if (cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR ||
+			    (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) {
+				zbc_debug("%s: Unit attention required, %d / 5 retries\n",
+					  dev->zbd_filename, retries);
+				ret = -EAGAIN;
+			}
 		}
-
-		zbc_sg_cmd_destroy(&cmd);
-
 	}
 
-	if (ret != 0)
-		return -ENXIO;
+	if (ret == -EAGAIN)
+		return -EIO;
 
-	return 0;
+	return ret;
 }
 
 /**
