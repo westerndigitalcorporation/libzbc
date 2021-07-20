@@ -33,8 +33,6 @@ enum {
 	ZBC_SG_OPEN_ZONE,
 	ZBC_SG_CLOSE_ZONE,
 	ZBC_SG_FINISH_ZONE,
-	ZBC_SG_SET_ZONES,
-	ZBC_SG_SET_WRITE_POINTER,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -111,20 +109,6 @@ enum {
 #define ZBC_SG_FINISH_ZONE_CDB_OPCODE		0x94
 #define ZBC_SG_FINISH_ZONE_CDB_SA		0x02
 #define ZBC_SG_FINISH_ZONE_CDB_LENGTH		16
-
-/**
- * Set zones command definition.
- */
-#define ZBC_SG_SET_ZONES_CDB_OPCODE		0x9F
-#define ZBC_SG_SET_ZONES_CDB_SA			0x15
-#define ZBC_SG_SET_ZONES_CDB_LENGTH		16
-
-/**
- * Set write pointer command definition.
- */
-#define ZBC_SG_SET_WRITE_POINTER_CDB_OPCODE	0x9F
-#define ZBC_SG_SET_WRITE_POINTER_CDB_SA		0x16
-#define ZBC_SG_SET_WRITE_POINTER_CDB_LENGTH	16
 
 /**
  * ATA pass through 16.
