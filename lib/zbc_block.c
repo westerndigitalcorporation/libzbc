@@ -406,6 +406,34 @@ static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 }
 
 /**
+ * Get the maximum number of open zones of a device.
+ */
+static unsigned int zbc_block_get_max_open_zones(struct zbc_device *dev)
+{
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
+	char str[128];
+	FILE *file;
+	unsigned int val;
+	int ret;
+
+	/* Open the max_open_zones file */
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/queue/max_open_zones",
+		 zbd->holder_name);
+	file = fopen(str, "r");
+	if (!file)
+		return ZBC_BLOCK_MAX_OPEN_ZONES;
+
+	ret = fscanf(file, "%u", &val);
+	if (ret <= 0)
+		val = ZBC_BLOCK_MAX_OPEN_ZONES;
+
+	fclose(file);
+
+	return val;
+}
+
+/**
  * Test if the device can be handled and get the block device info.
  */
 static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
@@ -508,7 +536,7 @@ static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 		dev->zbd_info.zbd_flags |= ZBC_UNRESTRICTED_READ;
 		if (dev->zbd_info.zbd_model == ZBC_DM_HOST_MANAGED) {
 			dev->zbd_info.zbd_max_nr_open_seq_req =
-				ZBC_BLOCK_MAX_OPEN_ZONES;
+				zbc_block_get_max_open_zones(dev);
 			dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
 			dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
 		} else {
