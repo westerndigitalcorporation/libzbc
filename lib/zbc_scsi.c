@@ -856,7 +856,7 @@ static int zbc_scsi_open(const char *filename,
 
 	*pdev = dev;
 
-	zbc_debug("%s: ########## SCSI driver succeeded ##########\n",
+	zbc_debug("%s: ########## SCSI driver succeeded ##########\n\n",
 		  filename);
 
 	return 0;
@@ -871,7 +871,7 @@ out:
 	if (fd >= 0)
 		close(fd);
 
-	zbc_debug("%s: ########## SCSI driver failed %d ##########\n",
+	zbc_debug("%s: ########## SCSI driver failed %d ##########\n\n",
 		  filename,
 		  ret);
 

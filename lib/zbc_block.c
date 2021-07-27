@@ -484,7 +484,7 @@ static int zbc_block_open(const char *filename, int flags,
 	struct zbc_block_device *zbd;
 	struct zbc_device *dev;
 	struct stat st;
-	int fd, ret;
+	int fd = -1, ret;
 
 	zbc_debug("%s: ########## Trying BLOCK driver ##########\n",
 		  filename);
@@ -498,8 +498,10 @@ static int zbc_block_open(const char *filename, int flags,
 		return ret;
 	}
 
-	if (!S_ISBLK(st.st_mode))
-		return -ENXIO;
+	if (!S_ISBLK(st.st_mode)) {
+		ret = -ENXIO;
+		goto out;
+	}
 
 	/* Open block device */
 	fd = open(filename, (flags & ZBC_O_DMODE_MASK) | O_LARGEFILE);
@@ -531,7 +533,7 @@ static int zbc_block_open(const char *filename, int flags,
 
 	*pdev = dev;
 
-	zbc_debug("%s: ########## BLOCK driver succeeded ##########\n",
+	zbc_debug("%s: ########## BLOCK driver succeeded ##########\n\n",
 		  filename);
 
 	return 0;
@@ -549,7 +551,7 @@ out:
 	if (fd >= 0)
 		close(fd);
 
-	zbc_debug("%s: ########## BLOCK driver failed %d ##########\n",
+	zbc_debug("%s: ########## BLOCK driver failed %d ##########\n\n",
 		  filename, ret);
 
 	return ret;

@@ -70,6 +70,46 @@ enum zbc_ata_drv_flags {
 
 };
 
+char *zbc_ata_cmd_name(struct zbc_sg_cmd *cmd)
+{
+	switch (cmd->cdb[14]) {
+	case ZBC_ATA_IDENTIFY:
+		return "IDENTIFY";
+	case ZBC_ATA_EXEC_DEV_DIAGNOSTIC:
+		return "EXEC DEV DIAGNOSTIC";
+	case ZBC_ATA_READ_LOG_DMA_EXT:
+		return "READ LOG DMA EXT";
+	case ZBC_ATA_SET_FEATURES:
+		return "SET FEATURES";
+	case ZBC_ATA_REQUEST_SENSE_DATA_EXT:
+		return "REQUEST SENSE DATA EXT";
+	case ZBC_ATA_READ_DMA_EXT:
+		return "READ DMA EXT";
+	case ZBC_ATA_WRITE_DMA_EXT:
+		return "WRITE DMA EXT";
+	case ZBC_ATA_FLUSH_CACHE_EXT:
+		return "FLUSH CACHE EXT";
+	case ZBC_ATA_ENABLE_SENSE_DATA_REPORTING:
+		return "ENABLE SENSE DATA REPORTING";
+	case ZBC_ATA_ZAC_MANAGEMENT_IN:
+		return "REPORT ZONES EXT";
+	case ZBC_ATA_ZAC_MANAGEMENT_OUT:
+		switch (cmd->cdb[4]) {
+		case ZBC_ATA_CLOSE_ZONE_EXT_AF:
+			return "CLOSE ZONE EXT";
+		case ZBC_ATA_FINISH_ZONE_EXT_AF:
+			return "FINISH ZONE EXT";
+		case ZBC_ATA_OPEN_ZONE_EXT_AF:
+			return "OPEN ZONE EXT";
+		case ZBC_ATA_RESET_WRITE_POINTER_EXT_AF:
+			return "RESET WRITE POINTER EXT";
+		}
+		break;
+	}
+
+	return "UNKNOWN COMMAND";
+}
+
 /**
  * Get a word from a command data buffer.
  */
@@ -1450,7 +1490,7 @@ static int zbc_ata_open(const char *filename,
 
 	*pdev = dev;
 
-	zbc_debug("%s: ########## ATA driver succeeded ##########\n",
+	zbc_debug("%s: ########## ATA driver succeeded ##########\n\n",
 		  filename);
 
 	return 0;
@@ -1465,7 +1505,7 @@ out:
 	if (fd >= 0)
 		close(fd);
 
-	zbc_debug("%s: ########## ATA driver failed %d ##########\n",
+	zbc_debug("%s: ########## ATA driver failed %d ##########\n\n",
 		  filename, ret);
 
 	return ret;

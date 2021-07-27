@@ -173,8 +173,7 @@ static struct zbc_sg_cmd_s
 static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 {
 
-	if (cmd->code >= 0 &&
-	    cmd->code < ZBC_SG_CMD_NUM)
+	if (cmd->code >= 0 && cmd->code < ZBC_SG_CMD_NUM)
 		return zbc_sg_cmd_list[cmd->code].cdb_cmd_name;
 
 	return "(UNKNOWN COMMAND)";
@@ -311,18 +310,15 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	int ret;
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
-		zbc_debug("%s: Sending command 0x%02x:0x%02x (%s):\n",
+		zbc_debug("%s: Executing command 0x%02x:0x%02x (%s%s), %zu B:\n",
 			  dev->zbd_filename,
-			  cmd->cdb_opcode,
-			  cmd->cdb_sa,
-			  zbc_sg_cmd_name(cmd));
+			  cmd->cdb_opcode, cmd->cdb_sa,
+			  zbc_sg_cmd_name(cmd),
+			  cmd->code == ZBC_SG_ATA16 ?
+			  zbc_ata_cmd_name(cmd) : "",
+			  cmd->bufsz);
 		zbc_sg_print_bytes(dev, cmd->cdb, cmd->cdb_sz);
 	}
-
-	zbc_debug("%s: Execute %s command with buffer of %zu B\n",
-		  dev->zbd_filename,
-		  (cmd->io_hdr.flags & ZBC_SG_FLAG_DIRECT_IO) ? "direct" : "normal",
-		  cmd->bufsz);
 
 	/* Send the SG_IO command */
 	ret = ioctl(dev->zbd_sg_fd, SG_IO, &cmd->io_hdr);
@@ -330,23 +326,28 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		ret = -errno;
 		zbc_debug("%s: SG_IO ioctl failed %d (%s)\n",
 			  dev->zbd_filename,
-			  errno,
-			  strerror(errno));
+			  errno, strerror(errno));
 		return ret;
 	}
 
 	/* Reset errno */
 	zbc_sg_set_sense(dev, NULL);
 
-	zbc_debug("%s: Command %s done: status 0x%02x (0x%02x), host status "
-		  "0x%04x, driver status 0x%04x (flags 0x%04x)\n",
-		  dev->zbd_filename,
-		  zbc_sg_cmd_name(cmd),
-		  (unsigned int)cmd->io_hdr.status,
-		  (unsigned int)cmd->io_hdr.masked_status,
-		  (unsigned int)cmd->io_hdr.host_status,
-		  (unsigned int)zbc_sg_cmd_driver_status(cmd),
-		  (unsigned int)zbc_sg_cmd_driver_flags(cmd));
+	if (cmd->io_hdr.status ||
+	    cmd->io_hdr.host_status ||
+	    zbc_sg_cmd_driver_status(cmd))
+		zbc_debug("%s: Command %s%s done: status 0x%02x (0x%02x), "
+			  "host status 0x%04x, driver status 0x%04x "
+			  "(flags 0x%04x)\n",
+			  dev->zbd_filename,
+			  zbc_sg_cmd_name(cmd),
+			  cmd->code == ZBC_SG_ATA16 ?
+			  zbc_ata_cmd_name(cmd) : "",
+			  (unsigned int)cmd->io_hdr.status,
+			  (unsigned int)cmd->io_hdr.masked_status,
+			  (unsigned int)cmd->io_hdr.host_status,
+			  (unsigned int)zbc_sg_cmd_driver_status(cmd),
+			  (unsigned int)zbc_sg_cmd_driver_flags(cmd));
 
 	/* Check status */
 	if (cmd->code == ZBC_SG_ATA16 &&
@@ -375,12 +376,13 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	     (zbc_sg_cmd_driver_status(cmd) != ZBC_SG_DRIVER_SENSE))) {
 
 		if (zbc_log_level >= ZBC_LOG_DEBUG) {
-
-			zbc_error("%s: Command %s failed with status 0x%02x "
+			zbc_debug("%s: Command %s%s failed with status 0x%02x "
 				  "(0x%02x), host status 0x%04x, driver status "
 				  "0x%04x (flags 0x%04x)\n",
 				  dev->zbd_filename,
 				  zbc_sg_cmd_name(cmd),
+				  cmd->code == ZBC_SG_ATA16 ?
+				  zbc_ata_cmd_name(cmd) : "",
 				  (unsigned int)cmd->io_hdr.status,
 				  (unsigned int)cmd->io_hdr.masked_status,
 				  (unsigned int)cmd->io_hdr.host_status,
@@ -397,7 +399,6 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 				zbc_debug("%s: No sense data\n",
 					  dev->zbd_filename);
 			}
-
 		}
 
 		zbc_sg_set_sense(dev, cmd);
@@ -408,18 +409,16 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		return -EIO;
 	}
 
-	if (cmd->io_hdr.resid) {
-		zbc_debug("%s: Transfer missing %d B of data\n",
-			  dev->zbd_filename,
-			  cmd->io_hdr.resid);
+	if (cmd->io_hdr.resid)
 		cmd->bufsz -= cmd->io_hdr.resid;
-	}
 
-	zbc_debug("%s: Command %s executed in %u ms, %zu B transfered\n",
+	zbc_debug("%s: %s%s executed in %u ms, %zu B transfered "
+		  "(%d B residual)\n\n",
 		  dev->zbd_filename,
 		  zbc_sg_cmd_name(cmd),
+		  cmd->code == ZBC_SG_ATA16 ? zbc_ata_cmd_name(cmd) : "",
 		  cmd->io_hdr.duration,
-		  cmd->bufsz);
+		  cmd->bufsz, cmd->io_hdr.resid);
 
 	return 0;
 }
@@ -511,7 +510,7 @@ out:
 		max_bytes = max_segs * PAGE_SIZE;
 	dev->zbd_info.zbd_max_rw_sectors = max_bytes >> 9;
 
-	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n",
+	zbc_debug("%s: Maximum command data transfer size is %llu sectors\n\n",
 		  dev->zbd_filename,
 		  (unsigned long long)dev->zbd_info.zbd_max_rw_sectors);
 }
@@ -537,8 +536,10 @@ int zbc_sg_test_unit_ready(struct zbc_device *dev)
 		ret = zbc_sg_cmd_exec(dev, &cmd);
 		if (ret) {
 			if (cmd.io_hdr.host_status == ZBC_SG_DID_SOFT_ERROR ||
-			    (cmd.io_hdr.sb_len_wr && (cmd.sense_buf[2] == 0x06))) {
-				zbc_debug("%s: Unit attention required, %d / 5 retries\n",
+			    (cmd.io_hdr.sb_len_wr &&
+			     (cmd.sense_buf[2] == 0x06))) {
+				zbc_debug("%s: Unit attention required, "
+					  "%d / 5 retries\n",
 					  dev->zbd_filename, retries);
 				ret = -EAGAIN;
 			}

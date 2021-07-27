@@ -463,7 +463,7 @@ static int zbc_fake_open(const char *filename, int flags,
 
 	*pdev = &fdev->dev;
 
-	zbc_debug("%s: ########## FAKE driver succeeded ##########\n",
+	zbc_debug("%s: ########## FAKE driver succeeded ##########\n\n",
 		  filename);
 
 	return 0;
@@ -477,7 +477,7 @@ out_free_dev:
 out:
 	close(fd);
 
-	zbc_debug("%s: ########## FAKE driver failed %d ##########\n",
+	zbc_debug("%s: ########## FAKE driver failed %d ##########\n\n",
 		  filename, ret);
 
 	return ret;

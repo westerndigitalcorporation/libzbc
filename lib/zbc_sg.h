@@ -327,4 +327,9 @@ static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
 extern void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf,
 			       unsigned int len);
 
+/**
+ * Get the name of an ATA command sent with ATA16 passthrough.
+ */
+char *zbc_ata_cmd_name(struct zbc_sg_cmd *cmd);
+
 #endif /* __LIBZBC_SG_H__ */

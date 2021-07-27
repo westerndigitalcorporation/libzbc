@@ -291,8 +291,9 @@ extern int zbc_log_level;
 #define zbc_print_level(l,stream,format,args...)		\
 	do {							\
 		if ((l) <= zbc_log_level)			\
-			zbc_print((stream), "(libzbc) " format,	\
-				  ## args);			\
+			zbc_print((stream), "(libzbc/%d) "	\
+				  format,			\
+				  getpid(), ## args);		\
 	} while (0)
 
 #define zbc_warning(format,args...)	\
