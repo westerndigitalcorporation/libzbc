@@ -54,7 +54,8 @@ struct zbc_drv {
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
 					    enum zbc_reporting_options,
-					    struct zbc_zone *, unsigned int *);
+					    struct zbc_zone *, unsigned int *,
+					    uint8_t *, size_t);
 
 	/**
 	 * Execute a zone operation.
@@ -135,6 +136,17 @@ struct zbc_device {
 	 * Device backend driver flags.
 	 */
 	unsigned int		zbd_drv_flags;
+
+	/**
+	 * Report zone buffer size alignement.
+	 */
+	size_t			zbd_report_bufsz_mask;
+
+	/**
+	 * Report zone buffer size minimum size.
+	 */
+	size_t			zbd_report_bufsz_min;
+
 };
 
 /**

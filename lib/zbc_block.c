@@ -443,6 +443,14 @@ static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 	int size32;
 	int ret;
 
+	/*
+	 * We do not need zbc_report_zones() to allocate a buffer for
+	 * report zones. zbc_block_report_zones() does its own allocation
+	 * as needed.
+	 */
+	dev->zbd_report_bufsz_min = 0;
+	dev->zbd_report_bufsz_mask = 0;
+
 	/* Check if we are dealing with a partition */
 	ret = zbc_block_handle_partition(dev);
 	if (ret)
@@ -709,9 +717,9 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
  * Get the block device zone information.
  */
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
-				  enum zbc_reporting_options ro,
-				  struct zbc_zone *zones,
-				  unsigned int *nr_zones)
+				enum zbc_reporting_options ro,
+				struct zbc_zone *zones, unsigned int *nr_zones,
+				uint8_t *buf, size_t bufsz)
 {
 	size_t rep_size;
 	uint64_t sector = start_sector;
@@ -804,7 +812,7 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 
 	/* Get zone info */
 	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
-				     &zone, &nr_zones);
+				     &zone, &nr_zones, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -881,7 +889,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 		/* Get zone info */
 		nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
 		ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
-					     zones, &nr_zones);
+					     zones, &nr_zones, NULL, 0);
 		if (ret || !nr_zones)
 			break;
 
@@ -1100,9 +1108,9 @@ static int zbc_block_close(struct zbc_device *dev)
 }
 
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
-				  enum zbc_reporting_options ro,
-				  struct zbc_zone *zones,
-				  unsigned int *nr_zones)
+				enum zbc_reporting_options ro,
+				struct zbc_zone *zones, unsigned int *nr_zones,
+				uint8_t *buf, size_t bufsz)
 {
 	return -EOPNOTSUPP;
 }

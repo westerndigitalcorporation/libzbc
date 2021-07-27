@@ -782,26 +782,16 @@ static int zbc_ata_flush(struct zbc_device *dev)
  */
 static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 				enum zbc_reporting_options ro,
-				struct zbc_zone *zones, unsigned int *nr_zones)
+				struct zbc_zone *zones, unsigned int *nr_zones,
+				uint8_t *buf, size_t bufsz)
 {
-	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
-	size_t max_bufsz;
 	struct zbc_sg_cmd cmd;
-	uint8_t *buf;
 	int ret;
 
-	if (*nr_zones)
-		bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-
-	bufsz = (bufsz + 4095) & ~4095;
-	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
-	if (bufsz > max_bufsz)
-		bufsz = max_bufsz;
-
 	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -881,7 +871,6 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	}
 
 	/* Get number of zones in result */
-	buf = (uint8_t *) cmd.buf;
 	nz = zbc_ata_get_dword(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	/* max_lba = zbc_ata_get_qword(&buf[8]); */
 
@@ -1314,6 +1303,10 @@ static void zbc_ata_test_sbc_sat(struct zbc_device *dev)
 static int zbc_ata_get_dev_info(struct zbc_device *dev)
 {
 	int ret;
+
+	/* Always use 512B aligned zone report buffers */
+	dev->zbd_report_bufsz_min = 512;
+	dev->zbd_report_bufsz_mask = dev->zbd_report_bufsz_min - 1;
 
 	/* Make sure the device is ready */
 	ret = zbc_sg_test_unit_ready(dev);

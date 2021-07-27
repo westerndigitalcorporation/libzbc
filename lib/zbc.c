@@ -483,8 +483,12 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
+        unsigned int max_rep_zones, max_zones = *nr_zones;
         unsigned int n, nz = 0;
 	uint64_t last_sector;
+	uint8_t *buf = NULL;
+	size_t bufsz = 0;
+	size_t max_bufsz;
 	int ret;
 
 	if (!zbc_test_mode(dev) &&
@@ -494,46 +498,78 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 		return 0;
 	}
 
+	/*
+	 * Allocate a buffer for the backend driver to do the report.
+	 * We have 2 cases: zones is NULL, in which case we only want to
+	 * count zones. For this, allocate the minimum buffer size.
+	 * Otherwise, allocate a buffer to fit nr_zones to report, up to
+	 * the maximum transfer size.
+	 */
 	if (!zones) {
-		/* Get the number of zones */
-		*nr_zones = 0;
-		return (dev->zbd_drv->zbd_report_zones)(dev, sector,
-							zbc_ro_mask(ro),
-							NULL, nr_zones);
+		bufsz = dev->zbd_report_bufsz_min;
+	} else {
+		bufsz = 64;
+		bufsz += max_zones * 64;
+		bufsz =(bufsz + dev->zbd_report_bufsz_mask) &
+			~dev->zbd_report_bufsz_mask;
+		max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+		if (bufsz > max_bufsz)
+			bufsz = max_bufsz;
+		else if (bufsz < dev->zbd_report_bufsz_min)
+			bufsz = dev->zbd_report_bufsz_min;
+		max_rep_zones = (bufsz - 64) / 64;
+	}
+
+	if (posix_memalign((void **) &buf, PAGE_SIZE, bufsz) != 0) {
+		zbc_error("No memory for report zones buffer (%zu B)\n",
+			  bufsz);
+		return -ENOMEM;
+	}
+
+	if (!zones) {
+		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
+						zbc_ro_mask(ro),
+						NULL, &nz, buf, bufsz);
+		goto out;
 	}
 
         /* Get zones information */
-        while (nz < *nr_zones) {
+	while (nz < max_zones &&
+	       sector < dev->zbd_info.zbd_sectors) {
 
-		n = *nr_zones - nz;
+		if (nz + max_rep_zones > max_zones)
+			n = max_zones - nz;
+		else
+			n = max_rep_zones;
+
 		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
 					zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
-					&zones[nz], &n);
+					&zones[nz], &n, buf, bufsz);
 		if (ret != 0) {
 			zbc_error("%s: Get zones from sector %llu failed %d (%s)\n",
 				  dev->zbd_filename,
 				  (unsigned long long) sector,
 				  ret, strerror(-ret));
-			return ret;
+			goto out;
 		}
 
 		if (n == 0)
 			break;
 
 		nz += n;
+
 		last_sector = zones[nz - 1].zbz_start +
 			zones[nz - 1].zbz_length;
-
 		if (last_sector >= dev->zbd_info.zbd_sectors)
 			break;
-
 		sector = last_sector;
-
         }
 
+out:
 	*nr_zones = nz;
+	free(buf);
 
-	return 0;
+	return ret;
 }
 
 /**

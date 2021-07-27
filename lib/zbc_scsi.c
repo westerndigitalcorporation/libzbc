@@ -310,30 +310,18 @@ out:
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
-				    enum zbc_reporting_options ro,
-				    uint64_t *max_lba,
-				    struct zbc_zone *zones,
-				    unsigned int *nr_zones)
+				enum zbc_reporting_options ro,
+				uint64_t *max_lba,
+				struct zbc_zone *zones, unsigned int *nr_zones,
+				uint8_t *buf, size_t bufsz)
 {
-	size_t bufsz = ZBC_ZONE_DESCRIPTOR_OFFSET;
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	struct zbc_sg_cmd cmd;
-	size_t max_bufsz;
-	uint8_t *buf;
 	int ret;
 
-	if (*nr_zones)
-		bufsz += (size_t)*nr_zones * ZBC_ZONE_DESCRIPTOR_LENGTH;
-
-	/* For in kernel ATA translation: align to 512 B */
-	bufsz = (bufsz + 511) & ~511;
-	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
-	if (bufsz > max_bufsz)
-		bufsz = max_bufsz;
-
-	/* Allocate and intialize report zones command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
+	/* Intialize report zones command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, buf, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -467,6 +455,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	 * | 63  |                                                                       |
 	 * +=============================================================================+
 	 */
+
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
 	for (i = 0; i < nz; i++) {
 
@@ -504,10 +493,11 @@ out:
  */
 static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
-				 struct zbc_zone *zones, unsigned int *nr_zones)
+				 struct zbc_zone *zones, unsigned int *nr_zones,
+				 uint8_t *buf, size_t bufsz)
 {
-	return zbc_scsi_do_report_zones(dev, sector, ro,
-					NULL, zones, nr_zones);
+	return zbc_scsi_do_report_zones(dev, sector, ro, NULL, zones, nr_zones,
+					buf, bufsz);
 }
 
 /**
@@ -639,7 +629,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	zbc_sg_get_max_cmd_blocks(dev);
 
 	if (zbc_dev_is_zoned(dev)) {
-
 		/* Check RC_BASIS field */
 		switch ((cmd.buf[12] & 0x30) >> 4) {
 
@@ -650,9 +639,11 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			 * To get the entire device capacity, we need to get
 			 * the last LBA of the last zone of the device.
 			 */
-			ret = zbc_scsi_do_report_zones(dev, 0, ZBC_RO_ALL|ZBC_RO_PARTIAL,
-						       &max_lba,
-						       NULL, &nr_zones);
+			ret = zbc_scsi_do_report_zones(dev, 0,
+						ZBC_RO_ALL | ZBC_RO_PARTIAL,
+						&max_lba, NULL, &nr_zones,
+						NULL,
+						dev->zbd_report_bufsz_min);
 			if (ret != 0)
 				goto out;
 
@@ -663,13 +654,12 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			break;
 
 		default:
-			zbc_error("%s: invalid RC_BASIS field encountered in READ CAPACITY result\n",
+			zbc_error("%s: invalid RC_BASIS field encountered "
+				  "in READ CAPACITY result\n",
 				  dev->zbd_filename);
 			ret = -EIO;
 			goto out;
-
 		}
-
 	}
 
 	/* Set the drive capacity using the reported max LBA */
@@ -772,6 +762,13 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 static int zbc_scsi_get_dev_info(struct zbc_device *dev)
 {
 	int ret;
+
+	/*
+	 * Always request 512B aligned zone reports for in-kernel
+	 * ATA translation to work correctly.
+	 */
+	dev->zbd_report_bufsz_min = 512;
+	dev->zbd_report_bufsz_mask = dev->zbd_report_bufsz_min - 1;
 
 	/* Make sure the device is ready */
 	ret = zbc_sg_test_unit_ready(dev);
