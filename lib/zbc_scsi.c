@@ -626,9 +626,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	logical_per_physical = 1 << cmd.buf[13] & 0x0f;
 	max_lba = zbc_sg_get_int64(&cmd.buf[0]);
 
-	/* Get maximum command size */
-	zbc_sg_get_max_cmd_blocks(dev);
-
 	if (zbc_dev_is_zoned(dev)) {
 		/* Check RC_BASIS field */
 		switch ((cmd.buf[12] & 0x30) >> 4) {
@@ -794,6 +791,9 @@ static int zbc_scsi_get_dev_info(struct zbc_device *dev)
 	ret = zbc_scsi_get_zbd_characteristics(dev);
 	if (ret != 0)
 		return ret;
+
+	/* Get maximum command size */
+	zbc_sg_get_max_cmd_blocks(dev);
 
 	return 0;
 }
