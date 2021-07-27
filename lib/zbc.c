@@ -340,15 +340,20 @@ int zbc_open(const char *filename, int flags, struct zbc_device **pdev)
 	struct zbc_device *dev = NULL;
 	unsigned int allowed_drv;
 	char *path = NULL;
-	int ret, i;
+	int ret, i, mask = ZBC_O_DRV_MASK;
 
 	ret = zbc_realpath(filename, &path);
 	if (ret)
 		return ret;
 
-	allowed_drv = flags & ZBC_O_DRV_MASK;
+#ifdef HAVE_DEVTEST
+	if (flags & ZBC_O_DEVTEST)
+		mask = ZBC_O_TEST_DRV_MASK;
+#endif
+
+	allowed_drv = flags & mask;
 	if (!allowed_drv)
-		allowed_drv = ZBC_O_DRV_MASK;
+		allowed_drv = mask;
 
 	/* Test all backends until one accepts the drive */
 	ret = -ENODEV;

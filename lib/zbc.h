@@ -175,6 +175,8 @@ static inline void zbc_set_errno(enum zbc_sk sk, enum zbc_asc_ascq asc_ascq)
 #define ZBC_O_DMODE_MASK	(ZBC_O_MODE_MASK | O_DIRECT)
 #define ZBC_O_DRV_MASK		(ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
 				 ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE)
+#define ZBC_O_TEST_DRV_MASK	(ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA | \
+				 ZBC_O_DRV_FAKE)
 
 /**
  * Test if a device is in test mode.
