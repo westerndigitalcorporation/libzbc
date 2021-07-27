@@ -1261,7 +1261,7 @@ static int zbc_ata_get_capacity(struct zbc_device *dev)
 			       buf,
 			       sizeof(buf));
 	if (ret != 0) {
-		zbc_error("%s: Get supported capabilities page failed\n",
+		zbc_error("%s: Get capacity page failed\n",
 			  dev->zbd_filename);
 		return ret;
 	}
