@@ -1307,9 +1307,6 @@ static int zbc_ata_get_capacity(struct zbc_device *dev)
 		return -EINVAL;
 	}
 
-	/* Get maximum command size */
-	zbc_sg_get_max_cmd_blocks(dev);
-
 	dev->zbd_info.zbd_pblock_size =
 		dev->zbd_info.zbd_lblock_size * logical_per_physical;
 	dev->zbd_info.zbd_pblocks =
@@ -1370,6 +1367,9 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 	ret = zbc_ata_get_zoned_device_info(dev);
 	if (ret != 0)
 		return ret;
+
+	/* Get maximum command size */
+	zbc_sg_get_max_cmd_blocks(dev);
 
 	/* Check if we have a functional SAT for read/write */
 	if (!zbc_test_mode(dev))
