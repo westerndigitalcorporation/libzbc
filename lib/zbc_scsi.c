@@ -598,6 +598,19 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	uint64_t max_lba;
 	int ret;
 
+	/*
+	 * Some SAS HBAs have a very slow processing of the READ CAPACITY
+	 * command for ZAC ATA drives. So instead on relying on the HBA SATL
+	 * for the command translation, use the ata backend read capacity
+	 * function to directly read the data log capacity page of the disk.
+	 * In case of failure, fall back to using the READ CAPACITY command.
+	 */
+	if ((dev->zbd_drv_flags & ZBC_IS_ATA) && !zbc_test_mode(dev)) {
+		ret = zbc_ata_get_capacity(dev);
+		if (ret == 0)
+			return 0;
+	}
+
 	/* READ CAPACITY 16 */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_READ_CAPACITY,
 			      NULL, ZBC_SCSI_READ_CAPACITY_BUF_LEN);

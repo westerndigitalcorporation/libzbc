@@ -263,6 +263,11 @@ ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
 int zbc_scsi_flush(struct zbc_device *dev);
 
 /**
+ * Get device capacity information of an ATA device.
+ */
+int zbc_ata_get_capacity(struct zbc_device *dev);
+
+/**
  * Log levels.
  */
 enum {

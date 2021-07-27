@@ -1247,7 +1247,7 @@ out:
 /**
  * Get a device capacity information (total blocks & block size).
  */
-static int zbc_ata_get_capacity(struct zbc_device *dev)
+int zbc_ata_get_capacity(struct zbc_device *dev)
 {
 	uint8_t buf[512];
 	uint64_t qword;
