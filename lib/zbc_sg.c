@@ -21,6 +21,7 @@
 #include <assert.h>
 
 #include "zbc.h"
+#include "zbc_utils.h"
 #include "zbc_sg.h"
 
 /**
@@ -424,25 +425,6 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 }
 
 /**
- * Get a sysfs file integer value.
- */
-static int zbc_sg_get_sysfs_val(char *sysfs_path, unsigned long *val)
-{
-	int ret = -1;
-	FILE *f;
-
-	f = fopen(sysfs_path, "r");
-	if (f) {
-		ret = fscanf(f, "%lu", val);
-		if (ret == 1)
-			ret = 0;
-		fclose(f);
-	}
-
-	return ret;
-}
-
-/**
  * SG command maximum transfer length in number of 4KB pages.
  * This may limit the SG reported value to a smaller value likely to work
  * with most HBAs.
@@ -454,13 +436,12 @@ static int zbc_sg_get_sysfs_val(char *sysfs_path, unsigned long *val)
  */
 static unsigned long zbc_sg_get_max_segments(struct zbc_device *dev)
 {
-	unsigned long max_segs;
-	char str[128];
+	unsigned long long max_segs;
+	int ret;
 
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/max_segments",
-		 basename(dev->zbd_filename));
-	if (zbc_sg_get_sysfs_val(str, &max_segs) < 0)
+	ret = zbc_get_sysfs_queue_val_ull(dev->zbd_filename, "max_segments",
+					  &max_segs);
+	if (ret)
 		max_segs = ZBC_SG_MAX_SEGMENTS;
 
 	return max_segs;
@@ -471,13 +452,12 @@ static unsigned long zbc_sg_get_max_segments(struct zbc_device *dev)
  */
 static unsigned long zbc_sg_get_max_bytes(struct zbc_device *dev)
 {
-	unsigned long max_bytes;
-	char str[128];
+	unsigned long long max_bytes;
+	int ret;
 
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/max_sectors_kb",
-		 basename(dev->zbd_filename));
-	if (zbc_sg_get_sysfs_val(str, &max_bytes) < 0)
+	ret = zbc_get_sysfs_queue_val_ull(dev->zbd_filename, "max_sectors_kb",
+					  &max_bytes);
+	if (ret)
 		max_bytes = 0;
 
 	return max_bytes * 1024;

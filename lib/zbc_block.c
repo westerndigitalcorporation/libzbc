@@ -9,6 +9,7 @@
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  */
 #include "zbc.h"
+#include "zbc_utils.h"
 #include "zbc_sg.h"
 
 #include <assert.h>
@@ -118,32 +119,20 @@ out:
 static int zbc_block_get_partition_start(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	char str[128];
-	FILE *file;
+	char sysfs_path[128];
 	int ret;
 
 	/* Open the start offset file of the partition */
-	snprintf(str, sizeof(str),
+	snprintf(sysfs_path, sizeof(sysfs_path),
 		 "/sys/block/%s/%s/start",
 		 zbd->holder_name,
 		 zbd->part_name);
-	file = fopen(str, "r");
-	if (!file) {
-		int ret = -errno;
-
-		zbc_error("%s: open %s failed %d (%s)\n",
-			  zbd->part_name, str,
-			  errno, strerror(errno));
-		return ret;
-	}
-
-	ret = fscanf(file, "%llu", &zbd->part_offset);
-	if (ret <= 0) {
+	ret = zbc_get_sysfs_val_ull(sysfs_path, &zbd->part_offset);
+	if (ret) {
 		zbc_error("%s: can't read partition offset from %s\n",
-			  zbd->part_name, str);
+			  zbd->part_name, sysfs_path);
 		return ret;
 	}
-	fclose(file);
 
 	zbc_debug("%s: Partition of %s, start sector offset %llu\n",
 		  dev->zbd_filename,
@@ -247,72 +236,34 @@ out:
 static int zbc_block_device_classify(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	char str[128];
-	FILE *file;
+	char model[32];
 	int ret;
 
 	/* Check that this is a zoned block device */
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/zoned",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (!file)
+	ret = zbc_get_sysfs_queue_str(zbd->holder_name, "zoned",
+				      model, sizeof(model));
+	if (ret)
 		/*
 		 * Cannot determine type: go on with SCSI,
 		 * ATA or fake backends.
 		 */
 		return -ENXIO;
 
-	memset(str, 0, sizeof(str));
-	ret = fscanf(file, "%s", str);
-	if (ret <= 0) {
-		zbc_error("%s: can't read zoned model from %s\n",
-			  zbd->part_name, str);
-		return ret;
-	}
-	fclose(file);
-
-	if (strcmp(str, "host-aware") == 0) {
+	if (strcmp(model, "host-aware") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
-	} else if (strcmp(str, "host-managed") == 0) {
+	} else if (strcmp(model, "host-managed") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
-	} else if (strcmp(str, "none") == 0) {
+	} else if (strcmp(model, "none") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		return -ENXIO;
 	} else {
 		zbc_debug("%s: Unknown device model \"%s\"\n",
-			  dev->zbd_filename, str);
+			  dev->zbd_filename, model);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		return -ENXIO;
 	}
 
 	return 0;
-}
-
-/**
- * Get a string in a file and strip it of trailing
- * spaces and carriage return.
- */
-static int zbc_block_get_str(FILE *file, char *str)
-{
-	int len = 0;
-
-	if (fgets(str, 128, file)) {
-		len = strlen(str) - 1;
-		while (len > 0) {
-			if (str[len] == ' ' ||
-			    str[len] == '\t' ||
-			    str[len] == '\r' ||
-			    str[len] == '\n') {
-				str[len] = '\0';
-				len--;
-			} else {
-				break;
-			}
-		}
-	}
-
-	return len;
 }
 
 /**
@@ -322,47 +273,28 @@ static int zbc_block_get_vendor_id(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 	char str[128];
-	FILE *file;
-	int n = 0, len;
+	int ret, n = 0;
 
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/device/vendor",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (file) {
-		len = zbc_block_get_str(file, str);
-		if (len)
-			n = snprintf(dev->zbd_info.zbd_vendor_id,
-				     ZBC_DEVICE_INFO_LENGTH,
-				     "%s ", str);
-		fclose(file);
-	}
+	ret = zbc_get_sysfs_device_str(zbd->holder_name, "vendor",
+				       str, sizeof(str));
+	if (!ret)
+		n = snprintf(dev->zbd_info.zbd_vendor_id,
+			     ZBC_DEVICE_INFO_LENGTH,
+			     "%s ", str);
 
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/device/model",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (file) {
-		len = zbc_block_get_str(file, str);
-		if (len)
-			n += snprintf(&dev->zbd_info.zbd_vendor_id[n],
-				      ZBC_DEVICE_INFO_LENGTH - n,
-				      "%s ", str);
-		fclose(file);
-	}
+	ret = zbc_get_sysfs_device_str(zbd->holder_name, "model",
+				       str, sizeof(str));
+	if (!ret)
+		n += snprintf(&dev->zbd_info.zbd_vendor_id[n],
+			      ZBC_DEVICE_INFO_LENGTH - n,
+			      "%s ", str);
 
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/device/rev",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (file) {
-		len = zbc_block_get_str(file, str);
-		if (len)
-			n += snprintf(&dev->zbd_info.zbd_vendor_id[n],
-				      ZBC_DEVICE_INFO_LENGTH - n,
-				      "%s", str);
-		fclose(file);
-	}
+	ret = zbc_get_sysfs_device_str(zbd->holder_name, "rev",
+				       str, sizeof(str));
+	if (!ret)
+		n += snprintf(&dev->zbd_info.zbd_vendor_id[n],
+			      ZBC_DEVICE_INFO_LENGTH - n,
+			      "%s", str);
 
 	return n > 0;
 }
@@ -373,31 +305,16 @@ static int zbc_block_get_vendor_id(struct zbc_device *dev)
 static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	char str[128];
-	FILE *file;
 	int ret;
 
 	/* Open the chunk_sectors file */
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/chunk_sectors",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (!file) {
-		int ret = -errno;
-
-		zbc_error("%s: open %s failed %d (%s)\n",
-			  zbd->part_name, str,
-			  errno, strerror(errno));
+	ret = zbc_get_sysfs_queue_val_ull(zbd->holder_name, "chunk_sectors",
+					  &zbd->zone_sectors);
+	if (ret) {
+		zbc_error("%s: get zone sectors from sysfs failed\n",
+			  zbd->part_name);
 		return ret;
 	}
-
-	ret = fscanf(file, "%llu", &zbd->zone_sectors);
-	if (ret <= 0) {
-		zbc_error("%s: can't read zone sectors from %s\n",
-			  zbd->part_name, str);
-		return ret;
-	}
-	fclose(file);
 
 	zbc_debug("%s: Zones of %llu sectors\n",
 		  zbd->part_name, zbd->zone_sectors);
@@ -411,24 +328,14 @@ static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 static unsigned int zbc_block_get_max_open_zones(struct zbc_device *dev)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
-	char str[128];
-	FILE *file;
-	unsigned int val;
+	unsigned long long val;
 	int ret;
 
 	/* Open the max_open_zones file */
-	snprintf(str, sizeof(str),
-		 "/sys/block/%s/queue/max_open_zones",
-		 zbd->holder_name);
-	file = fopen(str, "r");
-	if (!file)
+	ret = zbc_get_sysfs_queue_val_ull(zbd->holder_name,
+					  "max_open_zones", &val);
+	if (ret)
 		return ZBC_BLOCK_MAX_OPEN_ZONES;
-
-	ret = fscanf(file, "%u", &val);
-	if (ret <= 0)
-		val = ZBC_BLOCK_MAX_OPEN_ZONES;
-
-	fclose(file);
 
 	return val;
 }

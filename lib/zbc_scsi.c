@@ -585,6 +585,7 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	return ret;
 }
 
+
 /**
  * Get a device capacity information (total sectors & sector sizes).
  */

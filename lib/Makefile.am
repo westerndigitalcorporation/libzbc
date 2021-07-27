@@ -21,14 +21,16 @@ EXTRA_DIST = exports
 
 CFILES = \
 	zbc.c \
-	zbc_block.c \
+	zbc_utils.c \
 	zbc_sg.c \
+	zbc_block.c \
 	zbc_scsi.c \
 	zbc_ata.c \
 	zbc_fake.c
 
 HFILES = \
 	zbc.h \
+	zbc_utils.h \
 	zbc_sg.h
 
 libzbc_la_DEPENDENCIES = exports
