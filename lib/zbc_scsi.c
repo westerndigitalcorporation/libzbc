@@ -632,7 +632,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	if (zbc_dev_is_zoned(dev)) {
 		/* Check RC_BASIS field */
 		switch ((cmd.buf[12] & 0x30) >> 4) {
-
 		case 0x00:
 			/*
 			 * The capacity represents only the space used by
@@ -640,6 +639,9 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			 * To get the entire device capacity, we need to get
 			 * the last LBA of the last zone of the device.
 			 */
+			zbc_debug("%s: READ CAPACITY RC_BASIS field is 0x00 "
+				  "(conventional zones capacity)\n",
+				  dev->zbd_filename);
 			ret = zbc_scsi_do_report_zones(dev, 0,
 						ZBC_RO_ALL | ZBC_RO_PARTIAL,
 						&max_lba, NULL, &nr_zones,
@@ -649,15 +651,17 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 				goto out;
 
 			break;
-
 		case 0x01:
 			/* The device max LBA was reported */
-			break;
-
-		default:
-			zbc_error("%s: invalid RC_BASIS field encountered "
-				  "in READ CAPACITY result\n",
+			zbc_debug("%s: READ CAPACITY RC_BASIS field is 0x01 "
+				  "(all capacity)\n",
 				  dev->zbd_filename);
+			break;
+		default:
+			zbc_error("%s: invalid RC_BASIS field 0x%02x "
+				  "in READ CAPACITY result\n",
+				  dev->zbd_filename,
+				  (cmd.buf[12] & 0x30) >> 4);
 			ret = -EIO;
 			goto out;
 		}
