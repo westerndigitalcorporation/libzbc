@@ -55,6 +55,7 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 
 %files
 %{_libdir}/*.so
+%{_libdir}/*.so.*
 %{_bindir}/*
 %{_mandir}/man8/*
 %exclude %{_libdir}/pkgconfig

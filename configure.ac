@@ -7,6 +7,22 @@
 AC_INIT([libzbc], [5.11.0],
 	[damien.lemoal@wdc.com, dmitry.fomichev@wdc.com],
 	[libzbc], [https://github.com/westerndigitalcorporation/libzbc])
+
+# Package version details: <major>.<minor>.<release>
+PACKAGE_VERSION_MAJOR=$(echo $PACKAGE_VERSION | awk -F. '{print $1}')
+PACKAGE_VERSION_MINOR=$(echo $PACKAGE_VERSION | awk -F. '{print $2}')
+PACKAGE_VERSION_RELEASE=$(echo $PACKAGE_VERSION | awk -F. '{print $3}')
+
+# libzbc library version
+LIBZBC_VERSION="$PACKAGE_VERSION_MAJOR.$PACKAGE_VERSION_MINOR.$PACKAGE_VERSION_RELEASE"
+LIBZBC_LT_MAJOR=$PACKAGE_VERSION_MAJOR
+LIBZBC_LT_MINOR=$PACKAGE_VERSION_MINOR
+LIBZBC_LT_RELEASE=0
+LIBZBC_VERSION_INFO=$(( LIBZBC_LT_MAJOR + LIBZBC_LT_MINOR )):$LIBZBC_LT_RELEASE:$LIBZBC_LT_MINOR
+
+AC_SUBST([LIBZBC_VERSION])
+AC_SUBST([LIBZBC_VERSION_INFO])
+
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])
