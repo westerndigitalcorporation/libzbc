@@ -6,7 +6,7 @@
 
 AC_INIT([libzbc], [5.11.0],
 	[damien.lemoal@wdc.com, dmitry.fomichev@wdc.com],
-	[libzbc], [https://github.com/hgst/libzbc])
+	[libzbc], [https://github.com/westerndigitalcorporation/libzbc])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])
