@@ -38,4 +38,4 @@ libzbc_la_SOURCES = $(CFILES) $(HFILES)
 libzbc_la_CFLAGS = $(AM_CFLAGS) -fPIC
 libzbc_la_LDFLAGS = \
         -Wl,--version-script,${srcdir}/exports \
-	-version-info @LIBZBC_VERSION_INFO@
+	-version-number @LIBZBC_VERSION_LT@
