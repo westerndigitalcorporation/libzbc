@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 Name:		libzbc
-Version:	5.11.1
+Version:	5.12.0
 Release:	1%{?dist}
 Summary:	A library to control SCSI/ZBC and ATA/ZAC zoned devices
 
@@ -71,9 +71,5 @@ find $RPM_BUILD_ROOT -name '*.la' -delete
 %doc README.md
 
 %changelog
-* Wed Jul 28 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.11.1-1
-- Version 5.11.1 initial package
-* Wed Jun 2 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.10.0-1
-- Move static library to its own rpm
-* Sat May 22 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.10.0-1
-- Version 5.10.0 initial package
+* Wed Aug 17 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.12.0-1
+- Version 5.12.0 package
