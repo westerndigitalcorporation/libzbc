@@ -5,8 +5,8 @@
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
 AM_CFLAGS = \
-        -Wall -Wextra -Wno-unused-parameter
-AM_CPPFLAGS = \
+	$(CFLAGS) \
+        -Wall -Wextra -Wno-unused-parameter \
         -I$(top_srcdir)/include
 
 pkgconfdir = $(libdir)/pkgconfig

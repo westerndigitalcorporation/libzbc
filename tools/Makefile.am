@@ -7,9 +7,9 @@
 SUBDIRS = . $(subdirs)
 
 AM_CFLAGS = \
-	-Wall -Wextra -Wno-unused-parameter
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/include
+	$(CFLAGS) \
+        -Wall -Wextra -Wno-unused-parameter \
+        -I$(top_srcdir)/include
 
 libzbc_ldadd = $(top_builddir)/lib/libzbc.la
 
