@@ -17,10 +17,6 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects])
 AM_SILENT_RULES([yes])
 
-RPM_RELEASE=1
-AC_SUBST(RPM_RELEASE)
-AX_RPM_INIT
-
 AX_CHECK_ENABLE_DEBUG([no], [_DBG_])
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -75,25 +71,22 @@ AC_CHECK_HEADERS([linux/blkzoned.h], [], [],
 		]])
 
 # Conditionals
+
+# Build gzbc only if GTK3 is installed and can be detected with pkg-config.
 AC_ARG_ENABLE([gui],
-	AS_HELP_STRING([--disable-gui], [Disable build of GUI tools (gzbc and gzviewer) [default=no]]))
+	AS_HELP_STRING([--disable-gui],
+			[Disable build of GUI tools (gzbc and gzviewer) [default=no]]))
 AS_IF([test "x$enable_gui" != "xno"],
-[
-	# Build gzbc only if GTK3 is installed and can be detected with pkg-config.
-	m4_ifdef([PKG_CHECK_MODULES],
-		 [PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])],
-		 [HAVE_GTK3=0])
-	AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])
-],
-[
-	AM_CONDITIONAL([BUILD_GUI], false)
-])
+      [m4_ifdef([PKG_CHECK_MODULES],
+		[PKG_CHECK_MODULES([GTK], [gtk+-3.0], [HAVE_GTK3=1], [HAVE_GTK3=0])],
+		[HAVE_GTK3=0])
+       AM_CONDITIONAL([BUILD_GUI], [test "$HAVE_GTK3" -eq 1])],
+      [AM_CONDITIONAL([BUILD_GUI], false)])
 
 # Build test suite
 AC_ARG_WITH([test],
             [AS_HELP_STRING([--with-test], [Build compatibility test suite [default=no]])],
-            [WITH_TEST=1],
-            [WITH_TEST=0])
+            [WITH_TEST=1], [WITH_TEST=0])
 AS_IF([test "$WITH_TEST" -eq 1],
 [
 	AM_CONDITIONAL([BUILD_TEST], true)
@@ -106,7 +99,8 @@ AS_IF([test "$WITH_TEST" -eq 1],
 # Checks for rpm package builds
 AC_PATH_PROG([RPMBUILD], [rpmbuild], [notfound])
 AC_PATH_PROG([RPM], [rpm], [notfound])
-AM_CONDITIONAL(ENABLE_RPMBUILD, test "x$RPMBUILD" != "xnotfound" && test "x$RPM" != "xnotfound")
+AM_CONDITIONAL([BUILDING_RPM],
+		[test "x$RPMBUILD" != "xnotfound" && test "x$RPM" != "xnotfound"])
 
 AC_CONFIG_FILES([
 	Makefile
