@@ -8,19 +8,11 @@ AC_INIT([libzbc], [5.12.0],
 	[damien.lemoal@wdc.com, dmitry.fomichev@wdc.com],
 	[libzbc], [https://github.com/westerndigitalcorporation/libzbc])
 
-# Package version details: <major>.<minor>.<release>
-PACKAGE_VERSION_MAJOR=$(echo $PACKAGE_VERSION | awk -F. '{print $1}')
-PACKAGE_VERSION_MINOR=$(echo $PACKAGE_VERSION | awk -F. '{print $2}')
-PACKAGE_VERSION_RELEASE=$(echo $PACKAGE_VERSION | awk -F. '{print $3}')
-
-# libtool friendly library version format
-LIBZBC_VERSION_LT=$PACKAGE_VERSION_MAJOR:$PACKAGE_VERSION_MINOR:$PACKAGE_VERSION_RELEASE
-AC_SUBST([LIBZBC_VERSION_LT])
-
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADER([include/config.h])
 AC_PREFIX_DEFAULT(/usr)
+AC_CANONICAL_TARGET
 
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects])
 AM_SILENT_RULES([yes])
@@ -48,6 +40,16 @@ m4_pattern_allow([AM_PROG_AR])
 LT_INIT
 
 ACX_PTHREAD
+
+# Package version details: <major>.<minor>.<release>
+PACKAGE_VERSION_MAJOR=$(echo $PACKAGE_VERSION | awk -F. '{print $1}')
+PACKAGE_VERSION_MINOR=$(echo $PACKAGE_VERSION | awk -F. '{print $2}')
+PACKAGE_VERSION_RELEASE=$(echo $PACKAGE_VERSION | awk -F. '{print $3}')
+
+# libtool friendly library version format
+LIBZBC_VERSION_LT=$PACKAGE_VERSION_MAJOR:$PACKAGE_VERSION_MINOR:$PACKAGE_VERSION_RELEASE
+AC_SUBST([LIBZBC_VERSION_LT])
+
 CFLAGS="$CFLAGS --std=gnu90 $EXTRA_CFLAGS $PTHREAD_CFLAGS"
 if test "x$enable_debug" == "xno"; then
 	CFLAGS="-O2 $CFLAGS"
