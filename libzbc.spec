@@ -22,10 +22,10 @@ Zoned-device ATA command set (ZAC) specifications. libzbc implementation is
 compliant with the ZBC and ZAC r05 standards defined by INCITS technical
 committee T10 and T13 (respectively).
 
+# Development headers package
 %package devel
 Summary: Development header files for libzbc
 Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: pkgconfig
 
 %description devel
 This package provides development header files for libzbc.
@@ -42,7 +42,6 @@ This package provides command line tools using libzbc.
 %package gtk-tools
 Summary: GTK tools using libzbc
 Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: gtk3
 
 %description gtk-tools
 This package provides GTK-based graphical tools using libzbc.
@@ -56,9 +55,7 @@ sh autogen.sh
 %make_build
 
 %install
-rm -rf ${RPM_BUILD_ROOT}
-mkdir -p ${RPM_BUILD_ROOT}
-make install PREFIX=%{_prefix} DESTDIR=$RPM_BUILD_ROOT
+%make_install PREFIX=%{_prefix}
 chmod -x ${RPM_BUILD_ROOT}%{_mandir}/man8/*.8*
 
 find ${RPM_BUILD_ROOT} -name '*.la' -delete
