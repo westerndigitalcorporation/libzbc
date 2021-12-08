@@ -1,7 +1,6 @@
 Copyright (C) 2016, Western Digital.<br>
 Copyright (C) 2020 Western Digital Corporation or its affiliates.
 
-
 # libzbc
 
 *libzbc* is a simple library providing functions for manipulating SCSI and ATA
@@ -18,20 +17,28 @@ using a regular file or a standard block device as backing store.
 Several example applications using *libzbc* are available under the tools
 directory.
 
-### Library version
+## Online Documentation
+
+Information about *libzbc*, including examples, can be found on the
+[zonedstorage.io](https://zonedstorage.io/docs/tools/libzbc) site.
+
+Detailed information on the execution of device compliance tests can be found
+[here](https://zonedstorage.io/docs/tests/zbc-tests).
+
+## Library version
 
 *libzbc* current major version is 5. Due to interface changes, this version is
 not compatible with previous *libzbc* versions (version 4.x). Overall, the
 library operation does not change, but applications written for previous
 *libzbc* versions must be updated to use the new API.
 
-### ZBC and ZAC Standards Versions Supported
+## ZBC and ZAC Standards Versions Supported
 
 *libzbc* latest version is implements ZBC and ZAC standards revision 05. Support
 for the older draft standards are available with [previous releases and
 pre-releases](https://github.com/hgst/libzbc/releases).
 
-### License
+## License
 
 *libzbc* source code is distributed under the terms of the BSD 2-clause
 license ("Simplified BSD License" or "FreeBSD License", SPDX: *BSD-2-Clause*)
@@ -69,7 +76,7 @@ SPDX-License-Identifier: CC0-1.0
 
 See [LICENSES/CC0-1.0.txt] for the full text of this license.
 
-### Contributions and Bug Reports
+## Contributions and Bug Reports
 
 Contributions are accepted as github pull requests. Any problem may also be
 reported through github issue page or by contacting:
@@ -82,6 +89,8 @@ THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
 
 ## Compilation and installation
 
+### Requirements
+
 *libzbc* requires the following packages for compilation:
 
 * autoconf
@@ -92,6 +101,8 @@ THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
 The GTK3 and GTK3 development packages must be installed to automatically enable
 compiling the *gzbc* and *gzviewer* applications.
 
+### Compilation
+
 To compile the library and all example applications under the tools directory,
 execute the following commands.
 
@@ -101,26 +112,7 @@ $ ./configure
 $ make
 ```
 
-To install the library and all example applications compiled under the tools
-directory, execute the following command.
-
-```
-$ sudo make install
-```
-
-The library file is by default installed under `/usr/lib` (or `/usr/lib64`).
-The library header file is installed in `/usr/include/libzbc`. The executable
-files for the example applications are installed under `/usr/bin`.
-
-These default installation locations can be changed using the configure script.
-Executing the following command displays the options used to control the
-installation paths.
-
-```
-$ ./configure --help
-```
-
-## Compilation with GUI tools
+#### Compilation with GUI tools
 
 The *gzbc* and *gzviewer* tools implement a graphical user interface (GUI) using
 the GTK3 toolkit. The configure script will automatically detect the presence of
@@ -132,7 +124,7 @@ files are found. This behavior can be manually changed and the compilation of
 $ ./configure --disable-gui
 ```
 
-## Compilation for device tests
+#### Compilation for device tests
 
 The test directory contains several test programs and scripts allowing testing
 the compatibility of *libzbc* with a particular device. That is, testing if a
@@ -167,7 +159,28 @@ for the tests is thus not allowed.
 Each test outputs a log file in the `test/log` directory. These files can be
 consulted in case of a failed test to identify the reason for the test failure.
 
-## Building RPM packages
+### Installation
+
+To install the library and all example applications compiled under the tools
+directory, execute the following command.
+
+```
+$ sudo make install
+```
+
+The library file is by default installed under `/usr/lib` (or `/usr/lib64`).
+The library header file is installed in `/usr/include/libzbc`. The executable
+files for the example applications are installed under `/usr/bin`.
+
+These default installation locations can be changed using the configure script.
+Executing the following command displays the options used to control the
+installation paths.
+
+```
+$ ./configure --help
+```
+
+### Building RPM packages
 
 The *rpm* and *rpmbuild* utilities are necessary to build *libzbc* RPM
 packages. Once these utilities are installed, the RPM packages can be built
