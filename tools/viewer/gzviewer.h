@@ -12,7 +12,6 @@
 #define __GZWATCH_H__
 
 #include <sys/time.h>
-#include <pthread.h>
 #include <gtk/gtk.h>
 
 #include <libzbc/zbc.h>
