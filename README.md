@@ -93,8 +93,8 @@ THAT ARE VENDOR SAMPLES OR NOT PUBLICLY AVAILABLE.
 
 *libzbc* requires the following packages for compilation:
 
+* m4
 * autoconf
-* autoconf-archive
 * automake
 * libtool
 
