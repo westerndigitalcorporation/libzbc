@@ -45,6 +45,8 @@ static int zbc_zone_op_usage(char *bin_name)
 	       "Options:\n"
 	       "  -h | --help : Display this help message and exit\n"
 	       "  -v          : Verbose mode\n"
+	       "  -scsi       : Force the use of SCSI passthrough commands\n"
+	       "  -ata        : Force the use of ATA passthrough commands\n"
 	       "  -sector     : Interpret <zone> as a zone start sector\n"
 	       "  -lba        : Interpret <zone> as a zone start LBA\n"
 	       "  -all        : Operate on all sequential zones\n",
@@ -62,7 +64,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	long long start = 0;
 	unsigned long long start_sector = 0, zone_start;
 	unsigned int flags = 0;
-	int i, ret = 1;
+	int i, ret = 1, oflags = 0;;
 	unsigned int nr_zones, tgt_idx;
 	bool sector_unit = false;
 	bool lba_unit = false;
@@ -81,6 +83,14 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-scsi") == 0) {
+
+			oflags = ZBC_O_DRV_SCSI;
+
+		} else if (strcmp(argv[i], "-ata") == 0) {
+
+			oflags = ZBC_O_DRV_ATA;
 
 		} else if (strcmp(argv[i], "-sector") == 0) {
 
@@ -112,6 +122,12 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		return 1;
 	}
 
+	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
+		fprintf(stderr,
+			"-scsi and -ata options are mutually exclusive\n");
+		return 1;
+	}
+
 	if (lba_unit && sector_unit) {
 		fprintf(stderr, "-lba and -sector cannot be used together\n");
 		return 1;
@@ -119,7 +135,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, O_RDWR, &dev);
+	ret = zbc_open(path, oflags | O_RDWR, &dev);
 	if (ret != 0) {
 		if (ret == -ENODEV)
 			fprintf(stderr,
