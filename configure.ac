@@ -22,10 +22,9 @@ AC_ARG_ENABLE(debug,
     [  --enable-debug          Compile with "-g" option],
     [DBGCFLAGS="-g"],
     [DBGCFLAGS="-O2"])
-CFLAGS="$CFLAGS $DBGCFLAGS --std=gnu90"
+CFLAGS="$CFLAGS $DBGCFLAGS"
 
 AC_PROG_CC
-AM_PROG_CC_C_O
 AC_PROG_INSTALL
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
