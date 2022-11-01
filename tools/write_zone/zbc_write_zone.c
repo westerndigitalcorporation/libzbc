@@ -38,34 +38,35 @@ static inline unsigned long long zbc_write_zone_usec(void)
 		(unsigned long long) tv.tv_usec;
 }
 
-static int zbc_write_zone_usage(char *prog)
+static int zbc_write_zone_usage(FILE *out, char *prog)
 {
-	printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
-	       "  Write to a zone from the zone write pointer, until\n"
-	       "  the zone is full or until the specified number of I/Os\n"
-	       "  are all executed.\n"
-	       "Options:\n"
-	       "  -h | --help  : Display this help message and exit\n"
-	       "  -v           : Verbose mode\n"
-	       "  -scsi        : Force the use of SCSI passthrough commands\n"
-	       "  -ata         : Force the use of ATA passthrough commands\n"
-	       "  -s           : Run zbc_flush after writing (equivalent to\n"
-	       "                 executing sync())\n"
-	       "  -dio         : Use direct I/Os\n"
-	       "  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
-	       "                 <I/O size> bytes, resulting in an actual I/O\n"
-	       "                 size of <num> x <I/O size> bytes.\n"
-	       "  -p <num>     : Set the byte pattern to write. If this option\n"
-	       "                 is omitted, zeroes are written.\n"
-	       "  -nio <num>   : Limit the number of I/O executed to <num>\n"
-	       "  -f <file>    : Write the content of <file>\n"
-	       "  -loop        : If a file is specified, repeatedly write the\n"
-	       "                 file content to the zone until the zone is full\n"
-	       "  -ofst <ofst> : Write the zone starting form the sector offset\n"
-	       "                 <ofst> instead of from the zone start sector.\n"
-	       "                 This option should be used only with\n"
-	       "                 conventional zones.\n",
-	       basename(prog));
+	fprintf(out,
+		"Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
+		"  Write to a zone from the zone write pointer, until\n"
+		"  the zone is full or until the specified number of I/Os\n"
+		"  are all executed.\n"
+		"Options:\n"
+		"  -h | --help  : Display this help message and exit\n"
+		"  -v           : Verbose mode\n"
+		"  -scsi        : Force the use of SCSI passthrough commands\n"
+		"  -ata         : Force the use of ATA passthrough commands\n"
+		"  -s           : Run zbc_flush after writing (equivalent to\n"
+		"                 executing sync())\n"
+		"  -dio         : Use direct I/Os\n"
+		"  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
+		"                 <I/O size> bytes, resulting in an actual I/O\n"
+		"                 size of <num> x <I/O size> bytes.\n"
+		"  -p <num>     : Set the byte pattern to write. If this option\n"
+		"                 is omitted, zeroes are written.\n"
+		"  -nio <num>   : Limit the number of I/O executed to <num>\n"
+		"  -f <file>    : Write the content of <file>\n"
+		"  -loop        : If a file is specified, repeatedly write the\n"
+		"                 file content to the zone until the zone is full\n"
+		"  -ofst <ofst> : Write the zone starting form the sector offset\n"
+		"                 <ofst> instead of from the zone start sector.\n"
+		"                 This option should be used only with\n"
+		"                 conventional zones.\n",
+		basename(prog));
 	return 1;
 }
 
@@ -104,14 +105,14 @@ int main(int argc, char **argv)
 
 	/* Check command line */
 	if (argc < 4)
-		return zbc_write_zone_usage(argv[0]);
+		return zbc_write_zone_usage(stderr, argv[0]);
 
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
 
 		if (strcmp(argv[i], "-h") == 0 ||
 		    strcmp(argv[i], "--help") == 0)
-			return zbc_write_zone_usage(argv[0]);
+			return zbc_write_zone_usage(stdout, argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
