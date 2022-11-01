@@ -23,6 +23,8 @@ static int zbc_info_usage(char *bin_name)
 	       "Options:\n"
 	       "  -h | --help : Display this help message and exit\n"
 	       "  -v          : Verbose mode\n"
+	       "  -scsi       : Force the use of SCSI passthrough commands\n"
+	       "  -ata        : Force the use of ATA passthrough commands\n"
 	       "  -e          : Print information for an emulated device\n",
 	       basename(bin_name));
 	return 1;
@@ -32,8 +34,10 @@ static int zbc_info_usage(char *bin_name)
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
+	struct zbc_device *dev;
 	bool do_fake = false;
-	int ret, i;
+	int ret, i, oflags = 0;
+	char *path;
 
 	/* Check command line */
 	if (argc < 2)
@@ -48,6 +52,14 @@ int main(int argc, char **argv)
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-scsi") == 0) {
+
+			oflags = ZBC_O_DRV_SCSI;
+
+		} else if (strcmp(argv[i], "-ata") == 0) {
+
+			oflags = ZBC_O_DRV_ATA;
 
 		} else if (strcmp(argv[i], "-e") == 0) {
 
@@ -69,20 +81,49 @@ int main(int argc, char **argv)
 	if (i != (argc - 1))
 		return zbc_info_usage(argv[0]);
 
-	/* Open device */
-	ret = zbc_device_is_zoned(argv[i], do_fake, &info);
-	if (ret == 1) {
-		printf("Device %s:\n", argv[i]);
-		zbc_print_device_info(&info, stdout);
-		ret = 0;
-	} else if (ret == 0) {
-		printf("%s is not a zoned block device\n", argv[i]);
-	} else {
+	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
 		fprintf(stderr,
-			"zbc_device_is_zoned failed %d (%s)\n",
-			ret, strerror(-ret));
-		ret = 1;
+			"-scsi and -ata options are mutually exclusive\n");
+		return 1;
 	}
 
-	return ret;
+	if (oflags && do_fake) {
+		fprintf(stderr,
+			"-e option is mutually exclusive with -scsi and -ata options\n");
+		return 1;
+	}
+
+	/* Open device */
+	path = argv[i];
+	if (oflags) {
+		ret = zbc_open(path, oflags | O_RDONLY, &dev);
+		if (ret != 0) {
+			if (ret == -ENODEV)
+				goto not_zoned;
+			fprintf(stderr, "Open %s failed (%s)\n",
+				path, strerror(-ret));
+			return 1;
+		}
+		zbc_get_device_info(dev, &info);
+	} else {
+		ret = zbc_device_is_zoned(path, do_fake, &info);
+		if (ret < 0) {
+			fprintf(stderr,
+				"zbc_device_is_zoned failed %d (%s)\n",
+				ret, strerror(-ret));
+			return 1;
+		}
+		if (ret == 0)
+			goto not_zoned;
+
+	}
+
+	printf("Device %s:\n", argv[i]);
+	zbc_print_device_info(&info, stdout);
+
+	return 0;
+not_zoned:
+	printf("%s is not a zoned block device\n", path);
+
+	return 0;
 }
