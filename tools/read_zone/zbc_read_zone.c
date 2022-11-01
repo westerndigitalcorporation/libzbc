@@ -51,6 +51,8 @@ static int zbc_read_zone_usage(char *prog)
 	       "Options:\n"
 	       "  -h | --help  : Display this help message and exit\n"
 	       "  -v           : Verbose mode\n"
+	       "  -scsi        : Force the use of SCSI passthrough commands\n"
+	       "  -ata         : Force the use of ATA passthrough commands\n"
 	       "  -dio         : Use direct I/Os\n"
 	       "  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
 	       "                 <I/O size> bytes, resulting in an actual\n"
@@ -90,6 +92,7 @@ int main(int argc, char **argv)
 	long long sector_max = 0;
 	long long zone_ofst = 0;
 	int flags = O_RDONLY;
+	int oflags = 0;
 	bool vio = false, ptrn_set = false;
 	unsigned long pattern = 0;
 	struct iovec *iov = NULL;
@@ -101,9 +104,21 @@ int main(int argc, char **argv)
 
 	for (i = 1; i < (argc - 1); i++) {
 
+		if (strcmp(argv[i], "-h") == 0 ||
+		    strcmp(argv[i], "--help") == 0)
+			return zbc_read_zone_usage(argv[0]);
+
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-scsi") == 0) {
+
+			oflags = ZBC_O_DRV_SCSI;
+
+		} else if (strcmp(argv[i], "-ata") == 0) {
+
+			oflags = ZBC_O_DRV_ATA;
 
 		} else if (strcmp(argv[i], "-p") == 0) {
 
@@ -194,6 +209,13 @@ int main(int argc, char **argv)
 
 	/* Get parameters */
 	path = argv[i];
+
+	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
+		fprintf(stderr,
+			"-scsi and -ata options are mutually exclusive\n");
+		return 1;
+	}
+
 	zidx = atoi(argv[i + 1]);
 	if (zidx < 0) {
 		fprintf(stderr, "Invalid zone number %s\n", argv[i + 1]);
@@ -212,7 +234,7 @@ int main(int argc, char **argv)
 	signal(SIGTERM, zbc_read_zone_sigcatcher);
 
 	/* Open device */
-	ret = zbc_open(path, flags, &dev);
+	ret = zbc_open(path, oflags | flags, &dev);
 	if (ret != 0) {
 		if (ret == -ENODEV)
 			fprintf(stderr,
