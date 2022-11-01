@@ -83,33 +83,34 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 }
 
 
-static int zbc_report_zones_usage(char *prog)
+static int zbc_report_zones_usage(FILE *out, char *prog)
 {
-	printf("Usage: %s [options] <dev>\n"
-	       "Options:\n"
-	       "  -h | --help   : Display this help message and exit\n"
-	       "  -v		: Verbose mode\n"
-	       "  -lba		: Use LBA size unit (default is 512B sectors)\n"
-	       "  -start <ofst> : Start offset of the report. if -lba is\n"
-	       "                  specified, <ofst> is interpreted as an LBA\n"
-	       "                  value. Otherwise, it is interpreted as a\n"
-	       "                  512B sector value. Default is 0\n"
-	       "  -n		: Get only the number of zones in the report\n"
-	       "  -nz <num>	: Report at most <num> zones\n"
-	       "  -ro <opt>	: Specify a reporting option. <opt> can be:\n"
-	       "                  - all: report all zones (default)\n"
-	       "                  - empty: report only empty zones\n"
-	       "                  - imp_open: report only implicitly open zones\n"
-	       "                  - exp_open: report only explicitly open zones\n"
-	       "                  - closed: report only closed zones\n"
-	       "                  - full: report only full zones\n"
-	       "                  - rdonly: report only read-only zones\n"
-	       "                  - offline: report only offline zones\n"
-	       "                  - rwp: report only offline zones\n"
-	       "                  - non_seq: report only offline zones\n"
-	       "                  - not_wp: report only zones that are not\n"
-	       "                    write pointer zones (e.g. conventional zones)\n",
-	       basename(prog));
+	fprintf(out,
+		"Usage: %s [options] <dev>\n"
+		"Options:\n"
+		"  -h | --help   : Display this help message and exit\n"
+		"  -v		: Verbose mode\n"
+		"  -lba		: Use LBA size unit (default is 512B sectors)\n"
+		"  -start <ofst> : Start offset of the report. if -lba is\n"
+		"                  specified, <ofst> is interpreted as an LBA\n"
+		"                  value. Otherwise, it is interpreted as a\n"
+		"                  512B sector value. Default is 0\n"
+		"  -n		: Get only the number of zones in the report\n"
+		"  -nz <num>	: Report at most <num> zones\n"
+		"  -ro <opt>	: Specify a reporting option. <opt> can be:\n"
+		"                  - all: report all zones (default)\n"
+		"                  - empty: report only empty zones\n"
+		"                  - imp_open: report only implicitly open zones\n"
+		"                  - exp_open: report only explicitly open zones\n"
+		"                  - closed: report only closed zones\n"
+		"                  - full: report only full zones\n"
+		"                  - rdonly: report only read-only zones\n"
+		"                  - offline: report only offline zones\n"
+		"                  - rwp: report only offline zones\n"
+		"                  - non_seq: report only offline zones\n"
+		"                  - not_wp: report only zones that are not\n"
+		"                    write pointer zones (e.g. conventional zones)\n",
+		basename(prog));
 
 	return 1;
 }
@@ -130,14 +131,14 @@ int main(int argc, char **argv)
 
 	/* Check command line */
 	if (argc < 2)
-		return zbc_report_zones_usage(argv[0]);
+		return zbc_report_zones_usage(stderr, argv[0]);
 
 	/* Parse options */
 	for (i = 1; i < argc; i++) {
 
 		if (strcmp(argv[i], "-h") == 0 ||
 		    strcmp(argv[i], "--help") == 0)
-			return zbc_report_zones_usage(argv[0]);
+			return zbc_report_zones_usage(stdout, argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -155,7 +156,7 @@ int main(int argc, char **argv)
 
 			nz = strtol(argv[i], &end, 10);
 			if (*end != '\0' || nz == 0) {
-				printf("Missing -nz value\n");
+				fprintf(stderr, "Missing -nz value\n");
 				return 1;
 			}
 
@@ -171,8 +172,8 @@ int main(int argc, char **argv)
 
 			start = strtoll(argv[i], &end, 10);
 			if (*end != '\0') {
-				printf("Invalid start offset \"%s\"\n",
-				       argv[i]);
+				fprintf(stderr, "Invalid start offset \"%s\"\n",
+					argv[i]);
 				return 1;
 			}
 
@@ -212,8 +213,8 @@ int main(int argc, char **argv)
 
 		} else if (argv[i][0] == '-') {
 
-			printf("Unknown option \"%s\"\n",
-			       argv[i]);
+			fprintf(stderr, "Unknown option \"%s\"\n",
+				argv[i]);
 			return 1;
 
 		} else {
@@ -225,7 +226,7 @@ int main(int argc, char **argv)
 	}
 
 	if (i != (argc - 1)) {
-		printf("No device specified\n");
+		fprintf(stderr, "No device specified\n");
 		return 1;
 	}
 
@@ -334,7 +335,7 @@ out:
 	return ret;
 
 err:
-	printf("Invalid command line\n");
+	fprintf(stderr, "Invalid command line\n");
 
 	return 1;
 }
