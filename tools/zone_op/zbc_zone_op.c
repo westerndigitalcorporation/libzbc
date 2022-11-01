@@ -33,24 +33,25 @@ static const char *zbc_zone_op_name(enum zbc_zone_op op)
 	}
 }
 
-static int zbc_zone_op_usage(char *bin_name)
+static int zbc_zone_op_usage(FILE *out, char *bin_name)
 {
-	printf("Usage: %s [options] <dev> [<zone>]\n"
-	       "  By default <zone> is interpreted as a zone number.\n"
-	       "  If the -lba option is used, <zone> is interpreted\n"
-	       "  as the start LBA of the target zone. If the\n"
-	       "  -sector option is used, <zone> is interpreted as\n"
-	       "  the start 512B sector of the target zone. If the\n"
-	       "  -all option is used, <zone> is ignored\n"
-	       "Options:\n"
-	       "  -h | --help : Display this help message and exit\n"
-	       "  -v          : Verbose mode\n"
-	       "  -scsi       : Force the use of SCSI passthrough commands\n"
-	       "  -ata        : Force the use of ATA passthrough commands\n"
-	       "  -sector     : Interpret <zone> as a zone start sector\n"
-	       "  -lba        : Interpret <zone> as a zone start LBA\n"
-	       "  -all        : Operate on all sequential zones\n",
-	       basename(bin_name));
+	fprintf(out,
+		"Usage: %s [options] <dev> [<zone>]\n"
+		"  By default <zone> is interpreted as a zone number.\n"
+		"  If the -lba option is used, <zone> is interpreted\n"
+		"  as the start LBA of the target zone. If the\n"
+		"  -sector option is used, <zone> is interpreted as\n"
+		"  the start 512B sector of the target zone. If the\n"
+		"  -all option is used, <zone> is ignored\n"
+		"Options:\n"
+		"  -h | --help : Display this help message and exit\n"
+		"  -v          : Verbose mode\n"
+		"  -scsi       : Force the use of SCSI passthrough commands\n"
+		"  -ata        : Force the use of ATA passthrough commands\n"
+		"  -sector     : Interpret <zone> as a zone start sector\n"
+		"  -lba        : Interpret <zone> as a zone start LBA\n"
+		"  -all        : Operate on all sequential zones\n",
+		basename(bin_name));
 
 	return 1;
 }
@@ -72,13 +73,13 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 
 	/* Check command line */
 	if (!argc)
-		return zbc_zone_op_usage(bin_name);
+		return zbc_zone_op_usage(stderr, bin_name);
 
 	/* Parse options */
 	for (i = 0; i < argc; i++) {
 		if (strcmp(argv[i], "-h") == 0 ||
 		    strcmp(argv[i], "--help") == 0)
-			return zbc_zone_op_usage(bin_name);
+			return zbc_zone_op_usage(stdout, bin_name);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
@@ -106,8 +107,8 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 
 		} else if ( argv[i][0] == '-' ) {
 
-			printf("Unknown option \"%s\"\n",
-			       argv[i]);
+			fprintf(stderr, "Unknown option \"%s\"\n",
+				argv[i]);
 			return 1;
 
 		} else {
@@ -238,7 +239,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		}
 		break;
 	default:
-		printf("Unknown operation\n");
+		fprintf(stderr, "Unknown operation\n");
 		ret = 1;
 	}
 
