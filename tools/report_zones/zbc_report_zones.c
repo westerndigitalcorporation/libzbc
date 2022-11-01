@@ -89,15 +89,17 @@ static int zbc_report_zones_usage(FILE *out, char *prog)
 		"Usage: %s [options] <dev>\n"
 		"Options:\n"
 		"  -h | --help   : Display this help message and exit\n"
-		"  -v		: Verbose mode\n"
-		"  -lba		: Use LBA size unit (default is 512B sectors)\n"
+		"  -v		 : Verbose mode\n"
+		"  -scsi         : Force the use of SCSI passthrough commands\n"
+		"  -ata          : Force the use of ATA passthrough commands\n"
+		"  -lba          : Use LBA size unit (default is 512B sectors)\n"
 		"  -start <ofst> : Start offset of the report. if -lba is\n"
 		"                  specified, <ofst> is interpreted as an LBA\n"
 		"                  value. Otherwise, it is interpreted as a\n"
 		"                  512B sector value. Default is 0\n"
-		"  -n		: Get only the number of zones in the report\n"
-		"  -nz <num>	: Report at most <num> zones\n"
-		"  -ro <opt>	: Specify a reporting option. <opt> can be:\n"
+		"  -n            : Get only the number of zones in the report\n"
+		"  -nz <num>     : Report at most <num> zones\n"
+		"  -ro <opt>     : Specify a reporting option. <opt> can be:\n"
 		"                  - all: report all zones (default)\n"
 		"                  - empty: report only empty zones\n"
 		"                  - imp_open: report only implicitly open zones\n"
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 	struct zbc_zone *z, *zones = NULL;
 	bool lba_unit = false;
 	unsigned long long start = 0;
-	int i, ret = 1;
+	int i, ret = 1, oflags = 0;
 	int num = 0;
 	char *path, *end;
 
@@ -143,6 +145,14 @@ int main(int argc, char **argv)
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
+
+		} else if (strcmp(argv[i], "-scsi") == 0) {
+
+			oflags = ZBC_O_DRV_SCSI;
+
+		} else if (strcmp(argv[i], "-ata") == 0) {
+
+			oflags = ZBC_O_DRV_ATA;
 
 		} else if (strcmp(argv[i], "-n") == 0) {
 
@@ -230,9 +240,15 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
+		fprintf(stderr,
+			"-scsi and -ata options are mutually exclusive\n");
+		return 1;
+	}
+
 	/* Open device */
 	path = argv[i];
-	ret = zbc_open(path, O_RDONLY, &dev);
+	ret = zbc_open(path, oflags | O_RDONLY, &dev);
 	if (ret != 0) {
 		if (ret == -ENODEV)
 			fprintf(stderr,
