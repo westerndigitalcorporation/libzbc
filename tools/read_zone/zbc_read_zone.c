@@ -43,30 +43,31 @@ static void zbc_read_zone_sigcatcher(int sig)
 	zbc_read_zone_abort = 1;
 }
 
-static int zbc_read_zone_usage(char *prog)
+static int zbc_read_zone_usage(FILE *out, char *prog)
 {
-	printf("Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
-	       "  Read from a zone up to the zone write pointer position\n"
-	       "  or until specified number of I/Os are all executed.\n"
-	       "Options:\n"
-	       "  -h | --help  : Display this help message and exit\n"
-	       "  -v           : Verbose mode\n"
-	       "  -scsi        : Force the use of SCSI passthrough commands\n"
-	       "  -ata         : Force the use of ATA passthrough commands\n"
-	       "  -dio         : Use direct I/Os\n"
-	       "  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
-	       "                 <I/O size> bytes, resulting in an actual\n"
-	       "                 I/O size of <num> x <I/O size> B\n"
-	       "  -nio <num>   : Limit the number of I/Os to <num>\n"
-	       "  -p <num>     : Expect all bytes that are read to have the\n"
-	       "                 value <num>. In case of a mismatch, the\n"
-	       "                 offset of the mismatch is printed\n"
-	       "  -f <file>    : Write the content of the zone to <file>\n"
-	       "                 If <file> is \"-\", the zone content is\n"
-	       "                 written to the standard output\n"
-	       "  -ofst <ofst> : Read the zone starting at sector <ofst>\n"
-	       "                 instead of from the zone start sector\n",
-	       basename(prog));
+	fprintf(out,
+		"Usage: %s [options] <dev> <zone no> <I/O size (B)>\n"
+		"  Read from a zone up to the zone write pointer position\n"
+		"  or until specified number of I/Os are all executed.\n"
+		"Options:\n"
+		"  -h | --help  : Display this help message and exit\n"
+		"  -v           : Verbose mode\n"
+		"  -scsi        : Force the use of SCSI passthrough commands\n"
+		"  -ata         : Force the use of ATA passthrough commands\n"
+		"  -dio         : Use direct I/Os\n"
+		"  -vio <num>   : Use vectored I/Os with <num> buffers of\n"
+		"                 <I/O size> bytes, resulting in an actual\n"
+		"                 I/O size of <num> x <I/O size> B\n"
+		"  -nio <num>   : Limit the number of I/Os to <num>\n"
+		"  -p <num>     : Expect all bytes that are read to have the\n"
+		"                 value <num>. In case of a mismatch, the\n"
+		"                 offset of the mismatch is printed\n"
+		"  -f <file>    : Write the content of the zone to <file>\n"
+		"                 If <file> is \"-\", the zone content is\n"
+		"                 written to the standard output\n"
+		"  -ofst <ofst> : Read the zone starting at sector <ofst>\n"
+		"                 instead of from the zone start sector\n",
+		basename(prog));
 	return 1;
 }
 
@@ -100,13 +101,13 @@ int main(int argc, char **argv)
 
 	/* Parse command line */
 	if (argc < 4)
-		return zbc_read_zone_usage(argv[0]);
+		return zbc_read_zone_usage(stderr, argv[0]);
 
 	for (i = 1; i < (argc - 1); i++) {
 
 		if (strcmp(argv[i], "-h") == 0 ||
 		    strcmp(argv[i], "--help") == 0)
-			return zbc_read_zone_usage(argv[0]);
+			return zbc_read_zone_usage(stdout, argv[0]);
 
 		if (strcmp(argv[i], "-v") == 0) {
 
