@@ -181,13 +181,17 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 		return ret;
 	}
 
-	if (strncmp((char *)&buf[8], "ATA", 3) == 0) {
-		zbc_debug("%s: ATA device\n", dev->zbd_filename);
-		dev->zbd_drv_flags |= ZBC_IS_ATA;
-	}
-
 	/* This is a SCSI device */
 	dev->zbd_info.zbd_type = ZBC_DT_SCSI;
+
+	/*
+	 * Check if we are dealing with an ATA device by checking for the
+	 * ATA Information VPD page (89h).
+	 */
+	if (zbc_scsi_vpd_page_supported(dev, 0x89)) {
+		dev->zbd_drv_flags |= ZBC_IS_ATA;
+		zbc_debug("%s: ATA device\n", dev->zbd_filename);
+	}
 
 	/*
 	 * Concatenate vendor identification, product identification
