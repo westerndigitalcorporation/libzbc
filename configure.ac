@@ -4,7 +4,7 @@
 # Copyright (c) 2009-2014, HGST, Inc. All rights reserved.
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
-AC_INIT([libzbc], [5.12.0],
+AC_INIT([libzbc], [5.13.0],
 	[damien.lemoal@wdc.com, dmitry.fomichev@wdc.com],
 	[libzbc], [https://github.com/westerndigitalcorporation/libzbc])
 

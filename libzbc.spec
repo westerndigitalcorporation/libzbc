@@ -1,5 +1,5 @@
 Name:		libzbc
-Version:	5.12.0
+Version:	5.13.0
 Release:	1%{?dist}
 Summary:	A library to control SCSI/ZBC and ATA/ZAC devices
 
@@ -89,5 +89,5 @@ find ${RPM_BUILD_ROOT} -name '*.la' -delete
 %license LICENSES/LGPL-3.0-or-later.txt
 
 %changelog
-* Tue Dec 07 2021 Damien Le Moal <damien.lemoal@wdc.com> 5.12.0-1
-- Version 5.12.0 package
+* Wed Nov 02 2022 Damien Le Moal <damien.lemoal@wdc.com> 5.13.0-1
+- Version 5.13.0 package
