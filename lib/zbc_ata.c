@@ -148,7 +148,7 @@ static int zbc_ata_read_log(struct zbc_device *dev, uint8_t log,
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Intialize command */
+	/* Initialize command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, buf, bufsz);
 	if (ret != 0)
 		return ret;
@@ -222,7 +222,7 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Intialize command */
+	/* Initialize command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;

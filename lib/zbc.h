@@ -138,7 +138,7 @@ struct zbc_device {
 	unsigned int		zbd_drv_flags;
 
 	/**
-	 * Report zone buffer size alignement.
+	 * Report zone buffer size alignment.
 	 */
 	size_t			zbd_report_bufsz_mask;
 

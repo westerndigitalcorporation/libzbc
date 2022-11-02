@@ -57,7 +57,7 @@ static int zbc_scsi_inquiry(struct zbc_device *dev,
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Allocate and intialize inquiry command */
+	/* Allocate and initialize inquiry command */
 	memset(buf, 0, buf_len);
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0)
@@ -85,7 +85,7 @@ static int zbc_scsi_vpd_inquiry(struct zbc_device *dev,
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Allocate and intialize inquiry command */
+	/* Allocate and initialize inquiry command */
 	memset(buf, 0, buf_len);
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_INQUIRY, buf, buf_len);
 	if (ret != 0)
@@ -324,7 +324,7 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	struct zbc_sg_cmd cmd;
 	int ret;
 
-	/* Intialize report zones command */
+	/* Initialize report zones command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, buf, bufsz);
 	if (ret != 0)
 		return ret;
@@ -853,7 +853,7 @@ static int zbc_scsi_open(const char *filename,
 		goto out;
 	}
 
-	/* Set device decriptor */
+	/* Set device descriptor */
 	ret = -ENOMEM;
 	dev = calloc(1, sizeof(struct zbc_device));
 	if (!dev)
