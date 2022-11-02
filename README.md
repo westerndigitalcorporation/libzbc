@@ -238,7 +238,7 @@ changes to the device zones condition, attributes and state (such as a
 sequential zone write pointer location). These changes are not internally
 tracked by *libzbc*. The functions provided to obtain the device zone
 information only provide a snapshot of the zone condition and state when
-executed. It is the responsability of an application to implement tracking of
+executed. It is the responsibility of an application to implement tracking of
 the device zone changes (such as increment to a sequential zone write pointer as
 writes to the zone are executed) if necessary.
 
@@ -260,7 +260,7 @@ Function                 | Description
 *zbc_report_nr_zones()*  | Get the number of zones of the device
 *zbc_report_zones()* <br> *zbc_list_zones()* | Get zone information
 *zbc_zone_operation()*   | Execute a zone operation
-*zbc_open_zone()*        | Explicitely open a zone
+*zbc_open_zone()*        | Explicitly open a zone
 *zbc_close_zone()*       | Close an open zone
 *zbc_finish_zone()*      | Finish a zone
 *zbc_reset_zone()*       | Reset a zone write pointer
@@ -336,7 +336,7 @@ $ doxygen libzbc.doxygen
 ## Tools
 
 Under the tools directory, several simple applications are available as
-examples. These appliations are as follows.
+examples. These applications are as follows.
 
 * **zbc_info** This application tests if a device file points to a physical
   zoned device supporting ZBC or ZAC features. This excludes the emulation mode
