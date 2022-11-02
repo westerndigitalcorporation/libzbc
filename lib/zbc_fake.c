@@ -79,7 +79,7 @@ struct zbc_fake_meta {
 	uint32_t	zbd_nr_exp_open_zones;
 
 	/**
-	 * Number of implicitely open zones.
+	 * Number of implicitly open zones.
 	 */
 	uint32_t	zbd_nr_imp_open_zones;
 

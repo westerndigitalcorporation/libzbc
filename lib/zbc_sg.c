@@ -412,7 +412,7 @@ int zbc_sg_cmd_exec(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 	if (cmd->io_hdr.resid)
 		cmd->bufsz -= cmd->io_hdr.resid;
 
-	zbc_debug("%s: %s%s executed in %u ms, %zu B transfered "
+	zbc_debug("%s: %s%s executed in %u ms, %zu B transferred "
 		  "(%d B residual)\n\n",
 		  dev->zbd_filename,
 		  zbc_sg_cmd_name(cmd),
@@ -528,7 +528,7 @@ int zbc_sg_test_unit_ready(struct zbc_device *dev)
 
 		retries--;
 
-		/* Intialize command */
+		/* Initialize command */
 		zbc_sg_cmd_init(dev, &cmd, ZBC_SG_TEST_UNIT_READY, NULL, 0);
 		cmd.cdb[0] = ZBC_SG_TEST_UNIT_READY_CDB_OPCODE;
 
