@@ -991,9 +991,8 @@ int zbc_scsi_flush(struct zbc_device *dev)
 	if (ret != 0)
 		return ret;
 
-	/* Fill command CDB (immediate flush) */
+	/* Fill command CDB */
 	cmd.cdb[0] = ZBC_SG_SYNC_CACHE_CDB_OPCODE;
-	cmd.cdb[1] = 0x02;
 	zbc_sg_set_int64(&cmd.cdb[2], 0);
 	zbc_sg_set_int32(&cmd.cdb[10], 0);
 
