@@ -593,19 +593,28 @@ out:
 }
 
 /**
- * zbc_zone_operation - Execute an operation on a zone
+ * zbc_zone_group_op - Execute an operation on a group of zones
  */
-int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
-		       enum zbc_zone_op op, unsigned int flags)
+int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
+		      unsigned int count, enum zbc_zone_op op,
+		      unsigned int flags)
 {
-
 	if (!zbc_test_mode(dev) &&
 	    (!(flags & ZBC_OP_ALL_ZONES)) &&
 	    !zbc_dev_sect_laligned(dev, sector))
 		return -EINVAL;
 
 	/* Execute the operation */
-	return (dev->zbd_drv->zbd_zone_op)(dev, sector, op, flags);
+	return (dev->zbd_drv->zbd_zone_op)(dev, sector, count, op, flags);
+}
+
+/**
+ * zbc_zone_operation - Execute an operation on a zone
+ */
+int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
+		       enum zbc_zone_op op, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, 0, op, flags);
 }
 
 /**

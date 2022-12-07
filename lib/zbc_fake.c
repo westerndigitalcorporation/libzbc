@@ -635,7 +635,7 @@ static void zbc_zone_do_close(struct zbc_fake_device *fdev,
  * zbc_fake_open_zone - Open zone(s).
  */
 static int zbc_fake_open_zone(struct zbc_device *dev, uint64_t sector,
-			      unsigned int flags)
+			      unsigned int count, unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -761,7 +761,7 @@ static bool zbc_zone_close_allowed(struct zbc_zone *zone)
  * zbc_fake_close_zone - Close zone(s).
  */
 static int zbc_fake_close_zone(struct zbc_device *dev, uint64_t sector,
-			       unsigned int flags)
+			       unsigned int count, unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -851,7 +851,7 @@ static void zbc_zone_do_finish(struct zbc_fake_device *fdev,
  * zbc_fake_finish_zone - Finish zone(s).
  */
 static int zbc_fake_finish_zone(struct zbc_device *dev, uint64_t sector,
-				unsigned int flags)
+				unsigned int count, unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -946,7 +946,7 @@ static void zbc_zone_do_reset(struct zbc_fake_device *fdev,
  * zbc_fake_reset_zone - Reset zone(s) write pointer.
  */
 static int zbc_fake_reset_zone(struct zbc_device *dev, uint64_t sector,
-			       unsigned int flags)
+			       unsigned int count, unsigned int flags)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	struct zbc_zone *zone;
@@ -1012,18 +1012,21 @@ out:
  * zbc_fake_zone_op - Execute a zone operation.
  */
 static int
-zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector,
+zbc_fake_zone_op(struct zbc_device *dev, uint64_t sector, unsigned int count,
 		 enum zbc_zone_op op, unsigned int flags)
 {
+	if (!count)
+		count++;
+
 	switch (op) {
 	case ZBC_OP_RESET_ZONE:
-		return zbc_fake_reset_zone(dev, sector, flags);
+		return zbc_fake_reset_zone(dev, sector, count, flags);
 	case ZBC_OP_OPEN_ZONE:
-		return zbc_fake_open_zone(dev, sector, flags);
+		return zbc_fake_open_zone(dev, sector, count, flags);
 	case ZBC_OP_CLOSE_ZONE:
-		return zbc_fake_close_zone(dev, sector, flags);
+		return zbc_fake_close_zone(dev, sector, count, flags);
 	case ZBC_OP_FINISH_ZONE:
-		return zbc_fake_finish_zone(dev, sector, flags);
+		return zbc_fake_finish_zone(dev, sector, count, flags);
 	default:
 		return -EINVAL;
 	}

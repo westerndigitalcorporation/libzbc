@@ -30,6 +30,7 @@ global:
 	zbc_list_zones;
 	zbc_zone_operation;
 	zbc_get_zbd_stats;
+	zbc_zone_group_op;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_preadv;

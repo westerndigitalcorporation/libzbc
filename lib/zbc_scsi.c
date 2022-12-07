@@ -537,7 +537,8 @@ static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
  * Zone(s) operation.
  */
 int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
-		     enum zbc_zone_op op, unsigned int flags)
+		     unsigned int count, enum zbc_zone_op op,
+		     unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int cmdid;
@@ -582,22 +583,26 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	 * +=============================================================================+
 	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
 	 * |Byte |        |        |        |        |        |        |        |        |
-	 * |=====+==========================+============================================|
+	 * |=====+=======================================================================|
 	 * | 0   |                           Operation Code                              |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 1   |      Reserved            |               Service Action               |
+	 * | 1   |        Reserved          |               Service Action               |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                        Zone ID                                  ---|
+	 * |- - -+---                           Zone ID                               ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  | (MSB)                                                                 |
-	 * |- - -+---                        Reserved                                 ---|
+	 * |- - -+---                           Reserved                              ---|
+	 * | 11  |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 12  | (MSB)                                                                 |
+	 * |- - -+---                          Zone count                             ---|
 	 * | 13  |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 14  |               Reserved                                       |  All   |
+	 * | 14  |                           Reserved                           |  All   |
 	 * |-----+-----------------------------------------------------------------------|
-	 * | 15  |                           Control                                     |
+	 * | 15  |                              Control                                  |
 	 * +=============================================================================+
 	 */
 	cmd.cdb[0] = cmdcode;
@@ -608,6 +613,8 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 	else
 		/* Operate on the zone at lba */
 		zbc_sg_set_int64(&cmd.cdb[2], lba);
+
+	zbc_sg_set_int16(&cmd.cdb[12], count);
 
 	/* Send the SG_IO command */
 	ret = zbc_sg_cmd_exec(dev, &cmd);

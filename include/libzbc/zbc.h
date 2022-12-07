@@ -956,6 +956,29 @@ extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 			      enum zbc_zone_op op, unsigned int flags);
 
 /**
+ * @brief Execute an operation on a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first target zone
+ * @param[in] count	The number of zones to process (0 still means one zone)
+ * @param[in] op	The operation to perform
+ * @param[in] flags	Zone operation flags
+ *
+ * Execute an operation on one or more zones of \a dev starting at the sector
+ * specified by \a sector. The target zones must be write pointer zones,
+ * that is, their type must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The validity of the operation (reset, open, close or finish) depends on the
+ * condition of the target group of zones. See \a zbc_reset_zone, \a zbc_open_zone,
+ * \a zbc_close_zone and \a zbc_finish_zone for details.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * the operation is executed on all possible zones.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+extern int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
+			     unsigned int count, enum zbc_zone_op op,
+			     unsigned int flags);
+
+/**
  * @brief Explicitly open a zone
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	The first sector of the zone to open
@@ -982,6 +1005,33 @@ static inline int zbc_open_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Explicitly open a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first zone to open
+ * @param[in] count	The number of zones to open (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Explicitly open \a count zones of \a dev starting at the sector specified by
+ * \a sector. Target zones must be write pointer zones, that is, their type
+ * must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * The condition of target zones must be ZBC_ZC_EMPTY, ZBC_ZC_IMP_OPEN or
+ * ZBC_ZC_CLOSED. Otherwise, an error will be returned. Opening zones with
+ * the condition ZBC_ZC_EXP_OPEN has no effect (the zone condition is
+ * unchanged).
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
+ * all possible zones that can be explicitly open will be (see ZBC/ZAC
+ * specifications regarding the result of such operation).
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_open_zones(struct zbc_device *dev, uint64_t sector,
+				 unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_OPEN_ZONE, flags);
+}
+
+/**
  * @brief Close an open zone
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	The first sector of the zone to close
@@ -1002,6 +1052,30 @@ static inline int zbc_close_zone(struct zbc_device *dev,
 {
 	return zbc_zone_operation(dev, sector,
 				  ZBC_OP_CLOSE_ZONE, flags);
+}
+
+/**
+ * @brief Close a group of open zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the first zone to close
+ * @param[in] count	The number of zones to close (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Close an implicitly or explicitly open zone. The zone to close is identified
+ * by its first sector specified by \a sector. The target zone must be a write
+ * pointer zone, that is, of type ZBC_ZT_SEQUENTIAL_REQ or
+ * ZBC_ZT_SEQUENTIAL_PREF. Attempting to close a zone that is empty, full or
+ * already closed will succeed and the zone condition will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * implicitly and explicitly open zones are closed.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_close_zones(struct zbc_device *dev, uint64_t sector,
+				  unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_CLOSE_ZONE, flags);
 }
 
 /**
@@ -1029,6 +1103,30 @@ static inline int zbc_finish_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Finish a group of write pointer zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the zone to finish
+ * @param[in] count	The number of zones to finish (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Transition some (\a count) write pointer zones to the full condition.
+ * The first target zone is identified by the first sector specified by \a sector.
+ * Target zones must be write pointer zones, that is, of type ZBC_ZT_SEQUENTIAL_REQ
+ * or ZBC_ZT_SEQUENTIAL_PREF. Attempting to finish zones that are already full will
+ * succeed and the zone condition will remain unchanged. If ZBC_OP_ALL_ZONES is set
+ * in \a flags then \a sector is ignored and all implicitly and explicitly open
+ * zones as well as all closed zones are transitioned to the full condition.
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_finish_zones(struct zbc_device *dev, uint64_t sector,
+				   unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_FINISH_ZONE, flags);
+}
+
+/**
  * @brief Reset the write pointer of a zone
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] sector	The first sector of the zone to reset
@@ -1049,6 +1147,30 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 {
 	return zbc_zone_operation(dev, sector,
 				  ZBC_OP_RESET_ZONE, flags);
+}
+
+/**
+ * @brief Reset the write pointer of a group of zones
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	First sector of the zone to reset
+ * @param[in] count	The number of zones to reset (0 still means one zone)
+ * @param[in] flags	Zone operation flags
+ *
+ * Resets write pointers of \a count of zones starting from the first sector
+ * of the first zone specified by \a sector. Target zones must be write pointer
+ * zones, that is, of type ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
+ * Attempting to reset write pointer zones that are already empty will succeed
+ * and the condition of the processed zones will remain unchanged.
+ * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
+ * write pointer zones that are not empty will be reset.
+ *
+ * Returns -EIO if an error happened when communicating with the device.
+ */
+static inline int zbc_reset_zones(struct zbc_device *dev, uint64_t sector,
+				  unsigned int count, unsigned int flags)
+{
+	return zbc_zone_group_op(dev, sector, count,
+				 ZBC_OP_RESET_ZONE, flags);
 }
 
 /**

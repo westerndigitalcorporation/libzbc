@@ -975,7 +975,8 @@ out:
  * Zone(s) operation.
  */
 static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
-			   enum zbc_zone_op op, unsigned int flags)
+			   unsigned int count, enum zbc_zone_op op,
+			   unsigned int flags)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int af;
@@ -1062,6 +1063,8 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 		cmd.cdb[9] = (lba >> 32) & 0xff;
 		cmd.cdb[11] = (lba >> 40) & 0xff;
 	}
+	cmd.cdb[5] = ((count / 512) >> 8) & 0xff;
+	cmd.cdb[6] = (count / 512) & 0xff;
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_OUT;
 

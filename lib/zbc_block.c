@@ -854,8 +854,10 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 /**
  * Execute a zone management operation using the scsi backend.
  */
+
 static int zbc_block_zone_op_scsi(struct zbc_device *dev, uint64_t sector,
-				  enum zbc_zone_op op, unsigned int flags)
+				  unsigned int count, enum zbc_zone_op op,
+				  unsigned int flags)
 {
 	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
 
@@ -869,7 +871,7 @@ static int zbc_block_zone_op_scsi(struct zbc_device *dev, uint64_t sector,
 		sector += zbd->part_offset;
 
 	/* Use SG_IO */
-	return zbc_scsi_zone_op(dev, sector, op, flags);
+	return zbc_scsi_zone_op(dev, sector, count, op, flags);
 }
 
 /**
@@ -923,9 +925,14 @@ static int zbc_block_zone_op_ioctl(struct zbc_device *dev, uint64_t sector,
  * Execute an operation on a zone
  */
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
-			     enum zbc_zone_op op, unsigned int flags)
+			     unsigned int count, enum zbc_zone_op op,
+			     unsigned int flags)
 {
+	unsigned int i;
 	int ret;
+
+	if (!count)
+		count++;
 
 	switch (op) {
 
@@ -935,8 +942,13 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 			/* All zones */
 			return zbc_block_reset_all(dev);
 
-		/* One zone */
-		return zbc_block_reset_one(dev, sector);
+		/* Group of zones FIXME patch ioctl to support multiple */
+		for (i = 0; i < count; i++) {
+			ret = zbc_block_reset_one(dev, sector);
+			if (ret)
+				return ret;
+		}
+		return 0;
 
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
@@ -950,7 +962,7 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 		if (ret != -EOPNOTSUPP)
 			return ret;
 
-		return zbc_block_zone_op_scsi(dev, sector, op, flags);
+		return zbc_block_zone_op_scsi(dev, sector, count, op, flags);
 
 	default:
 		zbc_error("%s: Invalid operation code 0x%x\n",
@@ -1022,7 +1034,8 @@ static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
 }
 
 static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
-			     enum zbc_zone_op op, unsigned int flags)
+			     unsigned int count, enum zbc_zone_op op,
+			     unsigned int flags)
 {
 	return -EOPNOTSUPP;
 }

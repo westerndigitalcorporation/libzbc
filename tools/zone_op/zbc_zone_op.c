@@ -36,13 +36,17 @@ static const char *zbc_zone_op_name(enum zbc_zone_op op)
 static int zbc_zone_op_usage(FILE *out, char *bin_name)
 {
 	fprintf(out,
-		"Usage: %s [options] <dev> [<zone>]\n"
+		"Usage: %s [options] <dev> [<zone>] [<zone count>]\n"
 		"  By default <zone> is interpreted as a zone number.\n"
 		"  If the -lba option is used, <zone> is interpreted\n"
 		"  as the start LBA of the target zone. If the\n"
 		"  -sector option is used, <zone> is interpreted as\n"
 		"  the start 512B sector of the target zone. If the\n"
 		"  -all option is used, <zone> is ignored\n"
+		"  If <zone count> is omitted, the operation is taken place\n"
+		"  at the <zone>. Otherwise, it defines the number of\n"
+		"  consecutive zones starting from the <zone> on which the\n"
+		"  zone operation is performed\n"
 		"Options:\n"
 		"  -h | --help : Display this help message and exit\n"
 		"  -v          : Verbose mode\n"
@@ -65,11 +69,11 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	long long start = 0;
 	unsigned long long start_sector = 0, zone_start;
 	unsigned int flags = 0;
-	int i, ret = 1, oflags = 0;;
+	int i, ret = 1, oflags = 0, zone_count = 0;
 	unsigned int nr_zones, tgt_idx;
 	bool sector_unit = false;
 	bool lba_unit = false;
-	char *path, *end;
+	char *path;
 
 	/* Check command line */
 	if (!argc)
@@ -151,16 +155,37 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	if (flags & ZBC_OP_ALL_ZONES) {
 		if (i != argc - 1) {
 			fprintf(stderr, "Too many arguments\n");
-			return 1;
+			ret = 1;
+			goto out;
 		}
 	} else {
-		if (argc < 2 || i < argc - 2) {
+		if (argc < 2) {
 			fprintf(stderr, "No zone specified\n");
-			return 1;
+			ret = 1;
+			goto out;
 		}
-		if (i > argc - 2) {
+		if (i > argc - 3) {
 			fprintf(stderr, "Too many arguments\n");
-			return 1;
+			ret = 1;
+			goto out;
+		}
+
+		/* Get target zone */
+		start = strtoll(argv[i + 1], NULL, 10);
+		if (start < 0) {
+			fprintf(stderr, "Invalid zone\n");
+			ret = 1;
+			goto out;
+		}
+		i++;
+
+		if (i < argc - 1) {
+			zone_count = strtol(argv[i + 1], NULL, 10);
+			if (zone_count < 0) {
+				fprintf(stderr, "Invalid zone count\n");
+				ret = 1;
+				goto out;
+			}
 		}
 	}
 
@@ -175,16 +200,13 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 
 	} else {
 
-		/* Get target zone */
-		start = strtoll(argv[i + 1], &end, 10);
-		if (*end != '\0' || start < 0) {
-			fprintf(stderr, "Invalid zone\n");
-			ret = 1;
-			goto out;
-		}
+		if (lba_unit)
+			start_sector = zbc_lba2sect(&info, start);
+		else if (sector_unit)
+			start_sector = start;
 
 		/* Get zone list */
-		ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
+		ret = zbc_list_zones(dev, start_sector, ZBC_RO_ALL, &zones, &nr_zones);
 		if ( ret != 0 ) {
 			fprintf(stderr, "zbc_list_zones failed\n");
 			ret = 1;
@@ -195,10 +217,6 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 			struct zbc_zone *z;
 
 			/* Search target zone */
-			if (lba_unit)
-				start_sector = zbc_lba2sect(&info, start);
-			else
-				start_sector = start;
 			z = &zones[0];
 			for (tgt_idx = 0; tgt_idx < nr_zones; tgt_idx++, z++) {
 				if (start_sector >= zbc_zone_start(z) &&
@@ -231,7 +249,8 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	case ZBC_OP_OPEN_ZONE:
 	case ZBC_OP_CLOSE_ZONE:
 	case ZBC_OP_FINISH_ZONE:
-		ret = zbc_zone_operation(dev, start_sector, op, flags);
+		ret = zbc_zone_group_op(dev, start_sector, zone_count,
+					op, flags);
 		if (ret != 0) {
 			fprintf(stderr, "zbc_%s_zone failed\n",
 				zbc_zone_op_name(op));

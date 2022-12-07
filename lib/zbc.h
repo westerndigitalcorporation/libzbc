@@ -60,7 +60,8 @@ struct zbc_drv {
 	 * Execute a zone operation.
 	 */
 	int		(*zbd_zone_op)(struct zbc_device *, uint64_t,
-				       enum zbc_zone_op, unsigned int);
+				       unsigned int, enum zbc_zone_op,
+				       unsigned int);
 
 	/**
 	 * Vector read from a ZBC device.
@@ -257,7 +258,8 @@ static inline size_t zbc_iov_count(const struct iovec *iov, int iovcnt)
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
 int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_sector,
-		     enum zbc_zone_op op, unsigned int flags);
+		     unsigned int count, enum zbc_zone_op op,
+		     unsigned int flags);
 
 /**
  * The ATA backend driver may use the SCSI backend I/O functions.
