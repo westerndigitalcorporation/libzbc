@@ -36,7 +36,7 @@
  */
 static struct zbc_sg_cmd_s
 {
-	char		*cdb_cmd_name;
+	char const	*cdb_cmd_name;
 	int		cdb_opcode;
 	int		cdb_sa;
 	size_t		cdb_length;
@@ -170,7 +170,7 @@ static struct zbc_sg_cmd_s
 /**
  * Get a command name from its operation code in a CDB.
  */
-static char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
+static char const *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 {
 
 	if (cmd->code >= 0 && cmd->code < ZBC_SG_CMD_NUM)
@@ -574,9 +574,9 @@ void zbc_sg_set_bytes(uint8_t *cmd, void *buf, int bytes)
 /**
  * Get bytes from a command output buffer.
  */
-void zbc_sg_get_bytes(uint8_t *val, union converter *conv, int bytes)
+void zbc_sg_get_bytes(uint8_t const *val, union converter *conv, int bytes)
 {
-	uint8_t *v = (uint8_t *) val;
+	uint8_t const *v = val;
 	int i;
 
 	memset(conv, 0, sizeof(union converter));
@@ -593,7 +593,7 @@ void zbc_sg_get_bytes(uint8_t *val, union converter *conv, int bytes)
 /**
  * Print an array of bytes.
  */
-void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf, unsigned int len)
+void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t const *buf, unsigned int len)
 {
 	char msg[512];
 	unsigned i = 0, j;

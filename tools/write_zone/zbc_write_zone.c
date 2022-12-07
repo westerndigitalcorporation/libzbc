@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
  * Copyright (C) 2016, Western Digital. All rights reserved.
- * Copyright (C) 2020 Western Digital COrporation or its affiliates.
+ * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  *
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  *         Christophe Louargant (christophe.louargant@wdc.com)
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
 		       zbc_zone_wp(iozone));
 
 	/* Check I/O alignment and get an I/O buffer */
-	if (zbc_zone_sequential_req(iozone))
+	if (zbc_zone_sequential(iozone))
 		ioalign = info.zbd_pblock_size;
 	else
 		ioalign = info.zbd_lblock_size;

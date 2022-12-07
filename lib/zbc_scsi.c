@@ -91,7 +91,24 @@ static int zbc_scsi_vpd_inquiry(struct zbc_device *dev,
 	if (ret != 0)
 		return ret;
 
-	/* Fill command CDB */
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+=======================================================================|
+	 * | 0   |                           Operation Code (12h)                        |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   | Logical Unit Number      |                  Reserved         |  EVPD  |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                           Page Code                                   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   | (MSB)                                                                 |
+	 * |- - -+---                    Allocation Length                            ---|
+	 * | 4   |                                                                 (LSB) |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5   |                           Control                                     |
+	 * +=============================================================================+
+	 */
 	cmd.cdb[0] = ZBC_SG_INQUIRY_CDB_OPCODE;
 	cmd.cdb[1] = 0x01;
 	cmd.cdb[2] = page;
@@ -313,10 +330,10 @@ out:
 /**
  * Get a SCSI device zone information.
  */
-static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
-				enum zbc_reporting_options ro, uint64_t *max_lba,
-				struct zbc_zone *zones, unsigned int *nr_zones,
-				size_t bufsz)
+static int zbc_scsi_do_rpt_zones(struct zbc_device *dev, uint64_t sector,
+				 enum zbc_reporting_options ro, uint64_t *max_lba,
+				 struct zbc_zone *zones, unsigned int *nr_zones,
+				 size_t bufsz)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
@@ -411,8 +428,8 @@ static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
 	 * +=============================================================================+
 	 */
 
-	/* Get number of zones in result */
-	buf = (uint8_t *) cmd.buf;
+	/* Get the number of zones in the report */
+	buf = (uint8_t *)cmd.buf;
 	nz = zbc_sg_get_int32(buf) / ZBC_ZONE_DESCRIPTOR_LENGTH;
 	if (max_lba)
 		*max_lba = zbc_sg_get_int64(&buf[8]);
@@ -512,8 +529,8 @@ static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
 		bufsz = (bufsz + dev->zbd_report_bufsz_mask) &
 			~dev->zbd_report_bufsz_mask;
 
-	return zbc_scsi_do_report_zones(dev, sector, ro, NULL, zones, nr_zones,
-					bufsz);
+	return zbc_scsi_do_rpt_zones(dev, sector, ro, NULL, zones, nr_zones,
+				     bufsz);
 }
 
 /**
@@ -556,7 +573,7 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 		return -EINVAL;
 	}
 
-	/* Allocate and intialize zone command */
+	/* Allocate and initialize zone command */
 	ret = zbc_sg_cmd_init(dev, &cmd, cmdid, NULL, 0);
 	if (ret != 0)
 		return ret;
@@ -608,7 +625,6 @@ int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t sector,
 static int zbc_scsi_get_capacity(struct zbc_device *dev)
 {
 	struct zbc_sg_cmd cmd;
-	struct zbc_zone *zones = NULL;
 	int logical_per_physical;
 	unsigned int nr_zones = 0;
 	uint64_t max_lba;
@@ -617,7 +633,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 	/*
 	 * Some SAS HBAs have a very slow processing of the READ CAPACITY
 	 * command for ZAC ATA drives. So instead on relying on the HBA SATL
-	 * for the command translation, use the ata backend read capacity
+	 * for the command translation, use the ATA backend read capacity
 	 * function to directly read the data log capacity page of the disk.
 	 * In case of failure, fall back to using the READ CAPACITY command.
 	 */
@@ -668,7 +684,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			zbc_debug("%s: READ CAPACITY RC_BASIS field is 0x00 "
 				  "(conventional zones capacity)\n",
 				  dev->zbd_filename);
-			ret = zbc_scsi_do_report_zones(dev, 0,
+			ret = zbc_scsi_do_rpt_zones(dev, 0,
 						ZBC_RO_ALL | ZBC_RO_PARTIAL,
 						&max_lba, NULL, &nr_zones,
 						dev->zbd_report_bufsz_min);
@@ -712,9 +728,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 out:
 	zbc_sg_cmd_destroy(&cmd);
 
-	if (zones)
-		free(zones);
-
 	return ret;
 }
 
@@ -724,6 +737,7 @@ out:
  */
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
+	struct zbc_device_info *di = &dev->zbd_info;
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	uint32_t val;
 	int ret;
@@ -739,10 +753,10 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	}
 
 	/* URSWRZ (unrestricted read in sequential write required zone) flag */
-	dev->zbd_info.zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
+	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
 
 	/* Maximum number of zones for resource management */
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE) {
+	if (di->zbd_model == ZBC_DM_HOST_AWARE) {
 
 		val = zbc_sg_get_int32(&buf[8]);
 		if (!val) {
@@ -752,24 +766,24 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = val;
+		di->zbd_opt_nr_open_seq_pref = val;
 
 		val = zbc_sg_get_int32(&buf[12]);
 		if (!val) {
 			/* Handle this case as "not reported" */
 			zbc_warning("%s: invalid optimal number of randomly "
-				    "writen sequential write preferred zones\n",
+				    "written sequential write preferred zones\n",
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = val;
+		di->zbd_opt_nr_non_seq_write_seq_pref = val;
 
-		dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+		di->zbd_max_nr_open_seq_req = 0;
 
 	} else {
 
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+		di->zbd_opt_nr_open_seq_pref = 0;
+		di->zbd_opt_nr_non_seq_write_seq_pref = 0;
 
 		val = zbc_sg_get_int32(&buf[16]);
 		if (!val) {
@@ -779,7 +793,7 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NO_LIMIT;
 		}
-		dev->zbd_info.zbd_max_nr_open_seq_req = val;
+		di->zbd_max_nr_open_seq_req = val;
 
 	}
 
@@ -1018,8 +1032,7 @@ int zbc_scsi_flush(struct zbc_device *dev)
 /**
  * ZBC SCSI device driver definition.
  */
-struct zbc_drv zbc_scsi_drv =
-{
+struct zbc_drv zbc_scsi_drv = {
 	.flag			= ZBC_O_DRV_SCSI,
 	.zbd_open		= zbc_scsi_open,
 	.zbd_close		= zbc_scsi_close,

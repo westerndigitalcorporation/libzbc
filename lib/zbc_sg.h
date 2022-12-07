@@ -282,13 +282,13 @@ union converter {
 /**
  * Get bytes from a command output buffer.
  */
-extern void zbc_sg_get_bytes(uint8_t *val, union converter *conv,
+extern void zbc_sg_get_bytes(uint8_t const *val, union converter *conv,
 			     int bytes);
 
 /**
  * Get a 64 bits integer from a command output buffer.
  */
-static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
+static inline uint64_t zbc_sg_get_int64(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -300,7 +300,7 @@ static inline uint64_t zbc_sg_get_int64(uint8_t *buf)
 /**
  * Get a 32 bits integer from a command output buffer.
  */
-static inline uint32_t zbc_sg_get_int32(uint8_t *buf)
+static inline uint32_t zbc_sg_get_int32(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -312,7 +312,7 @@ static inline uint32_t zbc_sg_get_int32(uint8_t *buf)
 /**
  * Get a 16 bits integer from a command output buffer.
  */
-static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
+static inline uint16_t zbc_sg_get_int16(uint8_t const *buf)
 {
 	union converter conv;
 
@@ -324,8 +324,8 @@ static inline uint16_t zbc_sg_get_int16(uint8_t *buf)
 /**
  * Print an array of bytes.
  */
-extern void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t *buf,
-			       unsigned int len);
+extern void zbc_sg_print_bytes(struct zbc_device *dev,
+			       uint8_t const *buf, unsigned int len);
 
 /**
  * Get the name of an ATA command sent with ATA16 passthrough.

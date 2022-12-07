@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
  * Copyright (C) 2016, Western Digital. All rights reserved.
- * Copyright (C) 2020 Western Digital COrporation or its affiliates.
+ * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  *
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  */

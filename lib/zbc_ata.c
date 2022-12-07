@@ -113,7 +113,7 @@ char *zbc_ata_cmd_name(struct zbc_sg_cmd *cmd)
 /**
  * Get a word from a command data buffer.
  */
-static inline uint16_t zbc_ata_get_word(uint8_t *buf)
+static inline uint16_t zbc_ata_get_word(uint8_t const *buf)
 {
 	return (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
 }
@@ -121,7 +121,7 @@ static inline uint16_t zbc_ata_get_word(uint8_t *buf)
 /**
  * Get a Dword from a command data buffer.
  */
-static inline uint32_t zbc_ata_get_dword(uint8_t *buf)
+static inline uint32_t zbc_ata_get_dword(uint8_t const *buf)
 {
 	return (uint32_t)buf[0] | ((uint32_t)buf[1] << 8) |
 		((uint32_t)buf[2] << 16) | ((uint32_t)buf[3] << 24);
@@ -130,7 +130,7 @@ static inline uint32_t zbc_ata_get_dword(uint8_t *buf)
 /**
  * Get a Qword from a command data buffer.
  */
-static inline uint64_t zbc_ata_get_qword(uint8_t *buf)
+static inline uint64_t zbc_ata_get_qword(uint8_t const *buf)
 {
 	return (uint64_t)buf[0] | ((uint64_t)buf[1] << 8) |
 		((uint64_t)buf[2] << 16) | ((uint64_t)buf[3] << 24) |
@@ -305,7 +305,7 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 	int sk, asc, ascq;
 	int ret;
 
-	/* Intialize command */
+	/* Initialize command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0) {
 		zbc_error("%s: Get sense data zbc_sg_cmd_init failed\n",
@@ -401,8 +401,6 @@ static void zbc_ata_request_sense_data_ext(struct zbc_device *dev)
 
 out:
 	zbc_sg_cmd_destroy(&cmd);
-
-	return;
 }
 
 /**
@@ -475,25 +473,26 @@ static void zbc_ata_vendor_id(struct zbc_device *dev)
 		return;
 	}
 
-        /* Vendor = "ATA" */
-        strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
+	/* Vendor = "ATA" */
+	strcpy(&dev->zbd_info.zbd_vendor_id[0], "ATA ");
 	n = 4;
 
-        /* Model number */
-        n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+	/* Model number */
+	n += zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
 			    (char *)&buf[48], 16, 0);
 
-        /* Firmware revision */
-        zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
+	/* Firmware revision */
+	zbc_ata_strcpy(&dev->zbd_info.zbd_vendor_id[n],
 		       (char *)&buf[32], 8, 4);
 }
 
 /**
- * Get zoned device information (maximum or optimal number of open zones,
- * read restriction, etc)). Data log 30h, page 09h.
+ * Get zoned device information (the maximum and optimal number
+ * of open zones, read restriction, etc). Data log 30h, page 09h.
  */
 static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 {
+	struct zbc_device_info *di = &dev->zbd_info;
 	uint8_t buf[512];
 	uint32_t val;
 	int ret;
@@ -511,11 +510,11 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		return ret;
 
 	/* URSWRZ (unrestricted read write sequential required zone) flag */
-	dev->zbd_info.zbd_flags |= (zbc_ata_get_qword(&buf[8]) & 0x01) ?
+	di->zbd_flags |= (zbc_ata_get_qword(&buf[8]) & 0x01) ?
 		ZBC_UNRESTRICTED_READ : 0;
 
 	/* Maximum number of zones for resource management */
-	if (dev->zbd_info.zbd_model == ZBC_DM_HOST_AWARE) {
+	if (di->zbd_model == ZBC_DM_HOST_AWARE) {
 
 		val = zbc_ata_get_qword(&buf[24]) & 0xffffffff;
 		if (!val) {
@@ -525,24 +524,24 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = val;
+		di->zbd_opt_nr_open_seq_pref = val;
 
 		val = zbc_ata_get_qword(&buf[32]) & 0xffffffff;
 		if (!val) {
 			/* Handle this case as "not reported" */
 			zbc_warning("%s: invalid optimal number of randomly "
-				    "writen sequential write preferred zones\n",
+				    "written sequential write preferred zones\n",
 				    dev->zbd_filename);
 			val = ZBC_NOT_REPORTED;
 		}
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = val;
+		di->zbd_opt_nr_non_seq_write_seq_pref = val;
 
-		dev->zbd_info.zbd_max_nr_open_seq_req = 0;
+		di->zbd_max_nr_open_seq_req = 0;
 
 	} else {
 
-		dev->zbd_info.zbd_opt_nr_open_seq_pref = 0;
-		dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref = 0;
+		di->zbd_opt_nr_open_seq_pref = 0;
+		di->zbd_opt_nr_non_seq_write_seq_pref = 0;
 
 		val = zbc_ata_get_qword(&buf[40]) & 0xffffffff;
 		if (!val) {
@@ -552,7 +551,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 				    dev->zbd_filename);
 			val = ZBC_NO_LIMIT;
 		}
-		dev->zbd_info.zbd_max_nr_open_seq_req = val;
+		di->zbd_max_nr_open_seq_req = val;
 
 	}
 
@@ -843,7 +842,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		bufsz = (bufsz + dev->zbd_report_bufsz_mask) &
 			~dev->zbd_report_bufsz_mask;
 
-	/* Allocate and intialize report zones command */
+	/* Initialize the command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, bufsz);
 	if (ret != 0)
 		return ret;
@@ -931,18 +930,18 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	if (!zones || !nz)
 		goto out;
 
-        /* Get zone info */
-        if (nz > *nr_zones)
+	/* Get zone info */
+	if (nz > *nr_zones)
 		nz = *nr_zones;
 
 	buf_nz = (cmd.bufsz - ZBC_ZONE_DESCRIPTOR_OFFSET)
 		/ ZBC_ZONE_DESCRIPTOR_LENGTH;
-        if (nz > buf_nz)
+	if (nz > buf_nz)
 		nz = buf_nz;
 
-        /* Get zone descriptors */
+	/* Get zone descriptors */
 	buf += ZBC_ZONE_DESCRIPTOR_OFFSET;
-        for (i = 0; i < nz; i++) {
+	for (i = 0; i < nz; i++) {
 
 		zones[i].zbz_type = buf[0] & 0x0f;
 
@@ -960,7 +959,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 			zones[i].zbz_write_pointer = (uint64_t)-1;
 
 		buf += ZBC_ZONE_DESCRIPTOR_LENGTH;
-        }
+	}
 
 out:
 	/* Return number of zones */
@@ -1002,7 +1001,7 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 		return -EINVAL;
 	}
 
-	/* Intialize command */
+	/* Initialize command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
@@ -1089,7 +1088,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	uint8_t *desc;
 	int ret;
 
-	/* Intialize command */
+	/* Initialize command */
 	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_ATA16, NULL, 0);
 	if (ret != 0)
 		return ret;
@@ -1206,7 +1205,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	}
 
 	zoned = zbc_ata_get_qword(&buf[104]);
-	if (!(zoned  & (1ULL << 63)))
+	if (!(zoned & (1ULL << 63)))
 		zoned = 0;
 
 	zoned = zoned & 0x03;
@@ -1371,7 +1370,7 @@ static int zbc_ata_get_dev_info(struct zbc_device *dev)
 
 	/* Get capacity information */
 	ret = zbc_ata_get_capacity(dev);
-	if (ret != 0 )
+	if (ret != 0)
 		return ret;
 
 	/* Get vendor information */
@@ -1454,7 +1453,7 @@ static int zbc_ata_open(const char *filename,
 
 	/* Open the device file */
 	fd = open(filename, flags & ZBC_O_MODE_MASK);
-	if (fd < 0 ) {
+	if (fd < 0) {
 		ret = -errno;
 		zbc_error("%s: Open device file failed %d (%s)\n",
 			  filename,
@@ -1478,7 +1477,7 @@ static int zbc_ata_open(const char *filename,
 		goto out;
 	}
 
-	/* Set device decriptor */
+	/* Set device descriptor */
 	ret = -ENOMEM;
 	dev = calloc(1, sizeof(struct zbc_device));
 	if (!dev)
@@ -1540,8 +1539,7 @@ static int zbc_ata_close(struct zbc_device *dev)
 /**
  * ZAC ATA backend driver definition.
  */
-struct zbc_drv zbc_ata_drv =
-{
+struct zbc_drv zbc_ata_drv = {
 	.flag			= ZBC_O_DRV_ATA,
 	.zbd_open		= zbc_ata_open,
 	.zbd_close		= zbc_ata_close,

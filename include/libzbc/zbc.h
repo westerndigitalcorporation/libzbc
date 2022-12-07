@@ -31,7 +31,7 @@ extern "C" {
  *
  * libzbc is a simple library  providing functions for manipulating disks
  * supporting the Zoned Block Command  (ZBC) and Zoned-device ATA command
- * set (ZAC)  disks.  libzbc  implemention is  compliant with  the latest
+ * set (ZAC)  disks.  libzbc  implementation is  compliant with  the latest
  * drafts  of the  ZBC  and  ZAC standards  defined  by INCITS  technical
  * committee T10 and T13 (respectively).
  */
@@ -52,7 +52,7 @@ extern "C" {
  * "warning" : Print device level standard compliance problems
  * "error"   : Print messages related to unexpected errors
  * "info"    : Print normal information messages
- * "debug"   : Verbose output decribing internally executed commands
+ * "debug"   : Verbose output describing internally executed commands
  * The default level is "warning".
  */
 extern void zbc_set_log_level(char const *log_level);
@@ -115,7 +115,7 @@ enum zbc_zone_condition {
 	ZBC_ZC_EMPTY		= 0x01,
 
 	/**
-	 * Implicitely open zone (i.e. a write command was issued to
+	 * Implicitly open zone (i.e. a write command was issued to
 	 * the zone).
 	 */
 	ZBC_ZC_IMP_OPEN		= 0x02,
@@ -138,12 +138,12 @@ enum zbc_zone_condition {
 	ZBC_ZC_RDONLY		= 0x0d,
 
 	/**
-	 * Full zone (a write pointer zones only).
+	 * Full zone (write pointer zones only).
 	 */
 	ZBC_ZC_FULL		= 0x0e,
 
 	/**
-	 * Offline zone: unuseable zone.
+	 * Offline zone: unusable zone.
 	 */
 	ZBC_ZC_OFFLINE		= 0x0f,
 
@@ -228,7 +228,7 @@ struct zbc_zone {
 	uint8_t			zbz_attributes;
 
 	/**
-	 * Padding to 64 Bytes.
+	 * Padding to 32 bytes.
 	 */
 	uint8_t			__pad[5];
 
@@ -247,7 +247,7 @@ struct zbc_zone {
 #define zbc_zone_sequential_pref(z) ((z)->zbz_type == ZBC_ZT_SEQUENTIAL_PREF)
 
 /** @brief Test if a zone type is sequential write required or preferred */
-#define zbc_zone_sequential(z) 	(zbc_zone_sequential_req(z) || \
+#define zbc_zone_sequential(z)	(zbc_zone_sequential_req(z) || \
 				 zbc_zone_sequential_pref(z))
 
 /** @brief Get a zone condition */
@@ -285,7 +285,7 @@ struct zbc_zone {
 #define zbc_zone_rwp_recommended(z) ((z)->zbz_attributes & \
 				     ZBC_ZA_RWP_RECOMMENDED)
 
-/** @brief Test if a zone has the non sequential write resource allocated flag set */
+/** @brief Test if a zone has the non-sequential write resource allocated flag set */
 #define zbc_zone_non_seq(z)	((z)->zbz_attributes & ZBC_ZA_NON_SEQ)
 
 /** @brief Get a zone start 512B sector */
@@ -615,9 +615,9 @@ struct zbc_errno {
  * @param[out] err	Address where to return the error report
  *
  * Returns at the address specified by \a err a detailed error report
- * of the last command execued. The error report is composed of the
+ * of the last command executed. The error report is composed of the
  * SCSI sense key, sense code and sense code qualifier.
- * For successsful commands, all three information are set to 0.
+ * For successful commands, all three information are set to 0.
  */
 extern void zbc_errno(struct zbc_device *dev, struct zbc_errno  *err);
 
@@ -868,12 +868,12 @@ static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
  * @param[out] zones	The array of zone information filled
  * @param[out] nr_zones	Number of zones in the array \a zones
  *
- * Similar to \a zbc_report_zones, but also allocates an appropriatly sized
+ * Similar to \a zbc_report_zones, but also allocates an appropriately sized
  * array of zone information structures and return the address of the array
  * at the address specified by \a zones. The size of the array allocated and
  * filled is returned at the address specified by \a nr_zones. Freeing of the
- * memory used by the array of zone information strcutrues allocated by this
- * function is the responsability of the caller.
+ * memory used by the array of zone information structures allocated by this
+ * function is the responsibility of the caller.
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  * Returns -ENOMEM if memory could not be allocated for \a zones.
@@ -922,7 +922,7 @@ enum zbc_zone_op {
 enum zbc_zone_op_flags {
 
 	/**
- 	 * Operate on all possible zones.
+	 * Operate on all possible zones.
 	 */
 	ZBC_OP_ALL_ZONES = 0x0000001,
 
@@ -935,7 +935,7 @@ enum zbc_zone_op_flags {
  * @param[in] op	The operation to perform
  * @param[in] flags	Zone operation flags
  *
- * Exexcute an operation on the zone of \a dev starting at the sector
+ * Execute an operation on the zone of \a dev starting at the sector
  * specified by \a sector. The target zone must be a write pointer zone,
  * that is, its type must be ZBC_ZT_SEQUENTIAL_REQ or ZBC_ZT_SEQUENTIAL_PREF.
  * The validity of the operation (reset, open, close or finish) depends on the
@@ -952,7 +952,7 @@ extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
 /**
  * @brief Explicitly open a zone
  * @param[in] dev	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to open
+ * @param[in] sector	The first sector of the zone to open
  * @param[in] flags	Zone operation flags
  *
  * Explicitly open the zone of \a dev starting at the sector specified by
@@ -963,7 +963,7 @@ extern int zbc_zone_operation(struct zbc_device *dev, uint64_t sector,
  * the condition ZBC_ZC_EXP_OPEN has no effect (the zone condition is
  * unchanged).
  * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and
- * all possible zones that can be explictly open will be (see ZBC/ZAC
+ * all possible zones that can be explicitly open will be (see ZBC/ZAC
  * specifications regarding the result of such operation).
  *
  * @return Returns -EIO if an error happened when communicating with the device.
@@ -978,10 +978,10 @@ static inline int zbc_open_zone(struct zbc_device *dev,
 /**
  * @brief Close an open zone
  * @param[in] dev	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to close
+ * @param[in] sector	The first sector of the zone to close
  * @param[in] flags	Zone operation flags
  *
- * Close an implictly or explictly open zone. The zone to close is identified
+ * Close an implicitly or explicitly open zone. The zone to close is identified
  * by its first sector specified by \a sector. The target zone must be a write
  * pointer zone, that is, of type ZBC_ZT_SEQUENTIAL_REQ or
  * ZBC_ZT_SEQUENTIAL_PREF. Attempting to close a zone that is empty, full or
@@ -1000,8 +1000,8 @@ static inline int zbc_close_zone(struct zbc_device *dev,
 
 /**
  * @brief Finish a write pointer zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to finish
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the zone to finish
  * @param[in] flags	Zone operation flags
  *
  * Transition a write pointer zone to the full condition. The target zone is
@@ -1024,8 +1024,8 @@ static inline int zbc_finish_zone(struct zbc_device *dev,
 
 /**
  * @brief Reset the write pointer of a zone
- * @param[in] dev 	Device handle obtained with \a zbc_open
- * @param[in] sector	First sector of the zone to reset
+ * @param[in] dev	Device handle obtained with \a zbc_open
+ * @param[in] sector	The first sector of the zone to reset
  * @param[in] flags	Zone operation flags
  *
  * Resets the write pointer of the zone identified by its first sector
@@ -1034,7 +1034,7 @@ static inline int zbc_finish_zone(struct zbc_device *dev,
  * Attempting to reset a write pointer zone that is already empty
  * will succeed and the zone condition will remain unchanged.
  * If ZBC_OP_ALL_ZONES is set in \a flags then \a sector is ignored and all
- * write pointer zones that are not empty will be resetted.
+ * write pointer zones that are not empty will be reset.
  *
  * Returns -EIO if an error happened when communicating with the device.
  */
@@ -1046,7 +1046,7 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
- * @brief Read sectors form a device
+ * @brief Read sectors from a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] buf	Caller supplied buffer to read into
  * @param[in] count	Number of 512B sectors to read
@@ -1097,7 +1097,7 @@ extern ssize_t zbc_pwrite(struct zbc_device *dev, const void *buf,
 			  size_t count, uint64_t offset);
 
 /**
- * @brief Read sectors from a device using mutliple buffers
+ * @brief Read sectors from a device using multiple buffers
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied read buffers to read into.
  *			Read buffer length is specified in 512B sectors
@@ -1114,7 +1114,7 @@ extern ssize_t zbc_preadv(struct zbc_device *dev,
 			  uint64_t offset);
 
 /**
- * @brief Write sectors to a device unsig multiple buffers
+ * @brief Write sectors to a device using multiple buffers
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] iov	Caller supplied write buffers to write from.
  *			Write buffer length is specified in 512B sectors
@@ -1153,7 +1153,7 @@ extern int zbc_map_iov(const void *buf, size_t sectors,
  * @brief Flush a device write cache
  * @param[in] dev	Device handle obtained with \a zbc_open
  *
- * This an the equivalent to fsync/fdatasunc but operates at the
+ * This is the equivalent to fsync/fdatasunc but it operates at the
  * device cache level.
  *
  * @return Returns 0 on success and -EIO in case of error.

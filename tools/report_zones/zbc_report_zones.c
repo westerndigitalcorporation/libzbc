@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2014, HGST, Inc. All rights reserved.
  * Copyright (C) 2016, Western Digital. All rights reserved.
- * Copyright (C) 2020 Western Digital COrporation or its affiliates.
+ * Copyright (C) 2020 Western Digital Corporation or its affiliates.
  *
  * Author: Damien Le Moal (damien.lemoal@wdc.com)
  *         Christophe Louargant (christophe.louargant@wdc.com)
@@ -30,7 +30,7 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 				  struct zbc_zone *z, int zno,
 				  bool lba_unit)
 {
-	char *start, *length;
+	char const *start, *length;
 
 	if (lba_unit) {
 		start = "block";
