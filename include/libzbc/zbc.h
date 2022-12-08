@@ -744,84 +744,99 @@ extern void zbc_get_device_info(struct zbc_device *dev,
 extern void zbc_print_device_info(struct zbc_device_info *info, FILE *out);
 
 /**
- * @brief Reporting options definitions
+ * @brief REPORT ZONES reporting options definitions
  *
  * Used to filter the zone information returned by the execution of a
  * REPORT ZONES command. Filtering is based on the value of the reporting
  * option and on the condition of the zones at the time of the execution of
  * the REPORT ZONES command.
  *
- * ZBC_RO_PARTIAL is not a filter: this reporting option can be combined
+ * ZBC_RZ_RO_PARTIAL is not a filter: this reporting option can be combined
  * (or'ed) with any other filter option to limit the number of reported
  * zone information to the size of the REPORT ZONES command buffer.
  */
-enum zbc_reporting_options {
+enum zbc_zone_reporting_options {
 
 	/**
 	 * List all of the zones in the device.
 	 */
-	ZBC_RO_ALL		= 0x00,
+	ZBC_RZ_RO_ALL		= 0x00,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_EMPTY.
 	 */
-	ZBC_RO_EMPTY		= 0x01,
+	ZBC_RZ_RO_EMPTY		= 0x01,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_IMP_OPEN.
 	 */
-	 ZBC_RO_IMP_OPEN	= 0x02,
+	ZBC_RZ_RO_IMP_OPEN	= 0x02,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_EXP_OPEN.
 	 */
-	ZBC_RO_EXP_OPEN		= 0x03,
+	ZBC_RZ_RO_EXP_OPEN	= 0x03,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_CLOSED.
 	 */
-	ZBC_RO_CLOSED		= 0x04,
+	ZBC_RZ_RO_CLOSED	= 0x04,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_FULL.
 	 */
-	ZBC_RO_FULL		= 0x05,
+	ZBC_RZ_RO_FULL		= 0x05,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_RDONLY.
 	 */
-	ZBC_RO_RDONLY		= 0x06,
+	ZBC_RZ_RO_RDONLY	= 0x06,
 
 	/**
 	 * List the zones with a Zone Condition of ZBC_ZC_OFFLINE.
 	 */
-	ZBC_RO_OFFLINE		= 0x07,
+	ZBC_RZ_RO_OFFLINE	= 0x07,
 
 	/* 08h to 0Fh Reserved */
 
 	/**
 	 * List the zones with a zone attribute ZBC_ZA_RWP_RECOMMENDED set.
 	 */
-	ZBC_RO_RWP_RECOMMENDED	= 0x10,
+	ZBC_RZ_RO_RWP_RECMND	= 0x10,
 
 	/**
 	 * List the zones with a zone attribute ZBC_ZA_NON_SEQ set.
 	 */
-	ZBC_RO_NON_SEQ		= 0x11,
+	ZBC_RZ_RO_NON_SEQ	= 0x11,
 
 	/* 12h to 3Eh Reserved */
 
 	/**
 	 * List of the zones with a Zone Condition of ZBC_ZC_NOT_WP.
 	 */
-	ZBC_RO_NOT_WP		= 0x3f,
+	ZBC_RZ_RO_NOT_WP	= 0x3f,
 
 	/**
 	 * Partial report flag.
 	 */
-	ZBC_RO_PARTIAL		= 0x80,
+	ZBC_RZ_RO_PARTIAL	= 0x80,
 
 };
+
+/* Compatibility names from earlier version of libzbc */
+#define zbc_reporting_options	zbc_zone_reporting_options
+#define ZBC_RO_ALL		ZBC_RZ_RO_ALL
+#define ZBC_RO_EMPTY		ZBC_RZ_RO_EMPTY
+#define ZBC_RO_IMP_OPEN		ZBC_RZ_RO_IMP_OPEN
+#define ZBC_RO_EXP_OPEN		ZBC_RZ_RO_EXP_OPEN
+#define ZBC_RO_CLOSED		ZBC_RZ_RO_CLOSED
+#define ZBC_RO_FULL		ZBC_RZ_RO_FULL
+#define ZBC_RO_RDONLY		ZBC_RZ_RO_RDONLY
+#define ZBC_RO_OFFLINE		ZBC_RZ_RO_OFFLINE
+#define ZBC_RO_RWP_RECOMMENDED	ZBC_RZ_RO_RWP_RECMND
+#define ZBC_RO_NON_SEQ		ZBC_RZ_RO_NON_SEQ
+#define ZBC_RO_NOT_WP		ZBC_RZ_RO_NOT_WP
+#define ZBC_RO_PARTIAL		ZBC_RZ_RO_PARTIAL
 
 /**
  * @brief Get zone information
@@ -841,8 +856,8 @@ enum zbc_reporting_options {
  *
  * @return Returns -EIO if an error happened when communicating with the device.
  */
-extern int zbc_report_zones(struct zbc_device *dev,
-			    uint64_t sector , enum zbc_reporting_options ro,
+extern int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
+			    enum zbc_zone_reporting_options ro,
 			    struct zbc_zone *zones, unsigned int *nr_zones);
 
 /**
@@ -860,7 +875,7 @@ extern int zbc_report_zones(struct zbc_device *dev,
  * @return Returns -EIO if an error happened when communicating with the device.
  */
 static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
-				      enum zbc_reporting_options ro,
+				      enum zbc_zone_reporting_options ro,
 				      unsigned int *nr_zones)
 {
 	return zbc_report_zones(dev, sector, ro, NULL, nr_zones);
@@ -885,7 +900,7 @@ static inline int zbc_report_nr_zones(struct zbc_device *dev, uint64_t sector,
  * Returns -ENOMEM if memory could not be allocated for \a zones.
  */
 extern int zbc_list_zones(struct zbc_device *dev,
-			  uint64_t sector, enum zbc_reporting_options ro,
+			  uint64_t sector, enum zbc_zone_reporting_options ro,
 			  struct zbc_zone **zones, unsigned int *nr_zones);
 
 /**

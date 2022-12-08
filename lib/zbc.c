@@ -496,7 +496,7 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
  * zbc_report_zones - Get zone information
  */
 int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
-		     enum zbc_reporting_options ro,
+		     enum zbc_zone_reporting_options ro,
 		     struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	unsigned int max_zones = *nr_zones;
@@ -512,7 +512,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 	if (!zones)
 		return (dev->zbd_drv->zbd_report_zones)(dev, sector,
-							zbc_ro_mask(ro),
+							zbc_rz_ro_mask(ro),
 							NULL, nr_zones);
 
 	/* Get zone information */
@@ -521,7 +521,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
 
 		n = max_zones - nz;
 		ret = (dev->zbd_drv->zbd_report_zones)(dev, sector,
-					zbc_ro_mask(ro) | ZBC_RO_PARTIAL,
+					zbc_rz_ro_mask(ro) | ZBC_RO_PARTIAL,
 					&zones[nz], &n);
 		if (ret != 0) {
 			zbc_error("%s: Get zones from sector %llu failed %d (%s)\n",
@@ -552,7 +552,7 @@ int zbc_report_zones(struct zbc_device *dev, uint64_t sector,
  * zbc_list_zones - Get zone information
  */
 int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
-		   enum zbc_reporting_options ro,
+		   enum zbc_zone_reporting_options ro,
 		   struct zbc_zone **pzones, unsigned int *pnr_zones)
 {
 	struct zbc_zone *zones = NULL;
@@ -560,7 +560,7 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 	int ret;
 
 	/* Get total number of zones */
-	ret = zbc_report_nr_zones(dev, sector, zbc_ro_mask(ro), &nr_zones);
+	ret = zbc_report_nr_zones(dev, sector, zbc_rz_ro_mask(ro), &nr_zones);
 	if (ret < 0)
 		return ret;
 
@@ -577,7 +577,7 @@ int zbc_list_zones(struct zbc_device *dev, uint64_t sector,
 		return -ENOMEM;
 
 	/* Get zone information */
-	ret = zbc_report_zones(dev, sector, zbc_ro_mask(ro), zones, &nr_zones);
+	ret = zbc_report_zones(dev, sector, zbc_rz_ro_mask(ro), zones, &nr_zones);
 	if (ret != 0) {
 		zbc_error("%s: zbc_report_zones failed %d\n",
 			  dev->zbd_filename, ret);

@@ -831,7 +831,7 @@ static int zbc_ata_flush(struct zbc_device *dev)
  * Get device zone information.
  */
 static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
-				enum zbc_reporting_options ro,
+				enum zbc_zone_reporting_options ro,
 				struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);

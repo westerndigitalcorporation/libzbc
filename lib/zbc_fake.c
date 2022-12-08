@@ -507,36 +507,36 @@ static int zbc_fake_close(struct zbc_device *dev)
  */
 static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 				      uint64_t start_sector,
-				      enum zbc_reporting_options ro)
+				      enum zbc_zone_reporting_options ro)
 {
-	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
+	enum zbc_zone_reporting_options options = ro & (~ZBC_RZ_RO_PARTIAL);
 
 	if (zone->zbz_length == 0 ||
 	    zone->zbz_start + zone->zbz_length <= start_sector)
 		return false;
 
 	switch (options) {
-	case ZBC_RO_ALL:
+	case ZBC_RZ_RO_ALL:
 		return true;
-	case ZBC_RO_EMPTY:
+	case ZBC_RZ_RO_EMPTY:
 		return zbc_zone_empty(zone);
-	case ZBC_RO_IMP_OPEN:
+	case ZBC_RZ_RO_IMP_OPEN:
 		return zbc_zone_imp_open(zone);
-	case ZBC_RO_EXP_OPEN:
+	case ZBC_RZ_RO_EXP_OPEN:
 		return zbc_zone_exp_open(zone);
-	case ZBC_RO_CLOSED:
+	case ZBC_RZ_RO_CLOSED:
 		return zbc_zone_closed(zone);
-	case ZBC_RO_FULL:
+	case ZBC_RZ_RO_FULL:
 		return zbc_zone_full(zone);
-	case ZBC_RO_RDONLY:
+	case ZBC_RZ_RO_RDONLY:
 		return zbc_zone_rdonly(zone);
-	case ZBC_RO_OFFLINE:
+	case ZBC_RZ_RO_OFFLINE:
 		return zbc_zone_offline(zone);
-	case ZBC_RO_RWP_RECOMMENDED:
+	case ZBC_RZ_RO_RWP_RECMND:
 		return zbc_zone_rwp_recommended(zone);
-	case ZBC_RO_NON_SEQ:
+	case ZBC_RZ_RO_NON_SEQ:
 		return zbc_zone_non_seq(zone);
-	case ZBC_RO_NOT_WP:
+	case ZBC_RZ_RO_NOT_WP:
 		return zbc_zone_not_wp(zone);
 	default:
 		return false;
@@ -547,12 +547,12 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
  * zbc_fake_report_zones - Get fake device zone information.
  */
 static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
-				 enum zbc_reporting_options ro,
+				 enum zbc_zone_reporting_options ro,
 				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	unsigned int max_nr_zones = *nr_zones;
-	enum zbc_reporting_options options = ro & (~ZBC_RO_PARTIAL);
+	enum zbc_zone_reporting_options options = ro & (~ZBC_RZ_RO_PARTIAL);
 	unsigned int in, out = 0;
 
 	if (!fdev->zbd_meta) {
@@ -561,17 +561,17 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 	}
 
 	/* Check reporting option */
-	if (options != ZBC_RO_ALL &&
-	    options != ZBC_RO_EMPTY &&
-	    options != ZBC_RO_IMP_OPEN &&
-	    options != ZBC_RO_EXP_OPEN &&
-	    options != ZBC_RO_CLOSED &&
-	    options != ZBC_RO_FULL &&
-	    options != ZBC_RO_RDONLY &&
-	    options != ZBC_RO_OFFLINE &&
-	    options != ZBC_RO_RWP_RECOMMENDED &&
-	    options != ZBC_RO_NON_SEQ &&
-	    options != ZBC_RO_NOT_WP) {
+	if (options != ZBC_RZ_RO_ALL &&
+	    options != ZBC_RZ_RO_EMPTY &&
+	    options != ZBC_RZ_RO_IMP_OPEN &&
+	    options != ZBC_RZ_RO_EXP_OPEN &&
+	    options != ZBC_RZ_RO_CLOSED &&
+	    options != ZBC_RZ_RO_FULL &&
+	    options != ZBC_RZ_RO_RDONLY &&
+	    options != ZBC_RZ_RO_OFFLINE &&
+	    options != ZBC_RZ_RO_RWP_RECMND &&
+	    options != ZBC_RZ_RO_NON_SEQ &&
+	    options != ZBC_RZ_RO_NOT_WP) {
 		zbc_set_errno(ZBC_SK_ILLEGAL_REQUEST,
 			      ZBC_ASC_INVALID_FIELD_IN_CDB);
 		return -EIO;
@@ -598,7 +598,7 @@ static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 				       sizeof(struct zbc_zone));
 			out++;
 		}
-		if (out >= max_nr_zones && (ro & ZBC_RO_PARTIAL))
+		if (out >= max_nr_zones && (ro & ZBC_RZ_RO_PARTIAL))
 			break;
 	}
 

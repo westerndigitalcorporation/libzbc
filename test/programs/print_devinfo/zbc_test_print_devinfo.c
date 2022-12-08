@@ -28,7 +28,7 @@ static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z)
 	int ret;
 
 	/* Get zone list */
-	ret = zbc_list_zones(dev, 0, ZBC_RO_ALL, &zones, &nr_zones);
+	ret = zbc_list_zones(dev, 0, ZBC_RZ_RO_ALL, &zones, &nr_zones);
 	if (ret != 0) {
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_list_zones failed %d\n",

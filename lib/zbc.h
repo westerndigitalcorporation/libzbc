@@ -53,7 +53,7 @@ struct zbc_drv {
 	 * Report a device zone information.
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
-					    enum zbc_reporting_options,
+					    enum zbc_zone_reporting_options,
 					    struct zbc_zone *, unsigned int *);
 
 	/**
@@ -216,9 +216,9 @@ extern struct zbc_drv zbc_fake_drv;
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
 /**
- * Reporting option mask.
+ * REPORT ZONES reporting option mask.
  */
-#define zbc_ro_mask(ro)		((ro) & 0x3f)
+#define zbc_rz_ro_mask(ro)		((ro) & 0x3f)
 
 /**
  * Logical block to sector conversion.

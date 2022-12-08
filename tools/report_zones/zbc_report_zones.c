@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	unsigned long long sector = 0, nr_sectors = 0;
-	enum zbc_reporting_options ro = ZBC_RO_ALL;
+	enum zbc_zone_reporting_options ro = ZBC_RZ_RO_ALL;
 	unsigned int nr_zones = 0, nz = 0;
 	struct zbc_zone *z, *zones = NULL;
 	bool lba_unit = false;
@@ -196,27 +196,27 @@ int main(int argc, char **argv)
 			i++;
 
 			if (strcmp(argv[i], "all") == 0) {
-				ro = ZBC_RO_ALL;
+				ro = ZBC_RZ_RO_ALL;
 			} else if (strcmp(argv[i], "empty") == 0) {
-				ro = ZBC_RO_EMPTY;
+				ro = ZBC_RZ_RO_EMPTY;
 			} else if (strcmp(argv[i], "imp_open") == 0) {
-				ro = ZBC_RO_IMP_OPEN;
+				ro = ZBC_RZ_RO_IMP_OPEN;
 			} else if (strcmp(argv[i], "exp_open") == 0) {
-				ro = ZBC_RO_EXP_OPEN;
+				ro = ZBC_RZ_RO_EXP_OPEN;
 			} else if (strcmp(argv[i], "closed") == 0) {
-				ro = ZBC_RO_CLOSED;
+				ro = ZBC_RZ_RO_CLOSED;
 			} else if (strcmp(argv[i], "full") == 0) {
-				ro = ZBC_RO_FULL;
+				ro = ZBC_RZ_RO_FULL;
 			} else if (strcmp(argv[i], "rdonly") == 0) {
-				ro = ZBC_RO_RDONLY;
+				ro = ZBC_RZ_RO_RDONLY;
 			} else if (strcmp(argv[i], "offline") == 0) {
-				ro = ZBC_RO_OFFLINE;
+				ro = ZBC_RZ_RO_OFFLINE;
 			} else if (strcmp(argv[i], "reset") == 0) {
-				ro = ZBC_RO_RWP_RECOMMENDED;
+				ro = ZBC_RZ_RO_RWP_RECMND;
 			} else if (strcmp(argv[i], "non_seq") == 0) {
-				ro = ZBC_RO_NON_SEQ;
+				ro = ZBC_RZ_RO_NON_SEQ;
 			} else if (strcmp(argv[i], "not_wp") == 0) {
-				ro = ZBC_RO_NOT_WP;
+				ro = ZBC_RZ_RO_NOT_WP;
 			} else {
 				fprintf(stderr, "Unknown reporting option \"%s\"\n",
 					argv[i]);
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
 
 		z = &zones[i];
 
-		if (ro == ZBC_RO_ALL) {
+		if (ro == ZBC_RZ_RO_ALL) {
 			/* Check */
 			if (zbc_zone_start(z) != sector) {
 				printf("[WARNING] Zone %05d: sector %llu "
@@ -335,7 +335,7 @@ int main(int argc, char **argv)
 
 	}
 
-	if (start == 0 && ro == ZBC_RO_ALL && nz == nr_zones) {
+	if (start == 0 && ro == ZBC_RZ_RO_ALL && nz == nr_zones) {
 		/* Check */
 		if ( zbc_sect2lba(&info, nr_sectors) != info.zbd_lblocks ) {
 			printf("[WARNING] %llu logical blocks reported "

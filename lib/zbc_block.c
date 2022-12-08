@@ -585,35 +585,35 @@ static int zbc_block_close(struct zbc_device *dev)
  * on the specified reporting options.
  */
 static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
-				  enum zbc_reporting_options ro)
+				  enum zbc_zone_reporting_options ro)
 {
-	enum zbc_reporting_options options = zbc_ro_mask(ro);
+	enum zbc_zone_reporting_options options = zbc_rz_ro_mask(ro);
 
 	if (zone->zbz_start + zone->zbz_length < start_sector)
 		return false;
 
 	switch (options) {
-	case ZBC_RO_ALL:
+	case ZBC_RZ_RO_ALL:
 		return true;
-	case ZBC_RO_EMPTY:
+	case ZBC_RZ_RO_EMPTY:
 		return zbc_zone_empty(zone);
-	case ZBC_RO_IMP_OPEN:
+	case ZBC_RZ_RO_IMP_OPEN:
 		return zbc_zone_imp_open(zone);
-	case ZBC_RO_EXP_OPEN:
+	case ZBC_RZ_RO_EXP_OPEN:
 		return zbc_zone_exp_open(zone);
-	case ZBC_RO_CLOSED:
+	case ZBC_RZ_RO_CLOSED:
 		return zbc_zone_closed(zone);
-	case ZBC_RO_FULL:
+	case ZBC_RZ_RO_FULL:
 		return zbc_zone_full(zone);
-	case ZBC_RO_RDONLY:
+	case ZBC_RZ_RO_RDONLY:
 		return zbc_zone_rdonly(zone);
-	case ZBC_RO_OFFLINE:
+	case ZBC_RZ_RO_OFFLINE:
 		return zbc_zone_offline(zone);
-	case ZBC_RO_RWP_RECOMMENDED:
+	case ZBC_RZ_RO_RWP_RECMND:
 		return zbc_zone_rwp_recommended(zone);
-	case ZBC_RO_NON_SEQ:
+	case ZBC_RZ_RO_NON_SEQ:
 		return zbc_zone_non_seq(zone);
-	case ZBC_RO_NOT_WP:
+	case ZBC_RZ_RO_NOT_WP:
 		return zbc_zone_not_wp(zone);
 	default:
 		return false;
@@ -626,7 +626,7 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
  * Get the block device zone information.
  */
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
-				  enum zbc_reporting_options ro,
+				  enum zbc_zone_reporting_options ro,
 				  struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	size_t rep_size;
@@ -719,7 +719,7 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 	int ret;
 
 	/* Get zone info */
-	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL, &zone, &nr_zones);
+	ret = zbc_block_report_zones(dev, sector, ZBC_RZ_RO_ALL, &zone, &nr_zones);
 	if (ret)
 		return ret;
 
@@ -795,7 +795,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 
 		/* Get zone info */
 		nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
-		ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
+		ret = zbc_block_report_zones(dev, sector, ZBC_RZ_RO_ALL,
 					     zones, &nr_zones);
 		if (ret || !nr_zones)
 			break;
@@ -1027,7 +1027,7 @@ static int zbc_block_close(struct zbc_device *dev)
 }
 
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
-				  enum zbc_reporting_options ro,
+				  enum zbc_zone_reporting_options ro,
 				  struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	return -EOPNOTSUPP;

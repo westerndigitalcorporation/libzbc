@@ -23,8 +23,8 @@ int main(int argc, char **argv)
 	struct zbc_device_info info;
 	unsigned long long lba = 0;
 	struct zbc_device *dev;
-	enum zbc_reporting_options ro = ZBC_RO_ALL;
-	enum zbc_reporting_options partial = 0;
+	enum zbc_zone_reporting_options ro = ZBC_RZ_RO_ALL;
+	enum zbc_zone_reporting_options partial = 0;
 	int i, ret = 1;
 	struct zbc_zone *z, *zones = NULL;
 	unsigned int nr_zones;
@@ -71,7 +71,7 @@ usage:
 
 		} else if (strcmp(argv[i], "-p") == 0) {
 
-			partial = ZBC_RO_PARTIAL;
+			partial = ZBC_RZ_RO_PARTIAL;
 
 		} else if (argv[i][0] == '-') {
 

@@ -331,7 +331,7 @@ out:
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_do_rpt_zones(struct zbc_device *dev, uint64_t sector,
-				 enum zbc_reporting_options ro, uint64_t *max_lba,
+				 enum zbc_zone_reporting_options ro, uint64_t *max_lba,
 				 struct zbc_zone *zones, unsigned int *nr_zones,
 				 size_t bufsz)
 {
@@ -513,7 +513,7 @@ out:
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
-				 enum zbc_reporting_options ro,
+				 enum zbc_zone_reporting_options ro,
 				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	size_t bufsz = 0;
@@ -692,7 +692,7 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 				  "(conventional zones capacity)\n",
 				  dev->zbd_filename);
 			ret = zbc_scsi_do_rpt_zones(dev, 0,
-						ZBC_RO_ALL | ZBC_RO_PARTIAL,
+						ZBC_RZ_RO_ALL | ZBC_RO_PARTIAL,
 						&max_lba, NULL, &nr_zones,
 						dev->zbd_report_bufsz_min);
 			if (ret != 0)
