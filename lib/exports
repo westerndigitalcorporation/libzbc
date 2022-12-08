@@ -12,6 +12,7 @@ global:
 
 ZBC_GLOBAL {
 global:
+	zbc_version;
 	zbc_set_log_level;
 	zbc_device_type_str;
 	zbc_device_model_str;

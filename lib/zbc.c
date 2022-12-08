@@ -110,6 +110,17 @@ static struct zbc_sg_asc_ascq_s {
 __thread struct zbc_errno zerrno;
 
 /**
+ * zbc_version - get the library version as a string
+ */
+char const *zbc_version(void)
+{
+	static char ver[8];
+
+	snprintf(ver, sizeof(ver) - 1, "%s", PACKAGE_VERSION);
+	return (char const*)ver;
+}
+
+/**
  * zbc_set_log_level - Set the library log level
  */
 void zbc_set_log_level(char const *log_level)

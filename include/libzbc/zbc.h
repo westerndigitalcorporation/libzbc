@@ -638,6 +638,12 @@ extern const char *zbc_sk_str(enum zbc_sk sk);
 extern const char *zbc_asc_ascq_str(enum zbc_asc_ascq asc_ascq);
 
 /**
+ * @brief return libzbc version as a string.
+ *
+ */
+extern char const *zbc_version(void);
+
+/**
  * @brief Test if a device is a zoned block device
  * @param[in] filename	Path to the device file
  * @param[in] fake	If true, also test emulated devices

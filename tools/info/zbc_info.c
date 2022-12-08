@@ -21,11 +21,12 @@ static int zbc_info_usage(FILE *out, char *bin_name)
 {
 	fprintf(out, "Usage: %s [options] <dev>\n"
 		"Options:\n"
-		"  -h | --help : Display this help message and exit\n"
-		"  -v          : Verbose mode\n"
-		"  -scsi       : Force the use of SCSI passthrough commands\n"
-		"  -ata        : Force the use of ATA passthrough commands\n"
-		"  -e          : Print information for an emulated device\n",
+		"  -h | --help    : Display this help message and exit\n"
+		"  -v             : Verbose mode\n"
+		"  -V | --version : Display the library version\n"
+		"  -scsi          : Force the use of SCSI passthrough commands\n"
+		"  -ata           : Force the use of ATA passthrough commands\n"
+		"  -e             : Print information for an emulated device\n",
 		basename(bin_name));
 	return 1;
 
@@ -44,11 +45,19 @@ int main(int argc, char **argv)
 		return zbc_info_usage(stderr, argv[0]);
 
 	/* Parse options */
-	for (i = 1; i < (argc - 1); i++) {
+	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "-h") == 0 ||
 		    strcmp(argv[i], "--help") == 0)
 			return zbc_info_usage(stdout, argv[0]);
 
+		if (strcmp(argv[i], "-V") == 0 ||
+			   strcmp(argv[i], "--version") == 0) {
+			puts(zbc_version());
+			return 0;
+		}
+	}
+
+	for (i = 1; i < (argc - 1); i++) {
 		if (strcmp(argv[i], "-v") == 0) {
 
 			zbc_set_log_level("debug");
