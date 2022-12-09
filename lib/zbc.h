@@ -217,8 +217,8 @@ extern struct zbc_drv zbc_fake_drv;
 /**
  * Logical block to sector conversion.
  */
-#define zbc_dev_sect2lba(dev, sect)	zbc_sect2lba(&(dev)->zbd_info, sect)
-#define zbc_dev_lba2sect(dev, lba)	zbc_lba2sect(&(dev)->zbd_info, lba)
+#define zbc_dev_sect2lba(dev, sect)	(sect ? zbc_sect2lba(&(dev)->zbd_info, sect) : sect)
+#define zbc_dev_lba2sect(dev, lba)	(lba ? zbc_lba2sect(&(dev)->zbd_info, lba) : lba)
 
 /**
  * Check sector alignment to logical block.
