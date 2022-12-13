@@ -33,6 +33,7 @@ enum {
 	ZBC_SG_OPEN_ZONE,
 	ZBC_SG_CLOSE_ZONE,
 	ZBC_SG_FINISH_ZONE,
+	ZBC_SG_RECEIVE_DIAG_RESULTS,
 	ZBC_SG_ATA16,
 
 	ZBC_SG_CMD_NUM,
@@ -109,6 +110,23 @@ enum {
 #define ZBC_SG_FINISH_ZONE_CDB_OPCODE		0x94
 #define ZBC_SG_FINISH_ZONE_CDB_SA		0x02
 #define ZBC_SG_FINISH_ZONE_CDB_LENGTH		16
+
+/*
+ * Zoned Block Device stats definitions.
+ */
+
+/** RECEIVE DIAGNOSTIC RESULTS opcode */
+#define ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE	0x1C
+#define ZBC_SG_RECEIVE_DIAG_RES_CDB_LENGTH	6
+
+/** Zoned Block Device Stats Page */
+#define ZBC_SG_ZBD_LOG_STATS			0x14
+
+/** ZBC Log parameter size in bytes */
+#define ZBC_LOG_PARAM_RECORD_SIZE		12
+
+/** The total number of log parameters in ZBD Stats page */
+#define ZBC_NR_STAT_PARAMS			11
 
 /**
  * ATA pass through 16.

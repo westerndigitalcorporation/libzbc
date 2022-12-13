@@ -29,6 +29,7 @@ global:
 	zbc_report_zones;
 	zbc_list_zones;
 	zbc_zone_operation;
+	zbc_get_zbd_stats;
 	zbc_pread;
 	zbc_pwrite;
 	zbc_preadv;

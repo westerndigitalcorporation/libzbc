@@ -1004,6 +1004,135 @@ ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
 }
 
 /**
+ * Receive ZBD statistic counters from the device.
+ */
+static int zbc_scsi_get_stats(struct zbc_device * dev,
+			      struct zbc_zoned_blk_dev_stats *stats)
+{
+	uint8_t *bufptr;
+	struct zbc_sg_cmd cmd;
+	unsigned long long val;
+	int ret, i;
+	uint16_t size, pc;
+	uint8_t buf[4096];
+
+	memset(stats, 0, sizeof(*stats));
+
+	/* Allocate and intialize RECEIVE DIAGNOSTIC RESULTS command */
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_RECEIVE_DIAG_RESULTS,
+			      buf, sizeof(buf));
+	if (ret != 0)
+		return ret;
+
+	/* Fill command CDB:
+	 * +=============================================================================+
+	 * |  Bit|   7    |   6    |   5    |   4    |   3    |   2    |   1    |   0    |
+	 * |Byte |        |        |        |        |        |        |        |        |
+	 * |=====+==========================+============================================|
+	 * | 0   |                         Operation Code (1Ch)                          |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 1   |                          Reserved                            |  PCV   |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 2   |                              Page Code                                |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 3   |                                                                       |
+	 * |- - -+                         Allocation Length                             |
+	 * | 4   |                                                                       |
+	 * |-----+-----------------------------------------------------------------------|
+	 * | 5   |                              Control                                  |
+	 * +-----+-----------------------------------------------------------------------+
+	 */
+	cmd.cdb[0] = ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE;
+	cmd.cdb[1] = 0x01; /* PCV=1 : page code valid */
+	cmd.cdb[2] = ZBC_SG_ZBD_LOG_STATS;
+	zbc_sg_set_int16(&cmd.cdb[3], sizeof(buf));
+
+	/* Send the SG_IO command */
+	ret = zbc_sg_cmd_exec(dev, &cmd);
+	if (ret != 0)
+		goto out;
+
+	ret = buf[0] & ~0x40;
+	if (ret != ZBC_SG_ZBD_LOG_STATS) {
+		zbc_error("%s: unsupported diagnostic page 0x%02x\n",
+			  dev->zbd_filename, ret);
+		ret = -EIO;
+		goto out;
+	}
+	ret = 0;
+	if (!(buf[0] & 0x40) || buf[1] != 0x01) {
+		zbc_error("%s: invalid diagnostic subpage 0x%02x (SPF=0x%02x)\n",
+			  dev->zbd_filename, buf[1], buf[0] & 0x40);
+		ret = -EIO;
+		goto out;
+	}
+	size = zbc_sg_get_int16(&buf[2]);
+	bufptr = &buf[4];
+
+	/*
+	 * Navigate through the list of parameters
+	 * and populate the supplied stats structure.
+	 */
+	for (i = 0; i < ZBC_NR_STAT_PARAMS; i++) {
+		if (size < ZBC_LOG_PARAM_RECORD_SIZE) {
+			zbc_error("%s: not enough (%i/%i) log parameters returned\n",
+				  dev->zbd_filename, i, ZBC_NR_STAT_PARAMS);
+			ret = -EIO;
+			goto out;
+		}
+
+		pc = zbc_sg_get_int16(bufptr);
+		if (bufptr[3] != 8) {
+			zbc_error("%s: bad ZBC log parameter length %i, 8 expected\n",
+				  dev->zbd_filename, bufptr[3]);
+			ret = -EIO;
+			goto out;
+		}
+
+		val = zbc_sg_get_int64(&bufptr[8]);
+		switch (pc) {
+		case 0x00:
+			stats->max_open_zones = val; break;
+		case 0x01:
+			stats->max_exp_open_seq_zones = val; break;
+		case 0x02:
+			stats->max_imp_open_seq_zones = val; break;
+		case 0x03:
+			stats->min_empty_zones = val; break;
+		case 0x04:
+			stats->max_non_seq_zones = val; break;
+		case 0x05:
+			stats->zones_emptied = val; break;
+		case 0x06:
+			stats->subopt_write_cmds = val; break;
+		case 0x07:
+			stats->cmds_above_opt_lim = val; break;
+		case 0x08:
+			stats->failed_exp_opens = val; break;
+		case 0x09:
+			stats->read_rule_fails = val; break;
+		case 0x0a:
+			stats->write_rule_fails = val; break;
+		case 0x0b:
+			stats->max_imp_open_sobr_zones = val; break;
+		default:
+			zbc_error("%s: Bad ZBD log parameter code 0x%02x\n",
+				  dev->zbd_filename, pc);
+			ret = -EIO;
+			goto out;
+		}
+
+		bufptr += ZBC_LOG_PARAM_RECORD_SIZE;
+		size -= ZBC_LOG_PARAM_RECORD_SIZE;
+	}
+
+out:
+	zbc_sg_cmd_destroy(&cmd);
+
+	return ret;
+}
+
+/**
  * Flush a ZBC device cache.
  */
 int zbc_scsi_flush(struct zbc_device *dev)
@@ -1041,5 +1170,6 @@ struct zbc_drv zbc_scsi_drv = {
 	.zbd_flush		= zbc_scsi_flush,
 	.zbd_report_zones	= zbc_scsi_report_zones,
 	.zbd_zone_op		= zbc_scsi_zone_op,
+	.zbd_get_stats		= zbc_scsi_get_stats,
 };
 

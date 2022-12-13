@@ -1348,6 +1348,16 @@ static void zbc_ata_test_sbc_sat(struct zbc_device *dev)
 }
 
 /**
+ * Receive ZBD statistic counters from the device.
+ */
+static int zbc_ata_get_stats(struct zbc_device * dev,
+			     struct zbc_zoned_blk_dev_stats *stats)
+{
+	/* FIXME implement */
+	return -ENXIO;
+}
+
+/**
  * Get a device information (capacity & sector sizes).
  */
 static int zbc_ata_get_dev_info(struct zbc_device *dev)
@@ -1548,5 +1558,6 @@ struct zbc_drv zbc_ata_drv = {
 	.zbd_flush		= zbc_ata_flush,
 	.zbd_report_zones	= zbc_ata_report_zones,
 	.zbd_zone_op		= zbc_ata_zone_op,
+	.zbd_get_stats		= zbc_ata_get_stats,
 };
 

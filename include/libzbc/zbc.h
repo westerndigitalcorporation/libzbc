@@ -1052,6 +1052,64 @@ static inline int zbc_reset_zone(struct zbc_device *dev,
 }
 
 /**
+ * @brief Zoned Block Device Statistics
+ *
+ * This structure is filled with statistic counters that
+ * are obtained by calling \a zbc_get_zbd_stats() function.
+ */
+struct zbc_zoned_blk_dev_stats {
+
+	/** Maximum Open Zones */
+	unsigned long long	max_open_zones;
+
+	/** Maximum Explicitly Open SWR and SWP Zones */
+	unsigned long long	max_exp_open_seq_zones;
+
+	/** Maximum Implicitly Open SWR and SWP Zones */
+	unsigned long long	max_imp_open_seq_zones;
+
+	/** Maximum Implicitly Open SOBR Zones */
+	unsigned long long	max_imp_open_sobr_zones;
+
+	/** Minimum Empty Zones */
+	unsigned long long	min_empty_zones;
+
+	/** Zones Emptied */
+	unsigned long long	zones_emptied;
+
+	/** Maximum Non-sequential Zones */
+	unsigned long long	max_non_seq_zones;
+
+	/** Suboptimal Write Commands */
+	unsigned long long	subopt_write_cmds;
+
+	/** Commands Exceeding Optimal Limit */
+	unsigned long long	cmds_above_opt_lim;
+
+	/** Failed Explicit Opens */
+	unsigned long long	failed_exp_opens;
+
+	/** Read Rule Violations */
+	unsigned long long	read_rule_fails;
+
+	/** Write Rule Violations */
+	unsigned long long	write_rule_fails;
+};
+
+/**
+ * @brief Get Zoned Block Device statistics
+ *
+ * @param[in] dev		Device handle obtained with \a zbc_open
+ * @param[in] stats		Points to \a zbc_zoned_blk_dev_stats
+ *                              structure allocated by the caller
+ *
+ * @return Returns -EIO if an error happened when communicating with the device.
+ * Returns -ENXIO if the device or the driver doesn't support ZBD statistics.
+ */
+extern int zbc_get_zbd_stats(struct zbc_device *dev,
+			     struct zbc_zoned_blk_dev_stats *stats);
+
+/**
  * @brief Read sectors from a device
  * @param[in] dev	Device handle obtained with \a zbc_open
  * @param[in] buf	Caller supplied buffer to read into

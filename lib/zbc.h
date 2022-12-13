@@ -93,6 +93,11 @@ struct zbc_drv {
 	int		(*zbd_set_wp)(struct zbc_device *,
 				      uint64_t, uint64_t);
 
+	/**
+	 * Zoned Block Device statistics (optional).
+	 */
+	int		(*zbd_get_stats)(struct zbc_device *,
+					 struct zbc_zoned_blk_dev_stats *);
 };
 
 /**

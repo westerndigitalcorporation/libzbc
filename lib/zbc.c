@@ -966,3 +966,15 @@ int zbc_set_write_pointer(struct zbc_device *dev,
 	return (dev->zbd_drv->zbd_set_wp)(dev, sector, wp_sector);
 }
 
+/**
+ * zbc_get_zbd_stats - Receive Zoned Block Device statistics
+ */
+int zbc_get_zbd_stats(struct zbc_device *dev,
+		      struct zbc_zoned_blk_dev_stats *stats)
+{
+	if (!dev->zbd_drv->zbd_get_stats)
+		return -ENXIO;
+
+	return (dev->zbd_drv->zbd_get_stats)(dev, stats);
+}
+

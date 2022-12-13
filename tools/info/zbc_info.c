@@ -26,17 +26,42 @@ static int zbc_info_usage(FILE *out, char *bin_name)
 		"  -V | --version : Display the library version\n"
 		"  -scsi          : Force the use of SCSI passthrough commands\n"
 		"  -ata           : Force the use of ATA passthrough commands\n"
+		"  -s             : Print zoned block device statistics (SCSI only)\n"
 		"  -e             : Print information for an emulated device\n",
 		basename(bin_name));
 	return 1;
 
 }
 
+static void print_zbd_stats(struct zbc_zoned_blk_dev_stats *stats)
+{
+	printf("\nZoned Block Device Statistics\n"
+	       "Maximum Open Zones : %llu\n"
+	       "Maximum Explicitly Open SWR and SWP Zones : %llu\n"
+	       "Maximum Implicitly Open SWR and SWP Zones : %llu\n"
+	       "Maximum Implicitly Open SOBR Zones : %llu\n"
+	       "Minimum Empty Zones : %llu\n"
+	       "Zones Emptied : %llu\n"
+	       "Maximum Non-sequential Zones : %llu\n"
+	       "Suboptimal Write Commands : %llu\n"
+	       "Commands Exceeding Optimal Limit : %llu\n"
+	       "Failed Explicit Opens : %llu\n"
+	       "Read Rule Violations : %llx\n"
+	       "Write Rule Violations : %llx\n",
+	       stats->max_open_zones, stats->max_exp_open_seq_zones,
+	       stats->max_imp_open_seq_zones, stats->max_imp_open_sobr_zones,
+	       stats->min_empty_zones, stats->zones_emptied,
+	       stats->max_non_seq_zones, stats->subopt_write_cmds,
+	       stats->cmds_above_opt_lim, stats->failed_exp_opens,
+	       stats->read_rule_fails, stats->write_rule_fails);
+}
+
 int main(int argc, char **argv)
 {
 	struct zbc_device_info info;
 	struct zbc_device *dev;
-	bool do_fake = false;
+	struct zbc_zoned_blk_dev_stats stats;
+	bool do_fake = false, do_stats = false;
 	int ret, i, oflags = 0;
 	char *path;
 
@@ -73,6 +98,10 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[i], "-e") == 0) {
 
 			do_fake = true;
+
+		} else if (strcmp(argv[i], "-s") == 0) {
+
+			do_stats = true;
 
 		} else if (argv[i][0] == '-') {
 
@@ -114,6 +143,20 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		zbc_get_device_info(dev, &info);
+
+		if (do_stats) {
+			ret = zbc_get_zbd_stats(dev, &stats);
+			if (ret) {
+				fprintf(stderr,
+					"%s: Failed to get statistics, err %d (%s)\n",
+					argv[0], ret, strerror(-ret));
+				return 1;
+			} else {
+				print_zbd_stats(&stats);
+			}
+		}
+
+		zbc_close(dev);
 	} else {
 		ret = zbc_device_is_zoned(path, do_fake, &info);
 		if (ret < 0) {
