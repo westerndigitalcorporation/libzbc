@@ -40,6 +40,9 @@ int main(int argc, char **argv)
 	if (argc == 4) {
 		if (strcmp(argv[1], "-v") == 0) {
 			zbc_set_log_level("debug");
+		} else if (strcmp(argv[1], "--ALL") == 0) {
+			flags = ZBC_OP_ALL_ZONES;
+			zbc_set_log_level("debug");
 		} else {
 			printf("Unknown option \"%s\"\n", argv[1]);
 			return 1;
@@ -59,8 +62,8 @@ int main(int argc, char **argv)
 
 	ret = zbc_open(path, oflags | O_RDWR, &dev);
 	if (ret != 0) {
-		fprintf(stderr, "[TEST][ERROR],open device failed %d\n",
-			ret);
+		fprintf(stderr, "[TEST][ERROR],open device failed, err %d (%s) %s\n",
+			ret, strerror(-ret), path);
 		printf("[TEST][ERROR][SENSE_KEY],open-device-failed\n");
 		printf("[TEST][ERROR][ASC_ASCQ],open-device-failed\n");
 		return 1;
