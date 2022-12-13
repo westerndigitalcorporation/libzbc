@@ -58,8 +58,8 @@ static void print_zbd_stats(struct zbc_zoned_blk_dev_stats *stats)
 
 int main(int argc, char **argv)
 {
-	struct zbc_device_info info;
 	struct zbc_device *dev;
+	struct zbc_device_info info;
 	struct zbc_zoned_blk_dev_stats stats;
 	bool do_fake = false, do_stats = false;
 	int ret, i, oflags = 0;
@@ -103,6 +103,11 @@ int main(int argc, char **argv)
 
 			do_stats = true;
 
+		} else if (strcmp(argv[i], "--version") == 0) {
+
+			printf("%s\n", zbc_version());
+			return 0;
+
 		} else if (argv[i][0] == '-') {
 
 			fprintf(stderr, "Unknown option \"%s\"\n",
@@ -119,12 +124,12 @@ int main(int argc, char **argv)
 	if (i != (argc - 1))
 		return zbc_info_usage(stderr, argv[0]);
 
+
 	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
 		fprintf(stderr,
 			"-scsi and -ata options are mutually exclusive\n");
 		return 1;
 	}
-
 	if (oflags && do_fake) {
 		fprintf(stderr,
 			"-e option is mutually exclusive with -scsi and -ata options\n");

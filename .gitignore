@@ -40,6 +40,10 @@ tools/zbc_write_zone
 tools/zbc_read_zone
 tools/zbc_set_zones
 tools/zbc_set_write_ptr
+tools/zbc_report_realms
+tools/zbc_report_domains
+tools/zbc_zone_activate
+tools/zbc_dev_control
 tools/gzbc
 tools/gzviewer
 

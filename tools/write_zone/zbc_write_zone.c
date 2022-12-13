@@ -391,7 +391,7 @@ int main(int argc, char **argv)
 	}
 
 	sector_max = zbc_zone_length(iozone);
-	if (zbc_zone_sequential_req(iozone)) {
+	if (zbc_zone_sequential(iozone)) {
 		if (zbc_zone_full(iozone))
 			sector_max = 0;
 		else if (zbc_zone_wp(iozone) > zbc_zone_start(iozone))

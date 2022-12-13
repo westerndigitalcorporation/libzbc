@@ -31,7 +31,7 @@
 #define ZBC_ZONE_DESCRIPTOR_OFFSET	64
 
 /**
- * REPORT ZONE DOMAINS ouput header size.
+ * REPORT ZONE DOMAINS output header size.
  */
 #define ZBC_RPT_DOMAINS_HEADER_SIZE	64
 
@@ -97,7 +97,6 @@ enum zbc_scsi_drv_flags {
 
 /**
  * ZONE DOMAINS mode page and subpage numbers.
- * FIXME The values below are in vendor-specific range and will change
  */
 #define ZBC_ZONE_DOM_MODE_PG		0x0A
 #define ZBC_ZONE_DOM_MODE_SUBPG		0x0F

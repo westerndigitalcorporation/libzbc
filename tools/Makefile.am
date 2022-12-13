@@ -25,6 +25,11 @@ include finish_zone/Makefile.am
 include read_zone/Makefile.am
 include write_zone/Makefile.am
 
+include report_domains/Makefile.am
+include report_realms/Makefile.am
+include zone_activate/Makefile.am
+include dev_control/Makefile.am
+
 include set_write_ptr/Makefile.am
 include set_zones/Makefile.am
 

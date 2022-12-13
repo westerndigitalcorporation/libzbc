@@ -40,7 +40,43 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 		length = "sectors";
 	}
 
-	if (zbc_zone_conventional(z)) {
+	if (zbc_zone_sobr(z)) {
+		if (zbc_zone_condition(z) == ZBC_ZC_IMP_OPEN ||
+		    zbc_zone_condition(z) == ZBC_ZC_EMPTY) {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s, wp %llu\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_wp(z)) :
+					  zbc_zone_wp(z));
+		} else {
+			printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
+			       "%llu %s\n",
+			       zno,
+			       zbc_zone_type(z),
+			       zbc_zone_type_str(zbc_zone_type(z)),
+			       zbc_zone_condition(z),
+			       zbc_zone_condition_str(zbc_zone_condition(z)),
+			       start,
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_start(z)) :
+					  zbc_zone_start(z),
+			       lba_unit ? zbc_sect2lba(info, zbc_zone_length(z)) :
+					  zbc_zone_length(z),
+			       length);
+		}
+		return;
+	}
+
+	if (zbc_zone_conventional(z) || zbc_zone_inactive(z) || zbc_zone_gap(z)) {
 		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), %s %llu, "
 		       "%llu %s\n",
 		       zno,
@@ -56,8 +92,8 @@ static void zbc_report_print_zone(struct zbc_device_info *info,
 	}
 
 	if (zbc_zone_sequential(z)) {
-		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset recommended %d, "
-		       "non_seq %d, %s %llu, %llu %s, wp %llu\n",
+		printf("Zone %05d: type 0x%x (%s), cond 0x%x (%s), reset "
+		       "recommended %d, non_seq %d, %s %llu, %llu %s, wp %llu\n",
 		       zno,
 		       zbc_zone_type(z),
 		       zbc_zone_type_str(zbc_zone_type(z)),
@@ -108,6 +144,7 @@ static int zbc_report_zones_usage(FILE *out, char *prog)
 		"                  - full: report only full zones\n"
 		"                  - rdonly: report only read-only zones\n"
 		"                  - offline: report only offline zones\n"
+		"                  - inactive: report only inactive zones\n"
 		"                  - rwp: report only offline zones\n"
 		"                  - non_seq: report only offline zones\n"
 		"                  - not_wp: report only zones that are not\n"
@@ -211,12 +248,16 @@ int main(int argc, char **argv)
 				ro = ZBC_RZ_RO_RDONLY;
 			} else if (strcmp(argv[i], "offline") == 0) {
 				ro = ZBC_RZ_RO_OFFLINE;
+			} else if (strcmp(argv[i], "inactive") == 0) {
+				ro = ZBC_RZ_RO_INACTIVE;
 			} else if (strcmp(argv[i], "reset") == 0) {
 				ro = ZBC_RZ_RO_RWP_RECMND;
 			} else if (strcmp(argv[i], "non_seq") == 0) {
 				ro = ZBC_RZ_RO_NON_SEQ;
 			} else if (strcmp(argv[i], "not_wp") == 0) {
 				ro = ZBC_RZ_RO_NOT_WP;
+			} else if (strcmp(argv[i], "gap") == 0) {
+				ro = ZBC_RZ_RO_GAP;
 			} else {
 				fprintf(stderr, "Unknown reporting option \"%s\"\n",
 					argv[i]);
