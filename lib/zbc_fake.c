@@ -526,6 +526,8 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 		return zbc_zone_exp_open(zone);
 	case ZBC_RZ_RO_CLOSED:
 		return zbc_zone_closed(zone);
+	case ZBC_RZ_RO_INACTIVE:
+		return zbc_zone_inactive(zone);
 	case ZBC_RZ_RO_FULL:
 		return zbc_zone_full(zone);
 	case ZBC_RZ_RO_RDONLY:
@@ -538,6 +540,9 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
 		return zbc_zone_non_seq(zone);
 	case ZBC_RZ_RO_NOT_WP:
 		return zbc_zone_not_wp(zone);
+	case ZBC_RZ_RO_GAP:
+		return zbc_zone_gap(zone);
+	case ZBC_RZ_RO_PARTIAL:
 	default:
 		return false;
 	}

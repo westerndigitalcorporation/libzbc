@@ -75,6 +75,26 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
+	[ZBC_SG_MODE_SENSE] =
+	{
+		"MODE SENSE 10",
+		ZBC_SG_MODE_SENSE_CDB_OPCODE,
+		0,
+		ZBC_SG_MODE_SENSE_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_MODE_SELECT] =
+	{
+		"MODE SELECT 10",
+		ZBC_SG_MODE_SELECT_CDB_OPCODE,
+		0,
+		ZBC_SG_MODE_SELECT_CDB_LENGTH,
+		SG_DXFER_TO_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
 	[ZBC_SG_READ] =
 	{
 		"READ 16",
@@ -165,6 +185,66 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
+	[ZBC_SG_REPORT_REALMS] =
+	{
+		"REPORT REALMS",
+		ZBC_SG_REPORT_REALMS_CDB_OPCODE,
+		ZBC_SG_REPORT_REALMS_CDB_SA,
+		ZBC_SG_REPORT_REALMS_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_REPORT_ZONE_DOMAINS] =
+	{
+		"REPORT ZONE DOMAINS",
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE,
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA,
+		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_ZONE_ACTIVATE_16] =
+	{
+		"ZONE ACTIVATE (16)",
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
+		ZBC_SG_ZONE_ACTIVATE_16_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_ZONE_QUERY_16] =
+	{
+		"ZONE QUERY (16)",
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
+		ZBC_SG_ZONE_QUERY_16_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_ZONE_ACTIVATE_32] =
+	{
+		"ZONE ACTIVATE (32)",
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
+		ZBC_SG_ZONE_ACTIVATE_32_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
+	[ZBC_SG_ZONE_QUERY_32] =
+	{
+		"ZONE QUERY (32)",
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
+		ZBC_SG_ZONE_QUERY_32_CDB_SA,
+		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_LENGTH,
+		SG_DXFER_FROM_DEV,
+		ZBC_SG_TIMEOUT,
+	},
+
 	[ZBC_SG_RECEIVE_DIAG_RESULTS] =
 	{
 		"RECEIVE DIAGNOSTIC RESULTS",
@@ -206,6 +286,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
 	unsigned int sense_buf_len = 0;
 	uint8_t *sense_buf = NULL;
+	zerrno = (struct zbc_err_ext){ };
 
 	if (cmd) {
 		sense_buf = cmd->sense_buf;
@@ -218,11 +299,30 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		return;
 	}
 
+	/* Descriptor Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x72 ||
 	    (sense_buf[0] & 0x7F) == 0x73) {
 		/* store sense key, ASC/ASCQ */
 		zbc_set_errno(sense_buf[1] & 0x0F,
 			      ((int)sense_buf[2] << 8) | (int)sense_buf[3]);
+
+		if (zbc_test_mode(dev)) {
+			/* Walk the descriptors looking for anything of interest */
+			int nbytes = (int)sense_buf[7];
+			uint8_t *desc = &sense_buf[8];
+			while (nbytes > 0) {
+				if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
+					/* Sense Data Information */
+					zerrno.err_info = zbc_sg_get_int64(&desc[4]);
+				} else if (desc[0] == 1 && nbytes >= 12) {
+					/* Sense Data Command-Specific Info */
+					zerrno.err_csinfo = zbc_sg_get_int64(&desc[4]);
+				}
+				nbytes -= 2 + desc[1];
+				desc += 2 + desc[1];
+			}
+		}
+
 		return;
 	}
 
@@ -231,11 +331,20 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 		return;
 	}
 
+	/* Fixed Reply Format */
 	if ((sense_buf[0] & 0x7F) == 0x70 ||
 	    (sense_buf[0] & 0x7F) == 0x71) {
 		/* store sense key, ASC/ASCQ */
 		zbc_set_errno(sense_buf[2] & 0x0F,
 			      ((int)sense_buf[12] << 8) | (int)sense_buf[13]);
+
+		if (zbc_test_mode(dev)) {
+			/* Sense Data Information Field */
+			zerrno.err_info = zbc_sg_get_int32(&sense_buf[3]);
+
+			/* Sense Data Command-Specific Information Field */
+			zerrno.err_csinfo = zbc_sg_get_int32(&sense_buf[8]);
+		}
 	}
 }
 

@@ -16,9 +16,10 @@
 #include "libzbc/zbc.h"
 #include "zbc_private.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
@@ -50,6 +51,12 @@ struct zbc_drv {
 	int		(*zbd_close)(struct zbc_device *);
 
 	/**
+	 * Get or set XMR device configuration parameters.
+	 */
+	int		(*zbd_dev_control)(struct zbc_device *,
+					   struct zbc_zd_dev_control *, bool);
+
+	/**
 	 * Report a device zone information.
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
@@ -62,6 +69,31 @@ struct zbc_drv {
 	int		(*zbd_zone_op)(struct zbc_device *, uint64_t,
 				       unsigned int, enum zbc_zone_op,
 				       unsigned int);
+
+	/**
+	 * Report zone domain information.
+	 */
+	int		(*zbd_report_domains)(struct zbc_device *, uint64_t,
+					      enum zbc_domain_report_options,
+					      struct zbc_zone_domain *,
+					      unsigned int);
+	/**
+	 * Report zone realm configuration.
+	 */
+	int		(*zbd_report_realms)(struct zbc_device *, uint64_t,
+					     enum zbc_realm_report_options,
+					     struct zbc_zone_realm *,
+					     unsigned int *);
+
+	/**
+	 * Activate zones as a CMR or SMR type or query
+	 * about the possible results of such activation.
+	 */
+	int		(*zbd_zone_query_actv)(struct zbc_device *, bool, bool,
+					       bool, bool, uint64_t,
+					       unsigned int, unsigned int,
+					       struct zbc_actv_res *,
+					       uint32_t *);
 
 	/**
 	 * Vector read from a ZBC device.
@@ -157,21 +189,47 @@ struct zbc_device {
 /**
  * Per-thread local zbc_errno handling.
  */
-extern __thread struct zbc_errno zerrno;
+extern __thread struct zbc_err_ext zerrno;
 
 static inline void zbc_set_errno(enum zbc_sk sk, enum zbc_asc_ascq asc_ascq)
 {
 	zerrno.sk = sk;
 	zerrno.asc_ascq = asc_ascq;
 }
-#define zbc_clear_errno()	zbc_set_errno(0, 0)
+
+static inline void zbc_clear_errno(void)
+{
+	memset(&zerrno, 0, sizeof(zerrno));
+}
 
 /**
  * Test if a device is zoned.
  */
-#define zbc_dev_model(dev)	((dev)->zbd_info.zbd_model)
-#define zbc_dev_is_zoned(dev)	(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
-				 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+#define zbc_dev_model(dev)		((dev)->zbd_info.zbd_model)
+#define zbc_dev_is_zoned(dev)		(zbc_dev_model(dev) == ZBC_DM_HOST_MANAGED || \
+					 zbc_dev_model(dev) == ZBC_DM_HOST_AWARE)
+/*
+ * Zone Domains device property checks.
+ */
+#define zbc_dev_is_zdr(dev)		(zbc_dev_is_zoned(dev) && \
+					 (((dev)->zbd_info.zbd_flags & \
+					   ZBC_ZONE_DOMAINS_SUPPORT) || \
+					 ((dev)->zbd_info.zbd_flags & \
+					   ZBC_ZONE_REALMS_SUPPORT)))
+#define zbc_supp_report_realms(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_REPORT_REALMS_SUPPORT)
+#define zbc_supp_za_control(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZA_CONTROL_SUPPORT)
+#define zbc_supp_nozsrc(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_ZA_NOZSRC_SUPPORT)
+#define zbc_supp_conv_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_CONV_ZONE_SUPPORT)
+#define zbc_supp_seq_req_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_REQ_ZONE_SUPPORT)
+#define zbc_supp_seq_pref_zone(dev)	((dev)->zbd_info.zbd_flags & \
+					 ZBC_SEQ_PREF_ZONE_SUPPORT)
+#define zbc_supp_sobr_zone(dev)		((dev)->zbd_info.zbd_flags & \
+					 ZBC_SOBR_ZONE_SUPPORT)
 
 /**
  * Device open access mode and allowed drivers mask.

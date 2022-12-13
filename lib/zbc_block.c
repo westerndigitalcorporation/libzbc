@@ -253,6 +253,13 @@ static int zbc_block_device_classify(struct zbc_device *dev)
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_AWARE;
 	} else if (strcmp(model, "host-managed") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+	} else if (strcmp(model, "zone-domains") == 0) {
+		dev->zbd_info.zbd_model = ZBC_DM_HOST_MANAGED;
+		/*
+		 * FIXME do not pick up any ZD devices yet,
+		 * additional OS support might be needed.
+		 */
+		return -ENXIO;
 	} else if (strcmp(model, "none") == 0) {
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		return -ENXIO;
@@ -320,6 +327,42 @@ static int zbc_block_get_zone_sectors(struct zbc_device *dev)
 		  zbd->part_name, zbd->zone_sectors);
 
 	return 0;
+}
+
+static int zbc_block_get_scsi_type(struct zbc_device *dev)
+{
+	struct zbc_block_device *zbd = zbc_dev_to_block(dev);
+	char str[128];
+	FILE *file;
+	int ret, type;
+
+	/* Open the device type file */
+	snprintf(str, sizeof(str),
+		 "/sys/block/%s/device/type",
+		 zbd->holder_name);
+	file = fopen(str, "r");
+	if (!file) {
+		int ret = -errno;
+
+		zbc_error("%s: open %s failed %d (%s)\n",
+			  zbd->part_name, str,
+			  errno, strerror(errno));
+		return ret;
+	}
+
+	ret = fscanf(file, "%d", &type);
+	if (ret <= 0) {
+		zbc_error("%s: can't read device type from %s\n",
+			  zbd->part_name, str);
+		if (!ret)
+			ret = -EINVAL;
+		return ret;
+	}
+	fclose(file);
+
+	zbc_debug("%s: Device type 0x%x\n", zbd->part_name, type);
+
+	return type;
 }
 
 /**
@@ -461,8 +504,17 @@ static int zbc_block_get_info(struct zbc_device *dev, struct stat *st)
 			dev->zbd_info.zbd_opt_nr_non_seq_write_seq_pref =
 				ZBC_NOT_REPORTED;
 		}
-	} else if (zbc_scsi_get_zbd_characteristics(dev)) {
-		return -ENXIO;
+	} else {
+		if (zbc_scsi_get_zbd_characteristics(dev))
+			return -ENXIO;
+		ret = zbc_block_get_scsi_type(dev);
+		if (ret < 0)
+			return ret;
+		if (!ret) {
+			zbc_debug("%s: Zoned device has zero SCSI type, assuming ZD/ZR\n",
+				  dev->zbd_filename);
+			return -ENXIO;
+		}
 	}
 
 	/* Get maximum command size */
@@ -603,6 +655,8 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
 		return zbc_zone_exp_open(zone);
 	case ZBC_RZ_RO_CLOSED:
 		return zbc_zone_closed(zone);
+	case ZBC_RZ_RO_INACTIVE:
+		return zbc_zone_inactive(zone);
 	case ZBC_RZ_RO_FULL:
 		return zbc_zone_full(zone);
 	case ZBC_RZ_RO_RDONLY:
@@ -615,6 +669,9 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
 		return zbc_zone_non_seq(zone);
 	case ZBC_RZ_RO_NOT_WP:
 		return zbc_zone_not_wp(zone);
+	case ZBC_RZ_RO_GAP:
+		return zbc_zone_gap(zone);
+	case ZBC_RZ_RO_PARTIAL:
 	default:
 		return false;
     }
@@ -972,6 +1029,48 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Report device zone domain configuration.
+ */
+static int zbc_block_report_domains(struct zbc_device *dev, uint64_t sector,
+				    enum zbc_domain_report_options ro,
+				    struct zbc_zone_domain *domains,
+				    unsigned int nr_domains)
+{
+	zbc_error("%s: Domain report not supported by block driver\n",
+		  dev->zbd_filename);
+	return -ENOTSUP;
+}
+
+/**
+ * Report device zone realm configuration.
+ */
+static int zbc_block_report_realms(struct zbc_device *dev, uint64_t sector,
+				   enum zbc_realm_report_options ro,
+				   struct zbc_zone_realm *realms,
+				   unsigned int *nr_realms)
+{
+	zbc_error("%s: Realm report not supported by block driver\n",
+		  dev->zbd_filename);
+	return -ENOTSUP;
+}
+
+/**
+ * Activate zones of a certain type or query
+ * about the outcome of such activation.
+ */
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t sector, unsigned int nr_zones,
+					 unsigned int domain_id,
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
+{
+	zbc_error("%s: Zone query/activate not supported by block driver\n",
+		  dev->zbd_filename);
+	return -ENOTSUP;
+}
+
+/**
  * Read from the block device.
  */
 static ssize_t zbc_block_preadv(struct zbc_device *dev,
@@ -1040,6 +1139,32 @@ static int zbc_block_zone_op(struct zbc_device *dev, uint64_t sector,
 	return -EOPNOTSUPP;
 }
 
+static int zbc_block_report_domains(struct zbc_device *dev, uint64_t sector,
+				    enum zbc_domain_report_options ro,
+				    struct zbc_zone_domain *domains,
+				    unsigned int nr_domains)
+{
+	return -EOPNOTSUPP;
+}
+
+static int zbc_block_report_realms(struct zbc_device *dev, uint64_t sector,
+				   enum zbc_realm_report_options ro,
+				   struct zbc_zone_realm *realms,
+				   unsigned int *nr_realms)
+{
+	return -EOPNOTSUPP;
+}
+
+static int zbc_block_zone_query_activate(struct zbc_device *dev, bool zsrc, bool all,
+					 bool use_32_byte_cdb, bool query,
+					 uint64_t sector, unsigned int nr_zones,
+					 unsigned int domain_id,
+					 struct zbc_actv_res *actv_recs,
+					 uint32_t *nr_actv_recs)
+{
+	return -EOPNOTSUPP;
+}
+
 static ssize_t zbc_block_preadv(struct zbc_device *dev,
 				const struct iovec *iov, int iovcnt,
 				uint64_t offset)
@@ -1074,4 +1199,7 @@ struct zbc_drv zbc_block_drv =
 	.zbd_flush		= zbc_block_flush,
 	.zbd_report_zones	= zbc_block_report_zones,
 	.zbd_zone_op		= zbc_block_zone_op,
+	.zbd_report_domains	= zbc_block_report_domains,
+	.zbd_report_realms	= zbc_block_report_realms,
+	.zbd_zone_query_actv	= zbc_block_zone_query_activate,
 };
