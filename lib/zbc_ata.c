@@ -159,6 +159,26 @@ static inline void zbc_ata_put_lba(uint8_t *cdb, uint64_t lba)
 	zbc_ata_set_lba(&cdb[7], lba);
 }
 
+/*
+ * Encode a SET FEATURES LBA.
+ */
+static inline void zbc_ata_set_feat_lba(uint8_t *buf, uint64_t lba)
+{
+	buf[0] = lba & 0xff;
+	buf[2] = (lba >> 8) & 0xff;
+	buf[4] = (lba >> 16) & 0xff;
+	buf[5] = (lba >> 24) & 0xff;
+	buf[5] |= 1 << 6;
+}
+
+/*
+ * Put the ATA-encoded LBA to SET FEATURES CDB.
+ */
+static inline void zbc_ata_put_feat_lba(uint8_t *cdb, uint64_t lba)
+{
+	zbc_ata_set_feat_lba(&cdb[8], lba);
+}
+
 /**
  * Read a log page.
  */
@@ -238,7 +258,7 @@ static int zbc_ata_read_log(struct zbc_device *dev, uint8_t log,
  * Set features
  */
 static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
-				uint8_t count)
+				uint64_t lba, uint8_t count)
 {
 	struct zbc_sg_cmd cmd;
 	int ret;
@@ -293,6 +313,7 @@ static int zbc_ata_set_features(struct zbc_device *dev, uint8_t feature,
 	cmd.cdb[1] = 0x3 << 1;
 	cmd.cdb[4] = feature;
 	cmd.cdb[6] = count;
+	zbc_ata_put_feat_lba(cmd.cdb, lba);
 	cmd.cdb[14] = ZBC_ATA_SET_FEATURES;
 
 	/* Execute the command */
@@ -1441,7 +1462,7 @@ static void zbc_ata_enable_sense_data_reporting(struct zbc_device *dev)
 	zbc_warning("%s: Trying to enable sense data reporting\n",
 		    dev->zbd_filename);
 	ret = zbc_ata_set_features(dev,
-			ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 0x01);
+			ZBC_ATA_ENABLE_SENSE_DATA_REPORTING, 0, 0x01);
 	if (ret != 0) {
 		zbc_warning("%s: Enable sense data reporting failed %d\n",
 			    dev->zbd_filename, ret);
