@@ -138,6 +138,27 @@ static inline uint64_t zbc_ata_get_qword(uint8_t const *buf)
 		((uint64_t)buf[6] << 48) | ((uint64_t)buf[7] << 56);
 }
 
+/*
+ * Encode an ATA LBA.
+ */
+static inline void zbc_ata_set_lba(uint8_t *buf, uint64_t lba)
+{
+	buf[1] = lba & 0xff;
+	buf[3] = (lba >> 8) & 0xff;
+	buf[5] = (lba >> 16) & 0xff;
+	buf[0] = (lba >> 24) & 0xff;
+	buf[2] = (lba >> 32) & 0xff;
+	buf[4] = (lba >> 40) & 0xff;
+}
+
+/*
+ * Put the ATA-encoded LBA to a CDB.
+ */
+static inline void zbc_ata_put_lba(uint8_t *cdb, uint64_t lba)
+{
+	zbc_ata_set_lba(&cdb[7], lba);
+}
+
 /**
  * Read a log page.
  */
@@ -569,7 +590,7 @@ static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
 	size_t sz = zbc_iov_count(iov, iovcnt);
 	size_t count = sz >> 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
-	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
+	uint64_t lba = zbc_dev_sect2lba(dev, offset);
 	struct zbc_sg_cmd cmd;
 	ssize_t ret;
 
@@ -632,12 +653,7 @@ static ssize_t zbc_ata_native_preadv(struct zbc_device *dev,
 	cmd.cdb[2] = 0x0e;
 	cmd.cdb[5] = (lba_count >> 8) & 0xff;
 	cmd.cdb[6] = lba_count & 0xff;
-	cmd.cdb[7] = (lba_offset >> 24) & 0xff;
-	cmd.cdb[8] = lba_offset & 0xff;
-	cmd.cdb[9] = (lba_offset >> 32) & 0xff;
-	cmd.cdb[10] = (lba_offset >> 8) & 0xff;
-	cmd.cdb[11] = (lba_offset >> 40) & 0xff;
-	cmd.cdb[12] = (lba_offset >> 16) & 0xff;
+	zbc_ata_put_lba(cmd.cdb, lba);
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_READ_DMA_EXT;
 
@@ -678,7 +694,7 @@ static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
 	size_t sz = zbc_iov_count(iov, iovcnt);
 	size_t count = sz >> 9;
 	uint32_t lba_count = zbc_dev_sect2lba(dev, count);
-	uint64_t lba_offset = zbc_dev_sect2lba(dev, offset);
+	uint64_t lba = zbc_dev_sect2lba(dev, offset);
 	struct zbc_sg_cmd cmd;
 	int ret;
 
@@ -740,12 +756,7 @@ static ssize_t zbc_ata_native_pwritev(struct zbc_device *dev,
 	cmd.cdb[2] = 0x06;
 	cmd.cdb[5] = (lba_count >> 8) & 0xff;
 	cmd.cdb[6] = lba_count & 0xff;
-	cmd.cdb[7] = (lba_offset >> 24) & 0xff;
-	cmd.cdb[8] = lba_offset & 0xff;
-	cmd.cdb[9] = (lba_offset >> 32) & 0xff;
-	cmd.cdb[10] = (lba_offset >> 8) & 0xff;
-	cmd.cdb[11] = (lba_offset >> 40) & 0xff;
-	cmd.cdb[12] = (lba_offset >> 16) & 0xff;
+	zbc_ata_put_lba(cmd.cdb, lba);
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_WRITE_DMA_EXT;
 
@@ -896,12 +907,7 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 	cmd.cdb[4] = ZBC_ATA_REPORT_ZONES_EXT_AF;
 	cmd.cdb[5] = ((bufsz / 512) >> 8) & 0xff;
 	cmd.cdb[6] = (bufsz / 512) & 0xff;
-	cmd.cdb[8]  = lba & 0xff;
-	cmd.cdb[10] = (lba >>  8) & 0xff;
-	cmd.cdb[12] = (lba >> 16) & 0xff;
-	cmd.cdb[7]  = (lba >> 24) & 0xff;
-	cmd.cdb[9]  = (lba >> 32) & 0xff;
-	cmd.cdb[11] = (lba >> 40) & 0xff;
+	zbc_ata_put_lba(cmd.cdb, lba);
 	cmd.cdb[13] = 1 << 6;
 	cmd.cdb[14] = ZBC_ATA_ZAC_MANAGEMENT_IN;
 
@@ -1056,12 +1062,7 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 		cmd.cdb[3] = 0x01;
 	} else {
 		/* Operate on the zone at lba */
-		cmd.cdb[8] = lba & 0xff;
-		cmd.cdb[10] = (lba >> 8) & 0xff;
-		cmd.cdb[12] = (lba >> 16) & 0xff;
-		cmd.cdb[7] = (lba >> 24) & 0xff;
-		cmd.cdb[9] = (lba >> 32) & 0xff;
-		cmd.cdb[11] = (lba >> 40) & 0xff;
+		zbc_ata_put_lba(cmd.cdb, lba);
 	}
 	cmd.cdb[5] = ((count / 512) >> 8) & 0xff;
 	cmd.cdb[6] = (count / 512) & 0xff;
