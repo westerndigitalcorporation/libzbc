@@ -33,6 +33,7 @@ enum {
 	ZBC_SG_OPEN_ZONE,
 	ZBC_SG_CLOSE_ZONE,
 	ZBC_SG_FINISH_ZONE,
+	ZBC_SG_SEQUENTIALIZE_ZONE,
 	ZBC_SG_RECEIVE_DIAG_RESULTS,
 	ZBC_SG_ATA16,
 
@@ -127,6 +128,13 @@ enum {
 
 /** The total number of log parameters in ZBD Stats page */
 #define ZBC_NR_STAT_PARAMS			11
+
+/**
+ * Sequentialize command definition.
+ */
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_OPCODE	0x94
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_SA	0x10
+#define ZBC_SG_SEQUENTIALIZE_ZONE_CDB_LENGTH	16
 
 /**
  * ATA pass through 16.
