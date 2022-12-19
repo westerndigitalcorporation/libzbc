@@ -66,14 +66,14 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 	struct zbc_device_info info;
 	struct zbc_device *dev;
 	struct zbc_zone *zones = NULL, *tgt = NULL;
-	long long start = 0;
-	unsigned long long start_sector = 0, zone_start;
+	long long start = -1LL;
+	unsigned long long start_sector = -1ULL;
 	unsigned int flags = 0;
 	int i, ret = 1, oflags = 0, zone_count = 0;
 	unsigned int nr_zones, tgt_idx;
 	bool sector_unit = false;
 	bool lba_unit = false;
-	char *path;
+	char *path, *end;
 
 	/* Check command line */
 	if (!argc)
@@ -126,6 +126,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		fprintf(stderr, "No device specified\n");
 		return 1;
 	}
+	path = argv[i];
 
 	if (oflags & ZBC_O_DRV_SCSI && oflags & ZBC_O_DRV_ATA) {
 		fprintf(stderr,
@@ -138,8 +139,39 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		return 1;
 	}
 
+	if (flags & ZBC_OP_ALL_ZONES) {
+		if (i != argc - 1) {
+			fprintf(stderr, "Too many arguments\n");
+			return 1;
+		}
+	} else {
+		if (i >= argc - 1) {
+			fprintf(stderr, "No zone specified\n");
+			return 1;
+		}
+		if (i < argc - 3) {
+			fprintf(stderr, "Too many arguments\n");
+			return 1;
+		}
+
+		/* Get target zone */
+		start = strtoll(argv[i + 1], &end, 10);
+		if (*end != '\0' || start < 0) {
+			fprintf(stderr, "Invalid zone\n");
+			return 1;
+		}
+		i++;
+
+		if (i < argc - 1) {
+			zone_count = strtol(argv[i + 1], &end, 10);
+			if (*end != '\0' || zone_count < 0) {
+				fprintf(stderr, "Invalid zone count\n");
+				return 1;
+			}
+		}
+	}
+
 	/* Open device */
-	path = argv[i];
 	ret = zbc_open(path, oflags | O_RDWR, &dev);
 	if (ret != 0) {
 		if (ret == -ENODEV)
@@ -150,43 +182,6 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 			fprintf(stderr, "Open %s failed (%s)\n",
 				path, strerror(-ret));
 		return 1;
-	}
-
-	if (flags & ZBC_OP_ALL_ZONES) {
-		if (i != argc - 1) {
-			fprintf(stderr, "Too many arguments\n");
-			ret = 1;
-			goto out;
-		}
-	} else {
-		if (argc < 2) {
-			fprintf(stderr, "No zone specified\n");
-			ret = 1;
-			goto out;
-		}
-		if (i > argc - 3) {
-			fprintf(stderr, "Too many arguments\n");
-			ret = 1;
-			goto out;
-		}
-
-		/* Get target zone */
-		start = strtoll(argv[i + 1], NULL, 10);
-		if (start < 0) {
-			fprintf(stderr, "Invalid zone\n");
-			ret = 1;
-			goto out;
-		}
-		i++;
-
-		if (i < argc - 1) {
-			zone_count = strtol(argv[i + 1], NULL, 10);
-			if (zone_count < 0) {
-				fprintf(stderr, "Invalid zone count\n");
-				ret = 1;
-				goto out;
-			}
-		}
 	}
 
 	zbc_get_device_info(dev, &info);
@@ -206,7 +201,7 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 			start_sector = start;
 
 		/* Get zone list */
-		ret = zbc_list_zones(dev, start_sector, ZBC_RO_ALL, &zones, &nr_zones);
+		ret = zbc_list_zones(dev, 0, ZBC_RZ_RO_ALL, &zones, &nr_zones);
 		if ( ret != 0 ) {
 			fprintf(stderr, "zbc_list_zones failed\n");
 			ret = 1;
@@ -214,17 +209,17 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 		}
 
 		if (lba_unit || sector_unit) {
-			struct zbc_zone *z;
-
 			/* Search target zone */
-			z = &zones[0];
-			for (tgt_idx = 0; tgt_idx < nr_zones; tgt_idx++, z++) {
-				if (start_sector >= zbc_zone_start(z) &&
-				    start_sector < zbc_zone_start(z) + zbc_zone_length(z)) {
-					tgt = z;
+			for (tgt_idx = 0; tgt_idx < nr_zones; tgt_idx++) {
+				tgt = &zones[tgt_idx];
+				if (start_sector >= zbc_zone_start(tgt) &&
+				    start_sector < zbc_zone_start(tgt) +
+						    zbc_zone_length(tgt)) {
 					break;
 				}
 			}
+			if (tgt_idx == nr_zones)
+				tgt = NULL;
 		} else if (start < nr_zones) {
 			tgt = &zones[start];
 			tgt_idx = start;
@@ -236,12 +231,19 @@ int zbc_zone_op(char *bin_name, enum zbc_zone_op op,
 			goto out;
 		}
 
-		zone_start = zbc_sect2lba(&info, zbc_zone_start(tgt));
 		if (lba_unit)
-			zone_start = zbc_sect2lba(&info, zone_start);
-		printf("%s zone %d/%d, %s %llu...\n",
-		       zbc_zone_op_name(op), tgt_idx, nr_zones,
-		       lba_unit ? "LBA" : "sector", zone_start);
+			printf("%s zone %d/%d, LBA %llu, %d zone(s)...\n",
+			       zbc_zone_op_name(op),
+			       tgt_idx, nr_zones,
+			       (unsigned long long)zbc_sect2lba(&info, zbc_zone_start(tgt)),
+			       zone_count > 1 ? zone_count : 1);
+		else
+			printf("%s zone %d/%d, sector %llu, %d zone(s)...\n",
+			       zbc_zone_op_name(op),
+			       tgt_idx, nr_zones,
+			       (unsigned long long)zbc_zone_start(tgt),
+			       zone_count > 1 ? zone_count : 1);
+
 	}
 
 	switch (op) {
