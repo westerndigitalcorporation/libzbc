@@ -37,6 +37,8 @@ function zbc_print_usage()
 	echo "                             to skip the execution of multiple tests."
 	echo "  -a | --ata               : Force the use of the ATA backend driver for ZAC devices"
 	echo "  -n | --nosechdr          : Don't display section headers"
+	echo "  -w | --accept-any-fail   : Accept any error code if an error is expected"
+	echo "                             (useful for vendor-specific testing)."
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -113,6 +115,7 @@ print_list=0
 batch_mode=1
 force_ata=0
 no_sec_hdr=0
+accept_any_fail=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -145,6 +148,9 @@ for (( i=0; i<${argc}; i++ )); do
 	-n | --no_sec_hdr )
 		no_sec_hdr=1
 		;;
+	-w | --accept-any-fail )
+		accept_any_fail=1
+		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
 		zbc_print_usage
@@ -169,6 +175,12 @@ if [ ${print_list} -eq 1 ]; then
 	exec_list=()
 	skip_list=()
 	device=""
+fi
+
+if [ ${accept_any_fail} -ne 0 ]; then
+	export ZBC_ACCEPT_ANY_FAIL="Y"
+else
+	unset ZBC_ACCEPT_ANY_FAIL
 fi
 
 . scripts/zbc_test_lib.sh
