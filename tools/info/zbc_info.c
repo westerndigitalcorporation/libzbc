@@ -26,8 +26,7 @@ static int zbc_info_usage(FILE *out, char *bin_name)
 		"  -V | --version : Display the library version\n"
 		"  -scsi          : Force the use of SCSI passthrough commands\n"
 		"  -ata           : Force the use of ATA passthrough commands\n"
-		"  -s             : Print zoned block device statistics (SCSI only)\n"
-		"  -e             : Print information for an emulated device\n",
+		"  -s             : Print zoned block device statistics (SCSI only)\n",
 		basename(bin_name));
 	return 1;
 
@@ -61,7 +60,7 @@ int main(int argc, char **argv)
 	struct zbc_device *dev;
 	struct zbc_device_info info;
 	struct zbc_zoned_blk_dev_stats stats;
-	bool do_fake = false, do_stats = false;
+	bool do_stats = false;
 	int ret, i, oflags = 0;
 	char *path;
 
@@ -95,10 +94,6 @@ int main(int argc, char **argv)
 
 			oflags = ZBC_O_DRV_ATA;
 
-		} else if (strcmp(argv[i], "-e") == 0) {
-
-			do_fake = true;
-
 		} else if (strcmp(argv[i], "-s") == 0) {
 
 			do_stats = true;
@@ -130,11 +125,6 @@ int main(int argc, char **argv)
 			"-scsi and -ata options are mutually exclusive\n");
 		return 1;
 	}
-	if (oflags && do_fake) {
-		fprintf(stderr,
-			"-e option is mutually exclusive with -scsi and -ata options\n");
-		return 1;
-	}
 
 	/* Open device */
 	path = argv[i];
@@ -163,7 +153,7 @@ int main(int argc, char **argv)
 
 		zbc_close(dev);
 	} else {
-		ret = zbc_device_is_zoned(path, do_fake, &info);
+		ret = zbc_device_is_zoned(path, false, &info);
 		if (ret < 0) {
 			fprintf(stderr,
 				"zbc_device_is_zoned failed %d (%s)\n",

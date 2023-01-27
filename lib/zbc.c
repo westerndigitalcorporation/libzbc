@@ -27,7 +27,6 @@ static struct zbc_drv *zbc_drv[] = {
 	&zbc_block_drv,
 	&zbc_scsi_drv,
 	&zbc_ata_drv,
-	&zbc_fake_drv,
 	NULL
 };
 
@@ -192,8 +191,6 @@ const char *zbc_device_type_str(enum zbc_dev_type type)
 		return "SCSI ZBC device";
 	case ZBC_DT_ATA:
 		return "ATA ZAC device";
-	case ZBC_DT_FAKE:
-		return "Emulated zoned block device";
 	case ZBC_DT_UNKNOWN:
 	default:
 		return "Unknown-device-type";
@@ -403,7 +400,7 @@ static int zbc_get_domain_info(struct zbc_device *dev)
 /**
  * zbc_device_is_zoned - Test if a physical device is zoned.
  */
-int zbc_device_is_zoned(const char *filename, bool allow_fake,
+int zbc_device_is_zoned(const char *filename, bool unused,
 			struct zbc_device_info *info)
 {
 	struct zbc_device *dev = NULL;
@@ -416,8 +413,6 @@ int zbc_device_is_zoned(const char *filename, bool allow_fake,
 
 	/* Test all backends until one accepts the drive. */
 	for (i = 0; zbc_drv[i]; i++) {
-		if (!allow_fake && zbc_drv[i] == &zbc_fake_drv)
-			continue;
 		ret = zbc_drv[i]->zbd_open(path, O_RDONLY, &dev);
 		if (ret == 0) {
 			/* This backend accepted the device */
@@ -1522,42 +1517,6 @@ int zbc_map_iov(const void *buf, size_t sectors,
 int zbc_flush(struct zbc_device *dev)
 {
 	return (dev->zbd_drv->zbd_flush)(dev);
-}
-
-/**
- * zbc_set_zones - Configure zones of an emulated device
- */
-int zbc_set_zones(struct zbc_device *dev,
-		  uint64_t conv_sz, uint64_t zone_sz)
-{
-
-	/* Do this only if supported */
-	if (!dev->zbd_drv->zbd_set_zones)
-		return -ENXIO;
-
-	if (!zbc_dev_sect_paligned(dev, conv_sz) ||
-	    !zbc_dev_sect_paligned(dev, zone_sz))
-		return -EINVAL;
-
-	return (dev->zbd_drv->zbd_set_zones)(dev, conv_sz, zone_sz);
-}
-
-/**
- * zbc_set_write_pointer - Change an emulated device zone write pointers
- */
-int zbc_set_write_pointer(struct zbc_device *dev,
-			  uint64_t sector, uint64_t wp_sector)
-{
-
-	/* Do this only if supported */
-	if (!dev->zbd_drv->zbd_set_wp)
-		return -ENXIO;
-
-	if (!zbc_dev_sect_paligned(dev, sector) ||
-	    !zbc_dev_sect_paligned(dev, wp_sector))
-		return -EINVAL;
-
-	return (dev->zbd_drv->zbd_set_wp)(dev, sector, wp_sector);
 }
 
 /**

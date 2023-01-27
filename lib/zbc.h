@@ -113,20 +113,6 @@ struct zbc_drv {
 	int		(*zbd_flush)(struct zbc_device *);
 
 	/**
-	 * Change a device zone configuration.
-	 * For emulated drives only (optional).
-	 */
-	int		(*zbd_set_zones)(struct zbc_device *,
-					 uint64_t, uint64_t);
-
-	/**
-	 * Change a zone write pointer.
-	 * For emulated drives only (optional).
-	 */
-	int		(*zbd_set_wp)(struct zbc_device *,
-				      uint64_t, uint64_t);
-
-	/**
 	 * Zoned Block Device statistics (optional).
 	 */
 	int		(*zbd_get_stats)(struct zbc_device *,
@@ -237,9 +223,8 @@ static inline void zbc_clear_errno(void)
 #define ZBC_O_MODE_MASK		(O_RDONLY | O_WRONLY | O_RDWR)
 #define ZBC_O_DMODE_MASK	(ZBC_O_MODE_MASK | O_DIRECT)
 #define ZBC_O_DRV_MASK		(ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
-				 ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE)
-#define ZBC_O_TEST_DRV_MASK	(ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA | \
-				 ZBC_O_DRV_FAKE)
+				 ZBC_O_DRV_ATA)
+#define ZBC_O_TEST_DRV_MASK	(ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
 /**
  * Test if a device is in test mode.
@@ -264,11 +249,6 @@ extern struct zbc_drv zbc_ata_drv;
  * ZBC (SCSI) device driver (uses SG_IO).
  */
 extern struct zbc_drv zbc_scsi_drv;
-
-/**
- * ZBC emulation driver (file or block device).
- */
-extern struct zbc_drv zbc_fake_drv;
 
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))

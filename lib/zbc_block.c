@@ -244,8 +244,8 @@ static int zbc_block_device_classify(struct zbc_device *dev)
 				      model, sizeof(model));
 	if (ret)
 		/*
-		 * Cannot determine type: go on with SCSI,
-		 * ATA or fake backends.
+		 * Cannot determine type: go on with SCSI or
+		 * ATA backends.
 		 */
 		return -ENXIO;
 

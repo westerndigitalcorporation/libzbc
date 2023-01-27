@@ -875,11 +875,6 @@ enum zbc_dev_type {
 	 */
 	ZBC_DT_ATA	= 0x03,
 
-	/**
-	 * Fake device (emulation mode).
-	 */
-	ZBC_DT_FAKE	= 0x04,
-
 };
 
 /**
@@ -1374,13 +1369,10 @@ extern char const *zbc_version(void);
 /**
  * @brief Test if a device is a zoned block device
  * @param[in] filename	Path to the device file
- * @param[in] fake	If true, also test emulated devices
+ * @param[in] unused	Previously used to allow emulation mode
  * @param[in] info	Address where to store the device information
  *
- * Test if a device supports the ZBC/ZAC command set. If \a fake is false,
- * only test physical devices. Otherwise, also test regular files and
- * regular block devices that may be in use with the fake backend driver
- * to create an emulated host-managed zoned block device.
+ * Test if a device supports the ZBC/ZAC command set.
  * If \a info is not NULL and the device is identified as a zoned
  * block device, the device information is returned at the address
  * specified by \a info.
@@ -1389,7 +1381,7 @@ extern char const *zbc_version(void);
  * 1 is returned if the device is identified as a zoned zoned block device.
  * Otherwise, 0 is returned.
  */
-extern int zbc_device_is_zoned(const char *filename, bool fake,
+extern int zbc_device_is_zoned(const char *filename, bool unused,
 			       struct zbc_device_info *info);
 
 /**
@@ -1411,9 +1403,6 @@ enum zbc_oflags {
 	/** Allow use of the ATA backend driver */
 	ZBC_O_DRV_ATA		= 0x04000000,
 
-	/** Allow use of the fake device backend driver */
-	ZBC_O_DRV_FAKE		= 0x08000000,
-
 };
 
 /**
@@ -1424,9 +1413,7 @@ enum zbc_oflags {
  *
  * Opens the device pointed by \a filename, and returns a handle to it
  * at the address specified by \a dev if the device is a zoned block device
- * supporting the ZBC or ZAC command set. \a filename may specify the path to
- * a regular block device file or a regular file to be used with libzbc
- * emulation mode (ZBC_DT_FAKE device type).
+ * supporting the ZBC or ZAC command set.
  * \a flags specifies the device access mode flags.O_RDONLY, O_WRONLY and O_RDWR
  * can be specified. Other POSIX defined O_xxx flags are ignored. Additionally,
  * if \a filename specifies the path to a zoned block device file or an emulated

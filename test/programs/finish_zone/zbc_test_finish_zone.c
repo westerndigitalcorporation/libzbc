@@ -56,8 +56,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Open device */
-	oflags = ZBC_O_DEVTEST;
-	oflags |= ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE;
+	oflags = ZBC_O_DEVTEST | ZBC_O_DRV_ATA;
 	if (!getenv("ZBC_TEST_FORCE_ATA"))
 		oflags |= ZBC_O_DRV_SCSI;
 

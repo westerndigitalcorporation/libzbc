@@ -25,8 +25,7 @@ CFILES = \
 	zbc_sg.c \
 	zbc_block.c \
 	zbc_scsi.c \
-	zbc_ata.c \
-	zbc_fake.c
+	zbc_ata.c
 
 HFILES = \
 	zbc.h \

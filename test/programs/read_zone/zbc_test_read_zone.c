@@ -125,8 +125,7 @@ usage:
 	lba_count = (uint32_t)atoi(argv[i+2]);
 
 	/* Open device */
-	oflags = ZBC_O_DEVTEST;
-	oflags |= ZBC_O_DRV_ATA | ZBC_O_DRV_FAKE;
+	oflags = ZBC_O_DEVTEST | ZBC_O_DRV_ATA;
 	if (!getenv("ZBC_TEST_FORCE_ATA"))
 		oflags |= ZBC_O_DRV_SCSI;
 

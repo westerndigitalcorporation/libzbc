@@ -30,9 +30,6 @@ include report_realms/Makefile.am
 include zone_activate/Makefile.am
 include dev_control/Makefile.am
 
-include set_write_ptr/Makefile.am
-include set_zones/Makefile.am
-
 if BUILD_GUI
 include gui/Makefile.am
 include viewer/Makefile.am

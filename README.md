@@ -311,16 +311,6 @@ Once the device is open, accesses to the device are done transparently using the
 device handle returned by the *zbc_open()* function. Operations such as report
 zones, reset zone write pointer, etc. only need the device handle.
 
-### Emulation Mode
-
-*libzbc* can emulate host-managed disks operation using a regular file or a
-legacy standard block device file (regular disk or loopback device). The use of
-the library in such case is identical to the native mode case, assuming that
-the emulated device is first configured by executing the *zbc_set_zones tool*.
-For an emulated zoned block device setup using a regular block device, the block
-device file of the backend device must always be used. Using the backend device
-SG node file will not work.
-
 ### Functions Documentation
 
 More detailed information on *libzbc* functions and data types is available
@@ -370,14 +360,6 @@ examples. These applications are as follows.
 * **zbc_write_zone** This application illustrates the use of the functions
   *zbc_pwrite()* and *zbc_pwritev()* to write data to a zone at the zone write
   pointer location.
-
-* **zbc_set_zones** This application can be used to initialize the ZBC emulation
-  mode for a regular file or a raw standard block device.
-
-* **zbc_set_write_ptr** This application can be used to set the write pointer of
-  a zone of an emulated ZBC device to any LBA value (within the range of the
-  specified zone). It is intended for testing purposes only and is not valid for
-  native ZBC devices.
 
 * **gzbc** provides a graphical user interface showing zone information of a
   zoned device. It also displays the write status (write pointer position) of
