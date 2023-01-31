@@ -39,12 +39,16 @@ arg_l=""
 if [ ${RUN_ACTIVATIONS_ONLY} ]; then
     arg_l="-l"
 fi
+arg_x=""
+if [ ${ZBC_RUN_EXTENDED_TESTS} ]; then
+    arg_x="-x"
+fi
 
 # Specify post-processing to occur when script exits
 zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 
 # Start ZBC test
-zbc_test_meta_run ./zbc_xmr_test.sh ${arg_a} ${arg_b} ${arg_w} ${arg_l} -n ${eexec_list} ${cskip_list} ${device}
+zbc_test_meta_run ./zbc_xmr_test.sh ${arg_a} ${arg_b} ${arg_w} ${arg_x} ${arg_l} -n ${eexec_list} ${cskip_list} ${device}
 if [ $? -ne 0 ]; then
     sk="04.010 fail -- log path ${ZBC_TEST_LOG_PATH_BASE}"
     asc="child test of 04.010 failed $?"

@@ -10,6 +10,8 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "ZONE ACTIVATE${zbc_test_actv_flags}: deactivate FULL SOBR zone" $*
 
 # Set expected error code

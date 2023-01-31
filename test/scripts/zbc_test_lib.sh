@@ -282,6 +282,12 @@ function zbc_test_case_on_exit()
 # For test script creation:
 function zbc_test_init()
 {
+	if [ -n "${EXTENDED_TEST}" -a -z "${ZBC_RUN_EXTENDED_TESTS}" ]; then
+		if [ -z "${NOT_EXTENDED_TEST}" ]; then
+			exit 0
+		fi
+	fi
+
 	if [ $# -ne 5 -a $# -ne 6 ]; then
 		echo "Usage: $1 <description> <program path> <log path> <section number> <device>"
 		exit 1

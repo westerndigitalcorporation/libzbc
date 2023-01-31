@@ -45,7 +45,8 @@ function zbc_print_usage()
 	echo "  -n | --noformat             : Skip formatting of the test device."
 	echo "  -w | --accept-any-fail      : Accept any error code if an error is expected"
 	echo "                                (useful for vendor-specific testing)."
-	echo "  -x | --run_activations_only : Run through activation layouts, but don't run tests"
+	echo "  -x | --run_extended_tests   : Run all test including those that typically N/A."
+	echo "  -t | --run_activations_only : Run through activation layouts, but don't run tests"
 	echo "                                for individual layouts, list them instead."
 	echo "  -o | --offline              : Specify this flag if testing a device that has"
 	echo "                                any offline and/or read-only zones."
@@ -126,6 +127,7 @@ skip_format_dut=0
 test_faulty=0
 accept_any_fail=0
 run_activations_only=0
+run_extended_tests=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -192,6 +194,9 @@ for (( i=0; i<${argc}; i++ )); do
 		;;
 	-t | --run_activations_only)
 		run_activations_only=1
+		;;
+	-x | --run_extended_tests )
+		run_extended_tests=1
 		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
@@ -589,6 +594,12 @@ function do_exports()
 	export RUN_ACTIVATIONS_ONLY="Y"
     else
 	unset RUN_ACTIVATIONS_ONLY
+    fi
+
+    if [ ${run_extended_tests} -ne 0 ]; then
+	export ZBC_RUN_EXTENDED_TESTS="Y"
+    else
+	unset ZBC_RUN_EXTENDED_TESTS
     fi
 
     # Transmit --batch flag to meta-children via Section 04 scripts

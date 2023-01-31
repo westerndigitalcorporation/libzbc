@@ -10,6 +10,8 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "ZONE ACTIVATE${zbc_test_actv_flags}: non-activation CONV or SOBR to unsupported type ${test_actv_type:-"sequential"} (realm addressing)" $*
 
 # Set expected error code

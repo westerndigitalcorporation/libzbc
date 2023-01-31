@@ -10,6 +10,8 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "ZONE ACTIVATE${zbc_test_actv_flags}: LBA not realm-aligned (zone addressing)" $*
 
 zbc_test_get_device_info

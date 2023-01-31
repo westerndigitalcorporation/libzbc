@@ -39,6 +39,7 @@ function zbc_print_usage()
 	echo "  -n | --nosechdr          : Don't display section headers"
 	echo "  -w | --accept-any-fail   : Accept any error code if an error is expected"
 	echo "                             (useful for vendor-specific testing)."
+	echo "  -x | --run_extended_tests: Run all test including those that typically N/A."
 	echo "Test numbers must be in the form \"<section number>.<case number>\"."
 	echo "The device path can be omitted with the -h and -l options."
 	echo "If -e and -s are not used, all defined test cases are executed."
@@ -116,6 +117,7 @@ batch_mode=1
 force_ata=0
 no_sec_hdr=0
 accept_any_fail=0
+run_extended_tests=0
 
 # Store argument
 for (( i=0; i<${argc}; i++ )); do
@@ -151,6 +153,9 @@ for (( i=0; i<${argc}; i++ )); do
 	-w | --accept-any-fail )
 		accept_any_fail=1
 		;;
+	-x | --run_extended_tests )
+		run_extended_tests=1
+		;;
 	-* )
 		echo "Unknown option \"${argv[$i]}\""
 		zbc_print_usage
@@ -181,6 +186,12 @@ if [ ${accept_any_fail} -ne 0 ]; then
 	export ZBC_ACCEPT_ANY_FAIL="Y"
 else
 	unset ZBC_ACCEPT_ANY_FAIL
+fi
+
+if [ ${run_extended_tests} -ne 0 ]; then
+	export ZBC_RUN_EXTENDED_TESTS="Y"
+else
+	unset ZBC_RUN_EXTENDED_TESTS
 fi
 
 . scripts/zbc_test_lib.sh

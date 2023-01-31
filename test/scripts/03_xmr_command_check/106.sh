@@ -10,6 +10,8 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "ZONE ACTIVATE${zbc_test_actv_flags}: NZONE not realm-integral (zone addressing)" $*
 
 # Set expected error code
