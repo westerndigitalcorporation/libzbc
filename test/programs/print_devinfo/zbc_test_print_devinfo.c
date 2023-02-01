@@ -23,20 +23,41 @@
  */
 static int zbc_get_last_zone(struct zbc_device *dev, struct zbc_zone *z, unsigned int *nz)
 {
-	unsigned int nr_zones;
+	struct zbc_device_info info;
+	unsigned int nr_zones, list_nz;
 	struct zbc_zone *zones;
 	int ret;
 
-	/* Get zone list */
-	ret = zbc_list_zones(dev, 0, ZBC_RZ_RO_ALL, &zones, &nr_zones);
+	zbc_get_device_info(dev, &info);
+
+	if (nz)
+		*nz = 0;
+
+	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RZ_RO_ALL, &nr_zones);
+	if (ret != 0) {
+		fprintf(stderr,
+			"[TEST][ERROR],zbc_report_nr_zones failed %d\n",
+			ret);
+		return ret;
+	}
+
+	/* List the last zone only */
+	ret = zbc_list_zones(dev, zbc_lba2sect(&info, info.zbd_lblocks - 1),
+			     ZBC_RZ_RO_ALL, &zones, &list_nz);
 	if (ret != 0) {
 		fprintf(stderr,
 			"[TEST][ERROR],zbc_list_zones failed %d\n",
 			ret);
 		return ret;
 	}
+	if (list_nz != 1) {
+		fprintf(stderr,
+			"[TEST][ERROR], %u zones (!= 1) returned by zbc_list_zones\n",
+			list_nz);
+		return ret;
+	}
 
-	memcpy(z, &zones[nr_zones - 1], sizeof(struct zbc_zone));
+	memcpy(z, zones, sizeof(struct zbc_zone));
 	if (nz)
 		*nz = nr_zones;
 
