@@ -24,7 +24,6 @@ int zbc_log_level = ZBC_LOG_WARNING;
  * Backend drivers.
  */
 static struct zbc_drv *zbc_drv[] = {
-	&zbc_block_drv,
 	&zbc_scsi_drv,
 	&zbc_ata_drv,
 	NULL
@@ -185,8 +184,6 @@ void zbc_set_log_level(char const *log_level)
 const char *zbc_device_type_str(enum zbc_dev_type type)
 {
 	switch (type) {
-	case ZBC_DT_BLOCK:
-		return "Zoned block device";
 	case ZBC_DT_SCSI:
 		return "SCSI ZBC device";
 	case ZBC_DT_ATA:

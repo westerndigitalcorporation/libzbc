@@ -222,8 +222,7 @@ static inline void zbc_clear_errno(void)
  */
 #define ZBC_O_MODE_MASK		(O_RDONLY | O_WRONLY | O_RDWR)
 #define ZBC_O_DMODE_MASK	(ZBC_O_MODE_MASK | O_DIRECT)
-#define ZBC_O_DRV_MASK		(ZBC_O_DRV_BLOCK | ZBC_O_DRV_SCSI | \
-				 ZBC_O_DRV_ATA)
+#define ZBC_O_DRV_MASK		(ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 #define ZBC_O_TEST_DRV_MASK	(ZBC_O_DRV_SCSI | ZBC_O_DRV_ATA)
 
 /**
@@ -234,11 +233,6 @@ static inline void zbc_clear_errno(void)
 #else
 #define zbc_test_mode(dev)	(false)
 #endif
-
-/**
- * Block device driver (requires kernel support).
- */
-extern struct zbc_drv zbc_block_drv;
 
 /**
  * ZAC (ATA) device driver (uses SG_IO).
@@ -289,15 +283,6 @@ static inline size_t zbc_iov_count(const struct iovec *iov, int iovcnt)
 
 	return count;
 }
-
-/**
- * The block backend driver uses the SCSI backend information and
- * some zone operation.
- */
-int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev);
-int zbc_scsi_zone_op(struct zbc_device *dev, uint64_t start_sector,
-		     unsigned int count, enum zbc_zone_op op,
-		     unsigned int flags);
 
 /**
  * The ATA backend driver may use the SCSI backend I/O functions.

@@ -23,7 +23,6 @@ CFILES = \
 	zbc.c \
 	zbc_utils.c \
 	zbc_sg.c \
-	zbc_block.c \
 	zbc_scsi.c \
 	zbc_ata.c
 

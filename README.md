@@ -152,9 +152,7 @@ of the test execution is possible using the `-e` (execute) and `-s`(skip)
 options. Run `zbc_test.sh --help` for details.
 
 *libzbc* tests check the detailed error output from the device for invalid
-commands. This detailed error output cannot be obtained for a device being
-accessed using the block device backend driver. Specifying a block device file
-for the tests is thus not allowed.
+commands.
 
 Each test outputs a log file in the `test/log` directory. These files can be
 consulted in case of a failed test to identify the reason for the test failure.

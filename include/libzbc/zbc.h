@@ -861,11 +861,6 @@ enum zbc_dev_type {
 	ZBC_DT_UNKNOWN	= 0x00,
 
 	/**
-	 * Zoned block device (for kernels supporting ZBC/ZAC).
-	 */
-	ZBC_DT_BLOCK	= 0x01,
-
-	/**
 	 * SCSI device.
 	 */
 	ZBC_DT_SCSI	= 0x02,
@@ -1394,8 +1389,11 @@ extern int zbc_device_is_zoned(const char *filename, bool unused,
  */
 enum zbc_oflags {
 
-	/** Allow use of the block device backend driver */
-	ZBC_O_DRV_BLOCK		= 0x01000000,
+	/*
+	 * Block device backend is removed, keep zero mask
+	 * defined for backwards compatibility.
+	 */
+	ZBC_O_DRV_BLOCK		= 0x00000000,
 
 	/** Allow use of the SCSI backend driver */
 	ZBC_O_DRV_SCSI		= 0x02000000,
