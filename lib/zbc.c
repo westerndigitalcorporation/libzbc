@@ -596,6 +596,8 @@ void zbc_print_device_info(struct zbc_device_info *info, FILE *out)
 			(info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) ? "" : "NOT ");
 		fprintf(out, "    Zone Realms command set is %ssupported\n",
 			(info->zbd_flags & ZBC_ZONE_REALMS_SUPPORT) ? "" : "NOT ");
+		fprintf(out, "    Zone operation counts are %ssupported\n",
+			zbc_zone_count_supported(info) ? "" : "NOT ");
 	}
 	if ((info->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) ||
 	    (info->zbd_flags & ZBC_ZONE_REALMS_SUPPORT)) {
@@ -746,6 +748,10 @@ int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
 		      unsigned int count, enum zbc_zone_op op,
 		      unsigned int flags)
 {
+	struct zbc_zone zone;
+	unsigned int i, nr_zones;
+	int ret;
+
 	if (!zbc_test_mode(dev) &&
 	    (!(flags & ZBC_OP_ALL_ZONES)) &&
 	    !zbc_dev_sect_laligned(dev, sector))
@@ -757,10 +763,21 @@ int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
 	if (zbc_zone_count_supported(&dev->zbd_info)) {
 		return (dev->zbd_drv->zbd_zone_op)(dev, sector, count, op, flags);
 	} else {
-		zbc_warning("%s: COUNT is not supported by drive, ignoring\n",
+		zbc_debug("%s: zone op COUNT is not supported by drive, emulating\n",
 			    dev->zbd_filename);
-		/* TODO Emulate multi-zone operation */
-		return (dev->zbd_drv->zbd_zone_op)(dev, sector, 0, op, flags);
+		nr_zones = 1;
+		ret = zbc_report_zones(dev, sector, 0, &zone, &nr_zones);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < count; i++) {
+			ret = (dev->zbd_drv->zbd_zone_op)(dev, sector, 0, op, flags);
+			if (ret)
+				return ret;
+			sector += zone.zbz_length;
+		}
+
+		return 0;
 	}
 }
 

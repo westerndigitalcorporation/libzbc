@@ -115,6 +115,7 @@
 #define ZBC_ATA_STRINGS_PAGE			0x05
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
+#define ZBC_ATA_ZAC2_REV1B			0x7317
 /**
  * Driver device flags.
  */
@@ -1289,6 +1290,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	uint64_t qwd;
 	uint8_t buf[512];
 	uint32_t val;
+	unsigned int ver;
 	int ret;
 
 	/* Get zoned block device information */
@@ -1299,6 +1301,21 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 			       sizeof(buf));
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * Check if this device has ZAC-2 ZAC MINOR VERSION.
+	 * If this is the case, the device should support COUNT field
+	 * for zone operations.
+	 */
+	qwd = zbc_ata_get_qword(&buf[48]);
+	ver = qwd & 0xffff;
+	zbc_debug("%s: ZAC minor version is 0x%04Xh\n",
+		  dev->zbd_filename, ver);
+	if (ver == ZBC_ATA_ZAC2_REV1B) {
+		zbc_debug("%s: device supports zone op counts\n",
+			  dev->zbd_filename);
+		di->zbd_flags |= ZBC_ZONE_OP_COUNT_SUPPORT;
+	}
 
 	/*
 	 * Check if Zone Domains/Realms command set is supported.

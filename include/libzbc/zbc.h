@@ -1033,6 +1033,10 @@ enum zbc_dev_flags {
 	 */
 	ZBC_SOBR_REALMS_SHIFTING = 0x00020000,
 
+	/**
+	 * Indicates that the device supports ZAC-2 zone operation counts.
+	 */
+	ZBC_ZONE_OP_COUNT_SUPPORT = 0x00040000,
 };
 
 /**
@@ -1157,11 +1161,12 @@ static inline bool zbc_device_is_zdr(struct zbc_device_info *info)
 static inline bool zbc_zone_count_supported(struct zbc_device_info *info)
 {
 	/*
-	 * FIXME To return the proper value, we need to know if this
-	 * drive supports ZAC-2/ZBC-2. For now, just assume that
-	 * ZD/ZR devices support this.
+	 * Assume that ZD/ZR devices support zone op counts.
+	 * If this is a regular SMR device, check the support flag
+	 * that is set during the scan.
 	 */
-	return zbc_device_is_zdr(info);
+	return zbc_device_is_zdr(info) ||
+	       (info->zbd_flags & ZBC_ZONE_OP_COUNT_SUPPORT);
 }
 
 /**
