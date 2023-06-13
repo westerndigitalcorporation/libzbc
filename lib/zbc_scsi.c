@@ -735,7 +735,7 @@ static int zbc_scsi_report_domains(struct zbc_device *dev, uint64_t sector,
 	 * | 1   |      Reserved            |           Service Action (07h)             |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 2   | (MSB)                                                                 |
-	 * |- - -+---                         Realm Start LBA                         ---|
+	 * |- - -+---                        Zone Domain Locator                      ---|
 	 * | 9   |                                                                 (LSB) |
 	 * |-----+-----------------------------------------------------------------------|
 	 * | 10  | (MSB)                                                                 |
@@ -1720,9 +1720,13 @@ out:
 int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 {
 	struct zbc_device_info *di = &dev->zbd_info;
+	struct zbc_zone_domain *domains, *d;
+	struct zbc_zone_domain dom;
 	uint8_t buf[ZBC_SCSI_VPD_PAGE_B6_LEN];
 	uint32_t val;
-	int ret;
+	unsigned int nr_domains;
+	int i, ret;
+	uint8_t zbd_ext;
 
 	ret = zbc_scsi_vpd_inquiry(dev, 0xB6, buf, ZBC_SCSI_VPD_PAGE_B6_LEN);
 	if (ret != 0) {
@@ -1737,31 +1741,27 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 	 * Zone Domains/Zone Realms support.
 	 */
 	di->zbd_flags |= (buf[4] & 0x01) ? ZBC_UNRESTRICTED_READ : 0;
-	di->zbd_flags |= (buf[4] & 0x02) ? ZBC_ZONE_REALMS_SUPPORT : 0;
-	di->zbd_flags |= (buf[4] & 0x04) ? ZBC_ZONE_DOMAINS_SUPPORT : 0;
-	if (di->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT ||
-	    di->zbd_flags & ZBC_ZONE_REALMS_SUPPORT) {
 
+	/* TODO recognize and support AAORB bit (0x02) */
+
+	zbd_ext = (buf[4] >> 4) & 0x0f;
+	if (zbd_ext == 2) {
+		/* Mark both Zone Realms and Zone Domains supported */
 		di->zbd_model = ZBC_DM_HOST_MANAGED;
+		di->zbd_flags |= ZBC_ZONE_DOMAINS_SUPPORT |
+				 ZBC_ZONE_REALMS_SUPPORT |
+				 ZBC_REPORT_REALMS_SUPPORT |
+				 ZBC_GAP_ZONE_SUPPORT;
 
-		/* Check what Zone Domains features are supported */
-		di->zbd_flags |= (buf[4] & 0x08) ? ZBC_NOZSRC_SUPPORT : 0;
-		di->zbd_flags |= (buf[4] & 0x10) ? ZBC_URSWRZ_SET_SUPPORT : 0;
-		di->zbd_flags |= (buf[4] & 0x20) ? ZBC_REPORT_REALMS_SUPPORT : 0;
-		di->zbd_flags |= (buf[4] & 0x40) ? ZBC_ZA_CONTROL_SUPPORT : 0;
-		di->zbd_flags |= (buf[4] & 0x80) ? ZBC_MAXACT_SET_SUPPORT : 0;
-
-		/* Check what zone types are supported */
-		di->zbd_flags |= (buf[10] & 0x01) ? ZBC_CONV_ZONE_SUPPORT : 0;
-		di->zbd_flags |= (buf[10] & 0x02) ? ZBC_SEQ_PREF_ZONE_SUPPORT : 0;
-		di->zbd_flags |= (buf[10] & 0x04) ? ZBC_SEQ_REQ_ZONE_SUPPORT : 0;
-		di->zbd_flags |= (buf[10] & 0x08) ? ZBC_SOBR_ZONE_SUPPORT : 0;
-		di->zbd_flags |= (buf[10] & 0x10) ? ZBC_GAP_ZONE_SUPPORT : 0;
-
-		di->zbd_max_activation = zbc_sg_get_int16(&buf[20]);
 	} else if (di->zbd_model == ZBC_DM_STANDARD) {
-		zbc_debug("%s: standard SCSI device detected\n",
-			  dev->zbd_filename);
+		if (zbd_ext == 1) {
+			zbc_debug("%s: device detected as Host Aware by ZBD extension\n",
+				  dev->zbd_filename);
+			di->zbd_model = ZBC_DM_HOST_AWARE;
+		} else {
+			zbc_debug("%s: standard SCSI device detected\n",
+				  dev->zbd_filename);
+		}
 	}
 
 	if (!zbc_dev_is_zoned(dev))
@@ -1810,6 +1810,55 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 
 	}
 
+	if (di->zbd_flags & ZBC_ZONE_DOMAINS_SUPPORT) {
+		/*
+		 * Check what zone types besides GAP are supported by the device.
+		 * For SCSI, we have to issue REPORT DOMAINS and fetch
+		 * the zone type of every domain.
+		 */
+		ret = zbc_scsi_report_domains(dev, 0LL, ZBC_RZD_RO_ALL, &dom, 1);
+		if (ret < 0) {
+			zbc_error("%s: can't get nr. of domains, err %d\n",
+				  dev->zbd_filename, ret);
+			/*
+			 * This error may happen if the kernel SAT doesn't support ZD/ZR.
+			 * Allow the ATA driver to scan this device.
+			 */
+			return -ENXIO;
+		}
+		nr_domains = ret;
+
+		domains = (struct zbc_zone_domain *)calloc(nr_domains,
+						 sizeof(struct zbc_zone_domain));
+		if (!domains)
+			return -ENOMEM;
+
+		ret = zbc_scsi_report_domains(dev, 0LL, ZBC_RZD_RO_ALL, domains, nr_domains);
+		if (ret < 0)
+			return ret;
+
+		for (i = 0, d = domains; i < (int)nr_domains; i++, d++) {
+			if (zbc_zone_domain_flags(d) & ZBC_ZDF_VALID_ZONE_TYPE) {
+				switch (zbc_zone_domain_type(d)) {
+				case ZBC_ZT_CONVENTIONAL:
+					di->zbd_flags |= ZBC_CONV_ZONE_SUPPORT;
+					break;
+				case ZBC_ZT_SEQUENTIAL_REQ:
+					di->zbd_flags |= ZBC_SEQ_REQ_ZONE_SUPPORT;
+					break;
+				case ZBC_ZT_SEQUENTIAL_PREF:
+					di->zbd_flags |= ZBC_SEQ_PREF_ZONE_SUPPORT;
+					break;
+				case ZBC_ZT_SEQ_OR_BEF_REQ:
+					di->zbd_flags |= ZBC_SOBR_ZONE_SUPPORT;
+					break;
+				default:;
+				}
+			}
+		}
+
+		free(domains);
+	}
 	return 0;
 }
 
