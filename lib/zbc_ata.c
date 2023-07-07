@@ -115,7 +115,16 @@
 #define ZBC_ATA_STRINGS_PAGE			0x05
 #define ZBC_ATA_ZONED_DEVICE_INFORMATION_PAGE	0x09
 
+/**
+ * ZAC minor versions.
+ */
+#define ZBC_ATA_ZAC_REV01			0xB6E8
+#define ZBC_ATA_ZAC_REV04			0xA36C
+#define ZBC_ATA_ZAC_REV05			0x05CF
 #define ZBC_ATA_ZAC2_REV1B			0x7317
+#define ZBC_ATA_ZAC2_REV12			0xB403
+#define ZBC_ATA_ZAC2_REV15			0x3612
+
 /**
  * Driver device flags.
  */
@@ -1311,10 +1320,45 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 	ver = qwd & 0xffff;
 	zbc_debug("%s: ZAC minor version is 0x%04Xh\n",
 		  dev->zbd_filename, ver);
-	if (ver == ZBC_ATA_ZAC2_REV1B) {
-		zbc_debug("%s: device supports zone op counts\n",
-			  dev->zbd_filename);
-		di->zbd_flags |= ZBC_ZONE_OP_COUNT_SUPPORT;
+	if (!ver || ver == 0xffff) {
+		zbc_warning("%s: ZAC minor version is not reported\n",
+			    dev->zbd_filename);
+	} else {
+		switch(ver) {
+		case ZBC_ATA_ZAC_REV01:
+			zbc_debug("%s: ZAC minor version is 01\n",
+				  dev->zbd_filename);
+			break;
+		case ZBC_ATA_ZAC_REV04:
+			zbc_debug("%s: ZAC minor version is 04\n",
+				  dev->zbd_filename);
+			break;
+		case ZBC_ATA_ZAC_REV05:
+			zbc_debug("%s: ZAC minor version is 05\n",
+				  dev->zbd_filename);
+			break;
+		case ZBC_ATA_ZAC2_REV1B:
+			zbc_debug("%s: ZAC minor version is ZAC-2 Rev. 1b\n",
+				  dev->zbd_filename);
+			di->zbd_flags |= ZBC_ZONE_OP_COUNT_SUPPORT;
+			break;
+		case ZBC_ATA_ZAC2_REV12:
+			zbc_debug("%s: ZAC minor version is ZAC-2 Rev. 12\n",
+				  dev->zbd_filename);
+			di->zbd_flags |= ZBC_ZONE_OP_COUNT_SUPPORT;
+			break;
+		case ZBC_ATA_ZAC2_REV15:
+			zbc_debug("%s: ZAC minor version is ZAC-2 Rev. 15\n",
+				  dev->zbd_filename);
+			di->zbd_flags |= ZBC_ZONE_OP_COUNT_SUPPORT;
+			break;
+		default:
+			zbc_warning("%s: Unknown ZAC minor version 0x%x\n",
+				    dev->zbd_filename, ver);
+		}
+		if (di->zbd_flags & ZBC_ZONE_OP_COUNT_SUPPORT)
+			zbc_debug("%s: device supports zone op counts\n",
+				  dev->zbd_filename);
 	}
 
 	/*
