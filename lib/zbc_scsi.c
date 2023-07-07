@@ -790,14 +790,13 @@ static int zbc_scsi_report_domains(struct zbc_device *dev, uint64_t sector,
 	buf += ZBC_RPT_DOMAINS_HEADER_SIZE;
 	for (i = 0; i < nr_domains; i++) {
 		domains[i].zbm_id = buf[0];
-
 		domains[i].zbm_nr_zones = zbc_sg_get_int64(&buf[16]);
 		domains[i].zbm_start_sector =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[24]));
 		domains[i].zbm_end_sector =
 			zbc_dev_lba2sect(dev, zbc_sg_get_int64(&buf[32]));
-		domains[i].zbm_flags = zbc_sg_get_int32(&buf[42]);
 		domains[i].zbm_type = buf[40];
+		domains[i].zbm_flags = buf[42];
 		if (!(domains[i].zbm_flags & ZBC_ZDF_VALID_ZONE_TYPE)) {
 #ifndef REJECT_OLD_DOMAIN_FORMAT
 			zbc_warning("%s: Zone type 0x%x not valid for domain %u, flags=0x%x\n",
