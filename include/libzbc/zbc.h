@@ -26,8 +26,6 @@ extern "C" {
 #include <errno.h>
 #include <sys/uio.h>
 
-/* #define ZBC_STANDARD_RPT_REALMS */
-
 /**
  * @mainpage
  *
@@ -1037,6 +1035,11 @@ enum zbc_dev_flags {
 	 * Indicates that the device supports ZAC-2 zone operation counts.
 	 */
 	ZBC_ZONE_OP_COUNT_SUPPORT = 0x00040000,
+
+	/**
+	 * Indicates that the device supports the standard ZAC-2 REPORT REALMS data layout.
+	 */
+	ZBC_STANDARD_RPT_REALMS = 0x00080000,
 };
 
 /**
