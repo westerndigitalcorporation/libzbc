@@ -939,7 +939,7 @@ static int zbc_scsi_report_realms(struct zbc_device *dev, uint64_t sector,
 
 	/* Get number of realm descriptors from the header */
 	buf = cmd.buf;
-	nr = zbc_sg_get_int32(&buf[0]);
+	nr = zbc_sg_get_int32(&buf[4]);
 
 	if (!realms || !nr)
 		goto out;
@@ -948,89 +948,48 @@ static int zbc_scsi_report_realms(struct zbc_device *dev, uint64_t sector,
 	if (nr > *nr_realms)
 		nr = *nr_realms;
 
-	if (dev->zbd_info.zbd_flags & ZBC_STANDARD_RPT_REALMS) {
-		desc_len = zbc_sg_get_int32(&buf[4]);
-		if (!desc_len)
-			goto oldrealms; /* The field is reserved pre ZDr4, so it has to be 0 */
-		next = zbc_sg_get_int64(&buf[8]);
-		if (next) {
-			zbc_error("%s: NEXT REALM LOCATOR is not yet supported",
-				  dev->zbd_filename);
-			ret = -ENXIO; /* FIXME handle */
-			goto out;
-		}
-
-		bufsz = (cmd.bufsz - ZBC_RPT_REALMS_HEADER_SIZE) / desc_len;
-		if (nr > bufsz)
-			nr = bufsz;
-
-		/* Get zone realm descriptors */
-		buf += ZBC_RPT_REALMS_HEADER_SIZE;
-		for (i = 0; i < nr; i++, realms++) {
-			realms->zbr_number = zbc_sg_get_int32(buf);
-			realms->zbr_restr = zbc_sg_get_int16(&buf[4]);
-			realms->zbr_dom_id = buf[7];
-			if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
-				realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
-			realms->zbr_nr_domains = nr_domains;
-			ptr = buf + ZBC_RPT_REALMS_DESC_OFFSET;
-			/* FIXME don't use nr_domains, use desc_len to limit iteration */
-			for (j = 0; j < nr_domains; j++) {
-				ri = &realms->zbr_ri[j];
-				ri->zbi_end_sector =
-						zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
-				if (ri->zbi_end_sector) {
-					realms->zbr_actv_flags |= (1 << j);
-					d = &domains[j];
-					ri->zbi_dom_id = j;
-					ri->zbi_type = d->zbm_type;
-					ri->zbi_start_sector =
-						zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
-					if (d->zbm_nr_zones)
-						zone_size = zbc_zone_domain_zone_size(d);
-					else
-						zone_size = 0;
-					if (zone_size) {
-						ri->zbi_length = (ri->zbi_end_sector + 1 - ri->zbi_start_sector) /
-								 zone_size;
-					}
-				}
-				ptr += ZBC_RPT_REALMS_SE_DESC_SIZE;
-			}
-
-			buf += desc_len;
-		}
+	if (!(dev->zbd_info.zbd_flags & ZBC_STANDARD_RPT_REALMS)) {
+		zbc_error("%s: REPORT REALMS is not supported by device",
+			  dev->zbd_filename);
+		ret = -ENXIO;
 		goto out;
-
-oldrealms:
-		desc_len = ZBC_RPT_REALMS_RECORD_SIZE;
-	} else {
-		desc_len = ZBC_RPT_REALMS_RECORD_SIZE;
-		bufsz = (cmd.bufsz - ZBC_RPT_REALMS_HEADER_SIZE) / desc_len;
-		if (nr > bufsz)
-			nr = bufsz;
 	}
+
+	desc_len = zbc_sg_get_int32(&buf[8]);
+	next = zbc_sg_get_int64(&buf[12]);
+	if (next) {
+		zbc_error("%s: NEXT REALM LOCATOR is not yet supported",
+			  dev->zbd_filename);
+		ret = -ENXIO; /* FIXME handle */
+		goto out;
+	}
+
+	bufsz = (cmd.bufsz - ZBC_RPT_REALMS_HEADER_SIZE) / desc_len;
+	if (nr > bufsz)
+		nr = bufsz;
 
 	/* Get zone realm descriptors */
 	buf += ZBC_RPT_REALMS_HEADER_SIZE;
 	for (i = 0; i < nr; i++, realms++) {
-		realms->zbr_dom_id = buf[0];
+		realms->zbr_number = zbc_sg_get_int32(buf);
+		realms->zbr_restr = zbc_sg_get_int16(&buf[4]);
+		realms->zbr_dom_id = buf[7];
 		if (realms->zbr_dom_id < ZBC_NR_ZONE_TYPES)
 			realms->zbr_type = domains[realms->zbr_dom_id].zbm_type;
-		realms->zbr_actv_flags = buf[1];
-		realms->zbr_number = zbc_sg_get_int16(&buf[2]);
 		realms->zbr_nr_domains = nr_domains;
 		ptr = buf + ZBC_RPT_REALMS_DESC_OFFSET;
+		/* FIXME don't use nr_domains, use desc_len to limit iteration */
 		for (j = 0; j < nr_domains; j++) {
-			if (realms->zbr_actv_flags & (1 << j)) {
+			ri = &realms->zbr_ri[j];
+			ri->zbi_end_sector =
+					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
+			if (ri->zbi_end_sector) {
+				realms->zbr_actv_flags |= (1 << j);
 				d = &domains[j];
-				ri = &realms->zbr_ri[j];
 				ri->zbi_dom_id = j;
 				ri->zbi_type = d->zbm_type;
 				ri->zbi_start_sector =
 					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr));
-				ri->zbi_end_sector =
-					zbc_dev_lba2sect(dev, zbc_sg_get_int64(ptr + 8));
 				if (d->zbm_nr_zones)
 					zone_size = zbc_zone_domain_zone_size(d);
 				else
