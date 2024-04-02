@@ -131,6 +131,7 @@ static struct dz_if_zinfo_filter {
         { ZBC_RO_NON_SEQ,		"Zones not sequentially written" },
         { ZBC_RO_RDONLY,		"Read-only zones"                },
         { ZBC_RO_OFFLINE,		"Offline zones"			 },
+        { ZBC_RO_INACTIVE,		"Inactive zones"		 },
         { 0, NULL }
 };
 
@@ -654,6 +655,8 @@ static void dz_if_zlist_print_zone_type(GtkTreeViewColumn *col,
 		strncpy(str, "Seq write req.", sizeof(str));
 	else if (zbc_zone_sequential_pref(z))
 		strncpy(str, "Seq write pref.", sizeof(str));
+	else if (zbc_zone_gap(z))
+		strncpy(str, "Gap", sizeof(str));
 	else
 		snprintf(str, sizeof(str), "??? (0x%01x)", zbc_zone_type(z));
 	g_object_set(renderer, "text", str, NULL);
@@ -700,6 +703,8 @@ static void dz_if_zlist_print_zone_cond(GtkTreeViewColumn *col,
 		strncpy(str, "Read-only", sizeof(str));
 	} else if (zbc_zone_offline(z)) {
 		strncpy(str, "Offline", sizeof(str));
+	} else if (zbc_zone_inactive(z)) {
+		strncpy(str, "Inactive", sizeof(str));
 	} else {
 		snprintf(str, sizeof(str), "??? (0x%01x)", z->zbz_condition);
 	}
