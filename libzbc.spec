@@ -89,5 +89,5 @@ find ${RPM_BUILD_ROOT} -name '*.la' -delete
 %license LICENSES/LGPL-3.0-or-later.txt
 
 %changelog
-* Wed Nov 02 2022 Damien Le Moal <damien.lemoal@wdc.com> 5.13.0-1
-- Version 5.13.0 package
+* Tue Apr 02 2024 Dmitry Fomichev <dmitry.fomichev@wdc.com> 6.0.0-1
+- Version 6.0.0 package
