@@ -262,25 +262,31 @@ static dz_dev_t *dz_if_get_device(void)
 
 static void dz_if_open_cb(GtkWidget *widget, gpointer user_data)
 {
+	GtkFileChooser *chooser;
+	GtkFileFilter *filter;
 	GtkWidget *dialog;
 	char *dev_path = NULL;
 	gint res;
 
 	/* File chooser */
-	dialog = gtk_file_chooser_dialog_new ("Open Device",
+	dialog = gtk_file_chooser_dialog_new("Open Zoned Block Device",
 					      GTK_WINDOW(dz.window),
 					      GTK_FILE_CHOOSER_ACTION_OPEN,
-					      "_Cancel",
-					      GTK_RESPONSE_CANCEL,
-					      "_Open",
-					      GTK_RESPONSE_ACCEPT,
+					      "_Cancel", GTK_RESPONSE_CANCEL,
+					      "_Open", GTK_RESPONSE_ACCEPT,
 					      NULL);
 
+	chooser = GTK_FILE_CHOOSER(dialog);
+	gtk_file_chooser_set_current_folder(chooser, "/dev/");
+
+	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "Block Device Files");
+	gtk_file_filter_add_mime_type(filter, "inode/blockdevice");
+	gtk_file_chooser_add_filter(chooser, filter);
+
 	res = gtk_dialog_run(GTK_DIALOG(dialog));
-	if (res == GTK_RESPONSE_ACCEPT) {
-		GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+	if (res == GTK_RESPONSE_ACCEPT)
 		dev_path = gtk_file_chooser_get_filename(chooser);
-	}
 
 	gtk_widget_destroy(dialog);
 
