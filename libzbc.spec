@@ -18,7 +18,7 @@ BuildRequires:	gcc
 libzbc is a SCSI and ATA passthrough command library providing functions for
 managing SCSI and ATA devices supporting the Zoned Block Command (ZBC) and
 Zoned-device ATA command set (ZAC) specifications. libzbc implementation is
-compliant with the ZBC and ZAC r05 standards defined by INCITS technical
+compliant with the ZBC-2 and ZAC-2 standards defined by INCITS technical
 committee T10 and T13 (respectively).
 
 # Development headers package
