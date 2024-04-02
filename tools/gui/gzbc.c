@@ -337,6 +337,9 @@ dz_dev_t *dz_open(char *path)
 	}
 
 	if (!dzd) {
+		dz_if_err("Too many open devices",
+			  "At most %d devices can be open",
+			  (int)DZ_MAX_DEV);
 		fprintf(stderr, "Too many open devices\n");
 		return NULL;
 	}
@@ -344,8 +347,14 @@ dz_dev_t *dz_open(char *path)
 	/* Open device file */
 	strncpy(dzd->path, path, sizeof(dzd->path) - 1);
 	ret = zbc_open(dzd->path, O_RDWR, &dzd->dev);
-	if (ret != 0)
+	if (ret != 0) {
+		dz_if_err("Open device failed",
+			  "Open %s failed %d (%s)",
+			  dzd->path, ret, strerror(ret));
+		fprintf(stderr, "Open device %s failed %d (%s)\n",
+			dzd->path, ret, strerror(ret));
 		return NULL;
+	}
 
 	zbc_get_device_info(dzd->dev, &dzd->info);
 

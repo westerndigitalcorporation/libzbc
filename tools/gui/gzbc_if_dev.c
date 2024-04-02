@@ -1129,21 +1129,10 @@ static void dz_if_update_zones(dz_dev_t *dzd)
 	/* Update zone information */
 	ret = dz_cmd_exec(dzd, DZ_CMD_REPORT_ZONES,
 			  "Getting zone information...");
-	if (ret == 0)
-		goto out;
+	if (ret)
+		dz_if_err("Get zone information failed\n",
+				"Error %d (%s)", ret, strerror(ret));
 
-	dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-					GTK_MESSAGE_ERROR,
-					GTK_BUTTONS_OK,
-					"Get zone information failed\n");
-	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG (dialog),
-						 "Error %d (%s)",
-						 ret, strerror(ret));
-	gtk_dialog_run(GTK_DIALOG(dialog));
-	gtk_widget_destroy(dialog);
-
-out:
 	/* Update list */
 	dz_if_refresh_zlist(dzd);
 }
@@ -1425,36 +1414,22 @@ static gboolean dz_if_zones_draw_cb(GtkWidget *widget, cairo_t *cr,
 static void dz_if_zone_op(dz_dev_t *dzd, enum zbc_zone_op op,
 			  char *op_name, char *msg)
 {
-	GtkWidget *dialog;
+	char str[128];
 	int ret;
 
 	dzd->zone_no = dzd->zlist_selection;
 	dzd->zone_op = op;
 
 	ret = dz_cmd_exec(dzd, DZ_CMD_ZONE_OP, msg);
-	if (ret != 0) {
-
+	if (ret) {
 		if (dzd->zone_no == -1)
-			dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-					GTK_MESSAGE_ERROR,
-					GTK_BUTTONS_OK,
-					"%s all zones failed\n",
-					op_name);
+			sprintf(str, "%s all zones failed\n",
+				op_name);
 		else
-			dialog = gtk_message_dialog_new(GTK_WINDOW(dz.window),
-					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-					GTK_MESSAGE_ERROR,
-					GTK_BUTTONS_OK,
-					"%s zone %d failed\n",
-					op_name, dzd->zone_no);
+			sprintf(str, "%s zone %d failed\n",
+				op_name, dzd->zone_no);
 
-		gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
-							 "Error %d (%s)",
-							 ret, strerror(ret));
-		gtk_dialog_run(GTK_DIALOG(dialog));
-		gtk_widget_destroy(dialog);
-
+		dz_if_err(str, "Error %d (%s)", ret, strerror(ret));
 	}
 
 	/* Update zone list */

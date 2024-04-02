@@ -158,16 +158,17 @@ static inline unsigned long long dz_usec(void)
 
 extern dz_t dz;
 
-extern dz_dev_t * dz_open(char *path);
-extern void dz_close(dz_dev_t *dzd);
+dz_dev_t * dz_open(char *path);
+void dz_close(dz_dev_t *dzd);
 
-extern int dz_cmd_exec(dz_dev_t *dzd, int cmd_id, char *msg);
+int dz_cmd_exec(dz_dev_t *dzd, int cmd_id, char *msg);
 
-extern void dz_if_create(void);
-extern void dz_if_destroy(void);
-extern void dz_if_add_device(char *dev_path);
-extern dz_dev_t * dz_if_dev_open(char *path);
-extern void dz_if_dev_close(dz_dev_t *dzd);
-extern void dz_if_dev_update(dz_dev_t *dzd, int do_report_zones);
+void dz_if_err(const char *msg, const char *fmt, ...);
+void dz_if_create(void);
+void dz_if_destroy(void);
+void dz_if_add_device(char *dev_path);
+dz_dev_t * dz_if_dev_open(char *path);
+void dz_if_dev_close(dz_dev_t *dzd);
+void dz_if_dev_update(dz_dev_t *dzd, int do_report_zones);
 
 #endif /* __GZBC_H__ */
