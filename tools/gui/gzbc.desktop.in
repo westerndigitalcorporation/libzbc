@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=gzbc
+Comment=Manage Zoned Block Devices
+Keywords=disk;drive;harddisk;hdd;disc;smr;SMR;ssd;zns;ZNS;
+Exec=pkexec --disable-internal-agent "@bindir@/gzbc"
+Icon=gzbc
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;

@@ -7,6 +7,7 @@ License:	BSD and LGPLv3+
 URL:		https://github.com/westerndigitalcorporation/%{name}
 Source0:	%{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
+BuildRequires:	desktop-file-utils
 BuildRequires:	gtk3-devel
 BuildRequires:	autoconf
 BuildRequires:	automake
@@ -59,6 +60,8 @@ chmod -x ${RPM_BUILD_ROOT}%{_mandir}/man8/*.8*
 
 find ${RPM_BUILD_ROOT} -name '*.la' -delete
 
+desktop-file-validate %{buildroot}/%{_datadir}/applications/gzbc.desktop
+
 %ldconfig_scriptlets
 
 %files
@@ -83,6 +86,9 @@ find ${RPM_BUILD_ROOT} -name '*.la' -delete
 
 %files gtk-tools
 %{_bindir}/gzbc
+%{_datadir}/polkit-1/actions/org.gnome.gzbc.policy
+%{_datadir}/applications/gzbc.desktop
+%{_datadir}/pixmaps/gzbc.png
 %{_bindir}/gzviewer
 %{_mandir}/man8/gzbc.8*
 %{_mandir}/man8/gzviewer.8*
