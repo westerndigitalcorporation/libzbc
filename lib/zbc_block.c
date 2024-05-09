@@ -772,7 +772,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 	struct zbc_zone *zones;
 	unsigned int i, nr_zones;
 	struct blk_zone_range range;
-	uint64_t sector = 0, seq_sector;
+	uint64_t sector = 0, seq_sector = 0;
 	uint64_t nr_seq_sectors;
 	int ret;
 
