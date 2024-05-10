@@ -54,8 +54,7 @@ struct zbc_drv {
 	 */
 	int		(*zbd_report_zones)(struct zbc_device *, uint64_t,
 					    enum zbc_reporting_options,
-					    struct zbc_zone *, unsigned int *,
-					    uint8_t *, size_t);
+					    struct zbc_zone *, unsigned int *);
 
 	/**
 	 * Execute a zone operation.

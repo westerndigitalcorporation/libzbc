@@ -314,18 +314,18 @@ out:
  * Get a SCSI device zone information.
  */
 static int zbc_scsi_do_report_zones(struct zbc_device *dev, uint64_t sector,
-				enum zbc_reporting_options ro,
-				uint64_t *max_lba,
+				enum zbc_reporting_options ro, uint64_t *max_lba,
 				struct zbc_zone *zones, unsigned int *nr_zones,
-				uint8_t *buf, size_t bufsz)
+				size_t bufsz)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
 	struct zbc_sg_cmd cmd;
+	uint8_t *buf;
 	int ret;
 
 	/* Initialize report zones command */
-	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, buf, bufsz);
+	ret = zbc_sg_cmd_init(dev, &cmd, ZBC_SG_REPORT_ZONES, NULL, bufsz);
 	if (ret != 0)
 		return ret;
 
@@ -497,11 +497,23 @@ out:
  */
 static int zbc_scsi_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
-				 struct zbc_zone *zones, unsigned int *nr_zones,
-				 uint8_t *buf, size_t bufsz)
+				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
+	size_t bufsz = 0;
+
+	if (zones) {
+		bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+		if (bufsz > (*nr_zones + 1) * 64)
+			bufsz = (*nr_zones + 1) * 64;
+	}
+	if (bufsz < dev->zbd_report_bufsz_min)
+		bufsz = dev->zbd_report_bufsz_min;
+	else if (bufsz & dev->zbd_report_bufsz_mask)
+		bufsz = (bufsz + dev->zbd_report_bufsz_mask) &
+			~dev->zbd_report_bufsz_mask;
+
 	return zbc_scsi_do_report_zones(dev, sector, ro, NULL, zones, nr_zones,
-					buf, bufsz);
+					bufsz);
 }
 
 /**
@@ -659,7 +671,6 @@ static int zbc_scsi_get_capacity(struct zbc_device *dev)
 			ret = zbc_scsi_do_report_zones(dev, 0,
 						ZBC_RO_ALL | ZBC_RO_PARTIAL,
 						&max_lba, NULL, &nr_zones,
-						NULL,
 						dev->zbd_report_bufsz_min);
 			if (ret != 0)
 				goto out;

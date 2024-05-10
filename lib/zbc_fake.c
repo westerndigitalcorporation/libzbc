@@ -548,8 +548,7 @@ static bool zbc_fake_must_report_zone(struct zbc_zone *zone,
  */
 static int zbc_fake_report_zones(struct zbc_device *dev, uint64_t sector,
 				 enum zbc_reporting_options ro,
-				 struct zbc_zone *zones, unsigned int *nr_zones,
-				 uint8_t *buf, size_t bufsz)
+				 struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	struct zbc_fake_device *fdev = zbc_fake_to_file_dev(dev);
 	unsigned int max_nr_zones = *nr_zones;

@@ -626,9 +626,8 @@ static bool zbc_block_must_report(struct zbc_zone *zone, uint64_t start_sector,
  * Get the block device zone information.
  */
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t start_sector,
-				enum zbc_reporting_options ro,
-				struct zbc_zone *zones, unsigned int *nr_zones,
-				uint8_t *buf, size_t bufsz)
+				  enum zbc_reporting_options ro,
+				  struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	size_t rep_size;
 	uint64_t sector = start_sector;
@@ -720,8 +719,7 @@ static int zbc_block_reset_one(struct zbc_device *dev, uint64_t sector)
 	int ret;
 
 	/* Get zone info */
-	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
-				     &zone, &nr_zones, NULL, 0);
+	ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL, &zone, &nr_zones);
 	if (ret)
 		return ret;
 
@@ -798,7 +796,7 @@ static int zbc_block_reset_all(struct zbc_device *dev)
 		/* Get zone info */
 		nr_zones = ZBC_BLOCK_ZONE_REPORT_NR_ZONES;
 		ret = zbc_block_report_zones(dev, sector, ZBC_RO_ALL,
-					     zones, &nr_zones, NULL, 0);
+					     zones, &nr_zones);
 		if (ret || !nr_zones)
 			break;
 
@@ -1017,9 +1015,8 @@ static int zbc_block_close(struct zbc_device *dev)
 }
 
 static int zbc_block_report_zones(struct zbc_device *dev, uint64_t sector,
-				enum zbc_reporting_options ro,
-				struct zbc_zone *zones, unsigned int *nr_zones,
-				uint8_t *buf, size_t bufsz)
+				  enum zbc_reporting_options ro,
+				  struct zbc_zone *zones, unsigned int *nr_zones)
 {
 	return -EOPNOTSUPP;
 }
