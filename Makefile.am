@@ -25,7 +25,11 @@ RPMARCH=`$(RPM) --eval %_target_cpu`
 rpm: dist
 	@echo "Building RPM packages..."
 	@mkdir -p $(rpmdir)
-	$(RPMBUILD) -ta --clean -D "_topdir $(rpmdir)" libzbc-$(PACKAGE_VERSION).tar.gz
+	$(RPMBUILD) -ta --clean \
+                -D "_topdir $(rpmdir)" \
+                -D "pkg_name $(PACKAGE_NAME)" \
+                -D "pkg_version $(PACKAGE_VERSION)" \
+		libzbc-$(PACKAGE_VERSION).tar.gz
 	@mv -f $(rpmdir)/RPMS/$(RPMARCH)/*.rpm $(abs_top_builddir)
 	@mv -f $(rpmdir)/SRPMS/*.rpm $(abs_top_builddir)
 	@rm -rf $(rpmdir)

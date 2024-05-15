@@ -1,6 +1,6 @@
-Name:		libzbc
-Version:	5.13.0
-Release:	1%{?dist}
+Name:           %{pkg_name}
+Version:        %{pkg_version}
+Release:        1%{?dist}
 Summary:	A library to control SCSI/ZBC and ATA/ZAC devices
 
 License:	BSD and LGPLv3+
