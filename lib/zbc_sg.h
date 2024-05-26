@@ -438,9 +438,9 @@ static inline uint16_t zbc_sg_get_int16(uint8_t const *buf)
  */
 static inline size_t zbc_sg_align_bufsz(struct zbc_device *dev, size_t bufsz)
 {
-	size_t max_bufsz;
+	size_t max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
+
 	bufsz = (bufsz + 511) & ~511;
-	max_bufsz = dev->zbd_info.zbd_max_rw_sectors << 9;
 	if (!max_bufsz) /* Can happen if called before READ CAPACITY */
 		max_bufsz = 512;
 	if (bufsz > max_bufsz)

@@ -234,8 +234,8 @@ static inline char *zbc_scsi_str(char *dst, uint8_t *buf, int len)
 	int i;
 
 	for (i = len - 1; i >= 0; i--) {
-	       if (isalnum(str[i]))
-		       break;
+		if (isalnum(str[i]))
+			break;
 	}
 
 	if (i >= 0)
@@ -358,10 +358,10 @@ static int zbc_scsi_classify(struct zbc_device *dev)
 			dev->zbd_filename);
 		dev->zbd_info.zbd_model = ZBC_DM_STANDARD;
 		/*
-		   Standard SCSI devices are not supported, but we need
-		   to delay failing the SCSI driver scan here because this
-		   device might be a ZD/ZR drive. That check is done later
-		   in the code.
+		 * Standard SCSI devices are not supported, but we need
+		 * to delay failing the SCSI driver scan here because this
+		 * device might be a ZD/ZR drive. That check is done later
+		 * in the code.
 		*/
 		break;
 
@@ -1120,6 +1120,7 @@ static int zbc_scsi_zone_activate16(struct zbc_device *dev, bool zsrc,
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
 		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+
 		if (sz > cmd.bufsz)
 			sz = cmd.bufsz;
 		zbc_debug("%s: %s REPLY (%zd/%zd B):\n",
@@ -1310,6 +1311,7 @@ static int zbc_scsi_zone_activate32(struct zbc_device *dev, bool zsrc,
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
 		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_sg_get_int32(buf);
+
 		if (sz > cmd.bufsz)
 			sz = cmd.bufsz;
 		zbc_debug("%s: %s REPLY (%zd/%zd B):\n",
@@ -1808,8 +1810,8 @@ int zbc_scsi_get_zbd_characteristics(struct zbc_device *dev)
 					break;
 				case ZBC_ZT_SEQ_OR_BEF_REQ:
 					di->zbd_flags |= ZBC_SOBR_ZONE_SUPPORT;
+				default:
 					break;
-				default:;
 				}
 			}
 		}
@@ -1962,7 +1964,7 @@ static int zbc_scsi_close(struct zbc_device *dev)
  * Vector read from a ZBC device
  */
 ssize_t zbc_scsi_preadv(struct zbc_device *dev,
-		        const struct iovec *iov, int iovcnt, uint64_t offset)
+			const struct iovec *iov, int iovcnt, uint64_t offset)
 {
 	size_t sz = zbc_iov_count(iov, iovcnt);
 	size_t count = sz >> 9;
@@ -1994,7 +1996,7 @@ ssize_t zbc_scsi_preadv(struct zbc_device *dev,
  * Write to a ZBC device
  */
 ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
-		         const struct iovec *iov, int iovcnt, uint64_t offset)
+			 const struct iovec *iov, int iovcnt, uint64_t offset)
 {
 	size_t sz = zbc_iov_count(iov, iovcnt);
 	size_t count = sz >> 9;
@@ -2025,7 +2027,7 @@ ssize_t zbc_scsi_pwritev(struct zbc_device *dev,
 /**
  * Receive ZBD statistic counters from the device.
  */
-static int zbc_scsi_get_stats(struct zbc_device * dev,
+static int zbc_scsi_get_stats(struct zbc_device *dev,
 			      struct zbc_zoned_blk_dev_stats *stats)
 {
 	uint8_t *bufptr;

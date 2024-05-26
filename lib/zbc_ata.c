@@ -1159,6 +1159,7 @@ static int zbc_ata_zone_activate_noaux(struct zbc_device *dev, bool all,
 
 	if (zbc_log_level >= ZBC_LOG_DEBUG) {
 		size_t sz = ZBC_ACTV_RES_HEADER_SIZE + zbc_ata_get_dword(buf);
+
 		if (sz > cmd.bufsz)
 			sz = cmd.bufsz;
 		zbc_debug("%s: %s REPLY (%zd/%zd B):\n",
@@ -1321,7 +1322,7 @@ static int zbc_ata_get_zoned_device_info(struct zbc_device *dev)
 		zbc_warning("%s: ZAC minor version is not reported\n",
 			    dev->zbd_filename);
 	} else {
-		switch(ver) {
+		switch (ver) {
 		case ZBC_ATA_ZAC_REV01:
 			zbc_debug("%s: ZAC minor version is 01\n",
 				  dev->zbd_filename);
@@ -2293,7 +2294,7 @@ static void zbc_ata_test_sbc_sat(struct zbc_device *dev)
 /**
  * Receive ZBD statistic counters from the device.
  */
-static int zbc_ata_get_stats(struct zbc_device * dev,
+static int zbc_ata_get_stats(struct zbc_device *dev,
 			     struct zbc_zoned_blk_dev_stats *stats)
 {
 	/* FIXME implement */
@@ -2387,8 +2388,6 @@ static void zbc_ata_enable_sense_data_reporting(struct zbc_device *dev)
 		zbc_warning("%s: Detailed error reporting may not work\n",
 			    dev->zbd_filename);
 	}
-
-	return;
 }
 
 /**

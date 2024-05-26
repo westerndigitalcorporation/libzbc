@@ -45,8 +45,7 @@ static struct zbc_sg_cmd_s
 
 } zbc_sg_cmd_list[ZBC_SG_CMD_NUM] = {
 
-	[ZBC_SG_TEST_UNIT_READY] =
-	{
+	[ZBC_SG_TEST_UNIT_READY] = {
 		"TEST UNIT READY",
 		ZBC_SG_TEST_UNIT_READY_CDB_OPCODE,
 		0,
@@ -55,8 +54,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_INQUIRY] =
-	{
+	[ZBC_SG_INQUIRY] = {
 		"INQUIRY",
 		ZBC_SG_INQUIRY_CDB_OPCODE,
 		0,
@@ -65,8 +63,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_READ_CAPACITY] =
-	{
+	[ZBC_SG_READ_CAPACITY] = {
 		"READ CAPACITY 16",
 		ZBC_SG_READ_CAPACITY_CDB_OPCODE,
 		ZBC_SG_READ_CAPACITY_CDB_SA,
@@ -75,8 +72,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_MODE_SENSE] =
-	{
+	[ZBC_SG_MODE_SENSE] = {
 		"MODE SENSE 10",
 		ZBC_SG_MODE_SENSE_CDB_OPCODE,
 		0,
@@ -85,8 +81,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_MODE_SELECT] =
-	{
+	[ZBC_SG_MODE_SELECT] = {
 		"MODE SELECT 10",
 		ZBC_SG_MODE_SELECT_CDB_OPCODE,
 		0,
@@ -95,8 +90,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_READ] =
-	{
+	[ZBC_SG_READ] = {
 		"READ 16",
 		ZBC_SG_READ_CDB_OPCODE,
 		0,
@@ -105,8 +99,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_WRITE] =
-	{
+	[ZBC_SG_WRITE] = {
 		"WRITE 16",
 		ZBC_SG_WRITE_CDB_OPCODE,
 		0,
@@ -115,8 +108,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_SYNC_CACHE] =
-	{
+	[ZBC_SG_SYNC_CACHE] = {
 		"SYNCHRONIZE CACHE 16",
 		ZBC_SG_SYNC_CACHE_CDB_OPCODE,
 		0,
@@ -125,8 +117,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT * 2,
 	},
 
-	[ZBC_SG_REPORT_ZONES] =
-	{
+	[ZBC_SG_REPORT_ZONES] = {
 		"REPORT ZONES",
 		ZBC_SG_REPORT_ZONES_CDB_OPCODE,
 		ZBC_SG_REPORT_ZONES_CDB_SA,
@@ -135,8 +126,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_RESET_ZONE] =
-	{
+	[ZBC_SG_RESET_ZONE] = {
 		"RESET WRITE POINTER",
 		ZBC_SG_RESET_ZONE_CDB_OPCODE,
 		ZBC_SG_RESET_ZONE_CDB_SA,
@@ -145,8 +135,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_OPEN_ZONE] =
-	{
+	[ZBC_SG_OPEN_ZONE] = {
 		"OPEN ZONE",
 		ZBC_SG_OPEN_ZONE_CDB_OPCODE,
 		ZBC_SG_OPEN_ZONE_CDB_SA,
@@ -155,8 +144,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_CLOSE_ZONE] =
-	{
+	[ZBC_SG_CLOSE_ZONE] = {
 		"CLOSE ZONE",
 		ZBC_SG_CLOSE_ZONE_CDB_OPCODE,
 		ZBC_SG_CLOSE_ZONE_CDB_SA,
@@ -165,8 +153,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_FINISH_ZONE] =
-	{
+	[ZBC_SG_FINISH_ZONE] = {
 		"FINISH ZONE",
 		ZBC_SG_FINISH_ZONE_CDB_OPCODE,
 		ZBC_SG_FINISH_ZONE_CDB_SA,
@@ -175,8 +162,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_SEQUENTIALIZE_ZONE] =
-	{
+	[ZBC_SG_SEQUENTIALIZE_ZONE] = {
 		"SEQUENTIALIZE ZONE",
 		ZBC_SG_SEQUENTIALIZE_ZONE_CDB_OPCODE,
 		ZBC_SG_SEQUENTIALIZE_ZONE_CDB_SA,
@@ -185,8 +171,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_REPORT_REALMS] =
-	{
+	[ZBC_SG_REPORT_REALMS] = {
 		"REPORT REALMS",
 		ZBC_SG_REPORT_REALMS_CDB_OPCODE,
 		ZBC_SG_REPORT_REALMS_CDB_SA,
@@ -195,8 +180,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_REPORT_ZONE_DOMAINS] =
-	{
+	[ZBC_SG_REPORT_ZONE_DOMAINS] = {
 		"REPORT ZONE DOMAINS",
 		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_OPCODE,
 		ZBC_SG_REPORT_ZONE_DOMAINS_CDB_SA,
@@ -205,8 +189,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_ZONE_ACTIVATE_16] =
-	{
+	[ZBC_SG_ZONE_ACTIVATE_16] = {
 		"ZONE ACTIVATE (16)",
 		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
 		ZBC_SG_ZONE_ACTIVATE_16_CDB_SA,
@@ -215,8 +198,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_ZONE_QUERY_16] =
-	{
+	[ZBC_SG_ZONE_QUERY_16] = {
 		"ZONE QUERY (16)",
 		ZBC_SG_ZONE_QUERY_ACTV_16_CDB_OPCODE,
 		ZBC_SG_ZONE_QUERY_16_CDB_SA,
@@ -225,8 +207,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_ZONE_ACTIVATE_32] =
-	{
+	[ZBC_SG_ZONE_ACTIVATE_32] = {
 		"ZONE ACTIVATE (32)",
 		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
 		ZBC_SG_ZONE_ACTIVATE_32_CDB_SA,
@@ -235,8 +216,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_ZONE_QUERY_32] =
-	{
+	[ZBC_SG_ZONE_QUERY_32] = {
 		"ZONE QUERY (32)",
 		ZBC_SG_ZONE_QUERY_ACTV_32_CDB_OPCODE,
 		ZBC_SG_ZONE_QUERY_32_CDB_SA,
@@ -245,8 +225,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_RECEIVE_DIAG_RESULTS] =
-	{
+	[ZBC_SG_RECEIVE_DIAG_RESULTS] = {
 		"RECEIVE DIAGNOSTIC RESULTS",
 		ZBC_SG_RECEIVE_DIAG_RES_CDB_OPCODE,
 		0,
@@ -255,8 +234,7 @@ static struct zbc_sg_cmd_s
 		ZBC_SG_TIMEOUT,
 	},
 
-	[ZBC_SG_ATA16] =
-	{
+	[ZBC_SG_ATA16] = {
 		"ATA 16",
 		ZBC_SG_ATA16_CDB_OPCODE,
 		0,
@@ -264,15 +242,13 @@ static struct zbc_sg_cmd_s
 		0,
 		ZBC_SG_TIMEOUT,
 	}
-
 };
 
 /**
  * Get a command name from its operation code in a CDB.
  */
-static char const *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
+static const char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
 {
-
 	if (cmd->code >= 0 && cmd->code < ZBC_SG_CMD_NUM)
 		return zbc_sg_cmd_list[cmd->code].cdb_cmd_name;
 
@@ -286,6 +262,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
 	unsigned int sense_buf_len = 0;
 	uint8_t *sense_buf = NULL;
+
 	zerrno = (struct zbc_err_ext){ };
 
 	if (cmd) {
@@ -310,6 +287,7 @@ static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 			/* Walk the descriptors looking for anything of interest */
 			int nbytes = (int)sense_buf[7];
 			uint8_t *desc = &sense_buf[8];
+
 			while (nbytes > 0) {
 				if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
 					/* Sense Data Information */
@@ -411,7 +389,7 @@ int zbc_sg_vcmd_init(struct zbc_device *dev,
 		cmd->buf = buf;
 		cmd->io_hdr.dxferp = cmd->buf;
 	}
-        cmd->io_hdr.dxfer_len = cmd->bufsz;
+	cmd->io_hdr.dxfer_len = cmd->bufsz;
 	cmd->io_hdr.mx_sb_len = ZBC_SG_SENSE_MAX_LENGTH;
 	cmd->io_hdr.sbp = cmd->sense_buf;
 
@@ -424,11 +402,11 @@ int zbc_sg_vcmd_init(struct zbc_device *dev,
 void zbc_sg_cmd_destroy(struct zbc_sg_cmd *cmd)
 {
 	/* Free the command buffer */
-        if (cmd->buf && cmd->buf_needfree) {
+	if (cmd->buf && cmd->buf_needfree) {
 		free(cmd->buf);
 		cmd->buf = NULL;
 		cmd->bufsz = 0;
-        }
+	}
 }
 
 /**
@@ -725,7 +703,7 @@ void zbc_sg_get_bytes(uint8_t const *val, union converter *conv, int bytes)
 void zbc_sg_print_bytes(struct zbc_device *dev, uint8_t const *buf, unsigned int len)
 {
 	char msg[512];
-	unsigned i = 0, j;
+	unsigned int i = 0, j;
 	int n;
 
 	zbc_debug("%s: * +==================================\n",

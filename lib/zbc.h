@@ -245,7 +245,7 @@ extern struct zbc_drv zbc_ata_drv;
 extern struct zbc_drv zbc_scsi_drv;
 
 #define container_of(ptr, type, member) \
-    ((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
+	((type *)((char *)(ptr)-(unsigned long)(&((type *)0)->member)))
 
 /**
  * REPORT ZONES reporting option mask.
@@ -315,7 +315,7 @@ enum {
  */
 extern int zbc_log_level;
 
-#define zbc_print(stream,format,args...)		\
+#define zbc_print(stream, format, args...)		\
 	do {						\
 		fprintf((stream), format, ## args);     \
 		fflush(stream);                         \
@@ -324,7 +324,7 @@ extern int zbc_log_level;
 /**
  * Log level controlled messages.
  */
-#define zbc_print_level(l,stream,format,args...)		\
+#define zbc_print_level(l, stream, format, args...)		\
 	do {							\
 		if ((l) <= zbc_log_level)			\
 			zbc_print((stream), "(libzbc/%d) "	\
@@ -332,19 +332,19 @@ extern int zbc_log_level;
 				  getpid(), ## args);		\
 	} while (0)
 
-#define zbc_warning(format,args...)	\
+#define zbc_warning(format, args...)	\
 	zbc_print_level(ZBC_LOG_WARNING, stderr, "[WARNING] " format, ##args)
 
-#define zbc_error(format,args...)	\
+#define zbc_error(format, args...)	\
 	zbc_print_level(ZBC_LOG_ERROR, stderr, "[ERROR] " format, ##args)
 
-#define zbc_info(format,args...)	\
+#define zbc_info(format, args...)	\
 	zbc_print_level(ZBC_LOG_INFO, stdout, format, ##args)
 
-#define zbc_debug(format,args...)	\
+#define zbc_debug(format, args...)	\
 	zbc_print_level(ZBC_LOG_DEBUG, stdout, format, ##args)
 
-#define zbc_panic(format,args...)	\
+#define zbc_panic(format, args...)	\
 	do {						\
 		zbc_print_level(ZBC_LOG_ERROR,		\
 				stderr,			\

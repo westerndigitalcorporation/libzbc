@@ -149,7 +149,7 @@ char const *zbc_version(void)
 	static char ver[8];
 
 	snprintf(ver, sizeof(ver) - 1, "%s", PACKAGE_VERSION);
-	return (char const*)ver;
+	return (char const *)ver;
 }
 
 /**
@@ -382,8 +382,8 @@ static int zbc_get_domain_info(struct zbc_device *dev)
 					break;
 				case ZBC_ZT_SEQ_OR_BEF_REQ:
 					di->zbd_flags |= ZBC_SOBR_REALMS_SHIFTING;
+				default:
 					break;
-				default:;
 				}
 			}
 		}
@@ -760,25 +760,24 @@ int zbc_zone_group_op(struct zbc_device *dev, uint64_t sector,
 	if (count <= 1 || (flags & ZBC_OP_ALL_ZONES))
 		return (dev->zbd_drv->zbd_zone_op)(dev, sector, 0, op, flags);
 
-	if (zbc_zone_count_supported(&dev->zbd_info)) {
+	if (zbc_zone_count_supported(&dev->zbd_info))
 		return (dev->zbd_drv->zbd_zone_op)(dev, sector, count, op, flags);
-	} else {
-		zbc_debug("%s: zone op COUNT is not supported by drive, emulating\n",
-			    dev->zbd_filename);
-		nr_zones = 1;
-		ret = zbc_report_zones(dev, sector, 0, &zone, &nr_zones);
+
+	zbc_debug("%s: zone op COUNT is not supported by drive, emulating\n",
+		    dev->zbd_filename);
+	nr_zones = 1;
+	ret = zbc_report_zones(dev, sector, 0, &zone, &nr_zones);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < count; i++) {
+		ret = (dev->zbd_drv->zbd_zone_op)(dev, sector, 0, op, flags);
 		if (ret)
 			return ret;
-
-		for (i = 0; i < count; i++) {
-			ret = (dev->zbd_drv->zbd_zone_op)(dev, sector, 0, op, flags);
-			if (ret)
-				return ret;
-			sector += zone.zbz_length;
-		}
-
-		return 0;
+		sector += zone.zbz_length;
 	}
+
+	return 0;
 }
 
 /**
@@ -827,7 +826,7 @@ int zbc_report_domains(struct zbc_device *dev, uint64_t sector,
 
 /**
  * zbc_list_domains - Allocate a buffer and fill it with zone
- * 		      domain information
+ *                    domain information
  */
 int zbc_list_domains(struct zbc_device *dev, uint64_t sector,
 		     enum zbc_domain_report_options ro,
@@ -1111,7 +1110,7 @@ int zbc_zone_query(struct zbc_device *dev, bool zsrc,
 
 /**
  * zbc_get_nr_actv_records - Get the expected number of activation records
- * 			     for a ZONE ACTIVATE or ZONE QUERY operation
+ *                           for a ZONE ACTIVATE or ZONE QUERY operation
  */
 int zbc_get_nr_actv_records(struct zbc_device *dev, bool zsrc, bool all,
 			    bool use_32_byte_cdb, uint64_t sector,
@@ -1230,7 +1229,7 @@ static int zbc_iov_convert(struct iovec *_iov, const struct iovec *iov,
 	size_t sz, size = *sectors << 9;
 	size_t offset = sector_offset << 9;
 	size_t length, count = 0;
-        int i, j = 0;
+	int i, j = 0;
 
 	for (i = 0; i < iovcnt && count < size && nr_pages < max_pages; i++) {
 
@@ -1514,7 +1513,7 @@ int zbc_map_iov(const void *buf, size_t sectors,
 		else
 			len = sectors;
 
-		iov[i].iov_base = (void*)buf;
+		iov[i].iov_base = (void *)buf;
 		iov[i].iov_len = len;
 
 		buf += len << 9;
