@@ -257,6 +257,15 @@ int main(int argc, char **argv)
 	/* Create the main window */
 	gzv_if_create_window();
 
+	/* Check user credentials */
+	if (getuid() != 0) {
+		gzv_if_err("Root privileges are required for running gzviewer",
+			   "Opening a block device file can only be done with "
+			   "elevated priviledges");
+		ret = 1;
+		goto out;
+	}
+
 	if (argc < 2) {
 		/* No device specified: use the file chooser */
 		gzv.path = gzv_choose_dev();
