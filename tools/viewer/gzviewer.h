@@ -91,6 +91,8 @@ extern struct gzv gzv;
 
 int gzv_report_zones(unsigned int zno_start, unsigned int nr_zones);
 
+void gzv_if_err(const char *msg, const char *fmt, ...);
+void gzv_if_create_window(void);
 void gzv_if_create(void);
 void gzv_if_destroy(void);
 

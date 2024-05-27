@@ -108,6 +108,39 @@ static void gzv_close(void)
 	gzv.dev = NULL;
 }
 
+static char *gzv_choose_dev(void)
+{
+	GtkFileChooser *chooser;
+	GtkFileFilter *filter;
+	GtkWidget *dialog;
+	char *path = NULL;
+	gint res;
+
+	/* File chooser */
+	dialog = gtk_file_chooser_dialog_new("Open Zoned Block Device",
+					     GTK_WINDOW(gzv.window),
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     "_Cancel", GTK_RESPONSE_CANCEL,
+					     "_Open", GTK_RESPONSE_ACCEPT,
+					     NULL);
+
+	chooser = GTK_FILE_CHOOSER(dialog);
+	gtk_file_chooser_set_current_folder(chooser, "/dev");
+
+	filter = gtk_file_filter_new();
+	gtk_file_filter_set_name(filter, "Block Device Files");
+	gtk_file_filter_add_mime_type(filter, "inode/blockdevice");
+	gtk_file_chooser_add_filter(chooser, filter);
+
+	res = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (res == GTK_RESPONSE_ACCEPT)
+		path = gtk_file_chooser_get_filename(chooser);
+
+	gtk_widget_destroy(dialog);
+
+	return path;
+}
+
 /*
  * Open a device.
  */
@@ -171,6 +204,7 @@ int main(int argc, char **argv)
 	gboolean init_ret;
 	gboolean verbose = FALSE;
 	GError *error = NULL;
+	int ret = 0;
 	GOptionEntry options[] = {
 		{
 			"interval", 'i', 0,
@@ -213,11 +247,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (argc < 2) {
-		fprintf(stderr, "No device specified\n");
-		return 1;
-	}
-
 	if (verbose)
 		zbc_set_log_level("debug");
 
@@ -225,10 +254,32 @@ int main(int argc, char **argv)
 	if (!gzv.refresh_interval)
 		gzv.refresh_interval = 500;
 
-	gzv.path = argv[1];
+	/* Create the main window */
+	gzv_if_create_window();
+
+	if (argc < 2) {
+		/* No device specified: use the file chooser */
+		gzv.path = gzv_choose_dev();
+		if (!gzv.path) {
+			gzv_if_err("No device specified",
+				"Specifying a zoned block device is mandatory");
+			fprintf(stderr, "No device specified\n");
+			ret = 1;
+			goto out;
+		}
+	} else {
+		gzv.path = argv[1];
+	}
+
 	if (gzv_open()) {
-		fprintf(stderr, "Open %s failed\n", gzv.path);
-		return 1;
+		ret = errno;
+		gzv_if_err("Open device failed",
+			   "Opening %s generated error %d (%s)",
+			   gzv.path, ret, strerror(ret));
+		fprintf(stderr, "Open device %s failed %d (%s)\n",
+			gzv.path, ret, strerror(ret));
+		ret = 1;
+		goto out;
 	}
 
 	gzv_set_signal_handlers();
@@ -239,10 +290,11 @@ int main(int argc, char **argv)
 	/* Main event loop */
 	gtk_main();
 
+out:
 	/* Cleanup GUI */
 	gzv_if_destroy();
 
-	return 0;
+	return ret;
 }
 
 /*
