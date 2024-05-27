@@ -61,6 +61,7 @@ chmod -x ${RPM_BUILD_ROOT}%{_mandir}/man8/*.8*
 find ${RPM_BUILD_ROOT} -name '*.la' -delete
 
 desktop-file-validate %{buildroot}/%{_datadir}/applications/gzbc.desktop
+desktop-file-validate %{buildroot}/%{_datadir}/applications/gzviewer.desktop
 
 %ldconfig_scriptlets
 
@@ -90,6 +91,9 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/gzbc.desktop
 %{_datadir}/applications/gzbc.desktop
 %{_datadir}/pixmaps/gzbc.png
 %{_bindir}/gzviewer
+%{_datadir}/polkit-1/actions/org.gnome.gzviewer.policy
+%{_datadir}/applications/gzviewer.desktop
+%{_datadir}/pixmaps/gzviewer.png
 %{_mandir}/man8/gzbc.8*
 %{_mandir}/man8/gzviewer.8*
 %license LICENSES/LGPL-3.0-or-later.txt

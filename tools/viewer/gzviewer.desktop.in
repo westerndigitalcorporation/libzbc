@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=gzviewer
+Comment=Display the zone state of a Zoned Block Device
+Keywords=disk;drive;harddisk;hdd;disc;smr;SMR;XMR;
+Exec=pkexec --disable-internal-agent "@bindir@/gzviewer"
+Icon=gzviewer
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
