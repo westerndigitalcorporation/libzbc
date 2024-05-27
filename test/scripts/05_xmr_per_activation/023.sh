@@ -10,6 +10,8 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "REPORT REALMS: reporting option 01h (active SOBR)" $*
 
 # Get drive information
