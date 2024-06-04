@@ -494,9 +494,14 @@ function zbc_run_gamut()
     elif [ ${zdr_device} -ne 0 ]; then
 	# Include ZDR tests in per-activation test runs
 	ZBC_TEST_SECTION_LIST+=" 05"
-	if [ ${device_is_ata} -eq 0 -a ${force_ata} -eq 0 ]; then
-	    ZBC_TEST_SECTION_LIST+=" ${SCSI_ZD_SECTION}"
-	    ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
+	if [ ${device_is_ata} -eq 0 ]; then
+	    if [ ${force_ata} -eq 0 ]; then
+		ZBC_TEST_SECTION_LIST+=" ${SCSI_ZD_SECTION}"
+		ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
+	    fi
+	elif [ ${force_ata} -eq 0 ]; then
+		echo "###### `date -Ins` ATA XMR device, using ATA backend"
+		force_ata=1
 	fi
 	ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
 	# Drive testing of Zone Domains devices through Sections 03 and 04
