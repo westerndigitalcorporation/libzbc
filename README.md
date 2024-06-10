@@ -10,10 +10,6 @@ set (ZAC) specifications.
 *libzbc* implementation is compliant with the latest drafts of the ZBC and ZAC
 standards defined by INCITS technical committee T10 and T13 (respectively).
 
-In addition to supporting ZBC and ZAC disks, *libzbc* also implements an
-emulation mode allowing to imitate the behavior of a host managed zoned disk
-using a regular file or a standard block device as backing store.
-
 Several example applications using *libzbc* are available under the tools
 directory.
 
@@ -27,16 +23,24 @@ Detailed information on the execution of device compliance tests can be found
 
 ## Library version
 
-*libzbc* current major version is 5. Due to interface changes, this version is
-not compatible with previous *libzbc* versions (version 4.x). Overall, the
-library operation does not change, but applications written for previous
-*libzbc* versions must be updated to use the new API.
+*libzbc* current major version is 6. Due to interface changes, this version is
+not compatible with previous *libzbc* versions (version 5.x). Applications
+written for previous *libzbc* versions may require updating to use this new
+version.
+
+In version 6, *libzbc* emulation mode allowing to imitate the behavior of a host
+managed zoned disk has been removed. Users of that feature are encouraged to
+migrate to a more advanced zone device emulation provided by QEMU.
+
+In *libzbc* 6.x, the block zone backend driver has been removed. The
+functionality provided by this backend is now available by means of a different
+library, [libzbd](https://github.com/westerndigitalcorporation/libzbd).
 
 ## ZBC and ZAC Standards Versions Supported
 
-*libzbc* latest version is implements ZBC and ZAC standards revision 05. Support
-for the older draft standards are available with [previous releases and
-pre-releases](https://github.com/hgst/libzbc/releases).
+*libzbc* latest version implements INCITS 550 ZBC-2 and ZAC-2 rev. 15
+standards. Support for the older draft standards are available with
+ [previous releases and pre-releases](https://github.com/hgst/libzbc/releases).
 
 ## License
 
