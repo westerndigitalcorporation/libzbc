@@ -7,7 +7,6 @@
 SUBDIRS = . $(subdirs)
 
 AM_CFLAGS = \
-	$(CFLAGS) \
         -Wall -Wextra -Wno-unused-parameter \
         -I$(top_srcdir)/include
 

@@ -5,7 +5,6 @@
 # Copyright (c) 2020 Western Digital Corporation or its affiliates.
 
 AM_CFLAGS = \
-	$(CFLAGS) \
         -Wall -Wextra -Wno-unused-parameter \
         -I$(top_srcdir)/include
 
