@@ -15,7 +15,7 @@ gzbc_SOURCES = \
 	gui/gzbc_if_dev.c \
 	gui/gzbc.h
 
-gzbc_CFLAGS = $(CFLAGS) $(GTK_CFLAGS)
+gzbc_CFLAGS = $(AM_CFLAGS) $(GTK_CFLAGS)
 gzbc_LDADD = $(libzbc_ldadd) $(GTK_LIBS) -lpthread
 
 dist_man8_MANS += gui/gzbc.8
