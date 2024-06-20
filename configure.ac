@@ -22,7 +22,7 @@ AC_ARG_ENABLE(debug,
     [  --enable-debug          Compile with "-g" option],
     [DBGCFLAGS="-g"],
     [DBGCFLAGS="-O2"])
-CFLAGS="$CFLAGS $DBGCFLAGS"
+CFLAGS="$DBGCFLAGS $CFLAGS"
 
 AC_PROG_CC
 AC_PROG_INSTALL
