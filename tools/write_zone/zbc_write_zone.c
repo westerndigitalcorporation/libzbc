@@ -26,7 +26,22 @@
 
 #include <libzbc/zbc.h>
 
-static int zbc_write_zone_abort = 0;
+static int zbc_write_zone_abort;
+
+static ssize_t zbc_read_pattern_file(char *file, int fd, void *iobuf,
+				     size_t iosize, size_t ios)
+{
+	int ret;
+
+	ret = read(fd, iobuf + ios, iosize - ios);
+	if (ret < 0) {
+		fprintf(stderr, "Read file \"%s\" failed %d (%s)\n",
+			file,
+			errno, strerror(errno));
+	}
+
+	return ret;
+}
 
 static inline unsigned long long zbc_write_zone_usec(void)
 {
@@ -95,13 +110,13 @@ int main(int argc, char **argv)
 	char *path, *file = NULL, *end;
 	long long sector_ofst = 0;
 	long long sector_max = 0;
-	long long zone_ofst = 0;
+	long long zone_ofst = 0, zofst;
 	bool flush = false, floop = false, vio = false;
 	unsigned long pattern = 0;
 	int flags = O_WRONLY;
 	int oflags = 0;
 	struct iovec *iov = NULL;
-	int iovcnt = 1, n;
+	int iovcnt = 1, n, z, nz = 1;
 
 	/* Check command line */
 	if (argc < 4)
@@ -204,6 +219,18 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
+		} else if (strcmp(argv[i], "-nz") == 0) {
+
+			if (i >= (argc - 1))
+				goto err;
+			i++;
+
+			nz = atoi(argv[i]);
+			if (nz < 0) {
+				fprintf(stderr, "Invalid number of zones\n");
+				return 1;
+			}
+
 		} else if (argv[i][0] == '-') {
 
 			fprintf(stderr, "Unknown option \"%s\"\n", argv[i]);
@@ -273,9 +300,14 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	/* Get target zone */
+	/* Get the first target zone */
 	if (zidx >= (int)nr_zones) {
 		fprintf(stderr, "Target zone not found\n");
+		ret = 1;
+		goto out;
+	}
+	if (zidx + nz > (int)nr_zones) {
+		fprintf(stderr, "-nz value is too large\n");
 		ret = 1;
 		goto out;
 	}
@@ -390,44 +422,38 @@ int main(int argc, char **argv)
 
 	}
 
-	sector_max = zbc_zone_length(iozone);
-	if (zbc_zone_sequential(iozone)) {
-		if (zbc_zone_full(iozone))
-			sector_max = 0;
-		else if (zbc_zone_wp(iozone) > zbc_zone_start(iozone))
-			sector_max =
-				zbc_zone_wp(iozone) - zbc_zone_start(iozone);
-	}
-
 	elapsed = zbc_write_zone_usec();
 
-	while (!zbc_write_zone_abort) {
+	for (z = 0; z < nz && !zbc_write_zone_abort; z++, iozone++) {
+		sector_max = zbc_zone_length(iozone);
+		if (zbc_zone_sequential(iozone)) {
+			if (zbc_zone_full(iozone))
+				sector_max = 0;
+			else if (zbc_zone_wp(iozone) > zbc_zone_start(iozone))
+				sector_max =
+					zbc_zone_wp(iozone) - zbc_zone_start(iozone);
+		}
+		zofst = zone_ofst;
 
-		if (file) {
+		while (!zbc_write_zone_abort) {
 
-			size_t ios;
+			if (file) {
 
-			/* Read file */
-			ret = read(fd, iobuf, iosize);
-			if (ret < 0) {
-				fprintf(stderr, "Read file \"%s\" failed %d (%s)\n",
-					file,
-					errno,
-					strerror(errno));
-				ret = 1;
-				break;
-			}
+				size_t ios;
 
-			ios = ret;
-			if (ios < iosize) {
-				if (floop) {
+				/* Read file */
+				ret = zbc_read_pattern_file(file, fd, iobuf, iosize, 0);
+				if (ret < 0) {
+					ret = 1;
+					break;
+				}
+
+				ios = ret;
+				if (ios < iosize && floop) {
 					/* Rewind and read remaining of buffer */
 					lseek(fd, 0, SEEK_SET);
-					ret = read(fd, iobuf + ios, iosize - ios);
+					ret = zbc_read_pattern_file(file, fd, iobuf, iosize, 0);
 					if (ret < 0) {
-						fprintf(stderr, "Read file \"%s\" failed %d (%s)\n",
-							file,
-							errno, strerror(errno));
 						ret = 1;
 						break;
 					}
@@ -436,53 +462,53 @@ int main(int argc, char **argv)
 					/* Clear end of buffer */
 					memset(iobuf + ios, 0, iosize - ios);
 				}
+
+				if (!ios)
+					/* EOF */
+					break;
+
 			}
 
-			if (!ios)
-				/* EOF */
+			/* Do not exceed the end of the zone */
+			if (zbc_zone_sequential(iozone) && zbc_zone_full(iozone))
+				sector_count = 0;
+			else
+				sector_count = iosize >> 9;
+			if (zofst + sector_count > sector_max)
+				sector_count = sector_max - zofst;
+			if (!sector_count)
 				break;
+			sector_ofst = zbc_zone_start(iozone) + zofst;
 
-		}
-
-		/* Do not exceed the end of the zone */
-		if (zbc_zone_sequential(iozone) && zbc_zone_full(iozone))
-			sector_count = 0;
-		else
-			sector_count = iosize >> 9;
-		if (zone_ofst + sector_count > sector_max)
-			sector_count = sector_max - zone_ofst;
-		if (!sector_count)
-			break;
-		sector_ofst = zbc_zone_start(iozone) + zone_ofst;
-
-		/* Write to zone */
-		if (vio) {
-			n = zbc_map_iov(iobuf, sector_count,
-					iov, iovcnt, bufsize >> 9);
-			if (n < 0) {
-				fprintf(stderr, "iov map failed %d (%s)\n",
-					-n, strerror(-n));
+			/* Write to zone */
+			if (vio) {
+				n = zbc_map_iov(iobuf, sector_count,
+						iov, iovcnt, bufsize >> 9);
+				if (n < 0) {
+					fprintf(stderr, "iov map failed %d (%s)\n",
+						-n, strerror(-n));
+					ret = 1;
+					goto out;
+				}
+				ret = zbc_pwritev(dev, iov, n, sector_ofst);
+			} else {
+				ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
+			}
+			if (ret <= 0) {
+				fprintf(stderr, "%s failed %zd (%s)\n",
+					vio ? "zbc_pwritev" : "zbc_pwrite",
+					-ret, strerror(-ret));
 				ret = 1;
 				goto out;
 			}
-			ret = zbc_pwritev(dev, iov, n, sector_ofst);
-		} else {
-			ret = zbc_pwrite(dev, iobuf, sector_count, sector_ofst);
-		}
-		if (ret <= 0) {
-			fprintf(stderr, "%s failed %zd (%s)\n",
-				vio ? "zbc_pwritev" : "zbc_pwrite",
-				-ret, strerror(-ret));
-			ret = 1;
-			goto out;
-		}
 
-		zone_ofst += ret;
-		bcount += ret << 9;
-		iocount++;
+			zofst += ret;
+			bcount += ret << 9;
+			iocount++;
 
-		if (ionum > 0 && iocount >= ionum)
-			break;
+			if (ionum > 0 && iocount >= ionum)
+				break;
+		}
 	}
 
 	if (flush) {
