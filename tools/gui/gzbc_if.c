@@ -153,7 +153,6 @@ void dz_if_destroy(void)
 
 void dz_if_add_device(char *dev_path)
 {
-	GtkWidget *dialog;
 	GtkWidget *label;
 	GtkWidget *hbox;
 	GtkWidget *button;

@@ -1123,7 +1123,6 @@ static void dz_if_refresh_zlist(dz_dev_t *dzd)
 
 static void dz_if_update_zones(dz_dev_t *dzd)
 {
-	GtkWidget *dialog;
 	int ret;
 
 	/* Update zone information */
