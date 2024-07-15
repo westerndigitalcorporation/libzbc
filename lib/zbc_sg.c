@@ -260,70 +260,61 @@ static const char *zbc_sg_cmd_name(struct zbc_sg_cmd *cmd)
  */
 static void zbc_sg_set_sense(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
 {
-	unsigned int sense_buf_len = 0;
-	uint8_t *sense_buf = NULL;
+	uint8_t *sb = NULL;
+	size_t sb_len = 0;
 
-	zerrno = (struct zbc_err_ext){ };
+	zbc_clear_errno();
 
 	if (cmd) {
-		sense_buf = cmd->sense_buf;
-		sense_buf_len = cmd->io_hdr.sb_len_wr;
+		sb = cmd->sense_buf;
+		sb_len = cmd->io_hdr.sb_len_wr;
 	}
 
-	if (sense_buf == NULL ||
-	    sense_buf_len < 4) {
-		zbc_clear_errno();
+	if (!sb)
 		return;
-	}
 
 	/* Descriptor Reply Format */
-	if ((sense_buf[0] & 0x7F) == 0x72 ||
-	    (sense_buf[0] & 0x7F) == 0x73) {
+	if ((sb[0] & 0x7F) == 0x72 || (sb[0] & 0x7F) == 0x73) {
+		size_t nbytes;
+		uint8_t *desc;
+
+		if (sb_len < 8)
+			return;
+
+		desc = &sb[8];
+		nbytes = (int)sb[7];
+
 		/* store sense key, ASC/ASCQ */
-		zbc_set_errno(sense_buf[1] & 0x0F,
-			      ((int)sense_buf[2] << 8) | (int)sense_buf[3]);
+		zbc_set_errno(sb[1] & 0x0F, ((int)sb[2] << 8) | (int)sb[3]);
 
-		if (zbc_test_mode(dev)) {
-			/* Walk the descriptors looking for anything of interest */
-			int nbytes = (int)sense_buf[7];
-			uint8_t *desc = &sense_buf[8];
-
-			while (nbytes > 0) {
-				if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
-					/* Sense Data Information */
-					zerrno.err_info = zbc_sg_get_int64(&desc[4]);
-				} else if (desc[0] == 1 && nbytes >= 12) {
-					/* Sense Data Command-Specific Info */
-					zerrno.err_csinfo = zbc_sg_get_int64(&desc[4]);
-				}
-				nbytes -= 2 + desc[1];
-				desc += 2 + desc[1];
+		/* Walk the descriptors looking for anything of interest */
+		while (nbytes > 0) {
+			if (desc[0] == 0 && nbytes >= 12 && (desc[2] & 0x80)) {
+				/* Sense Data Information */
+				zerrno.err_info = zbc_sg_get_int64(&desc[4]);
+			} else if (desc[0] == 1 && nbytes >= 12) {
+				/* Sense Data Command-Specific Info */
+				zerrno.err_csinfo = zbc_sg_get_int64(&desc[4]);
 			}
+			nbytes -= 2 + desc[1];
+			desc += 2 + desc[1];
 		}
 
-		return;
-	}
-
-	if (sense_buf_len < 14) {
-		zbc_clear_errno();
 		return;
 	}
 
 	/* Fixed Reply Format */
-	if ((sense_buf[0] & 0x7F) == 0x70 ||
-	    (sense_buf[0] & 0x7F) == 0x71) {
-		/* store sense key, ASC/ASCQ */
-		zbc_set_errno(sense_buf[2] & 0x0F,
-			      ((int)sense_buf[12] << 8) | (int)sense_buf[13]);
+	if (((sb[0] & 0x7F) != 0x70 && (sb[0] & 0x7F) != 0x71) || (sb_len < 14))
+		return;
 
-		if (zbc_test_mode(dev)) {
-			/* Sense Data Information Field */
-			zerrno.err_info = zbc_sg_get_int32(&sense_buf[3]);
+	/* Store sense key, ASC/ASCQ */
+	zbc_set_errno(sb[2] & 0x0F, ((int)sb[12] << 8) | (int)sb[13]);
 
-			/* Sense Data Command-Specific Information Field */
-			zerrno.err_csinfo = zbc_sg_get_int32(&sense_buf[8]);
-		}
-	}
+	/* Sense Data Information Field */
+	zerrno.err_info = zbc_sg_get_int32(&sb[3]);
+
+	/* Sense Data Command-Specific Information Field */
+	zerrno.err_csinfo = zbc_sg_get_int32(&sb[8]);
 }
 
 #ifdef SG_FLAG_DIRECT_IO
