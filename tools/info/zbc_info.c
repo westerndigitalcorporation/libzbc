@@ -128,49 +128,35 @@ int main(int argc, char **argv)
 
 	/* Open device */
 	path = argv[i];
-	if (oflags) {
-		ret = zbc_open(path, oflags | O_RDONLY, &dev);
-		if (ret != 0) {
-			if (ret == -ENODEV)
-				goto not_zoned;
+	ret = zbc_open(path, oflags | O_RDONLY, &dev);
+	if (ret != 0) {
+		if (ret == -ENODEV)
+			fprintf(stderr,
+				"%s is not a zoned block device\n", path);
+		else
 			fprintf(stderr, "Open %s failed (%s)\n",
 				path, strerror(-ret));
-			return 1;
-		}
-		zbc_get_device_info(dev, &info);
-
-		if (do_stats) {
-			ret = zbc_get_zbd_stats(dev, &stats);
-			if (ret) {
-				fprintf(stderr,
-					"%s: Failed to get statistics, err %d (%s)\n",
-					argv[0], ret, strerror(-ret));
-				return 1;
-			} else {
-				print_zbd_stats(&stats);
-			}
-		}
-
-		zbc_close(dev);
-	} else {
-		ret = zbc_device_is_zoned(path, false, &info);
-		if (ret < 0) {
-			fprintf(stderr,
-				"zbc_device_is_zoned failed %d (%s)\n",
-				ret, strerror(-ret));
-			return 1;
-		}
-		if (ret == 0)
-			goto not_zoned;
-
+		return 1;
 	}
+	zbc_get_device_info(dev, &info);
+
+	if (do_stats) {
+		ret = zbc_get_zbd_stats(dev, &stats);
+		if (ret) {
+			fprintf(stderr,
+				"%s: Failed to get statistics, err %d (%s)\n",
+				argv[0], ret, strerror(-ret));
+			zbc_close(dev);
+			return 1;
+		}
+	}
+
+	zbc_close(dev);
 
 	printf("Device %s:\n", argv[i]);
 	zbc_print_device_info(&info, stdout);
-
-	return 0;
-not_zoned:
-	printf("%s is not a zoned block device\n", path);
+	if (do_stats)
+		print_zbd_stats(&stats);
 
 	return 0;
 }
