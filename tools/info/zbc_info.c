@@ -57,6 +57,7 @@ static void print_zbd_stats(struct zbc_zoned_blk_dev_stats *stats)
 
 int main(int argc, char **argv)
 {
+	unsigned int nr_zones, nr_cnv_zones, nr_gap_zones;
 	struct zbc_device *dev;
 	struct zbc_device_info info;
 	struct zbc_zoned_blk_dev_stats stats;
@@ -140,14 +141,43 @@ int main(int argc, char **argv)
 	}
 	zbc_get_device_info(dev, &info);
 
+	/* Get total number of zones */
+	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RZ_RO_ALL, &nr_zones);
+	if (ret != 0) {
+		fprintf(stderr, "zbc_report_nr_zones failed %d\n", ret);
+		goto err_close;
+	}
+
+	/* Get number of conventional zones */
+	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RZ_RO_NOT_WP, &nr_cnv_zones);
+	if (ret != 0) {
+		fprintf(stderr, "zbc_report_nr_zones failed %d\n", ret);
+		goto err_close;
+	}
+
+	/*
+	 * Get number of gap zones: ignore errors as old SMR drives following
+	 * ZBC-1/ZAC-1 specifications will not support the GAP reporting filter.
+	 */
+	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RZ_RO_GAP, &nr_gap_zones);
+	if (ret != 0)
+		nr_gap_zones = 0;
+
+	if (nr_gap_zones > nr_cnv_zones) {
+		fprintf(stderr,
+			"Invalid number of gap zones %u (should be <= %u)\n",
+			nr_gap_zones, nr_cnv_zones);
+		goto err_close;
+	}
+	nr_cnv_zones -= nr_gap_zones;
+
 	if (do_stats) {
 		ret = zbc_get_zbd_stats(dev, &stats);
 		if (ret) {
 			fprintf(stderr,
 				"%s: Failed to get statistics, err %d (%s)\n",
 				argv[0], ret, strerror(-ret));
-			zbc_close(dev);
-			return 1;
+			goto err_close;
 		}
 	}
 
@@ -155,8 +185,21 @@ int main(int argc, char **argv)
 
 	printf("Device %s:\n", argv[i]);
 	zbc_print_device_info(&info, stdout);
+	printf("    %u zone%s:\n", nr_zones, (nr_zones > 1) ? "s" : "");
+	printf("      %u conventional zone%s\n",
+	       nr_cnv_zones, (nr_cnv_zones > 1) ? "s" : "");
+	printf("      %u sequential zones\n",
+	       nr_zones - nr_cnv_zones - nr_gap_zones);
+	if (nr_gap_zones)
+		printf("      %u gap zone%s\n",
+		       nr_gap_zones, (nr_gap_zones > 1) ? "s" : "");
 	if (do_stats)
 		print_zbd_stats(&stats);
 
 	return 0;
+
+err_close:
+	zbc_close(dev);
+
+	return 1;
 }
