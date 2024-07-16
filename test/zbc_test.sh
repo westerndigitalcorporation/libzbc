@@ -58,7 +58,7 @@ function zbc_print_usage()
 }
 
 if [ $# -lt 1 ]; then
-    zbc_print_usage
+	zbc_print_usage
 fi
 
 # Check credentials
@@ -73,8 +73,8 @@ cd `dirname $0`
 # Test programs directory
 ZBC_TEST_BIN_PATH=programs
 if [ ! -d ${ZBC_TEST_BIN_PATH} ]; then
-    echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
-    exit 1
+	echo "Test program directory ${ZBC_TEST_BIN_PATH} does not exist"
+	exit 1
 fi
 bin_path=${ZBC_TEST_BIN_PATH}
 
@@ -105,8 +105,8 @@ done
 
 ZBC_TEST_SCR_PATH=scripts
 if [ ! -d ${ZBC_TEST_SCR_PATH} ]; then
-    echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
-    exit 1
+	echo "Test script directory ${ZBC_TEST_SCR_PATH} does not exist"
+	exit 1
 fi
 
 # Handle arguments
@@ -398,70 +398,70 @@ function reset_device()
 # Run tests
 function zbc_run_config()
 {
-    local sections="$@"
-    local section_name
-    local -i run_cfg_rc=0
+	local sections="$@"
+	local section_name
+	local -i run_cfg_rc=0
 
-    do_exports
+	do_exports
 
-    for section in ${sections} ; do
+	for section in ${sections} ; do
 
-	case "${section}" in
-	"00")
-		section_name="ZBC command completion"
-		;;
-	"01")
-		section_name="ZBC sense key, sense code"
-		;;
-	"02")
-		section_name="ZBC zone state machine"
-		;;
-	"03")
-		section_name="XMR activation"
-		;;
-	"04")
-		section_name="XMR per-activation"
-		;;
-	"05")
-		section_name="XMR command and SOBR zone"
-		;;
-	"07")
-		section_name="ZD SCSI-only"
-		;;
-	"08")
-		section_name="ZBC SCSI-only"
-		;;
-	"09")
-		section_name="site-local (unpublished)"
-		;;
-	* )
-		echo "Unknown test section ${section}"
-		exit 1
-		;;
-	esac
+		case "${section}" in
+		"00")
+			section_name="ZBC command completion"
+			;;
+		"01")
+			section_name="ZBC sense key, sense code"
+			;;
+		"02")
+			section_name="ZBC zone state machine"
+			;;
+		"03")
+			section_name="XMR activation"
+			;;
+		"04")
+			section_name="XMR per-activation"
+			;;
+		"05")
+			section_name="XMR command and SOBR zone"
+			;;
+		"07")
+			section_name="ZD SCSI-only"
+			;;
+		"08")
+			section_name="ZBC SCSI-only"
+			;;
+		"09")
+			section_name="site-local (unpublished)"
+			;;
+		* )
+			echo "Unknown test section ${section}"
+			exit 1
+			;;
+		esac
 
-	zbc_run_section "${section}" "${section_name}"
-	run_cfg_rc=$(( ${run_cfg_rc} | $? ))
-	if [ ${run_cfg_rc} -ne 0 -a ${batch_mode} -eq 0 ]; then
-		break
-	fi
+		zbc_run_section "${section}" "${section_name}"
+		run_cfg_rc=$(( ${run_cfg_rc} | $? ))
+		if [ ${run_cfg_rc} -ne 0 -a ${batch_mode} -eq 0 ]; then
+			break
+		fi
 
-    done
+	done
 
-    return ${run_cfg_rc}
+	return ${run_cfg_rc}
 }
 
 function set_logfile()
 {
-    if [ -z "$1" ]; then
-	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_DEV_BASE}
-    else
-	ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_DEV_BASE}/$1
-    fi
-    local log_path=${ZBC_TEST_LOG_PATH}
-    mkdir -p ${log_path}
-    log_file="${log_path}/zbc_test.log"
-    rm -f ${log_file}
+	if [ -z "$1" ]; then
+		ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_DEV_BASE}
+	else
+		ZBC_TEST_LOG_PATH=${ZBC_TEST_LOG_PATH_DEV_BASE}/$1
+	fi
+	local log_path=${ZBC_TEST_LOG_PATH}
+	mkdir -p ${log_path}
+	log_file="${log_path}/zbc_test.log"
+	rm -f ${log_file}
 }
 
 # Select the test Sections to be run, based on the device type.
@@ -469,167 +469,168 @@ function set_logfile()
 # $1 is log subdirectory name
 function zbc_run_gamut()
 {
-    uname -a		# Record machine and kernel info
+	# Record machine and kernel info
+	uname -a
 
-    zbc_test_get_device_info
+	zbc_test_get_device_info
 
-    # Determine the list of Test Sections to run
-    # Zone Domains devices:
-    #   Section 03 and 04 contain Zone Domain tests.
-    # ZBC (non-ZD) devices:
-    #   One fixed configuration of zone types, invoked directly from this script
-    device_is_ata=`lsscsi -g | grep -E "${device} *$" | grep " ATA " | wc -l`	#XXX Reliable?
+	# Determine the list of Test Sections to run
+	# Zone Domains devices:
+	#   Section 03 and 04 contain Zone Domain tests.
+	# ZBC (non-ZD) devices:
+	#   One fixed configuration of zone types, invoked directly from this script
+	device_is_ata=$(lsscsi -g | grep -E "${device} *$" | grep " ATA " | wc -l)
 
-    # Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
-    ZBC_TEST_SECTION_LIST="00 01 02"
+	# Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
+	ZBC_TEST_SECTION_LIST="00 01 02"
 
-    if [ -n "${exec_section}" ]; then
-	if [ ${zdr_device} -ne 0 ]; then
-	    ZBC_TEST_SECTION_LIST=${exec_section}
-	    prepare_lists "04"			# parent section list
+	if [ -n "${exec_section}" ]; then
+		if [ ${zdr_device} -ne 0 ]; then
+			ZBC_TEST_SECTION_LIST=${exec_section}
+			prepare_lists "04"			# parent section list
+		else
+			prepare_lists ${exec_section}
+			ZBC_TEST_SECTION_LIST=""	# Test sections run directly from this script
+		fi
+	elif [ ${zdr_device} -ne 0 ]; then
+		# Include ZDR tests in per-activation test runs
+		ZBC_TEST_SECTION_LIST+=" 05"
+		if [ ${device_is_ata} -eq 0 ]; then
+			if [ ${force_ata} -eq 0 ]; then
+				ZBC_TEST_SECTION_LIST+=" ${SCSI_ZD_SECTION}"
+				ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
+			fi
+		elif [ ${force_ata} -eq 0 ]; then
+			echo "ATA Zone Domains/Zone Realms device: forcing ATA backend"
+			force_ata=1
+		fi
+		ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
+		# Drive testing of Zone Domains devices through Sections 03 and 04
+		prepare_lists "03 04"			# parent section list
 	else
-	    prepare_lists ${exec_section}
-	    ZBC_TEST_SECTION_LIST=""	# Test sections run directly from this script
+		# Not a Zone Domains device -- omit ZD tests
+		if [ ${device_is_ata} -eq 0 -a ${force_ata} -eq 0 ]; then
+			ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
+		fi
+		ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
+		# Drive testing of classic ZBC devices through Sections 00, 01, 02 (and 08 for SCSI)
+		prepare_lists ${ZBC_TEST_SECTION_LIST}
+		ZBC_TEST_SECTION_LIST=""	# Test sections run directly from this script
 	fi
-    elif [ ${zdr_device} -ne 0 ]; then
-	# Include ZDR tests in per-activation test runs
-	ZBC_TEST_SECTION_LIST+=" 05"
-	if [ ${device_is_ata} -eq 0 ]; then
-	    if [ ${force_ata} -eq 0 ]; then
-		ZBC_TEST_SECTION_LIST+=" ${SCSI_ZD_SECTION}"
-		ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
-	    fi
-	elif [ ${force_ata} -eq 0 ]; then
-		echo "ATA Zone Domain/Zone Realms device: forcing ATA backend"
-		force_ata=1
-	fi
-	ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
-	# Drive testing of Zone Domains devices through Sections 03 and 04
-	prepare_lists "03 04"			# parent section list
-    else
-	# Not a Zone Domains device -- omit ZD tests
-	if [ ${device_is_ata} -eq 0 -a ${force_ata} -eq 0 ]; then
-	    ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
-	fi
-	ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
-	# Drive testing of classic ZBC devices through Sections 00, 01, 02 (and 08 for SCSI)
-	prepare_lists ${ZBC_TEST_SECTION_LIST}
-	ZBC_TEST_SECTION_LIST=""	# Test sections run directly from this script
-    fi
-    if [ ${device_is_ata} -ne 0 ]; then
-	export ZBC_TEST_DEV_ATA="ATA"
-    else
-	unset ZBC_TEST_DEV_ATA
-    fi
-
-    if [ ${ur_control} -eq 0 ]; then
-	# Run test suite on whichever URSWRZ setting the device supports
-	if [ ${unrestricted_read} -eq 0 ]; then
-	    echo "Device supports URSWRZ disabled only"
-	    set_logfile $1/urswrz_n
+	if [ ${device_is_ata} -ne 0 ]; then
+		export ZBC_TEST_DEV_ATA="ATA"
 	else
-	    echo "Device supports URSWRZ enabled only"
-	    set_logfile $1/urswrz_y
+		unset ZBC_TEST_DEV_ATA
 	fi
 
-	reset_device
-	zbc_run_config ${section_list[@]}
-	return $?
-    fi
+	if [ ${ur_control} -eq 0 ]; then
+		# Run test suite on whichever URSWRZ setting the device supports
+		if [ ${unrestricted_read} -eq 0 ]; then
+			echo "Device supports URSWRZ disabled only"
+			set_logfile $1/urswrz_n
+		else
+			echo "Device supports URSWRZ enabled only"
+			set_logfile $1/urswrz_y
+		fi
 
-    if [ ${skip_urswrz_n} ]; then
-	local urswrz_list="y"
-    else
-	local urswrz_list="y n"
-    fi
-
-    # Run test suite on the selected URSWRZ setting(s)
-    local -i mut_rc=0
-    for urswrz in ${urswrz_list}; do
-	echo -e "\nRunning Zone Domains/Zone Realms tests with URSWRZ=${urswrz}"
-	set_logfile $1/urswrz_${urswrz}
-
-	reset_device
-
-	zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur ${urswrz} ${device}
-
-	mut_rc=$(( ${mut_rc} | $? ))
-	if [ $? -ne 0 ]; then
-	    echo "WARNING: Unexpected failure to set unrestricted read to "${urswrz}" on device ${device}"
-	    if [ ${batch_mode} -eq 0 ]; then
-		break
-	    else
-		continue
-	    fi
+		reset_device
+		zbc_run_config ${section_list[@]}
+		return $?
 	fi
 
-	zbc_run_config ${section_list[@]}
-	mut_rc=$(( ${mut_rc} | $? ))
-
-	if [ ${mut_rc} -ne 0 -a ${batch_mode} -eq 0 ]; then
-	    break
+	if [ ${skip_urswrz_n} ]; then
+		local urswrz_list="y"
+	else
+		local urswrz_list="y n"
 	fi
-    done
 
-    return ${mut_rc}
+	# Run test suite on the selected URSWRZ setting(s)
+	local -i mut_rc=0
+	for urswrz in ${urswrz_list}; do
+		echo -e "\nRunning Zone Domains/Zone Realms tests with URSWRZ=${urswrz}"
+		set_logfile $1/urswrz_${urswrz}
+
+		reset_device
+
+		zbc_test_run ${ZBC_TEST_BIN_PATH}/zbc_test_dev_control -q -ur ${urswrz} ${device}
+
+		mut_rc=$(( ${mut_rc} | $? ))
+		if [ $? -ne 0 ]; then
+			echo "WARNING: Unexpected failure to set unrestricted read to "${urswrz}" on device ${device}"
+			if [ ${batch_mode} -eq 0 ]; then
+				break
+			else
+				continue
+			fi
+		fi
+
+		zbc_run_config ${section_list[@]}
+		mut_rc=$(( ${mut_rc} | $? ))
+
+		if [ ${mut_rc} -ne 0 -a ${batch_mode} -eq 0 ]; then
+			break
+		fi
+	done
+
+	return ${mut_rc}
 }
 
 function do_exports()
 {
-    # Used by the child instance of this script to select test Sections
-    export ZBC_TEST_SECTION_LIST
+	# Used by the child instance of this script to select test Sections
+	export ZBC_TEST_SECTION_LIST
 
-    # Used by this script and/or zbc_test_lib.sh
-    export VALGRIND
-    export ZBC_TEST_LOG_PATH_BASE
-    export ZBC_TEST_PASS_DETAIL
+	# Used by this script and/or zbc_test_lib.sh
+	export VALGRIND
+	export ZBC_TEST_LOG_PATH_BASE
+	export ZBC_TEST_PASS_DETAIL
 
-    # Used by Section 04 scripts when invoking this script recursively
-    export eexec_list		# transmit -ee args as -e
-    export cskip_list		# transmit -s args
-    export test_faulty
+	# Used by Section 04 scripts when invoking this script recursively
+	export eexec_list		# transmit -ee args as -e
+	export cskip_list		# transmit -s args
+	export test_faulty
 
-    if [ ${accept_any_fail} -ne 0 ]; then
-	export ZBC_ACCEPT_ANY_FAIL="Y"
-    else
-	unset ZBC_ACCEPT_ANY_FAIL
-    fi
+	if [ ${accept_any_fail} -ne 0 ]; then
+		export ZBC_ACCEPT_ANY_FAIL="Y"
+	else
+		unset ZBC_ACCEPT_ANY_FAIL
+	fi
 
-    if [ ${run_activations_only} -ne 0 ]; then
-	export RUN_ACTIVATIONS_ONLY="Y"
-    else
-	unset RUN_ACTIVATIONS_ONLY
-    fi
+	if [ ${run_activations_only} -ne 0 ]; then
+		export RUN_ACTIVATIONS_ONLY="Y"
+	else
+		unset RUN_ACTIVATIONS_ONLY
+	fi
 
-    if [ ${run_extended_tests} -ne 0 ]; then
-	export ZBC_RUN_EXTENDED_TESTS="Y"
-    else
-	unset ZBC_RUN_EXTENDED_TESTS
-    fi
+	if [ ${run_extended_tests} -ne 0 ]; then
+		export ZBC_RUN_EXTENDED_TESTS="Y"
+	else
+		unset ZBC_RUN_EXTENDED_TESTS
+	fi
 
-    # Transmit --batch flag to meta-children via Section 04 scripts
-    if [ ${batch_mode} -ne 0 ]; then
-	export ZBC_TEST_BATCH_MODE=1
-    else
-	export ZBC_TEST_BATCH_MODE=0
-    fi
+	# Transmit --batch flag to meta-children via Section 04 scripts
+	if [ ${batch_mode} -ne 0 ]; then
+		export ZBC_TEST_BATCH_MODE=1
+	else
+		export ZBC_TEST_BATCH_MODE=0
+	fi
 
-    # Transmit --ata flag to meta-children via Section 04 scripts
-    if [ ${force_ata} -ne 0 ]; then
-	export ZBC_TEST_FORCE_ATA="ATA"
-    else
-	unset ZBC_TEST_FORCE_ATA
-    fi
+	# Transmit --ata flag to meta-children via Section 04 scripts
+	if [ ${force_ata} -ne 0 ]; then
+		export ZBC_TEST_FORCE_ATA="ATA"
+	else
+		unset ZBC_TEST_FORCE_ATA
+	fi
 }
 
 ata_name=""
 if [ ${force_ata} -ne 0 ]; then
-    ata_name="_ata"
+	ata_name="_ata"
 fi
 
 # Establish log file for early failures
 if [ -z "${ZBC_TEST_LOG_PATH_BASE}" ]; then
-    ZBC_TEST_LOG_PATH_BASE=log
+	ZBC_TEST_LOG_PATH_BASE=log
 fi
 ZBC_TEST_LOG_PATH_DEV_BASE=${ZBC_TEST_LOG_PATH_BASE}/${dev_name}${ata_name}
 set_logfile ""
@@ -637,16 +638,16 @@ set_logfile ""
 do_exports
 
 if [ ${print_list} -ne 0 ]; then
-    # List all the tests in all the test sections
-    prepare_lists  "00 01 02 03 04 05 ${SCSI_ZD_SECTION} ${SCSI_ZBC_SECTION} ${EXTRA_SECTION}"
-    zbc_run_config "00 01 02 03 04 05 ${SCSI_ZD_SECTION} ${SCSI_ZBC_SECTION} ${EXTRA_SECTION}"
+	# List all the tests in all the test sections
+	prepare_lists  "00 01 02 03 04 05 ${SCSI_ZD_SECTION} ${SCSI_ZBC_SECTION} ${EXTRA_SECTION}"
+	zbc_run_config "00 01 02 03 04 05 ${SCSI_ZD_SECTION} ${SCSI_ZBC_SECTION} ${EXTRA_SECTION}"
 elif [ -n "${ZBC_TEST_SECTION_LIST}" ] ; then
-    # We are being invoked recursively with a specified Section list.
-    prepare_lists ${ZBC_TEST_SECTION_LIST}
-    zbc_run_config ${ZBC_TEST_SECTION_LIST}
+	# We are being invoked recursively with a specified Section list.
+	prepare_lists ${ZBC_TEST_SECTION_LIST}
+	zbc_run_config ${ZBC_TEST_SECTION_LIST}
 else
-    # Top-level invocation -- run the suite
-    zbc_run_gamut
+	# Top-level invocation -- run the suite
+	zbc_run_gamut
 fi
 ret=$?			# capture our exit code
 
