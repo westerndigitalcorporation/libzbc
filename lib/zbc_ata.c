@@ -1983,6 +1983,41 @@ static int zbc_ata_zone_op(struct zbc_device *dev, uint64_t sector,
 }
 
 /**
+ * Get a device signature from DEVICE DIAGNOSTIC sense data.
+ */
+static int zbc_ata_get_signature(struct zbc_device *dev, struct zbc_sg_cmd *cmd)
+{
+	uint8_t *sb = cmd->sense_buf;
+	size_t sb_len = cmd->io_hdr.sb_len_wr;
+	unsigned int sig;
+
+	if (!sb || sb_len < 8) {
+		zbc_error("%s: No sense data, cannot retreive device signature\n",
+			  dev->zbd_filename);
+		return -1;
+	}
+
+	/*
+	 * Get the device signature from mid and high LBA field of the sense
+	 * data.
+	 */
+	if ((sb[0] & 0x7F) == 0x72 || (sb[0] & 0x7F) == 0x73) {
+		uint8_t *desc = &sb[8];
+
+		/* Descriptor reply Format */
+		sig = (int)desc[11] << 8 | desc[9];
+	} else {
+		/* Fixed reply Format */
+		sig = (int)sb[11] << 8 | sb[10];
+	}
+
+	zbc_debug("%s: Device signature is 0x%04x\n",
+		  dev->zbd_filename, sig);
+
+	return sig;
+}
+
+/**
  * Test device signature (return device model detected).
  */
 static int zbc_ata_classify(struct zbc_device *dev)
@@ -1991,7 +2026,6 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	uint64_t zoned;
 	struct zbc_sg_cmd cmd;
 	unsigned int sig;
-	uint8_t *desc;
 	int ret;
 
 	/* Initialize command */
@@ -2064,11 +2098,7 @@ static int zbc_ata_classify(struct zbc_device *dev)
 	dev->zbd_info.zbd_type = ZBC_DT_ATA;
 
 	/* Test device signature */
-	desc = &cmd.sense_buf[8];
-
-	zbc_debug("%s: Device signature is %02x:%02x\n",
-		  dev->zbd_filename, desc[9], desc[11]);
-	sig = (unsigned int)desc[11] << 8 | desc[9];
+	sig = zbc_ata_get_signature(dev, &cmd);
 	switch (sig) {
 
 	case 0xABCD:
@@ -2085,8 +2115,8 @@ static int zbc_ata_classify(struct zbc_device *dev)
 
 	default:
 		/* Unsupported device */
-		zbc_debug("%s: Unsupported device (signature %02x:%02x)\n",
-			  dev->zbd_filename, desc[9], desc[11]);
+		zbc_debug("%s: Unsupported device (signature 0x%04x)\n",
+			  dev->zbd_filename, sig);
 		dev->zbd_info.zbd_model = ZBC_DM_DRIVE_UNKNOWN;
 		ret = -ENXIO;
 		goto out;
