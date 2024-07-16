@@ -500,7 +500,7 @@ function zbc_run_gamut()
 		ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
 	    fi
 	elif [ ${force_ata} -eq 0 ]; then
-		echo "###### `date -Ins` ATA XMR device, using ATA backend"
+		echo "ATA Zone Domain/Zone Realms device: forcing ATA backend"
 		force_ata=1
 	fi
 	ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
@@ -525,10 +525,10 @@ function zbc_run_gamut()
     if [ ${ur_control} -eq 0 ]; then
 	# Run test suite on whichever URSWRZ setting the device supports
 	if [ ${unrestricted_read} -eq 0 ]; then
-	    echo "###### `date -Ins` Device supports URSWRZ disabled only"
+	    echo "Device supports URSWRZ disabled only"
 	    set_logfile $1/urswrz_n
 	else
-	    echo "###### `date -Ins` Device supports URSWRZ enabled only"
+	    echo "Device supports URSWRZ enabled only"
 	    set_logfile $1/urswrz_y
 	fi
 
@@ -546,7 +546,7 @@ function zbc_run_gamut()
     # Run test suite on the selected URSWRZ setting(s)
     local -i mut_rc=0
     for urswrz in ${urswrz_list}; do
-	echo -e "\n###### `date -Ins` Running the XMR test suite with URSWRZ=${urswrz}"
+	echo -e "\nRunning Zone Domains/Zone Realms tests with URSWRZ=${urswrz}"
 	set_logfile $1/urswrz_${urswrz}
 
 	reset_device
