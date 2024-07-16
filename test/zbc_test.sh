@@ -478,7 +478,7 @@ function zbc_run_gamut()
     #   Section 03 and 04 contain Zone Domain tests.
     # ZBC (non-ZD) devices:
     #   One fixed configuration of zone types, invoked directly from this script
-    device_is_ata=`lsscsi -g | egrep "${device} *$" | grep " ATA " | wc -l`	#XXX Reliable?
+    device_is_ata=`lsscsi -g | grep -E "${device} *$" | grep " ATA " | wc -l`	#XXX Reliable?
 
     # Sections 00, 01, and 02 contain ZBC (non-ZD) scripts.
     ZBC_TEST_SECTION_LIST="00 01 02"
