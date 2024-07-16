@@ -408,7 +408,11 @@ function zbc_test_run()
 	local _cmd="$*"
 
 	echo "" >> ${log_file} 2>&1
-	echo "## `date -Ins` Executing: ${_cmd}" >> ${log_file} 2>&1
+	if [ ${ZBC_TEST_FORCE_ATA} ]; then
+		echo "## `date -Ins` Executing: ZBC_TEST_FORCE_ATA=1 ${_cmd}" >> ${log_file} 2>&1
+	else
+		echo "## `date -Ins` Executing: ${_cmd}" >> ${log_file} 2>&1
+	fi
 	echo "" >> ${log_file} 2>&1
 	${VALGRIND} ${_cmd} >> ${log_file} 2>&1
 
