@@ -1718,10 +1718,10 @@ static int zbc_ata_flush(struct zbc_device *dev)
 /**
  * Get device zone information.
  */
-static int zbc_ata_do_rpt_zones(struct zbc_device *dev, uint64_t sector,
-				enum zbc_zone_reporting_options ro, uint64_t *max_lba,
-				struct zbc_zone *zones, unsigned int *nr_zones,
-				size_t bufsz)
+static int zbc_ata_do_report_zones(struct zbc_device *dev, uint64_t sector,
+			enum zbc_zone_reporting_options ro, uint64_t *max_lba,
+			struct zbc_zone *zones, unsigned int *nr_zones,
+			size_t bufsz)
 {
 	uint64_t lba = zbc_dev_sect2lba(dev, sector);
 	unsigned int i, nz = 0, buf_nz;
@@ -1875,8 +1875,8 @@ static int zbc_ata_report_zones(struct zbc_device *dev, uint64_t sector,
 		bufsz = (bufsz + dev->zbd_report_bufsz_mask) &
 			~dev->zbd_report_bufsz_mask;
 
-	return zbc_ata_do_rpt_zones(dev, sector, ro, NULL, zones, nr_zones,
-				    bufsz);
+	return zbc_ata_do_report_zones(dev, sector, ro, NULL, zones, nr_zones,
+				       bufsz);
 }
 
 /**
@@ -2266,10 +2266,10 @@ int zbc_ata_get_capacity(struct zbc_device *dev)
 		 * To get the entire device capacity, we need to get
 		 * the last LBA of the last zone of the device.
 		 */
-		ret = zbc_ata_do_rpt_zones(dev, 0,
-					   ZBC_RZ_RO_ALL | ZBC_RZ_RO_PARTIAL,
-					   &max_lba,  NULL, &nr_zones,
-					   dev->zbd_report_bufsz_min);
+		ret = zbc_ata_do_report_zones(dev, 0,
+					ZBC_RZ_RO_ALL | ZBC_RZ_RO_PARTIAL,
+					&max_lba,  NULL, &nr_zones,
+					dev->zbd_report_bufsz_min);
 		if (ret != 0)
 			return ret;
 
