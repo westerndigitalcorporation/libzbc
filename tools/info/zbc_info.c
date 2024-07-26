@@ -160,9 +160,16 @@ int main(int argc, char **argv)
 	 * ZBC-1/ZAC-1 specifications will not support the GAP reporting filter.
 	 */
 	ret = zbc_report_nr_zones(dev, 0LL, ZBC_RZ_RO_GAP, &nr_gap_zones);
-	if (ret != 0)
+	if (ret != 0) {
 		nr_gap_zones = 0;
+	} else if (nr_gap_zones <= nr_zones) {
+		nr_gap_zones = nr_zones - nr_gap_zones;
+	} else {
+		fprintf(stderr, "Failed to determine number of gap zones\n");
+		goto err_close;
+	}
 
+	/* GAP zones are also counted as NOT WP zones, so adjust nr_cnv_zones */
 	if (nr_gap_zones > nr_cnv_zones) {
 		fprintf(stderr,
 			"Invalid number of gap zones %u (should be <= %u)\n",
