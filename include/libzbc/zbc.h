@@ -1538,7 +1538,8 @@ enum zbc_zone_reporting_options {
 	/* 12h to 3Dh Reserved */
 
 	/**
-	 * List of the zones with a Zone Type of ZBC_ZT_GAP.
+	 * List all of the zones in the device, except zones with a Zone Type
+	 * of GAP.
 	 */
 	ZBC_RZ_RO_GAP		= 0x3e,
 
