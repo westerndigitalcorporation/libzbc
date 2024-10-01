@@ -14,7 +14,7 @@ EXTENDED_TEST="Y"
 
 zbc_test_init $0 "Run ZBC test on a mixed CONV or SOBR/SWR/SWP device" $*
 
-undef EXTENDED_TEST
+unset EXTENDED_TEST
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix3
 
