@@ -183,7 +183,7 @@ function zbc_test_nozsrc_check_or_NA()
 {
 	if [ ${nozsrc} -eq 0 ]; then
 		is_substr "--fsnoz" "$1"
-		if [ $? -ne 0 ]; then
+		if [ $? -eq 0 ]; then
 			zbc_test_print_not_applicable \
 				"Device does not support NOZSRC/AUXSRC"
 		fi
