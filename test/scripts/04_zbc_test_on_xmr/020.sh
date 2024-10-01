@@ -22,6 +22,15 @@ zbc_test_get_zone_realm_info
 # Find a CONV or SOBR realm that can be activated as SWR or SWP
 zbc_test_search_realm_by_type_and_actv_or_NA "${ZT_NON_SEQ}" "seq" "NOFAULTY"
 
+activate_fail()
+{
+    printf "\n${0}: Failed to activate device realms to intended test configuration ($*)\n"
+    zbc_test_print_failed_sk
+    zbc_test_dump_zone_realm_info
+    zbc_test_dump_zone_info
+    exit
+}
+
 # Find the total number of realms that can be activated as SWR or SWP
 actv_realms=${nr_actv_as_seq_realms}
 if [ ${actv_realms} -eq 0 ]; then
@@ -53,13 +62,10 @@ if [ ${max_act} != "unlimited" ]; then
 fi
 
 # Activate the realms to the configuration for the run we invoke below
-zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
 			${device} ${realm_num} ${nr} ${smr_type}
 if [ $? -ne 0 ]; then
-    printf "\n${0}: %s ${realm_num} ${nr} ${smr_type}\n" \
-	"Failed to activate device realms to intended test configuration"
-    exit
+	activate_fail "${realm_num} ${nr} ${smr_type}"
 fi
 
 # Pass the batch_mode flag through to the run we invoke below

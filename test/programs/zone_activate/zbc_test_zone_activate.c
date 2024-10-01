@@ -31,6 +31,7 @@ struct cmd_options {
 	bool all;
 	bool zone_addr;
 	bool cdb32;
+	bool reset;
 };
 
 static int perform_activation(struct zbc_device *dev, struct zbc_device_info *info,
@@ -43,8 +44,9 @@ static int perform_activation(struct zbc_device *dev, struct zbc_device_info *in
 	uint64_t start;
 	struct zbc_err_ext zbc_err;
 	struct zbc_zd_dev_control ctl;
-	unsigned int nr_units, domain_id = 0xffffffff, nr_realms, nr_actv_recs;
-	uint64_t err_cbf;
+	unsigned int nr_units, domain_id = 0xffffffff;
+	unsigned int nr_realms, nr_actv_recs, reset_zones = 0;
+	uint64_t err_cbf, reset_start = (uint64_t)-1;
 	uint16_t err_za;
 	int ret = 0, i, end;
 
@@ -99,9 +101,12 @@ static int perform_activation(struct zbc_device *dev, struct zbc_device_info *in
 		}
 
 		/* Set the start LBA and the length in zones */
-		for (nr_units = 0, i = start; i < end; i++)
+		for (nr_units = 0, i = start; i < end; i++) {
 			nr_units += zbc_realm_length(&realms[i], domain_id);
-
+			if (opts->reset)
+				reset_zones += zbc_realm_length(&realms[i],
+								r->zbr_dom_id);
+		}
 		if (!nr_units) {
 			fprintf(stderr,
 				"[TEST][ERROR],Realm #%"PRIu64" (start LBA %"PRIu64") has no zones to activate in domain %u\n",
@@ -112,6 +117,11 @@ static int perform_activation(struct zbc_device *dev, struct zbc_device_info *in
 
 		start = zbc_lba2sect(info,
 				     zbc_realm_start_lba(dev, r, domain_id));
+		if (opts->reset)
+			reset_start =
+				zbc_lba2sect(info,
+					     zbc_realm_start_lba(dev, r,
+							r->zbr_dom_id));
 	} else {
 		start = zbc_lba2sect(info, start);
 		domain_id = opts->domain_id;
@@ -173,6 +183,18 @@ static int perform_activation(struct zbc_device *dev, struct zbc_device_info *in
 			goto out;
 		}
 		nr_units = 0;
+	}
+
+	if (opts->reset) {
+		/* Reset zones to avoid 4002 "Not Empty" error */
+		ret = zbc_zone_group_op(dev, reset_start, reset_zones,
+					ZBC_OP_RESET_ZONE,
+					opts->all ? ZBC_OP_ALL_ZONES : 0);
+		if (ret != 0) {
+			fprintf(stderr, "zone reset [#%"PRIu64":+%u] failed, err %i (%s)\n",
+				reset_start, reset_zones, ret, strerror(-ret));
+			ret = 1;
+		}
 	}
 
 	ret = zbc_get_nr_actv_records(dev, !opts->fsnoz, opts->all, opts->cdb32, start,
@@ -266,6 +288,7 @@ int main(int argc, char **argv)
 		       "    -q | --query  : Query only, do not activate\n"
 		       "    -a            : Try to activate all, even if not every zone can be\n"
 		       "    -n | --fsnoz  : Set the number of zones to activate via FSNOZ\n"
+		       "    -r            : Reset zones before activation (ignored for query and zone addressing)\n"
 		       "    -32           : Force using 32-byte SCSI command (16 by default)\n",
 		       argv[0], argv[0]);
 		return 1;
@@ -291,6 +314,8 @@ int main(int argc, char **argv)
 			opts.fsnoz = true;
 		} else if (strcmp(argv[i], "--fsnoz") == 0) {
 			opts.fsnoz = true;
+		} else if (strcmp(argv[i], "-r") == 0) {
+			opts.reset = true;
 		} else {
 			fprintf(stderr,
 				"[TEST][ERROR],Unknown option \"%s\"\n",
