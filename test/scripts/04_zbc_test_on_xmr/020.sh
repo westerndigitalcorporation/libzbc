@@ -12,7 +12,7 @@
 
 zbc_test_init $0 "Run ZBC test activated as a mixed zone-type device" $*
 
-ZBC_TEST_LOG_PATH_BASE=${2}/zonemix
+ZBC_TEST_LOG_PATH_BASE=${2}/zonemix1
 
 # Get information
 zbc_test_get_device_info
@@ -33,11 +33,6 @@ activate_fail()
 
 # Find the total number of realms that can be activated as SWR or SWP
 actv_realms=${nr_actv_as_seq_realms}
-if [ ${actv_realms} -eq 0 ]; then
-    # This should not happen because we found one just above
-    zbc_test_fail_exit "WARNING: No realms can be activated as SWR or SWP"
-fi
-
 if [ $(expr "${realm_num}" + "${actv_realms}") -gt ${nr_realms} ]; then
     actv_realms=$(expr "${nr_realms}" - "${realm_num}")
 fi
@@ -62,7 +57,7 @@ if [ ${max_act} != "unlimited" ]; then
 fi
 
 # Activate the realms to the configuration for the run we invoke below
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 			${device} ${realm_num} ${nr} ${smr_type}
 if [ $? -ne 0 ]; then
 	activate_fail "${realm_num} ${nr} ${smr_type}"

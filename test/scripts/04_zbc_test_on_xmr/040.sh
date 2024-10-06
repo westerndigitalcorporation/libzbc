@@ -10,7 +10,11 @@
 
 . scripts/zbc_test_lib.sh
 
+EXTENDED_TEST="Y"
+
 zbc_test_init $0 "Run ZBC test on another mixed CONV or SOBR/SWR or SWP device" $*
+
+unset EXTENDED_TEST
 
 ZBC_TEST_LOG_PATH_BASE=${2}/zonemix2
 
@@ -46,13 +50,13 @@ activate_fail()
 
 # Activate everything as CONV or SOBR, except don't touch Realms 0 or 5.
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 1 )) 4 ${cmr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 1 )) 4 ${cmr_type} (1)"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 6 )) $(( ${nr_realms} - ${first} - 6 )) ${cmr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 6 )) $(( ${nr_realms} - 6 )) ${cmr_type}"
@@ -60,13 +64,13 @@ fi
 
 # Activate everything as SWR or SWP, except don't touch Realms 0 or 5.
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 1 )) 4 ${smr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 1 )) 4 ${smr_type}"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 6 )) $(( ${nr_realms} - ${first} - 6 )) ${smr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 6 )) $(( ${nr_realms} - 6 )) ${smr_type}"
@@ -74,13 +78,13 @@ fi
 
 # Activate the first 23 Realms as CONV or SOBR, except don't touch Realms 0 or 5.
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 1 )) 4 ${cmr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 1 )) 4 ${cmr_type} (2)"
 fi
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${first} + 6 )) $(( ${first} + 17 )) ${cmr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${first} + 6 )) 17 ${cmr_type}"
@@ -88,7 +92,7 @@ fi
 
 # Activate the last three realms as CONV or SOBR
 
-zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r \
+zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
 		${device} $(( ${nr_realms} - 3 )) 3 ${cmr_type}
 if [ $? -ne 0 ]; then
     activate_fail "$(( ${nr_realms} - 3 )) 3 ${cmr_type}"

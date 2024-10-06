@@ -10,9 +10,9 @@
 
 . scripts/zbc_test_lib.sh
 
-zbc_test_init $0 "Run ZBC test on device after activating all SMR zones" $*
+zbc_test_init $0 "Run ZBC test on device after activating back to CONV or SOBR" $*
 
-ZBC_TEST_LOG_PATH_BASE=${2}/allsmr
+ZBC_TEST_LOG_PATH_BASE=${2}/allcmr2
 
 # Get information
 zbc_test_get_device_info
@@ -39,7 +39,7 @@ fi
 # Activate the realms to the configuration for the run we invoke below
 zbc_test_run ${bin_path}/zbc_test_reset_zone -v ${device} -1
 zbc_test_run ${bin_path}/zbc_test_zone_activate -v -r -s \
-			${device} ${realm_num} ${nr} ${smr_type}
+			${device} ${realm_num} ${nr} ${cmr_type}
 if [ $? -ne 0 ]; then
     printf "\n${0}: %s ${realm_num} ${nr} ${cmr_type}\n" \
 	"Failed to activate device realms to intended test configuration"
@@ -77,8 +77,8 @@ zbc_test_case_on_exit zbc_test_run ${bin_path}/zbc_test_reset_zone ${device} -1
 # Start ZBC test
 zbc_test_meta_run ./zbc_test.sh ${arg_a} ${arg_b} ${arg_w} ${arg_x} ${arg_l} -n ${eexec_list} ${cskip_list} ${device}
 if [ $? -ne 0 ]; then
-    sk="04.030 fail -- log path ${ZBC_TEST_LOG_PATH_BASE}"
-    asc="child test of 04.030 failed $?"
+    sk="04.060 fail -- log path ${ZBC_TEST_LOG_PATH_BASE}"
+    asc="child test of 04.060 failed $?"
 fi
 
 # Check result
