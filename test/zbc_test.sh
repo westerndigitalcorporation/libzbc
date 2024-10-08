@@ -238,6 +238,9 @@ if [ ! -z "${device}" ]; then
 			device="/dev/${sg_dev}"
 		fi
 	fi
+else
+	echo "Test device is not specified"
+	exit 1
 fi
 
 # Build run list from section number arguments
