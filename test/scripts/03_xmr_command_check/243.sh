@@ -10,6 +10,6 @@
 
 zbc_test_actv_flags+=" --query"
 
-NOT_EXTENDED_TEST="Y"
+EXTENDED_TEST="Y"
 
 . scripts/03_xmr_command_check/043.sh "$@"

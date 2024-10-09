@@ -10,4 +10,6 @@
 
 zbc_test_actv_flags+=" -32 --fsnoz"
 
+EXTENDED_TEST="Y"
+
 . scripts/03_xmr_command_check/107.sh "$@"

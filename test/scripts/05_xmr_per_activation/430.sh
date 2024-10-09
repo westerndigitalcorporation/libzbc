@@ -10,4 +10,6 @@
 
 zbc_test_actv_flags+=" --fsnoz -32"
 
+EXTENDED_TEST="Y"
+
 . scripts/05_xmr_per_activation/400.sh "$@"

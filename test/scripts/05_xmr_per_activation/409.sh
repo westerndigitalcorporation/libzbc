@@ -10,8 +10,6 @@
 
 . scripts/zbc_test_lib.sh
 
-EXTENDED_TEST="Y"
-
 zbc_test_init $0 "ZONE ACTIVATE${zbc_test_actv_flags}: LBA range crosses domain boundary (zone addr)" $*
 
 # Get information
