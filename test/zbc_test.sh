@@ -501,8 +501,7 @@ function zbc_run_gamut()
 				ZBC_TEST_SECTION_LIST+=" ${SCSI_ZBC_SECTION}"
 			fi
 		elif [ ${force_ata} -eq 0 ]; then
-			echo "ATA Zone Domains/Zone Realms device: forcing ATA backend"
-			force_ata=1
+			echo "WARNING: ATA XMR device detected, consider using --ata option"
 		fi
 		ZBC_TEST_SECTION_LIST+=" ${EXTRA_SECTION}"
 		# Drive testing of Zone Domains devices through Sections 03 and 04
