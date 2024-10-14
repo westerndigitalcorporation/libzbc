@@ -352,6 +352,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	memset(&opts, 0, sizeof(opts));
+
 	/* Parse options */
 	for (i = 1; i < (argc - 1); i++) {
 		if (argv[i][0] != '-')
