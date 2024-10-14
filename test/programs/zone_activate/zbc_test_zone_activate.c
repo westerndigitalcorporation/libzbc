@@ -284,7 +284,8 @@ static int perform_activation(struct zbc_device *dev, struct zbc_device_info *in
 		start = opts->start;
 		for (chunk_zones = 0, i = start; i < end; i++) {
 			r = &realms[i];
-			if (zbc_realm_zone_type(r, r->zbr_dom_id) != opts->new_type) {
+			if (zbc_realm_activation_allowed(r) &&
+			    zbc_realm_zone_type(r, r->zbr_dom_id) != opts->new_type) {
 				if (chunk_zones == 0) {
 					chunk_start = zbc_lba2sect(info,
 						zbc_realm_start_lba(dev, r, domain_id));
@@ -363,7 +364,7 @@ int main(int argc, char **argv)
 			opts.query = true;
 		} else if (strcmp(argv[i], "-a") == 0) {
 			opts.all = true;
-		} else if (strcmp(argv[i], "-z") == 0){
+		} else if (strcmp(argv[i], "-z") == 0) {
 			opts.zone_addr = true;
 		} else if (strcmp(argv[i], "-32") == 0) {
 			opts.cdb32 = true;
@@ -399,7 +400,6 @@ int main(int argc, char **argv)
 		*/
 		i += 2;
 		opts.zone_addr = true;
-		opts.skip_same = false;
 	} else {
 		if (i >= argc) {
 			fprintf(stderr, "[TEST][ERROR],Missing starting %s\n",
