@@ -99,5 +99,5 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/gzviewer.desktop
 %license LICENSES/LGPL-3.0-or-later.txt
 
 %changelog
-* Tue Apr 02 2024 Dmitry Fomichev <dmitry.fomichev@wdc.com> 6.0.0-1
-- Version 6.0.0 package
+* Wed Oct 16 2024 Dmitry Fomichev <dmitry.fomichev@wdc.com> 6.2.0-1
+- Version 6.2.0 package
